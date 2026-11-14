@@ -1,0 +1,14 @@
+{
+  "name": "la-ultima-pieza",
+  "version": "1.0.0",
+  "private": true,
+  "description": "La última pieza — historias de misterio y decisiones compartidas",
+  "type": "module",
+  "main": "server.mjs",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node unpack.mjs && node verify.mjs",
+    "test": "node --test server.test.mjs",
+    "start": "node server.mjs"
+  }
+}
