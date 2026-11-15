@@ -72,6 +72,7 @@ for(const story of root.STORIES){
   plan.artifacts[0]={...plan.artifacts[0],title:'Originales A y B',description:'Dos sobres, dos cartas. Amplía la imagen para distinguir los matasellos y leer las palabras.',src:'/cartas-ab.png',transcript:d.image.cards.slice(0,2).map(c=>c.join('. ')).join('\n\n')};
   plan.artifacts[1]={id:'cartas-clara-v2',type:'video',title:'Clara · el detalle que recuerda',description:'Un testimonio breve. Escucha el detalle que distingue Clara y contrástalo con el archivo.',roles:['A'],nodes,src:'/cartas-clara.mp4',transcript:root.CartasCase.voice,question:d.audioTask};
   plan.artifacts.splice(1,0,{...plan.artifacts[0],id:'cartas-originales-cd',title:'Originales C y D',src:'/cartas-cd.png',transcript:d.image.cards.slice(2).map(c=>c.join('. ')).join('\n\n')});
+  plan.artifacts.push(...(root.CartasCase.extras||[]));
   continue;
  }
  story.rules=(story.rules||[]).map(t=>t.replace(/Los cuatro medios incluyen texto accesible/,'Cada fuente tiene una alternativa accesible del mismo contenido'));
