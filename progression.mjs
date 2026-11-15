@@ -9,7 +9,8 @@ export function checkPuzzle(session,story,input,uid){
   if(p.stages){
     progress.stages ||= {};
     const current=p.stages.find(x=>!progress.stages[x.id]?.solvedAt);
-    if(!current)return {correct:true,complete:true,message:'Las seis deducciones están guardadas. Completa las decisiones para cerrar la historia.'};
+    if(!current)return {correct:true,complete:true,message:'Las deducciones están guardadas. Completa las decisiones para cerrar la historia.'};
+    if((current.requiredDecisions||0)>session.history.length)throw new ApiError(409,'Acordad primero la decisión pendiente en Historia.');
     if(input.stage&&input.stage!==current.id)throw new ApiError(409,'La investigación ha avanzado. Abre la prueba actual antes de responder.');
     const part=progress.stages[current.id] ||= {attempts:0,hints:0,solvedAt:null};
     if(input.action==='hint'){
