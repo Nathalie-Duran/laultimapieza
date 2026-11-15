@@ -16,22 +16,20 @@ La API verifica el token de Firebase y el correo confirmado. MySQL almacena perf
 
 Al salir o cambiar de cuenta se limpian los datos visibles y se cancelan peticiones pendientes. Un fallo de guardado se muestra como error; no se convierte silenciosamente en guardado local.
 
-## Activación pendiente
+## Configuración y estado
 
-La implementación aún no está desplegada ni validada con Firebase y MySQL reales. firebase-config.json está vacío a propósito. El sitio publicado conserva por ahora la versión anterior con perfiles locales.
+Firebase admite Google y correo/contraseña. La autenticación y el perfil son independientes de la suscripción. La portada, el catálogo, el registro y #planes distinguen una escena gratuita de los casos completos de pago, con precio previsto de 29,95 €/mes (IVA incluido).
 
-1. Crear el proyecto Firebase tras la aceptación de condiciones por la titular.
-2. Registrar una aplicación web y habilitar Google y correo/contraseña en Authentication. Configurar una contraseña mínima de 12 caracteres y protección contra enumeración de correos.
-3. Añadir los dominios autorizados: laultimapieza.es, www.laultimapieza.es, yxkiqfgt3l.c35.airoapp.ai y yxkiqfgt3l.preview.c35.airoapp.ai. Configurar remitente y textos de verificación/recuperación en español.
-4. Completar los identificadores públicos apiKey, authDomain, projectId y appId en firebase-config.json, o usar FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID y FIREBASE_APP_ID. Nunca introducir credenciales privadas de servicio en ese JSON.
-5. Verificar la base de datos de GoDaddy y sus variables DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD. El controlador mysql2 debe instalarse durante el despliegue. DB_SSL_CA permite configurar una CA cuando el proveedor exige TLS. Las tres tablas lup_* se crean al primer acceso autenticado.
-6. Desplegar primero en vista previa. APP_ORIGINS admite una lista de orígenes separados por comas. Vista previa y publicación comparten base de datos según el panel de GoDaddy.
-7. Comprobar con dos cuentas reales: alta/verificación, Google, recuperación de contraseña, cierre de sesión, cambio de cuenta, recarga y recuperación del progreso en otro dispositivo. Probar también dos decisiones concurrentes y un fallo de conexión. Publicar después de estas comprobaciones.
+El pago aún no está conectado. La interfaz lo indica y no simula cobros ni suscripciones. En producción, createGameApi deniega el juego por defecto; solo un futuro proveedor de permisos verificados en servidor podrá autorizarlo. Crear cuenta, editar perfil o recuperar partidas locales nunca concede acceso. Se conservan perfiles e historial, pero nuevas partidas, reanudación, decisiones e invitaciones requieren permiso vigente. Los recursos narrativos históricos fueron distribuidos públicamente y esta comprobación no constituye protección DRM de esos archivos.
 
-Sin configuración completa, /api/auth/config devuelve enabled:false y las cuentas no se anuncian como activadas.
+web/membership.js y web/membership.css contienen la presentación comercial. La escena gratuita se conserva separada del juego completo. Al integrar pagos reales habrá que verificar firmas de webhooks, vincular el cliente con el UID autenticado y comprobar estado y fecha de vigencia antes de proporcionar authorizePlay; no confiar en redirecciones de éxito ni datos del navegador.
+
+## Configuración de otro entorno
+
+Configurar Firebase Authentication, dominios autorizados e identificadores públicos mediante firebase-config.json o FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID y FIREBASE_APP_ID. Configurar DB_HOST, DB_PORT, DB_NAME, DB_USER y DB_PASSWORD; DB_SSL_CA permite indicar una CA cuando se exige TLS. APP_ORIGINS define los orígenes permitidos separados por comas. Las tablas lup_* se crean al primer acceso autenticado. Vista previa y publicación de GoDaddy comparten base de datos.
 
 ## Validación realizada
 
-14 pruebas automatizadas aprobadas: separación entre usuarios, tokens inválidos/revocados, almacenamiento de decisiones, versiones concurrentes, invitaciones, importación local, limpieza de sesión, respuestas tardías, API HTTP y entrega de recursos. Las pruebas de persistencia usan un almacén simulado; no sustituyen la prueba de integración con MySQL. verify.mjs revisa los casos y medios del paquete.
+18 pruebas automatizadas aprobadas (incluyen bloqueo de pago y conservación del progreso): separación entre usuarios, tokens inválidos/revocados, almacenamiento de decisiones, versiones concurrentes, invitaciones, importación local, limpieza de sesión, respuestas tardías, API HTTP y entrega de recursos. Las pruebas de persistencia usan un almacén simulado; no sustituyen la prueba de integración con MySQL. verify.mjs revisa los casos y medios del paquete.
 
-El entorno de edición no pudo descargar mysql2 ni publicar por git debido a restricciones de red. Pendiente instalar dependencias y completar el despliegue, además de configurar Firebase. El dominio personalizado tenía la activación pendiente; usar la dirección pública de GoDaddy para las primeras pruebas.
+La red del terminal no permite publicar por git; los archivos se han subido mediante GitHub y desplegado en GoDaddy. Consultar DEPLOYMENT.md para el estado de publicación y las comprobaciones pendientes.

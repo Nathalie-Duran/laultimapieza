@@ -18,8 +18,13 @@ async function body(request) {
   if(!result||typeof result!=='object'||Array.isArray(result)) fail(400,'La petición no es válida.');
   return result;
 }
-export function createGameApi({config,storageReady=true,verify,withStore,engine,stories,origins=[]}) {
+// Fail closed until a payment provider supplies verified, current entitlements.
+// No browser field, profile edit or local import can grant paid access.
+export function createGameApi({config,storageReady=true,verify,withStore,engine,stories,origins=[],authorizePlay=async()=>false}) {
   const rates=new Map();
+  async function requireSubscription(store,uid){
+    if(await authorizePlay({store,uid})!==true)fail(402,'Necesitas una suscripción de pago activa para jugar. La contratación todavía no está abierta.','SUBSCRIPTION_REQUIRED');
+  }
   return async function handle(request) {
     const url=new URL(request.url),path=url.pathname,method=request.method;
     try {
@@ -35,7 +40,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       const input=method==='GET'?null:await body(request);
       const result=await withStore(async store=>{
         const profile=await store.ensureProfile(user);
-        if(path==='/api/bootstrap'&&method==='GET')return {profile,sessions:await store.listSessions(uid),activeSessionId:profile.activeSessionId||null};
+        if(path==='/api/bootstrap'&&method==='GET')return {profile,sessions:await store.listSessions(uid),activeSessionId:profile.activeSessionId||null,membership:{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false}};
         if(path==='/api/profile'&&method==='PUT'){
           const name=typeof input.name==='string'?input.name.trim():'';
           if(name.length<2||name.length>32||/[\u0000-\u001f\u007f]/.test(name)||!COLORS.includes(input.color))fail(400,'Revisa el nombre y el color de tu perfil.');
@@ -45,7 +50,8 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           if(!stories.some(s=>s.id===input.caseId)||!['solo','duo'].includes(input.mode))fail(400,'Elige un caso y un modo disponibles.');
           if(input.requestId&&!/^[0-9a-f-]{36}$/.test(input.requestId))fail(400,'La petición no es válida.');
           const id=input.requestId||randomUUID(),existing=await store.getSession(id);
-          if(existing)return {session:member(existing,uid)};
+          if(existing){const session=member(existing,uid);await requireSubscription(store,session.ownerId);return {session};}
+          await requireSubscription(store,uid);
           if((await store.listSessions(uid)).length>=200)fail(409,'Has alcanzado el límite de 200 partidas.');
           const session=engine.makeSession(input.caseId,[memberProfile(profile)],input.mode);session.id=id;
           await store.insertSession(session);await store.setActive(uid,id);
@@ -78,6 +84,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         }
         if(path==='/api/active-session'&&method==='PUT'){
           const session=member(await store.getSession(String(input.sessionId||'')),uid);
+          await requireSubscription(store,session.ownerId);
           await store.setActive(uid,session.id);return {saved:true};
         }
         if(path==='/api/join'&&method==='POST'){
@@ -85,6 +92,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           const record=await store.findInvite(hash(input.code));
           if(!record||record.inviteUntil<Date.now())fail(400,'La invitación no es válida o ha caducado.');
           const session=record.session;
+          await requireSubscription(store,session.ownerId);
           if(session.members.some(m=>m.userId===uid))return {session};
           if(session.status!=='waiting'||session.members.length!==1)fail(409,'Esta partida ya tiene su equipo.');
           session.members.push({...memberProfile(profile),role:'B',scores:engine.zero()});session.status='active';session.inviteActive=false;
@@ -94,6 +102,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         const match=/^\/api\/sessions\/([0-9a-f-]{36})(?:\/(choose|invite))?$/.exec(path);
         if(match){
           const session=member(await store.getSession(match[1]),uid);
+          await requireSubscription(store,session.ownerId);
           if(!match[2]&&method==='GET')return {session};
           if(match[2]==='choose'&&method==='POST'){
             if(!Number.isInteger(input.version)||typeof input.nodeId!=='string'||typeof input.choiceId!=='string')fail(400,'La elección no es válida.');
