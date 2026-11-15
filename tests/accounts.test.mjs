@@ -26,9 +26,9 @@ function fakeStore(){
     async setInvite(id,inviteHash,inviteUntil){Object.assign(sessions.get(id),{inviteHash,inviteUntil});}
   };
 }
-function harness(){
+function harness(authorizePlay=async()=>true){
   const store=fakeStore();
-  const api=createGameApi({config,engine,stories,origins:['https://example.test'],withStore:fn=>fn(store),verify:async request=>{
+  const api=createGameApi({config,engine,stories,authorizePlay,origins:['https://example.test'],withStore:fn=>fn(store),verify:async request=>{
     const id=request.headers.get('authorization');if(!['alice','bob','eve'].includes(id))throw new ApiError(401,'Inicia sesión.');return {userId:id,name:id};
   }});
   const call=async (uid,path,body,method,origin='https://example.test')=>{
@@ -37,6 +37,44 @@ function harness(){
   };
   return {store,call,api};
 }
+test('Sin suscripción se bloquean nuevas partidas y no bastan campos enviados por el navegador',async()=>{
+  const {call,store}=harness(async()=>false);
+  const result=await call('alice','/api/sessions',{caseId:stories[0].id,mode:'solo',subscription:'active',canPlay:true,paid:true});
+  assert.equal(result.status,402);assert.equal(result.body.code,'SUBSCRIPTION_REQUIRED');assert.equal(store.sessions.size,0);
+  const profile=await call('alice','/api/bootstrap');assert.equal(profile.status,200);assert.equal(profile.body.membership.canPlay,false);
+  assert.equal((await call('alice','/api/profile',{name:'Alice',color:'#b1846b',paid:true},'PUT')).status,200);
+  assert.equal((await call('alice','/api/bootstrap')).body.membership.canPlay,false);
+});
+test('Perder la suscripción bloquea continuar, votar e invitar sin borrar el progreso',async()=>{
+  let active=true;
+  const {call}=harness(async({uid})=>active&&uid==='alice');
+  const created=(await call('alice','/api/sessions',{caseId:stories[0].id,mode:'duo'})).body;
+  active=false;
+  const id=created.session.id;
+  assert.equal((await call('alice','/api/sessions/'+id)).status,402);
+  assert.equal((await call('alice','/api/active-session',{sessionId:id},'PUT')).status,402);
+  assert.equal((await call('alice','/api/sessions/'+id+'/choose',{nodeId:created.session.nodeId,choiceId:'x',version:0})).status,402);
+  assert.equal((await call('alice','/api/sessions/'+id+'/invite',{})).status,402);
+  assert.equal((await call('bob','/api/join',{code:created.inviteCode})).status,402);
+  assert.equal((await call('eve','/api/sessions/'+id)).status,404);
+  assert.equal((await call('alice','/api/bootstrap')).body.sessions.length,1);
+  active=true;
+  assert.equal((await call('bob','/api/join',{code:created.inviteCode})).status,200);
+  assert.equal((await call('bob','/api/sessions/'+id)).status,200);
+});
+test('Importar progreso local no concede acceso de pago',async()=>{
+  const {call}=harness(async()=>false),story=stories[0];
+  const imported=await call('alice','/api/import-local',{localSessionId:'legacy',caseId:story.id,history:[]});
+  assert.equal(imported.status,200);
+  assert.equal((await call('alice','/api/sessions/'+imported.body.session.id)).status,402);
+  assert.equal((await call('alice','/api/bootstrap')).body.membership.canPlay,false);
+});
+test('La configuración de producción deniega acceso por defecto sin proveedor de pago',async()=>{
+  const store=fakeStore();
+  const api=createGameApi({config,engine,stories,withStore:fn=>fn(store),verify:async()=>({userId:'alice',name:'Alice',paid:true})});
+  const result=await api(new Request('https://example.test/api/sessions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({caseId:stories[0].id,mode:'solo'})}));
+  assert.equal(result.status,402);assert.equal(store.sessions.size,0);
+});
 test('Una cuenta no puede leer, reanudar, votar ni invitar a partidas ajenas',async()=>{
   const {call}=harness();const created=await call('alice','/api/sessions',{caseId:stories[0].id,mode:'solo'});assert.equal(created.status,200);
   const id=created.body.session.id;
