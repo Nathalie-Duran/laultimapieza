@@ -6,8 +6,8 @@ const c=vm.createContext({});
 for(const name of ['stories.js','season.js','media-plan.js','evidence-design.js'])vm.runInContext(await readFile(new URL('../public/'+name,import.meta.url),'utf8'),c);
 test('Thirteen cases have distinct image, audio and website sources, all reachable from both branches',async()=>{
  for(const story of c.STORIES){
-  const p=story.id==='habitacion-309'?c.MEDIA_PLAN:c.SEASON_MEDIA[story.id];assert.deepEqual(Array.from(p.artifacts,a=>a.type),['image','audio','website']);
-  assert.equal(new Set(p.artifacts.map(a=>a.transcript)).size,3);
+  const p=story.id==='habitacion-309'?c.MEDIA_PLAN:c.SEASON_MEDIA[story.id];assert.deepEqual(Array.from(p.artifacts,a=>a.type),story.id==='cartas-medianoche'?['image','image','video','website']:['image','audio','website']);
+  assert.equal(new Set(p.artifacts.map(a=>a.transcript)).size,p.artifacts.length);
   for(const a of p.artifacts){const bytes=await readFile(new URL('../public'+a.src,import.meta.url));assert.ok(bytes.length>40);if(story.season===1){assert.ok(a.nodes.includes('pista_a'));assert.ok(a.nodes.includes('pista_b'));}}
   const page=await readFile(new URL('../public/evidence/'+story.id+'.html',import.meta.url),'utf8');assert.doesNotMatch(page,/<audio|<video|\.wav|\.webm/);
   const svg=await readFile(new URL('../public/evidence/'+story.id+'.svg',import.meta.url),'utf8');assert.match(svg,/<svg/);assert.match(svg,/<desc/);
