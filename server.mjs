@@ -7,12 +7,26 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('./public/', import.meta.url));
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8', '.png':'image/png', '.svg':'image/svg+xml', '.jpg':'image/jpeg', '.wav':'audio/wav', '.mp3':'audio/mpeg', '.webm':'video/webm', '.mp4':'video/mp4', '.vtt':'text/vtt; charset=utf-8', '.pdf':'application/pdf', '.ico':'image/x-icon' };
 
-export function createApp() {
+export function createApp({api} = {}) {
   return createServer(async (req, res) => {
     const reply = (status, message) => { res.writeHead(status, {'Content-Type':'text/plain; charset=utf-8'}); res.end(req.method === 'HEAD' ? undefined : message); };
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    if (req.url?.startsWith('/api/')) {
+      res.setHeader('Cache-Control', 'no-store');
+      if (!api) return reply(503, 'Servicio de cuentas no disponible');
+      try {
+        const chunks=[];let bytes=0;
+        for await (const chunk of req) {bytes+=chunk.length;if(bytes>16384)return reply(413,'Petición demasiado grande');chunks.push(chunk);}
+        const request = new Request('https://laultimapieza.es'+req.url, {method:req.method,
+          headers:req.headers, ...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
+        const response=await api(request);
+        response.headers.forEach((value,key)=>res.setHeader(key,value));
+        res.writeHead(response.status);res.end(Buffer.from(await response.arrayBuffer()));
+      } catch { res.writeHead(503,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify({error:'El servicio no está disponible. Vuelve a intentarlo.'})); }
+      return;
+    }
     if (!['GET', 'HEAD'].includes(req.method)) { res.setHeader('Allow','GET, HEAD'); return reply(405, 'Método no permitido'); }
     let route;
     try { route = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); } catch { return reply(400, 'Ruta no válida'); }
@@ -46,5 +60,7 @@ export function createApp() {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  createApp().listen(Number(process.env.PORT || 3000), '0.0.0.0', () => console.log('La última pieza: servidor listo'));
+  const {createRuntimeApi}=await import('./runtime-api.mjs');
+  const api=await createRuntimeApi();
+  createApp({api}).listen(Number(process.env.PORT || 3000), '0.0.0.0', () => console.log('La última pieza: servidor listo'));
 }

@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, cp } from 'node:fs/promises';
 import { inflateRawSync } from 'node:zlib';
 import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,4 +37,7 @@ for (let i=0; i<count; i++) {
   await mkdir(dirname(file),{recursive:true});
   await writeFile(file,output);
 }
-console.log(`Aplicación preparada: ${count} archivos.`);
+// Tracked text sources override the historical bundle; media remain in public.zip.
+try { await cp(new URL('./web/',import.meta.url),root,{recursive:true}); }
+catch(error) { if(error.code!=='ENOENT') throw error; }
+console.log(`Aplicación preparada: ${count} archivos y fuentes web actuales.`);

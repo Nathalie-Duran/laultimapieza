@@ -1,25 +1,37 @@
 # La última pieza
 
-Web de misterio preparada para Node.js 22. Incluye el caso La habitación 309, doce casos de temporada y el expediente documental clásico.
+Aplicación Node.js 22 con historias de misterio, decisiones y partidas individuales o compartidas.
 
-## Ejecutar
+## Desarrollo
 
-```sh
-npm run build
-npm test
-npm start
-```
+Instalar dependencias con npm install. Ejecutar npm run build, npm test y npm start. El servidor escucha en PORT (3000 por defecto).
 
-El servidor escucha en `PORT` (3000 por defecto). No necesita dependencias externas. El paquete versionado `public.zip` contiene todo el código de la interfaz y los medios; `npm run build` lo extrae a `public/` y verifica los casos. Admite peticiones parciales para reproducir y buscar dentro de audios y vídeos.
+public.zip conserva los casos y recursos multimedia originales. unpack.mjs lo extrae y superpone los archivos de web/, que son las fuentes editables de la interfaz. No editar public/: se regenera al iniciar. El servidor admite peticiones parciales de audio y vídeo.
 
-Para modificar la interfaz, extraer primero con `npm run build`, editar `public/` y regenerar `public.zip` con el contenido de esa carpeta en la raíz del ZIP antes de confirmar los cambios.
+## Cuentas y progreso
 
-## Despliegue en GoDaddy
+Implementación preparada: Firebase Authentication para Google y correo/contraseña, verificación de correo, recuperación de contraseña, sesión por pestaña o persistente mediante Recordarme, cierre de sesión y recuperación explícita de partidas locales.
 
-Seleccionar el repositorio `Nathalie-Duran/laultimapieza` y la rama `la-ultima-pieza`. Compilación: `npm run build`. Inicio: `npm start`. No se necesitan secretos para esta versión. GoDaddy requiere asociar un plan de hosting para activar la publicación pública.
+La API verifica el token de Firebase y el correo confirmado. MySQL almacena perfiles y partidas, con pertenencia comprobada en cada acceso, transacciones y control de versión para las decisiones. Las invitaciones caducan en 24 horas y se almacenan como hash. No se almacenan contraseñas en la base de datos del juego.
 
-## Estado real de esta versión
+Al salir o cambiar de cuenta se limpian los datos visibles y se cancelan peticiones pendientes. Un fallo de guardado se muestra como error; no se convierte silenciosamente en guardado local.
 
-Los perfiles y el progreso se guardan únicamente en el navegador. Se puede jugar individualmente o compartir el dispositivo. Esta migración no incluye todavía autenticación con Google/correo, sincronización entre dispositivos ni cobros. No se presenta el perfil local como una cuenta autenticada. Estos servicios deben configurarse antes de anunciar esas funciones.
+## Activación pendiente
 
-Se ha recuperado la copia guardada `La_ultima_pieza_Redisenada.html`, versión 9 del 14/11/2026. Sus recursos multimedia se sirven como archivos independientes. Se han retirado del recorrido principal los avisos de beta y las ofertas de suscripción sin activar.
+La implementación aún no está desplegada ni validada con Firebase y MySQL reales. firebase-config.json está vacío a propósito. El sitio publicado conserva por ahora la versión anterior con perfiles locales.
+
+1. Crear el proyecto Firebase tras la aceptación de condiciones por la titular.
+2. Registrar una aplicación web y habilitar Google y correo/contraseña en Authentication. Configurar una contraseña mínima de 12 caracteres y protección contra enumeración de correos.
+3. Añadir los dominios autorizados: laultimapieza.es, www.laultimapieza.es, yxkiqfgt3l.c35.airoapp.ai y yxkiqfgt3l.preview.c35.airoapp.ai. Configurar remitente y textos de verificación/recuperación en español.
+4. Completar los identificadores públicos apiKey, authDomain, projectId y appId en firebase-config.json, o usar FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID y FIREBASE_APP_ID. Nunca introducir credenciales privadas de servicio en ese JSON.
+5. Verificar la base de datos de GoDaddy y sus variables DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD. El controlador mysql2 debe instalarse durante el despliegue. DB_SSL_CA permite configurar una CA cuando el proveedor exige TLS. Las tres tablas lup_* se crean al primer acceso autenticado.
+6. Desplegar primero en vista previa. APP_ORIGINS admite una lista de orígenes separados por comas. Vista previa y publicación comparten base de datos según el panel de GoDaddy.
+7. Comprobar con dos cuentas reales: alta/verificación, Google, recuperación de contraseña, cierre de sesión, cambio de cuenta, recarga y recuperación del progreso en otro dispositivo. Probar también dos decisiones concurrentes y un fallo de conexión. Publicar después de estas comprobaciones.
+
+Sin configuración completa, /api/auth/config devuelve enabled:false y las cuentas no se anuncian como activadas.
+
+## Validación realizada
+
+14 pruebas automatizadas aprobadas: separación entre usuarios, tokens inválidos/revocados, almacenamiento de decisiones, versiones concurrentes, invitaciones, importación local, limpieza de sesión, respuestas tardías, API HTTP y entrega de recursos. Las pruebas de persistencia usan un almacén simulado; no sustituyen la prueba de integración con MySQL. verify.mjs revisa los casos y medios del paquete.
+
+El entorno de edición no pudo descargar mysql2 ni publicar por git debido a restricciones de red. Pendiente instalar dependencias y completar el despliegue, además de configurar Firebase. El dominio personalizado tenía la activación pendiente; usar la dirección pública de GoDaddy para las primeras pruebas.
