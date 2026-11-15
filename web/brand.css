@@ -1,0 +1,11 @@
+/* Approved identity: la pieza que te observa. Use the same source in every placement. */
+.brand-icon{position:relative;display:block;flex:0 0 46px;width:46px;height:50px;overflow:hidden}
+.brand-icon img{position:absolute;display:block;width:90px!important;height:90px!important;max-width:none;left:-22px;top:-2px;filter:brightness(0) invert(1);pointer-events:none}
+.brand .brand-icon{max-width:none}
+.brand:focus-visible,.footer-brand:focus-visible{outline:2px solid var(--club-gold);outline-offset:6px;border-radius:4px}
+.club-hero-art.branded-art{display:flex;align-items:center;justify-content:center;background-image:linear-gradient(180deg,#080c15a6,#080c15cc),url('/art/bellamar-cinema.png')}
+.hero-brand{display:block;width:min(78%,330px);height:auto;aspect-ratio:1;object-fit:contain;filter:brightness(0) invert(1);margin:12px 0 64px}
+.club-art-foot.brand-tagline{text-align:center;left:24px;right:24px;font:500 12px/1.5 var(--sans);letter-spacing:1.4px;color:var(--club-ivory);padding-top:18px}
+.footer-brand{display:flex;align-items:center;gap:10px;color:var(--club-ivory);text-decoration:none}
+.footer-brand .brand-icon{transform:scale(.7);transform-origin:left center;margin-right:-12px}
+@media(max-width:650px){.brand-icon{flex-basis:40px;width:40px;height:44px}.brand-icon img{width:80px!important;height:80px!important;left:-20px;top:-2px}.hero-brand{width:230px;margin:15px 0 65px}.club-art-foot.brand-tagline{font-size:11px;letter-spacing:1px}.footer-brand .brand-icon{margin-right:-10px}}
