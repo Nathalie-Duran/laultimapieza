@@ -10,9 +10,11 @@ const context=createContext({structuredClone,crypto:globalThis.crypto});
 for(const file of ['stories.js','season.js','engine.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
 const engine=context.GameEngine,stories=context.STORIES;
 function fakeStore(){
-  const profiles=new Map(),sessions=new Map();
+  const profiles=new Map(),sessions=new Map(),rewards=new Map();
   return {
-    profiles,sessions,
+    profiles,sessions,rewards,
+    async getSeasonSolved(uid,season){return rewards.get(uid+':'+season)||null;},
+    async saveSeasonSolved(uid,season){const key=uid+':'+season;if(!rewards.has(key))rewards.set(key,new Date().toISOString());},
     async ensureProfile(user){if(!profiles.has(user.userId))profiles.set(user.userId,{...user,color:'#b1846b'});return structuredClone(profiles.get(user.userId));},
     async getProfile(uid){return structuredClone(profiles.get(uid));},
     async updateProfile(uid,name,color){Object.assign(profiles.get(uid),{name,color});return this.getProfile(uid);},
@@ -37,6 +39,28 @@ function harness(authorizePlay=async()=>true){
   };
   return {store,call,api};
 }
+
+test('El plano solo revela piezas de casos terminados por la cuenta y exige doce experiencias distintas',async()=>{
+  const {store,call}=harness();
+  await call('alice','/api/bootstrap');
+  const finish=story=>{let s=engine.makeSession(story.id,[{userId:'alice',name:'Alice'}],'solo');while(s.status==='active')s=engine.vote(s,'alice',s.nodeId,story.nodes[s.nodeId].choices[0].id,s.version).session;return s;};
+  const season=stories.filter(s=>s.season===1);
+  const first=finish(season[0]);await store.insertSession(first);await store.insertSession(finish(season[0]));await store.insertSession(finish(stories[0]));
+  const one=(await call('alice','/api/season')).body.journey;
+  assert.equal(one.completed,1);assert.equal(one.stops.filter(s=>s.letter).length,1);assert.equal(one.stops[0].letter,'U');
+  assert.equal((await call('alice','/api/season/solve',{key:'UMBRALOCULTO',completed:12,solvedAt:'fake'})).status,409);
+  assert.equal((await call('bob','/api/season')).body.journey.completed,0);
+  assert.equal((await call('','/api/season')).status,401);
+  for(const story of season.slice(1))await store.insertSession(finish(story));
+  const full=(await call('alice','/api/bootstrap')).body.journey;
+  assert.equal(full.completed,12);assert.equal(full.solvedAt,null);
+  const letters=full.stops.map(s=>s.letter);assert.equal([0,4,8,1,5,9,2,6,10,3,7,11].map(i=>letters[i]).join(''),'UMBRALOCULTO');
+  assert.equal((await call('alice','/api/season/solve',{key:'incorrecta'})).status,400);
+  const solved=await call('alice','/api/season/solve',{key:' umbral oculto '});assert.equal(solved.status,200);assert.ok(solved.body.journey.solvedAt);
+  assert.equal((await call('alice','/api/bootstrap')).body.journey.solvedAt,solved.body.journey.solvedAt);
+  assert.equal((await call('alice','/api/season/solve',{key:'UMBRALOCULTO'})).body.journey.solvedAt,solved.body.journey.solvedAt);
+  assert.equal((await call('bob','/api/season/solve',{key:'UMBRALOCULTO'})).status,409);
+});
 test('Sin suscripción se bloquean nuevas partidas y no bastan campos enviados por el navegador',async()=>{
   const {call,store}=harness(async()=>false);
   const result=await call('alice','/api/sessions',{caseId:stories[0].id,mode:'solo',subscription:'active',canPlay:true,paid:true});

@@ -18,7 +18,7 @@ async function appHarness(){
     AccountUI:{start:async value=>{bridge=value;},signInPanel:()=>'<h1>Iniciar sesión</h1>',header:()=>'',accountCard:()=>'',open(){}},
     addEventListener(){},scrollTo(){}});
   context.window=context;
-  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
+  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js','experience-ui.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
   runInContext(source,context);bridge.cloud(true);bridge.loading(false);
   return {bridge,element,membership:context.ClubAccess,setFetch(value){fetcher=value;}};
 }
