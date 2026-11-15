@@ -29,7 +29,7 @@ test('Firmas de pago auténticas, antigüedad y comparación exacta',()=>{
 });
 test('El plano reserva sus revelaciones y el epílogo exige decisión persistida',async()=>{
  const c=vm.createContext({document:{addEventListener(){}},fetch:async()=>new Response('{}'),Response,console});c.window=c;
- for(const f of ['stories.js','season.js','experience-ui.js','investigation-ui.js','engagement-ui.js'])vm.runInContext(await readFile(new URL('../public/'+f,import.meta.url),'utf8'),c);
+ for(const f of ['stories.js','season.js','experience-ui.js','cartas-investigation.js','investigation-ui.js','engagement-ui.js'])vm.runInContext(await readFile(new URL('../public/'+f,import.meta.url),'utf8'),c);
  const m={stories:c.STORIES,sessions:[],canPlay:false,journey:{completed:0,stops:[]}};
  assert.doesNotMatch(c.ExperienceUI.map(m),/Ella reunió los doce/);
  assert.doesNotMatch(c.ExperienceUI.map(m),/Una nota firmada por Irene/);

@@ -191,7 +191,7 @@ assert.equal((await call('alice','/api/season')).body.journey.completed,0);
 assert.equal((await call('bob','/api/sessions/'+s.id+'/puzzle',{answer:story.puzzle.answer})).status,404);
 const wrong=await call('alice','/api/sessions/'+s.id+'/puzzle',{answer:'falso',correct:true,solvedAt:'fake'});assert.equal(wrong.body.correct,false);assert.equal(wrong.body.journey.completed,0);
 const help=await call('alice','/api/sessions/'+s.id+'/puzzle',{action:'hint'});assert.equal(help.body.hints.length,1);
-const solved=await call('alice','/api/sessions/'+s.id+'/puzzle',{answer:story.puzzle.answer});assert.equal(solved.body.correct,true);assert.equal(solved.body.journey.completed,1);
+let solved;for(const step of story.puzzle.stages||[story.puzzle])solved=await call('alice','/api/sessions/'+s.id+'/puzzle',{stage:step.id,answer:step.answer});assert.equal(solved.body.correct,true);assert.equal(solved.body.journey.completed,1);
 assert.equal((await call('alice','/api/bootstrap')).body.sessions[0].investigation.hints,1);
 });
 
@@ -210,4 +210,36 @@ test('El acceso editorial exige identidad verificada y no se hereda por perfil o
   assert.equal((await call('/api/bootstrap')).data.membership.canPlay,false);
   const id=[...store.sessions.keys()][0];assert.equal((await call('/api/sessions/'+id)).status,404);
   identity={userId:'owner',email:'changed@example.test',emailVerified:true};assert.equal((await call('/api/sessions/'+id)).status,402);
+});
+
+test('Revising a finished route replaces its suffix, recalculates scores and preserves investigation',async()=>{
+ const {call,store}=harness(),story=stories.find(x=>x.id==='cartas-medianoche');
+ let s=(await call('alice','/api/sessions',{caseId:story.id,mode:'solo'})).body.session;
+ while(s.status==='active')s=(await call('alice','/api/sessions/'+s.id+'/choose',{nodeId:s.nodeId,choiceId:story.nodes[s.nodeId].choices[0].id,version:s.version})).body.session;
+ s.investigation={solvedAt:'legacy-solved',stages:{mensaje:{solvedAt:'now',hints:1}}};await store.saveSession(s);
+ const old=structuredClone(s),index=1,node=story.nodes[s.history[index].nodeId],choice=node.choices[1];
+ const revised=await call('alice','/api/sessions/'+s.id+'/revise',{index,version:s.version,choiceId:choice.id,scores:{inteligencia:999}});
+ assert.equal(revised.status,200);s=revised.body.session;assert.equal(s.history.length,2);assert.equal(s.nodeId,choice.next);assert.equal(s.status,'active');assert.ok(s.version>old.version);
+ assert.deepEqual(s.history[0],old.history[0]);assert.deepEqual(s.investigation,old.investigation);
+ for(const key of engine.KEYS)assert.equal(s.members[0].scores[key],(old.history[0].preferenceEffects.alice[key]||0)+(choice.effects[key]||0));
+ assert.equal((await call('alice','/api/sessions/'+s.id+'/revise',{index,version:old.version,choiceId:choice.id})).status,409);
+ assert.equal((await call('eve','/api/sessions/'+s.id+'/revise',{index:0,version:s.version,choiceId:'x'})).status,404);
+ assert.equal((await call('alice','/api/sessions/'+s.id+'/revise',{index:8,version:s.version,choiceId:'x'})).status,409);
+});
+
+test('Shared revision requires the owner, removes old votes and waits for a new agreement',async()=>{
+ let active=true;const {call}=harness(async()=>active),story=stories.find(x=>x.id==='cartas-medianoche');
+ const created=(await call('alice','/api/sessions',{caseId:story.id,mode:'duo'})).body;
+ let s=(await call('bob','/api/join',{code:created.inviteCode})).body.session;
+ const first=story.nodes[s.nodeId].choices[0];
+ s=(await call('alice','/api/sessions/'+s.id+'/choose',{nodeId:s.nodeId,choiceId:first.id,version:s.version})).body.session;
+ s=(await call('bob','/api/sessions/'+s.id+'/choose',{nodeId:s.nodeId,choiceId:first.id,version:s.version})).body.session;
+ const choice=story.nodes[story.startNode].choices[1],body={index:0,version:s.version,choiceId:choice.id};
+ assert.equal((await call('bob','/api/sessions/'+s.id+'/revise',body)).status,403);
+ active=false;assert.equal((await call('alice','/api/sessions/'+s.id+'/revise',body)).status,402);active=true;
+ s=(await call('alice','/api/sessions/'+s.id+'/revise',body)).body.session;
+ assert.equal(s.history.length,0);assert.equal(s.votes.length,1);assert.equal(s.votes[0].userId,'alice');assert.equal(s.members[1].scores.inteligencia,0);
+ s=(await call('bob','/api/sessions/'+s.id+'/choose',{nodeId:s.nodeId,choiceId:choice.id,version:s.version})).body.session;
+ assert.equal(s.history.length,1);assert.equal(s.nodeId,choice.next);
+ for(const m of s.members)assert.equal(Object.values(m.scores).reduce((a,b)=>a+b,0),3);
 });
