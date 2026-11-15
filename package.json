@@ -9,6 +9,6 @@
   "scripts": {
     "build": "node unpack.mjs && node verify.mjs",
     "test": "node --test server.test.mjs",
-    "start": "node server.mjs"
+    "start": "node unpack.mjs && node server.mjs"
   }
 }
