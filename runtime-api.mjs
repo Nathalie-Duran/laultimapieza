@@ -10,6 +10,7 @@ export async function createRuntimeApi(env=process.env) {
   let saved={};
   try{saved=JSON.parse(await readFile(new URL('./firebase-config.json',import.meta.url),'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}
   const config=Object.fromEntries(Object.entries(firebaseConfig(env)).map(([key,value])=>[key,value||saved[key]||'']));
+  if(config.projectId==='la-ultima-pieza')config.authDomain='laultimapieza.es';
   const context=createContext({crypto:globalThis.crypto,structuredClone});context.window=context;
   for(const name of ['stories.js','season.js','engine.js'])runInContext(await readFile(new URL('./public/'+name,import.meta.url),'utf8'),context,{timeout:2000,filename:name});
   const billing=createBilling(env);

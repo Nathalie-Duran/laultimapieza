@@ -3,16 +3,26 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { firebaseAuthProxy } from './firebase-proxy.mjs';
 
 const root = fileURLToPath(new URL('./public/', import.meta.url));
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8', '.png':'image/png', '.svg':'image/svg+xml', '.jpg':'image/jpeg', '.wav':'audio/wav', '.mp3':'audio/mpeg', '.webm':'video/webm', '.mp4':'video/mp4', '.vtt':'text/vtt; charset=utf-8', '.pdf':'application/pdf', '.ico':'image/x-icon' };
 
-export function createApp({api} = {}) {
+export function createApp({api,authProxy=firebaseAuthProxy} = {}) {
   return createServer(async (req, res) => {
     const reply = (status, message) => { res.writeHead(status, {'Content-Type':'text/plain; charset=utf-8'}); res.end(req.method === 'HEAD' ? undefined : message); };
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    if(req.url?.startsWith('/__/auth/')||req.url?.startsWith('/__/firebase/init.json')){
+      try{
+        const chunks=[];let size=0;
+        for await(const chunk of req){size+=chunk.length;if(size>131072)return reply(413,'Peticion demasiado grande');chunks.push(chunk);}
+        const response=await authProxy(new Request('https://laultimapieza.es'+req.url,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})}));
+        response.headers.forEach((value,key)=>res.setHeader(key,value));res.writeHead(response.status);res.end(Buffer.from(await response.arrayBuffer()));
+      }catch{reply(502,'No se puede iniciar sesion ahora. Vuelve a intentarlo.');}
+      return;
+    }
     if (req.url?.startsWith('/api/')) {
       res.setHeader('Cache-Control', 'no-store');
       if (!api) return reply(503, 'Servicio de cuentas no disponible');
