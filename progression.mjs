@@ -6,6 +6,25 @@ export function checkPuzzle(session,story,input,uid){
   if(!p||!p.unlockNodes.some(n=>seen.has(n)))throw new ApiError(409,'Descubre las pruebas antes de resolver el enigma.');
   session.investigation ||= {attempts:0,hints:0,solvedAt:null};
   const progress=session.investigation;
+  if(p.stages){
+    progress.stages ||= {};
+    const current=p.stages.find(x=>!progress.stages[x.id]?.solvedAt);
+    if(!current)return {correct:true,complete:true,message:'Las seis deducciones están guardadas. Completa las decisiones para cerrar la historia.'};
+    if(input.stage&&input.stage!==current.id)throw new ApiError(409,'La investigación ha avanzado. Abre la prueba actual antes de responder.');
+    const part=progress.stages[current.id] ||= {attempts:0,hints:0,solvedAt:null};
+    if(input.action==='hint'){
+      part.hints=Math.min(current.hints.length,part.hints+1);progress.hints=(progress.hints||0)+1;
+      return {correct:false,complete:false,hints:current.hints.slice(0,part.hints),message:'Ayuda guardada para esta prueba.'};
+    }
+    if(typeof input.answer!=='string'||input.answer.length>200)throw new ApiError(400,'Escribe una respuesta de hasta 200 caracteres.');
+    const tidy=value=>normalise(value).replace(/[.,]/g,'').replace(/^CARRER (?:DE )?|^CALLE (?:DE )?/,'');
+    const correct=[current.answer,...(current.aliases||[])].some(a=>tidy(a)===tidy(input.answer));
+    part.attempts++;progress.attempts=(progress.attempts||0)+1;
+    if(correct){part.solvedAt=new Date().toISOString();part.solvedBy=uid;}
+    const complete=p.stages.every(x=>progress.stages[x.id]?.solvedAt);
+    if(complete&&!progress.solvedAt){progress.solvedAt=new Date().toISOString();progress.solvedBy=uid;}
+    return {correct,complete,stage:current.id,hints:current.hints.slice(0,part.hints),message:correct?current.explanation:'Esa conexión aún no encaja. Contrasta las fuentes de esta prueba o abre una ayuda.'};
+  }
   if(input.action==='hint'){
     progress.hints=Math.min((p.hints||[]).length,progress.hints+1);
     return {correct:!!progress.solvedAt,hints:p.hints.slice(0,progress.hints),message:'Ayuda guardada. Puedes volver a consultarla.'};

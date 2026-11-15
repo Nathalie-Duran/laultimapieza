@@ -44,5 +44,8 @@ console.log(`Aplicación preparada: ${count} archivos y fuentes web actuales.`);
 // Apply the same authored case revision in browsers, tests and server engines.
 const seasonFile=new URL('./public/season.js',import.meta.url);
 await writeFile(seasonFile,(await readFile(seasonFile,'utf8'))+'\n'+await readFile(new URL('./web/cartas-case.js',import.meta.url),'utf8'));
+await writeFile(seasonFile,(await readFile(seasonFile,'utf8'))+'\n'+await readFile(new URL('./web/cartas-hour.js',import.meta.url),'utf8'));
+const engineFile=new URL('./public/engine.js',import.meta.url);
+await writeFile(engineFile,(await readFile(engineFile,'utf8'))+'\n'+await readFile(new URL('./web/revision-engine.js',import.meta.url),'utf8'));
 const {buildEvidence}=await import('./build-evidence.mjs');
 await buildEvidence();

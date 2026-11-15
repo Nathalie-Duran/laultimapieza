@@ -1,5 +1,6 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import vm from 'node:vm';
+import {postalArchive,documentSvg} from './postal-archive.mjs';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function wrap(s,width=44){const lines=[];let line='';for(const word of s.split(/\s+/)){if((line+' '+word).trim().length>width&&line){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;}
 const text=(s,x,y,size=23,color='#172b36')=>`<text x="${x}" y="${y}" font-size="${size}" fill="${color}">${escape(s)}</text>`;
@@ -34,10 +35,15 @@ function svg(id,d){
  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}" role="img" aria-labelledby="title desc"><title id="title">${escape(d.title)}</title><desc id="desc">${escape(description)}</desc><rect width="1200" height="${height}" fill="#e9e4d6"/><g font-family="Arial, sans-serif">${text('LA ÚLTIMA PIEZA · DOCUMENTO DE FICCIÓN',56,58,20,'#536959')}${text(d.title,56,110,36)}${content}${text('Examina los detalles. Cruza esta fuente con las otras pruebas del caso.',56,height-34,20,'#536959')}</g></svg>`;
 }
 export async function buildEvidence(){
- const c=vm.createContext({});for(const name of ['cartas-case.js','evidence-design.js'])vm.runInContext(await readFile(new URL('./web/'+name,import.meta.url),'utf8'),c);
+ const c=vm.createContext({});for(const name of ['cartas-case.js','cartas-hour.js','evidence-design.js'])vm.runInContext(await readFile(new URL('./web/'+name,import.meta.url),'utf8'),c);
  const dir=new URL('./public/evidence/',import.meta.url);await mkdir(dir,{recursive:true});
  for(const [id,d] of Object.entries(c.EvidenceDesign.cases)){
   await writeFile(new URL(id+'.svg',dir),svg(id,d.image));
+  if(id==='cartas-medianoche'){
+   await writeFile(new URL(id+'.html',dir),postalArchive(d.web));
+   for(const doc of c.CartasCase.documents)await writeFile(new URL('cartas-'+doc.id+'.svg',dir),documentSvg(doc));
+   continue;
+  }
   const sections=d.web.sections.map(([title,paragraphs],i)=>`<section id="record-${i}"><span class="record">REGISTRO ${String(i+1).padStart(2,'0')}</span><h2>${escape(title)}</h2>${paragraphs.map(p=>`<p>${escape(p)}</p>`).join('')}</section>`).join('');
   await writeFile(new URL(id+'.html',dir),`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(d.web.title)} · Archivo ficticio</title><style>*{box-sizing:border-box}body{margin:0;background:#f4f0e6;color:#233b3b;font:18px/1.7 Georgia,serif}header{background:#183d37;color:#fff;padding:36px max(24px,calc((100% - 900px)/2))}header small,.record{font:12px/1.5 Arial,sans-serif;letter-spacing:2px;color:#8fc5af}h1{font-size:clamp(28px,5vw,44px);line-height:1.15}main{max-width:948px;margin:0 auto;padding:28px 24px}nav{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}nav a{color:#175847;font:16px Arial;padding:10px;border:1px solid #b4c6b7;border-radius:6px}section{background:#fffdf7;border:1px solid #d5ddce;border-left:5px solid #57816b;padding:24px;margin:24px 0;scroll-margin-top:20px}section .record{color:#56765d}h2{font:700 24px/1.3 Arial;margin-top:8px}footer{font:14px/1.5 Arial;border-top:1px solid #b4c6b7;padding:20px 0}a:focus-visible{outline:3px solid #bd662c}p{overflow-wrap:anywhere}</style><header><small>FUENTE DEL CASO · ARCHIVO DE FICCIÓN</small><h1>${escape(d.web.title)}</h1><p>Copia de consulta. Cada registro conserva su procedencia.</p></header><main><nav aria-label="Registros">${d.web.sections.map(([title],i)=>`<a href="#record-${i}">${escape(title)}</a>`).join('')}</nav>${sections}<footer>La última pieza · Este sitio pertenece al universo ficticio del juego. No contiene información sobre personas o servicios reales. Vuelve a la pestaña de la partida para contrastar las otras fuentes.</footer></main></html>`);
  }

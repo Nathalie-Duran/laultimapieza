@@ -146,15 +146,22 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           await store.addMember(session.id,uid);await store.saveSession(session);await store.setInvite(session.id,null,null);await store.setActive(uid,session.id);
           return {session};
         }
-        const match=/^\/api\/sessions\/([0-9a-f-]{36})(?:\/(choose|invite|puzzle))?$/.exec(path);
+        const match=/^\/api\/sessions\/([0-9a-f-]{36})(?:\/(choose|invite|puzzle|revise))?$/.exec(path);
         if(match){
           const session=member(await store.getSession(match[1]),uid);
           await requireSubscription(store,session.ownerId,user,session.caseId);
           if(!match[2]&&method==='GET')return {session,journey:await readJourney(store,stories,uid)};
+          if(match[2]==='revise'&&method==='POST'){
+            if(session.ownerId!==uid)fail(403,'Solo quien creó la partida puede cambiar el recorrido compartido.');
+            if(!Number.isInteger(input.index)||!Number.isInteger(input.version)||typeof input.choiceId!=='string')fail(400,'La revisión no es válida.');
+            let outcome;try{outcome=engine.revise(session,uid,input.index,input.choiceId,input.version);}catch(error){fail(409,error.message,'STATE_CHANGED');}
+            await store.saveSession(outcome.session);await store.setActive(uid,session.id);
+            return {...outcome,journey:await readJourney(store,stories,uid)};
+          }
           if(match[2]==='puzzle'&&method==='POST'){
             const alreadySolved=!!session.investigation?.solvedAt;
             const result=checkPuzzle(session,stories.find(s=>s.id===session.caseId),input,uid);
-            if(store.metric){if(input.action==='hint')await store.metric('puzzle_hint');else if(result.correct&&!alreadySolved)await store.metric('puzzle_solved');else if(!result.correct)await store.metric('puzzle_retry');}
+            if(store.metric){if(input.action==='hint')await store.metric('puzzle_hint');else if(result.correct&&result.complete!==false&&!alreadySolved)await store.metric('puzzle_solved');else if(!result.correct)await store.metric('puzzle_retry');}
             await store.saveSession(session);return {...result,session,journey:await readJourney(store,stories,uid)};
           }
           if(match[2]==='choose'&&method==='POST'){
