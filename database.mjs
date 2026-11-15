@@ -1,6 +1,8 @@
 import { ApiError } from './auth-provider.mjs';
 
 const schema = [
+  `CREATE TABLE IF NOT EXISTS lup_member_data (user_id VARCHAR(128) COLLATE utf8mb4_bin PRIMARY KEY, customer_id VARCHAR(80) NULL, data_json LONGTEXT NOT NULL, INDEX lup_customer(customer_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS lup_metrics (day_key VARCHAR(10) NOT NULL, event_key VARCHAR(40) NOT NULL, total INT NOT NULL DEFAULT 0, PRIMARY KEY(day_key,event_key)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_season_rewards (
     user_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL, season INT NOT NULL,
     solved_at VARCHAR(30) NOT NULL, PRIMARY KEY(user_id,season)
@@ -43,6 +45,13 @@ export function createDatabase(env=process.env) {
       await initialized;
       await connection.beginTransaction();
       const store = {
+        async getMemberData(uid) {
+          await query('INSERT IGNORE INTO lup_member_data (user_id,data_json) VALUES (?,?)',[uid,'{}']);
+          return JSON.parse((await query('SELECT data_json FROM lup_member_data WHERE user_id=? FOR UPDATE',[uid]))[0].data_json);
+        },
+        async saveMemberData(uid,data) { await query('UPDATE lup_member_data SET customer_id=?,data_json=? WHERE user_id=?',[data.customer||null,JSON.stringify(data),uid]); },
+        async findCustomer(id) { return (await query('SELECT user_id FROM lup_member_data WHERE customer_id=?',[id]))[0]?.user_id||null; },
+        async metric(event) { await query('INSERT INTO lup_metrics(day_key,event_key,total) VALUES (?,?,1) ON DUPLICATE KEY UPDATE total=total+1',[new Date().toISOString().slice(0,10),event]); },
         async getSeasonSolved(uid,season) { return (await query('SELECT solved_at FROM lup_season_rewards WHERE user_id=? AND season=?',[uid,season]))[0]?.solved_at||null; },
         async saveSeasonSolved(uid,season) { await query('INSERT IGNORE INTO lup_season_rewards (user_id,season,solved_at) VALUES (?,?,?)',[uid,season,new Date().toISOString()]); },
         async ensureProfile(user) {

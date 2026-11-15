@@ -18,7 +18,7 @@ export function createApp({api} = {}) {
       if (!api) return reply(503, 'Servicio de cuentas no disponible');
       try {
         const chunks=[];let bytes=0;
-        for await (const chunk of req) {bytes+=chunk.length;if(bytes>16384)return reply(413,'Petición demasiado grande');chunks.push(chunk);}
+        for await (const chunk of req) {bytes+=chunk.length;if(bytes>(req.url==='/api/billing/webhook'?1048576:16384))return reply(413,'Petición demasiado grande');chunks.push(chunk);}
         const request = new Request('https://laultimapieza.es'+req.url, {method:req.method,
           headers:req.headers, ...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
         const response=await api(request);

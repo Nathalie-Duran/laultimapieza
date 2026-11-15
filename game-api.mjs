@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { ApiError, isConfigured } from './auth-provider.mjs';
 import { readJourney, solveJourney } from './season-journey.mjs';
+import { checkPuzzle } from './progression.mjs';
 
 const COLORS=['#b1846b','#a7b6a0','#dca6a1','#a2b2c9'];
 const hash=code=>createHash('sha256').update(code).digest('hex');
@@ -21,7 +22,7 @@ async function body(request) {
 }
 // Fail closed until a payment provider supplies verified, current entitlements.
 // No browser field, profile edit or local import can grant paid access.
-export function createGameApi({config,storageReady=true,verify,withStore,engine,stories,origins=[],authorizePlay=async()=>false}) {
+export function createGameApi({config,storageReady=true,verify,withStore,engine,stories,origins=[],authorizePlay=async()=>false,billing=null}) {
   const rates=new Map();
   async function requireSubscription(store,uid){
     if(await authorizePlay({store,uid})!==true)fail(402,'Necesitas una suscripción de pago activa para jugar. La contratación todavía no está abierta.','SUBSCRIPTION_REQUIRED');
@@ -30,10 +31,19 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
     const url=new URL(request.url),path=url.pathname,method=request.method;
     try {
       if(path==='/api/auth/config'&&method==='GET') return json({enabled:isConfigured(config)&&storageReady,firebase:isConfigured(config)?config:null});
+      if(path==='/api/billing/config'&&method==='GET')return json(billing?.publicConfig()||{checkoutAvailable:false});
+      if(path==='/api/billing/webhook'&&method==='POST'&&billing)return await billing.webhook(request,withStore);
       if(!path.startsWith('/api/')) return json({error:'No encontrado.'},404);
       const origin=request.headers.get('origin');
       if(origin&&!origins.includes(origin)) fail(403,'El origen de la petición no está permitido.');
       if(!['GET','POST','PUT'].includes(method)) fail(405,'Método no permitido.');
+      if(path==='/api/metrics'&&method==='POST'){
+        const metric=await body(request);
+        if(!['demo_start','demo_solved','demo_complete','demo_hint','plans_view'].includes(metric.event))fail(400,'Evento no válido.');
+        // Explicit opt-in in the demo. Only aggregate counters: no email, IP or answer stored.
+        if(metric.consent!==true)return json({recorded:false});
+        await withStore(store=>store.metric(metric.event));return json({recorded:true});
+      }
       const user=await verify(request),uid=user.userId;
       const now=Date.now(),rate=rates.get(uid);
       if(rate&&rate.until>now){if(++rate.count>180)fail(429,'Espera unos segundos antes de continuar.');}
@@ -41,12 +51,28 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       const input=method==='GET'?null:await body(request);
       const result=await withStore(async store=>{
         const profile=await store.ensureProfile(user);
+        if(path==='/api/billing/checkout'&&method==='POST'&&billing)return billing.checkout(store,user);
+        if(path==='/api/billing/portal'&&method==='POST'&&billing)return billing.portal(store,uid);
+        if(path==='/api/waitlist'&&method==='PUT'){
+          if(typeof input.enabled!=='boolean')fail(400,'Elige si quieres recibir el aviso.');
+          const data=await store.getMemberData(uid);data.waitlist=input.enabled;data.waitlistEmail=input.enabled?user.email:null;data.waitlistAt=input.enabled?new Date().toISOString():null;
+          await store.saveMemberData(uid,data);return {waitlist:data.waitlist};
+        }
         if(path==='/api/bootstrap'&&method==='GET'){
           const sessions=await store.listSessions(uid);
-          return {profile,sessions,journey:await readJourney(store,stories,uid,sessions),activeSessionId:profile.activeSessionId||null,membership:{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false}};
+          const membership=billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
+          const guestOwners=[...new Set(sessions.filter(s=>s.ownerId!==uid).map(s=>s.ownerId))];
+          const guestAccess=[];for(const owner of guestOwners)if(await authorizePlay({store,uid:owner})===true)guestAccess.push(owner);
+          membership.ownAccess=membership.canPlay;membership.guestOwners=guestAccess;membership.canPlay ||= guestAccess.length>0;
+          return {profile,sessions,journey:await readJourney(store,stories,uid,sessions),activeSessionId:profile.activeSessionId||null,membership};
         }
         if(path==='/api/season'&&method==='GET')return {journey:await readJourney(store,stories,uid)};
         if(path==='/api/season/solve'&&method==='POST')return {journey:await solveJourney(store,stories,uid,input.key)};
+        if(path==='/api/season/ending'&&method==='POST'){
+          if(!['share','preserve'].includes(input.choice))fail(400,'Elige un desenlace disponible.');
+          if(!await store.getSeasonSolved(uid,1))fail(409,'Abre el sello antes de decidir.');
+          const data=await store.getMemberData(uid);data.seasonEnding ||= input.choice;await store.saveMemberData(uid,data);return {journey:await readJourney(store,stories,uid)};
+        }
         if(path==='/api/profile'&&method==='PUT'){
           const name=typeof input.name==='string'?input.name.trim():'';
           if(name.length<2||name.length>32||/[\u0000-\u001f\u007f]/.test(name)||!COLORS.includes(input.color))fail(400,'Revisa el nombre y el color de tu perfil.');
@@ -58,9 +84,11 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           const id=input.requestId||randomUUID(),existing=await store.getSession(id);
           if(existing){const session=member(existing,uid);await requireSubscription(store,session.ownerId);return {session};}
           await requireSubscription(store,uid);
+          if(billing)await billing.claim(store,uid,input.caseId);
           if((await store.listSessions(uid)).length>=200)fail(409,'Has alcanzado el límite de 200 partidas.');
           const session=engine.makeSession(input.caseId,[memberProfile(profile)],input.mode);session.id=id;
           await store.insertSession(session);await store.setActive(uid,id);
+          if(store.metric)await store.metric('case_started');
           let inviteCode;
           if(input.mode==='duo'){
             inviteCode=randomBytes(24).toString('base64url');session.inviteActive=true;
@@ -105,14 +133,21 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           await store.addMember(session.id,uid);await store.saveSession(session);await store.setInvite(session.id,null,null);await store.setActive(uid,session.id);
           return {session};
         }
-        const match=/^\/api\/sessions\/([0-9a-f-]{36})(?:\/(choose|invite))?$/.exec(path);
+        const match=/^\/api\/sessions\/([0-9a-f-]{36})(?:\/(choose|invite|puzzle))?$/.exec(path);
         if(match){
           const session=member(await store.getSession(match[1]),uid);
           await requireSubscription(store,session.ownerId);
           if(!match[2]&&method==='GET')return {session,journey:await readJourney(store,stories,uid)};
+          if(match[2]==='puzzle'&&method==='POST'){
+            const alreadySolved=!!session.investigation?.solvedAt;
+            const result=checkPuzzle(session,stories.find(s=>s.id===session.caseId),input,uid);
+            if(store.metric){if(input.action==='hint')await store.metric('puzzle_hint');else if(result.correct&&!alreadySolved)await store.metric('puzzle_solved');else if(!result.correct)await store.metric('puzzle_retry');}
+            await store.saveSession(session);return {...result,session,journey:await readJourney(store,stories,uid)};
+          }
           if(match[2]==='choose'&&method==='POST'){
             if(!Number.isInteger(input.version)||typeof input.nodeId!=='string'||typeof input.choiceId!=='string')fail(400,'La elección no es válida.');
             let outcome;try{outcome=engine.vote(session,uid,input.nodeId,input.choiceId,input.version);}catch(error){fail(409,error.message,'STATE_CHANGED');}
+            if(store.metric&&outcome.transitioned&&outcome.session.status==='finished')await store.metric('story_finished');
             await store.saveSession(outcome.session);await store.setActive(uid,session.id);return {...outcome,journey:await readJourney(store,stories,uid)};
           }
           if(match[2]==='invite'&&method==='POST'){

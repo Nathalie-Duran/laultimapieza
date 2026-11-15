@@ -33,3 +33,18 @@ Configurar Firebase Authentication, dominios autorizados e identificadores públ
 18 pruebas automatizadas aprobadas (incluyen bloqueo de pago y conservación del progreso): separación entre usuarios, tokens inválidos/revocados, almacenamiento de decisiones, versiones concurrentes, invitaciones, importación local, limpieza de sesión, respuestas tardías, API HTTP y entrega de recursos. Las pruebas de persistencia usan un almacén simulado; no sustituyen la prueba de integración con MySQL. verify.mjs revisa los casos y medios del paquete.
 
 La red del terminal no permite publicar por git; los archivos se han subido mediante GitHub y desplegado en GoDaddy. Consultar DEPLOYMENT.md para el estado de publicación y las comprobaciones pendientes.
+
+
+## Investigación y calendario (15/11/2026)
+Demo nueva con deducción de reloj y autor. Los doce enigmas tienen controles distintos; el servidor verifica respuestas y guarda ayudas/intentos. Llegar al final sin resolver no concede la pieza. Hitos a 3/6/9 y epílogo con decisión persistente. Conserva el progreso narrativo anterior; las piezas pendientes se recuperan al contrastar el enigma.
+
+Cuatro elecciones por ciclo mensual pagado, días 0/7/14/21; pendientes acumulables con acceso activo, repeticiones sin coste. La temporada contiene 12 casos y como máximo tres ciclos mensuales de 29,95 EUR. El calendario de Stripe se configura para cancelar automáticamente al terminar la temporada.
+
+### Activar contratación (pendiente de cuenta real y pruebas de integración)
+La integración está desactivada por defecto. En el alojamiento, configurar STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID (EUR 2995, mensual, impuestos incluidos), STRIPE_PORTAL_CONFIGURATION (cancelación habilitada), BILLING_TERMS_URL y BILLING_PRIVACY_URL con datos legales reales. Primero usar claves de prueba; completar compra, webhook, renovación, cancelación, reembolso y recuperación de acceso. Solo entonces establecer BILLING_ENABLED=true con claves del entorno correspondiente. Nunca escribir secretos en Git.
+Webhook: POST /api/billing/webhook, versión 2026-10-28.endive. Suscribir checkout.session.completed, invoice.paid, invoice.payment_failed, customer.subscription.updated, customer.subscription.deleted, charge.refunded y charge.dispute.created. El cliente Stripe se vincula al UID en el servidor; el retorno del navegador nunca concede acceso. Se comprueba factura pagada e importe. El endpoint exige firma HMAC y tolerancia de 5 minutos.
+No se ha conectado una cuenta de Stripe real ni procesado cobros. La gestión de cancelación y los reembolsos requieren validación con Stripe de pruebas antes de activar.
+
+### Avisos y métricas
+/api/waitlist guarda y retira una solicitud con el correo verificado de Firebase. No envía correos; el envío de apertura requiere servicio de correo y ejecución posterior autorizada. Tabla lup_member_data, campo waitlist. Contadores diarios agregados en lup_metrics; la demo solicita opt-in y no guarda respuestas, identificadores o IP. Los eventos de partidas se cuentan en el servidor. Son recuentos, no tasas de retención por cohortes ni visitantes únicos.
+27 pruebas automatizadas y verificación de historias/medios. Las pruebas de base de datos/pago usan dobles; no equivalen a una compra ni a una prueba real MySQL.
