@@ -47,7 +47,7 @@ export function createIdentityVerifier(config, fetcher = fetch, clock = Date.now
       throw new ApiError(401, 'La sesión no es válida. Vuelve a entrar.', 'AUTH_REQUIRED');
     }
     if (account.emailVerified !== true) throw new ApiError(403, 'Confirma tu correo antes de guardar partidas.', 'EMAIL_NOT_VERIFIED');
-    const user = { userId: account.localId, name: String(account.displayName || 'Investigador').slice(0,32), email: account.email || '' };
+    const user = { userId: account.localId, name: String(account.displayName || 'Investigador').slice(0,32), email: account.email || '', emailVerified: true };
     if (cache.size >= 1000) cache.clear();
     cache.set(key, { user, until: Math.min(clock() + 15000, claims.exp * 1000) });
     return user;

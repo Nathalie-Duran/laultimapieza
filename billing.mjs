@@ -23,6 +23,7 @@ export function createBilling(env=process.env,fetcher=fetch){
     const candidates=subs.data.filter(s=>s.metadata?.lup_uid===uid&&s.items?.data?.some(i=>i.price?.id===env.STRIPE_PRICE_ID));
     const sub=candidates.find(s=>s.status==='active')||candidates[0];
     if(!sub)return {data,active:false};
+    if(data.subscription!==sub.id){data.scheduleConfigured=false;data.schedule=null;}
     data.subscription=sub.id;
     const invoices=await stripe('invoices?subscription='+encodeURIComponent(sub.id)+'&status=paid&limit=100');
     const cycles=[];

@@ -2,6 +2,7 @@ import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { ApiError, isConfigured } from './auth-provider.mjs';
 import { readJourney, solveJourney } from './season-journey.mjs';
 import { checkPuzzle } from './progression.mjs';
+import { adminMembership } from './admin-access.mjs';
 
 const COLORS=['#b1846b','#a7b6a0','#dca6a1','#a2b2c9'];
 const hash=code=>createHash('sha256').update(code).digest('hex');
@@ -22,9 +23,10 @@ async function body(request) {
 }
 // Fail closed until a payment provider supplies verified, current entitlements.
 // No browser field, profile edit or local import can grant paid access.
-export function createGameApi({config,storageReady=true,verify,withStore,engine,stories,origins=[],authorizePlay=async()=>false,billing=null}) {
+export function createGameApi({config,storageReady=true,verify,withStore,engine,stories,origins=[],authorizePlay=async()=>false,billing=null,isAdministrator=()=>false}) {
   const rates=new Map();
-  async function requireSubscription(store,uid){
+  async function requireSubscription(store,uid,user){
+    if(uid===user?.userId&&isAdministrator(user))return;
     if(await authorizePlay({store,uid})!==true)fail(402,'Necesitas una suscripción de pago activa para jugar. La contratación todavía no está abierta.','SUBSCRIPTION_REQUIRED');
   }
   return async function handle(request) {
@@ -51,7 +53,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       const input=method==='GET'?null:await body(request);
       const result=await withStore(async store=>{
         const profile=await store.ensureProfile(user);
-        if(path==='/api/billing/checkout'&&method==='POST'&&billing)return billing.checkout(store,user);
+        if(path==='/api/billing/checkout'&&method==='POST'&&billing){if(isAdministrator(user))fail(409,'Tu cuenta de administradora ya tiene acceso completo sin pago.');return billing.checkout(store,user);}
         if(path==='/api/billing/portal'&&method==='POST'&&billing)return billing.portal(store,uid);
         if(path==='/api/waitlist'&&method==='PUT'){
           if(typeof input.enabled!=='boolean')fail(400,'Elige si quieres recibir el aviso.');
@@ -60,7 +62,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         }
         if(path==='/api/bootstrap'&&method==='GET'){
           const sessions=await store.listSessions(uid);
-          const membership=billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
+          const membership=isAdministrator(user)?adminMembership():billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
           const guestOwners=[...new Set(sessions.filter(s=>s.ownerId!==uid).map(s=>s.ownerId))];
           const guestAccess=[];for(const owner of guestOwners)if(await authorizePlay({store,uid:owner})===true)guestAccess.push(owner);
           membership.ownAccess=membership.canPlay;membership.guestOwners=guestAccess;membership.canPlay ||= guestAccess.length>0;
@@ -82,9 +84,9 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           if(!stories.some(s=>s.id===input.caseId)||!['solo','duo'].includes(input.mode))fail(400,'Elige un caso y un modo disponibles.');
           if(input.requestId&&!/^[0-9a-f-]{36}$/.test(input.requestId))fail(400,'La petición no es válida.');
           const id=input.requestId||randomUUID(),existing=await store.getSession(id);
-          if(existing){const session=member(existing,uid);await requireSubscription(store,session.ownerId);return {session};}
-          await requireSubscription(store,uid);
-          if(billing)await billing.claim(store,uid,input.caseId);
+          if(existing){const session=member(existing,uid);await requireSubscription(store,session.ownerId,user);return {session};}
+          await requireSubscription(store,uid,user);
+          if(billing&&!isAdministrator(user))await billing.claim(store,uid,input.caseId);
           if((await store.listSessions(uid)).length>=200)fail(409,'Has alcanzado el límite de 200 partidas.');
           const session=engine.makeSession(input.caseId,[memberProfile(profile)],input.mode);session.id=id;
           await store.insertSession(session);await store.setActive(uid,id);
@@ -118,7 +120,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         }
         if(path==='/api/active-session'&&method==='PUT'){
           const session=member(await store.getSession(String(input.sessionId||'')),uid);
-          await requireSubscription(store,session.ownerId);
+          await requireSubscription(store,session.ownerId,user);
           await store.setActive(uid,session.id);return {saved:true};
         }
         if(path==='/api/join'&&method==='POST'){
@@ -126,7 +128,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           const record=await store.findInvite(hash(input.code));
           if(!record||record.inviteUntil<Date.now())fail(400,'La invitación no es válida o ha caducado.');
           const session=record.session;
-          await requireSubscription(store,session.ownerId);
+          await requireSubscription(store,session.ownerId,user);
           if(session.members.some(m=>m.userId===uid))return {session};
           if(session.status!=='waiting'||session.members.length!==1)fail(409,'Esta partida ya tiene su equipo.');
           session.members.push({...memberProfile(profile),role:'B',scores:engine.zero()});session.status='active';session.inviteActive=false;
@@ -136,7 +138,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         const match=/^\/api\/sessions\/([0-9a-f-]{36})(?:\/(choose|invite|puzzle))?$/.exec(path);
         if(match){
           const session=member(await store.getSession(match[1]),uid);
-          await requireSubscription(store,session.ownerId);
+          await requireSubscription(store,session.ownerId,user);
           if(!match[2]&&method==='GET')return {session,journey:await readJourney(store,stories,uid)};
           if(match[2]==='puzzle'&&method==='POST'){
             const alreadySolved=!!session.investigation?.solvedAt;
