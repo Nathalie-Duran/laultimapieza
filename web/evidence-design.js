@@ -86,3 +86,5 @@ for(const story of root.STORIES){
  if(story.puzzle){story.puzzle.prompt=story.puzzle.prompt.replace(/del PDF/g,'de la imagen').replace(/en el PDF/g,'en la imagen');story.puzzle.explanation=story.puzzle.explanation.replace(/El PDF/g,'La imagen').replace(/el PDF/g,'la imagen');}
 }
 })(globalThis);
+
+(function(root){if(root.CartasCoop&&root.SEASON_MEDIA){root.SEASON_MEDIA["cartas-medianoche"].artifacts=[];root.SEASON_MEDIA["cartas-medianoche"].finalDocuments={};}})(globalThis);
