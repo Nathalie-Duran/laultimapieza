@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { ApiError, isConfigured } from './auth-provider.mjs';
+import { readJourney, solveJourney } from './season-journey.mjs';
 
 const COLORS=['#b1846b','#a7b6a0','#dca6a1','#a2b2c9'];
 const hash=code=>createHash('sha256').update(code).digest('hex');
@@ -40,7 +41,12 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       const input=method==='GET'?null:await body(request);
       const result=await withStore(async store=>{
         const profile=await store.ensureProfile(user);
-        if(path==='/api/bootstrap'&&method==='GET')return {profile,sessions:await store.listSessions(uid),activeSessionId:profile.activeSessionId||null,membership:{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false}};
+        if(path==='/api/bootstrap'&&method==='GET'){
+          const sessions=await store.listSessions(uid);
+          return {profile,sessions,journey:await readJourney(store,stories,uid,sessions),activeSessionId:profile.activeSessionId||null,membership:{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false}};
+        }
+        if(path==='/api/season'&&method==='GET')return {journey:await readJourney(store,stories,uid)};
+        if(path==='/api/season/solve'&&method==='POST')return {journey:await solveJourney(store,stories,uid,input.key)};
         if(path==='/api/profile'&&method==='PUT'){
           const name=typeof input.name==='string'?input.name.trim():'';
           if(name.length<2||name.length>32||/[\u0000-\u001f\u007f]/.test(name)||!COLORS.includes(input.color))fail(400,'Revisa el nombre y el color de tu perfil.');
@@ -80,7 +86,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
               session=engine.vote(session,uid,session.nodeId,entry.choiceId,session.version).session;
             }
           }catch{fail(400,'No se puede recuperar esta partida: su recorrido no coincide con el caso actual.');}
-          await store.insertSession(session);await store.setActive(uid,id);return {session,alreadyImported:false};
+          await store.insertSession(session);await store.setActive(uid,id);return {session,alreadyImported:false,journey:await readJourney(store,stories,uid)};
         }
         if(path==='/api/active-session'&&method==='PUT'){
           const session=member(await store.getSession(String(input.sessionId||'')),uid);
@@ -103,11 +109,11 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         if(match){
           const session=member(await store.getSession(match[1]),uid);
           await requireSubscription(store,session.ownerId);
-          if(!match[2]&&method==='GET')return {session};
+          if(!match[2]&&method==='GET')return {session,journey:await readJourney(store,stories,uid)};
           if(match[2]==='choose'&&method==='POST'){
             if(!Number.isInteger(input.version)||typeof input.nodeId!=='string'||typeof input.choiceId!=='string')fail(400,'La elección no es válida.');
             let outcome;try{outcome=engine.vote(session,uid,input.nodeId,input.choiceId,input.version);}catch(error){fail(409,error.message,'STATE_CHANGED');}
-            await store.saveSession(outcome.session);await store.setActive(uid,session.id);return outcome;
+            await store.saveSession(outcome.session);await store.setActive(uid,session.id);return {...outcome,journey:await readJourney(store,stories,uid)};
           }
           if(match[2]==='invite'&&method==='POST'){
             if(session.ownerId!==uid||session.status!=='waiting'||session.members.length!==1)fail(403,'No puedes crear una invitación para esta partida.');

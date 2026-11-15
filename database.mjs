@@ -1,6 +1,10 @@
 import { ApiError } from './auth-provider.mjs';
 
 const schema = [
+  `CREATE TABLE IF NOT EXISTS lup_season_rewards (
+    user_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL, season INT NOT NULL,
+    solved_at VARCHAR(30) NOT NULL, PRIMARY KEY(user_id,season)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_profiles (
     user_id VARCHAR(128) COLLATE utf8mb4_bin PRIMARY KEY, name VARCHAR(32) NOT NULL,
     color VARCHAR(7) NOT NULL, active_session_id VARCHAR(36) NULL,
@@ -39,6 +43,8 @@ export function createDatabase(env=process.env) {
       await initialized;
       await connection.beginTransaction();
       const store = {
+        async getSeasonSolved(uid,season) { return (await query('SELECT solved_at FROM lup_season_rewards WHERE user_id=? AND season=?',[uid,season]))[0]?.solved_at||null; },
+        async saveSeasonSolved(uid,season) { await query('INSERT IGNORE INTO lup_season_rewards (user_id,season,solved_at) VALUES (?,?,?)',[uid,season,new Date().toISOString()]); },
         async ensureProfile(user) {
           const now=new Date().toISOString();
           await query('INSERT IGNORE INTO lup_profiles (user_id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)',
