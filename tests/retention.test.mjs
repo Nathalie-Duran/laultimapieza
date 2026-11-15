@@ -8,12 +8,12 @@ import {validSignature,createBilling} from '../billing.mjs';
 test('Los desbloqueos respetan cuatro por ciclo, acumulan pendientes y no duplican repeticiones',()=>{
  const start=Date.UTC(2026,0,1),end=Date.UTC(2026,1,1),cycles=[{id:'one',start,end}];
  assert.equal(releaseCalendar(cycles,[],start-1).released,0);
- assert.equal(releaseCalendar(cycles,[],start).available,1);
- assert.equal(releaseCalendar(cycles,['a'],start+7*86400000-1).available,0);
- assert.equal(releaseCalendar(cycles,['a'],start+7*86400000).available,1);
- assert.equal(releaseCalendar(cycles,['a','a'],start+21*86400000).available,3);
+ assert.equal(releaseCalendar(cycles,[],start).available,4);
+ assert.equal(releaseCalendar(cycles,['cartas-medianoche'],start+7*86400000-1).available,3);
+ assert.equal(releaseCalendar(cycles,['cartas-medianoche'],start+7*86400000).available,3);
+ assert.equal(releaseCalendar(cycles,['cartas-medianoche','cartas-medianoche'],start+21*86400000).available,3);
  const all=[...cycles,{id:'two',start:end,end:Date.UTC(2026,2,1)}];
- assert.equal(releaseCalendar(all,['a'],end).available,4);
+ assert.equal(releaseCalendar(all,['cartas-medianoche'],end).available,7);
  assert.equal(releaseCalendar([{...cycles[0],revoked:true}],[],end).available,0);
  assert.equal(releaseCalendar(Array.from({length:5},(_,i)=>({id:i,start:start+i*32*86400000,end:end+i*32*86400000})),[],Date.UTC(2027,0,1)).released,12);
 });
@@ -51,7 +51,9 @@ test('La integración de pago verifica factura y termina la temporada con un cal
   if(route==='/v1/subscription_schedules/sched_test'){scheduleSet=new URLSearchParams(options.body);return Response.json({id:'sched_test'});}
   throw new Error('Unexpected request '+route);
  });
- const membership=await billing.membership(store,'alice');assert.equal(membership.canPlay,true);assert.equal(membership.calendar.available,1);assert.equal(scheduleSet.get('end_behavior'),'cancel');assert.equal(scheduleSet.get('phases[0][duration][interval_count]'),'3');
- await billing.claim(store,'alice','first');await billing.claim(store,'alice','first');assert.equal(state.claims.length,1);
- await assert.rejects(billing.claim(store,'alice','second'),e=>e.code==='CASE_NOT_RELEASED');
+ const membership=await billing.membership(store,'alice');assert.equal(membership.canPlay,true);assert.equal(membership.calendar.available,4);assert.equal(scheduleSet.get('end_behavior'),'cancel');assert.equal(scheduleSet.get('phases[0][duration][interval_count]'),'3');
+ for(const id of ['cartas-medianoche','ultima-funcion','archivo-ausencias','marea-quieta'])await billing.claim(store,'alice',id);
+ await billing.claim(store,'alice','cartas-medianoche');assert.equal(state.claims.length,4);
+ await assert.rejects(billing.claim(store,'alice','frecuencia-17'),e=>e.code==='CASE_NOT_RELEASED');
+ await assert.rejects(billing.canPlay({store,uid:'alice',caseId:'frecuencia-17'}),e=>e.code==='CASE_NOT_RELEASED');
 });
