@@ -41,5 +41,8 @@ for (let i=0; i<count; i++) {
 try { await cp(new URL('./web/',import.meta.url),root,{recursive:true}); }
 catch(error) { if(error.code!=='ENOENT') throw error; }
 console.log(`Aplicación preparada: ${count} archivos y fuentes web actuales.`);
+// Apply the same authored case revision in browsers, tests and server engines.
+const seasonFile=new URL('./public/season.js',import.meta.url);
+await writeFile(seasonFile,(await readFile(seasonFile,'utf8'))+'\n'+await readFile(new URL('./web/cartas-case.js',import.meta.url),'utf8'));
 const {buildEvidence}=await import('./build-evidence.mjs');
 await buildEvidence();

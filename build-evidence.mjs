@@ -4,6 +4,10 @@ const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 function wrap(s,width=44){const lines=[];let line='';for(const word of s.split(/\s+/)){if((line+' '+word).trim().length>width&&line){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;}
 const text=(s,x,y,size=23,color='#172b36')=>`<text x="${x}" y="${y}" font-size="${size}" fill="${color}">${escape(s)}</text>`;
 function svg(id,d){
+ if(d.kind==='letters'){
+  const cards=d.cards.map((card,i)=>{const x=44+(i%2)*578,y=172+Math.floor(i/2)*520;let content=`<g transform="translate(${x} ${y})"><rect x="7" y="9" width="548" height="486" rx="6" fill="#000" opacity=".15"/><rect width="548" height="486" rx="6" fill="#f4ead5" stroke="#b9a484"/><path d="M0 154 L274 252 L548 154" fill="none" stroke="#cab99d"/><path d="M0 154 H548" stroke="#cab99d"/><rect x="422" y="26" width="88" height="94" fill="#d6c9b1" stroke="#8d7259" stroke-dasharray="3 3"/><path d="M437 92l28-42 28 42z" fill="none" stroke="#7b6852"/>${text(card[0],24,42,19,'#775c47')}${text('CLARA MONTES → GABRIEL VIDAL',24,76,16,'#765e48')}`;card[1].split(' · ').forEach((stamp,k)=>{content+=`<g transform="translate(${28+k*190} 88)"><rect width="174" height="44" rx="22" fill="none" stroke="${k?'#866d68':'#35525b'}" stroke-width="2"/>${text(stamp,12,28,18,k?'#866d68':'#35525b')}</g>`;});content+=`<rect x="22" y="178" width="504" height="282" fill="#fffaf0" stroke="#d8cab4"/>${text('EXTRACTO DEL ORIGINAL',44,207,14,'#8e7761')}<g font-family="Georgia, serif">${text(card[2],44,249,22,'#384348')}`;wrap(card[3],34).forEach((line,k)=>{content+=text(line,44,296+k*34,24,'#233641');});return content+'</g></g>';}).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1250" viewBox="0 0 1200 1250" role="img" aria-labelledby="title desc"><title id="title">${escape(d.title)}</title><desc id="desc">${escape(d.cards.map(c=>c.join('. ')).join('\n'))}</desc><rect width="1200" height="1250" fill="#172a31"/><g font-family="Arial,sans-serif">${text('VALDEMAR / CUATRO ORIGINALES / COPIA DE CONSULTA',44,58,20,'#ceb58a')}${text('Las palabras llegaron. Su orden, no.',44,112,35,'#fff7e4')}${cards}${text('Marcas y extractos reproducidos con fidelidad · Documento de ficción',44,1220,18,'#c7d0cd')}</g></svg>`;
+ }
  let content='',bottom=220;
  if(d.kind==='grid'){
   for(let i=0;i<5;i++)for(let j=0;j<5;j++){const x=56+j*216,y=180+i*115;content+=`<rect x="${x}" y="${y}" width="206" height="105" rx="8" fill="#fffdf5" stroke="#73887c"/>`+text(String.fromCharCode(65+i)+(j+1),x+12,y+28,21,'#385a4a');wrap(d.grid[i][j],18).forEach((s,k)=>content+=text(s,x+12,y+57+k*24,20));}bottom=780;content+=text('N ↑   ·   O ←   ·   E →   ·   S ↓',60,bottom,25);bottom+=50;
@@ -30,7 +34,7 @@ function svg(id,d){
  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}" role="img" aria-labelledby="title desc"><title id="title">${escape(d.title)}</title><desc id="desc">${escape(description)}</desc><rect width="1200" height="${height}" fill="#e9e4d6"/><g font-family="Arial, sans-serif">${text('LA ÚLTIMA PIEZA · DOCUMENTO DE FICCIÓN',56,58,20,'#536959')}${text(d.title,56,110,36)}${content}${text('Examina los detalles. Cruza esta fuente con las otras pruebas del caso.',56,height-34,20,'#536959')}</g></svg>`;
 }
 export async function buildEvidence(){
- const c=vm.createContext({});vm.runInContext(await readFile(new URL('./web/evidence-design.js',import.meta.url),'utf8'),c);
+ const c=vm.createContext({});for(const name of ['cartas-case.js','evidence-design.js'])vm.runInContext(await readFile(new URL('./web/'+name,import.meta.url),'utf8'),c);
  const dir=new URL('./public/evidence/',import.meta.url);await mkdir(dir,{recursive:true});
  for(const [id,d] of Object.entries(c.EvidenceDesign.cases)){
   await writeFile(new URL(id+'.svg',dir),svg(id,d.image));
