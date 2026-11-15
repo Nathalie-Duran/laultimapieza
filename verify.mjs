@@ -6,7 +6,7 @@ for (const name of await readdir(publicDir)) {
   if (name.endsWith('.js')) new Script(await readFile(new URL(name, publicDir), 'utf8'), {filename:name});
 }
 const context = createContext({structuredClone, crypto:globalThis.crypto});
-for (const name of ['stories.js','season.js','engine.js','media-plan.js']) runInContext(await readFile(new URL(name, publicDir),'utf8'),context,{timeout:2000});
+for (const name of ['stories.js','season.js','engine.js','media-plan.js','evidence-design.js']) runInContext(await readFile(new URL(name, publicDir),'utf8'),context,{timeout:2000});
 assert.equal(context.STORIES.length, 13);
 let endings = 0;
 for (const story of context.STORIES) {

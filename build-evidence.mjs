@@ -1,0 +1,40 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import vm from 'node:vm';
+const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function wrap(s,width=44){const lines=[];let line='';for(const word of s.split(/\s+/)){if((line+' '+word).trim().length>width&&line){lines.push(line);line='';}line+=(line?' ':'')+word;}if(line)lines.push(line);return lines;}
+const text=(s,x,y,size=23,color='#172b36')=>`<text x="${x}" y="${y}" font-size="${size}" fill="${color}">${escape(s)}</text>`;
+function svg(id,d){
+ let content='',bottom=220;
+ if(d.kind==='grid'){
+  for(let i=0;i<5;i++)for(let j=0;j<5;j++){const x=56+j*216,y=180+i*115;content+=`<rect x="${x}" y="${y}" width="206" height="105" rx="8" fill="#fffdf5" stroke="#73887c"/>`+text(String.fromCharCode(65+i)+(j+1),x+12,y+28,21,'#385a4a');wrap(d.grid[i][j],18).forEach((s,k)=>content+=text(s,x+12,y+57+k*24,20));}bottom=780;content+=text('N ↑   ·   O ←   ·   E →   ·   S ↓',60,bottom,25);bottom+=50;
+ }else if(d.kind==='seating'){
+  content+='<rect x="180" y="285" width="840" height="190" rx="36" fill="#34594c"/>'+text('MESA 13',510,390,34,'#ffffff');
+  [[1,290,220],[2,590,220],[3,890,220],[6,290,550],[5,590,550],[4,890,550]].forEach(([n,x,y])=>content+=`<rect x="${x-52}" y="${y-40}" width="104" height="80" rx="12" fill="#fffdf5" stroke="#7e5b38"/>`+text(String(n),x-10,y+10,34));content+=text('NORTE ↑',55,165,24);bottom=650;
+ }else if(d.kind==='board'){
+  content+='<path d="M360 180 H880 V575 H360 V535 A25 25 0 0 0 360 485 Z" fill="#ba926a" stroke="#634c34" stroke-width="6"/>';
+  content+='<rect x="555" y="295" width="140" height="64" fill="none" stroke="#283f49" stroke-width="4"/>'+text('CR-6',582,337,32);
+  content+='<path d="M315 510 H220 V560" fill="none" stroke="#bf4534" stroke-width="4"/>'+text('Muesca',90,590,24)+text('inferior izquierda',90,620,24)+text('46 cm',585,155,24)+text('38 cm',910,380,24);bottom=700;
+ }else if(d.kind==='folio'){
+  content+='<rect x="180" y="170" width="820" height="440" fill="#fffdf5" stroke="#b7aa86"/>';
+  for(let i=1;i<=12;i++){const y=205+i*29;content+=`<path d="M210 ${y+6} H970" stroke="#d6d0bd"/>`+text(String(i).padStart(2,'0'),215,y,18,'#7a8078');if(i===7)content+=text('R7  ·  presente  ·  NR',300,y,22);}
+  content+=text('AZ-14',825,202,26,'#375b4b');bottom=680;
+ }else if(d.kind==='envelope'){
+  content+='<rect x="230" y="170" width="740" height="440" fill="#fffdf5" stroke="#95866b" stroke-width="3"/>';
+  for(let i=0;i<12;i++){const x=290+(i%4)*154,y=230+Math.floor(i/4)*90;content+=`<rect x="${x}" y="${y}" width="130" height="70" fill="none" stroke="#8e9b93"/>`+text(String(i+1).padStart(2,'0'),x+10,y+25,18,'#66796e');}
+  content+=text('RESPONSABLE DE CUSTODIA: INÉS',285,565,24);bottom=680;
+ }
+ const cols=d.cards.length>1?2:1,cardWidth=cols===1?1088:532;
+ d.cards.forEach((card,i)=>{const col=i%cols,row=Math.floor(i/cols),x=56+col*556;let y=(d.kind==='cards'?180:bottom)+row*310;content+=`<rect x="${x}" y="${y}" width="${cardWidth}" height="285" rx="10" fill="#fffdf5" stroke="#a7b4a6"/>`;let yy=y+39;card.forEach((line,k)=>{for(const part of wrap(line,cols===1?83:39)){content+=text(part,x+24,yy,k===0?23:21,k===0?'#47654f':'#24343b');yy+=32;}});});
+ const height=Math.max(600,(d.kind==='cards'?180:bottom)+Math.ceil(d.cards.length/cols)*310+90);
+ const description=[...d.cards.map(c=>c.join('. ')),...(d.grid||[]).map((r,i)=>r.map((v,j)=>String.fromCharCode(65+i)+(j+1)+' '+v).join('; '))].join('. ');
+ return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${height}" viewBox="0 0 1200 ${height}" role="img" aria-labelledby="title desc"><title id="title">${escape(d.title)}</title><desc id="desc">${escape(description)}</desc><rect width="1200" height="${height}" fill="#e9e4d6"/><g font-family="Arial, sans-serif">${text('LA ÚLTIMA PIEZA · DOCUMENTO DE FICCIÓN',56,58,20,'#536959')}${text(d.title,56,110,36)}${content}${text('Examina los detalles. Cruza esta fuente con las otras pruebas del caso.',56,height-34,20,'#536959')}</g></svg>`;
+}
+export async function buildEvidence(){
+ const c=vm.createContext({});vm.runInContext(await readFile(new URL('./web/evidence-design.js',import.meta.url),'utf8'),c);
+ const dir=new URL('./public/evidence/',import.meta.url);await mkdir(dir,{recursive:true});
+ for(const [id,d] of Object.entries(c.EvidenceDesign.cases)){
+  await writeFile(new URL(id+'.svg',dir),svg(id,d.image));
+  const sections=d.web.sections.map(([title,paragraphs],i)=>`<section id="record-${i}"><span class="record">REGISTRO ${String(i+1).padStart(2,'0')}</span><h2>${escape(title)}</h2>${paragraphs.map(p=>`<p>${escape(p)}</p>`).join('')}</section>`).join('');
+  await writeFile(new URL(id+'.html',dir),`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(d.web.title)} · Archivo ficticio</title><style>*{box-sizing:border-box}body{margin:0;background:#f4f0e6;color:#233b3b;font:18px/1.7 Georgia,serif}header{background:#183d37;color:#fff;padding:36px max(24px,calc((100% - 900px)/2))}header small,.record{font:12px/1.5 Arial,sans-serif;letter-spacing:2px;color:#8fc5af}h1{font-size:clamp(28px,5vw,44px);line-height:1.15}main{max-width:948px;margin:0 auto;padding:28px 24px}nav{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}nav a{color:#175847;font:16px Arial;padding:10px;border:1px solid #b4c6b7;border-radius:6px}section{background:#fffdf7;border:1px solid #d5ddce;border-left:5px solid #57816b;padding:24px;margin:24px 0;scroll-margin-top:20px}section .record{color:#56765d}h2{font:700 24px/1.3 Arial;margin-top:8px}footer{font:14px/1.5 Arial;border-top:1px solid #b4c6b7;padding:20px 0}a:focus-visible{outline:3px solid #bd662c}p{overflow-wrap:anywhere}</style><header><small>FUENTE DEL CASO · ARCHIVO DE FICCIÓN</small><h1>${escape(d.web.title)}</h1><p>Copia de consulta. Cada registro conserva su procedencia.</p></header><main><nav aria-label="Registros">${d.web.sections.map(([title],i)=>`<a href="#record-${i}">${escape(title)}</a>`).join('')}</nav>${sections}<footer>La última pieza · Este sitio pertenece al universo ficticio del juego. No contiene información sobre personas o servicios reales. Vuelve a la pestaña de la partida para contrastar las otras fuentes.</footer></main></html>`);
+ }
+}

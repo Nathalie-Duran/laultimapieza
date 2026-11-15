@@ -41,3 +41,5 @@ for (let i=0; i<count; i++) {
 try { await cp(new URL('./web/',import.meta.url),root,{recursive:true}); }
 catch(error) { if(error.code!=='ENOENT') throw error; }
 console.log(`Aplicación preparada: ${count} archivos y fuentes web actuales.`);
+const {buildEvidence}=await import('./build-evidence.mjs');
+await buildEvidence();
