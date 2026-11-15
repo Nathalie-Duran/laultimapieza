@@ -10,9 +10,11 @@ const context=createContext({structuredClone,crypto:globalThis.crypto});
 for(const file of ['stories.js','season.js','engine.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
 const engine=context.GameEngine,stories=context.STORIES;
 function fakeStore(){
-  const profiles=new Map(),sessions=new Map(),rewards=new Map();
+  const profiles=new Map(),sessions=new Map(),rewards=new Map(),memberData=new Map();
   return {
     profiles,sessions,rewards,
+    async getMemberData(uid){return structuredClone(memberData.get(uid)||{});},
+    async saveMemberData(uid,data){memberData.set(uid,structuredClone(data));},
     async getSeasonSolved(uid,season){return rewards.get(uid+':'+season)||null;},
     async saveSeasonSolved(uid,season){const key=uid+':'+season;if(!rewards.has(key))rewards.set(key,new Date().toISOString());},
     async ensureProfile(user){if(!profiles.has(user.userId))profiles.set(user.userId,{...user,color:'#b1846b'});return structuredClone(profiles.get(user.userId));},
@@ -43,7 +45,7 @@ function harness(authorizePlay=async()=>true){
 test('El plano solo revela piezas de casos terminados por la cuenta y exige doce experiencias distintas',async()=>{
   const {store,call}=harness();
   await call('alice','/api/bootstrap');
-  const finish=story=>{let s=engine.makeSession(story.id,[{userId:'alice',name:'Alice'}],'solo');while(s.status==='active')s=engine.vote(s,'alice',s.nodeId,story.nodes[s.nodeId].choices[0].id,s.version).session;return s;};
+  const finish=story=>{let s=engine.makeSession(story.id,[{userId:'alice',name:'Alice'}],'solo');while(s.status==='active')s=engine.vote(s,'alice',s.nodeId,story.nodes[s.nodeId].choices[0].id,s.version).session;if(story.puzzle)s.investigation={solvedAt:new Date().toISOString(),hints:0,attempts:1};return s;};
   const season=stories.filter(s=>s.season===1);
   const first=finish(season[0]);await store.insertSession(first);await store.insertSession(finish(season[0]));await store.insertSession(finish(stories[0]));
   const one=(await call('alice','/api/season')).body.journey;
@@ -177,4 +179,16 @@ test('Se rechazan identidades sustituidas, cuentas revocadas y cuentas desactiva
 test('La identidad válida procede de Firebase y no de la cabecera del cliente',async()=>{
   const verify=createIdentityVerifier(config,async()=>Response.json({users:[{localId:'alice',displayName:'Alice',email:'a@example.test',emailVerified:true}]}),()=>now);
   const req=request(token());req.headers.set('oai-authenticated-user-id','eve');const user=await verify(req);assert.equal(user.userId,'alice');
+});
+
+test('El enigma se guarda, rechaza aciertos falsificados y no premia terminar sin resolver',async()=>{
+const {call,store}=harness(),story=stories.find(s=>s.season===1);const created=(await call('alice','/api/sessions',{caseId:story.id,mode:'solo'})).body.session;
+assert.equal((await call('alice','/api/sessions/'+created.id+'/puzzle',{answer:story.puzzle.answer})).status,409);
+let s=created;while(s.status==='active')s=(await call('alice','/api/sessions/'+s.id+'/choose',{nodeId:s.nodeId,version:s.version,choiceId:story.nodes[s.nodeId].choices[0].id})).body.session;
+assert.equal((await call('alice','/api/season')).body.journey.completed,0);
+assert.equal((await call('bob','/api/sessions/'+s.id+'/puzzle',{answer:story.puzzle.answer})).status,404);
+const wrong=await call('alice','/api/sessions/'+s.id+'/puzzle',{answer:'falso',correct:true,solvedAt:'fake'});assert.equal(wrong.body.correct,false);assert.equal(wrong.body.journey.completed,0);
+const help=await call('alice','/api/sessions/'+s.id+'/puzzle',{action:'hint'});assert.equal(help.body.hints.length,1);
+const solved=await call('alice','/api/sessions/'+s.id+'/puzzle',{answer:story.puzzle.answer});assert.equal(solved.body.correct,true);assert.equal(solved.body.journey.completed,1);
+assert.equal((await call('alice','/api/bootstrap')).body.sessions[0].investigation.hints,1);
 });
