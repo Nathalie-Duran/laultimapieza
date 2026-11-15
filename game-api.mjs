@@ -3,6 +3,7 @@ import { ApiError, isConfigured } from './auth-provider.mjs';
 import { readJourney, solveJourney } from './season-journey.mjs';
 import { checkPuzzle } from './progression.mjs';
 import { adminMembership } from './admin-access.mjs';
+import { mailKey } from './mail-service.mjs';
 
 const COLORS=['#b1846b','#a7b6a0','#dca6a1','#a2b2c9'];
 const hash=code=>createHash('sha256').update(code).digest('hex');
@@ -25,9 +26,9 @@ async function body(request) {
 // No browser field, profile edit or local import can grant paid access.
 export function createGameApi({config,storageReady=true,verify,withStore,engine,stories,origins=[],authorizePlay=async()=>false,billing=null,isAdministrator=()=>false}) {
   const rates=new Map();
-  async function requireSubscription(store,uid,user){
+  async function requireSubscription(store,uid,user,caseId){
     if(uid===user?.userId&&isAdministrator(user))return;
-    if(await authorizePlay({store,uid})!==true)fail(402,'Necesitas una suscripción de pago activa para jugar. La contratación todavía no está abierta.','SUBSCRIPTION_REQUIRED');
+    if(await authorizePlay({store,uid,caseId})!==true)fail(402,'Necesitas una suscripción activa para acceder a los retos. Tu progreso se conserva.','SUBSCRIPTION_REQUIRED');
   }
   return async function handle(request) {
     const url=new URL(request.url),path=url.pathname,method=request.method;
@@ -53,6 +54,16 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       const input=method==='GET'?null:await body(request);
       const result=await withStore(async store=>{
         const profile=await store.ensureProfile(user);
+        if(store.enqueueMail){
+          const memberData=await store.getMemberData(uid);
+          if(profile.newProfile)memberData.welcomePending=true;
+          if(memberData.welcomePending&&user.emailVerified===true){
+            await store.enqueueMail(mailKey('welcome',uid),user.email,'welcome',{name:profile.name});
+            memberData.welcomePending=false;
+          }
+          if(profile.newProfile||memberData.welcomePending===false)await store.saveMemberData(uid,memberData);
+        }
+        delete profile.newProfile;
         if(path==='/api/billing/checkout'&&method==='POST'&&billing){if(isAdministrator(user))fail(409,'Tu cuenta de administradora ya tiene acceso completo sin pago.');return billing.checkout(store,user);}
         if(path==='/api/billing/portal'&&method==='POST'&&billing)return billing.portal(store,uid);
         if(path==='/api/waitlist'&&method==='PUT'){
@@ -84,7 +95,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           if(!stories.some(s=>s.id===input.caseId)||!['solo','duo'].includes(input.mode))fail(400,'Elige un caso y un modo disponibles.');
           if(input.requestId&&!/^[0-9a-f-]{36}$/.test(input.requestId))fail(400,'La petición no es válida.');
           const id=input.requestId||randomUUID(),existing=await store.getSession(id);
-          if(existing){const session=member(existing,uid);await requireSubscription(store,session.ownerId,user);return {session};}
+          if(existing){const session=member(existing,uid);await requireSubscription(store,session.ownerId,user,session.caseId);return {session};}
           await requireSubscription(store,uid,user);
           if(billing&&!isAdministrator(user))await billing.claim(store,uid,input.caseId);
           if((await store.listSessions(uid)).length>=200)fail(409,'Has alcanzado el límite de 200 partidas.');
@@ -120,7 +131,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         }
         if(path==='/api/active-session'&&method==='PUT'){
           const session=member(await store.getSession(String(input.sessionId||'')),uid);
-          await requireSubscription(store,session.ownerId,user);
+          await requireSubscription(store,session.ownerId,user,session.caseId);
           await store.setActive(uid,session.id);return {saved:true};
         }
         if(path==='/api/join'&&method==='POST'){
@@ -128,7 +139,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           const record=await store.findInvite(hash(input.code));
           if(!record||record.inviteUntil<Date.now())fail(400,'La invitación no es válida o ha caducado.');
           const session=record.session;
-          await requireSubscription(store,session.ownerId,user);
+          await requireSubscription(store,session.ownerId,user,session.caseId);
           if(session.members.some(m=>m.userId===uid))return {session};
           if(session.status!=='waiting'||session.members.length!==1)fail(409,'Esta partida ya tiene su equipo.');
           session.members.push({...memberProfile(profile),role:'B',scores:engine.zero()});session.status='active';session.inviteActive=false;
@@ -138,7 +149,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         const match=/^\/api\/sessions\/([0-9a-f-]{36})(?:\/(choose|invite|puzzle))?$/.exec(path);
         if(match){
           const session=member(await store.getSession(match[1]),uid);
-          await requireSubscription(store,session.ownerId,user);
+          await requireSubscription(store,session.ownerId,user,session.caseId);
           if(!match[2]&&method==='GET')return {session,journey:await readJourney(store,stories,uid)};
           if(match[2]==='puzzle'&&method==='POST'){
             const alreadySolved=!!session.investigation?.solvedAt;

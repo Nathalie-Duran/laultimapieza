@@ -72,5 +72,6 @@ export function createApp({api,authProxy=firebaseAuthProxy} = {}) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const {createRuntimeApi}=await import('./runtime-api.mjs');
   const api=await createRuntimeApi();
+  setInterval(()=>api.processMail().catch(()=>console.error('MAIL_WORKER_UNAVAILABLE')),60000).unref();
   createApp({api}).listen(Number(process.env.PORT || 3000), '0.0.0.0', () => console.log('La última pieza: servidor listo'));
 }

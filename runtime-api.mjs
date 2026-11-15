@@ -5,6 +5,7 @@ import { createDatabase, databaseConfigured } from './database.mjs';
 import { createGameApi } from './game-api.mjs';
 import { createBilling } from './billing.mjs';
 import { isAdministrator } from './admin-access.mjs';
+import { createMailer } from './mail-service.mjs';
 
 export async function createRuntimeApi(env=process.env) {
   let saved={};
@@ -14,7 +15,10 @@ export async function createRuntimeApi(env=process.env) {
   const context=createContext({crypto:globalThis.crypto,structuredClone});context.window=context;
   for(const name of ['stories.js','season.js','engine.js'])runInContext(await readFile(new URL('./public/'+name,import.meta.url),'utf8'),context,{timeout:2000,filename:name});
   const billing=createBilling(env);
-  return createGameApi({config,storageReady:databaseConfigured(env),verify:createIdentityVerifier(config),withStore:createDatabase(env),billing,authorizePlay:billing.canPlay,isAdministrator,
+  const withStore=createDatabase(env),mailer=createMailer(env);
+  const api=createGameApi({config,storageReady:databaseConfigured(env),verify:createIdentityVerifier(config),withStore,billing,authorizePlay:billing.canPlay,isAdministrator,
     engine:context.GameEngine,stories:context.STORIES,
     origins:(env.APP_ORIGINS||'https://laultimapieza.es,https://www.laultimapieza.es,https://yxkiqfgt3l.c35.airoapp.ai,https://yxkiqfgt3l.preview.c35.airoapp.ai').split(',').map(s=>s.trim()).filter(Boolean)});
+  api.processMail=()=>mailer.process(withStore);
+  return api;
 }

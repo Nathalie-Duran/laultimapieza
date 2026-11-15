@@ -16,11 +16,15 @@ export function checkPuzzle(session,story,input,uid){
   if(correct&&!progress.solvedAt){progress.solvedAt=new Date().toISOString();progress.solvedBy=uid;}
   return {correct,hints:p.hints.slice(0,progress.hints),message:correct?p.explanation:'Todavía hay una contradicción. Revisa las pruebas o abre una ayuda; puedes volver a intentarlo.'};
 }
-// Each paid monthly cycle earns four choices, at day 0, 7, 14 and 21.
-// Replaying a selected case never spends another choice. Only verified receipts count.
+export const CASE_ORDER=['cartas-medianoche','ultima-funcion','archivo-ausencias','marea-quieta','frecuencia-17','jardin-invierno','retrato-prestado','mesa-13','tren-detenido','ciudad-invisible','ultimo-coro','ultima-invitacion'];
+// Each verified payment assigns the next fixed block immediately. Revocations keep
+// their ordinal so refunding month one never renumbers month two's cases.
 export function releaseCalendar(cycles,claims=[],now=Date.now()){
-  const valid=cycles.filter(c=>!c.revoked&&Number(c.start)<Number(c.end)).sort((a,b)=>a.start-b.start);
-  const slots=valid.flatMap(c=>[0,7,14,21].map(day=>({at:Number(c.start)+day*86400000,cycle:c.id}))).sort((a,b)=>a.at-b.at).slice(0,12);
-  const released=slots.filter(s=>s.at<=now).length;
-  return {released,used:new Set(claims).size,available:Math.max(0,released-new Set(claims).size),claimed:claims,nextAt:slots.find(s=>s.at>now)?.at||null,slots};
+  const unique=[...new Map(cycles.filter(c=>Number(c.start)<Number(c.end)).map(c=>[c.id,c])).values()].sort((a,b)=>a.start-b.start).slice(0,3);
+  const blocks=unique.map((c,i)=>({id:c.id,number:i+1,start:Number(c.start),end:Number(c.end),revoked:!!c.revoked,caseIds:CASE_ORDER.slice(i*4,i*4+4)}));
+  const paid=blocks.filter(c=>!c.revoked&&c.start<=now),unlockedCaseIds=paid.flatMap(c=>c.caseIds);
+  const current=paid.filter(c=>c.end>now).at(-1)||null;
+  const claimed=[...new Set(claims)].filter(id=>unlockedCaseIds.includes(id));
+  const slots=paid.flatMap(c=>c.caseIds.map(caseId=>({at:c.start,cycle:c.id,caseId})));
+  return {released:unlockedCaseIds.length,used:claimed.length,available:unlockedCaseIds.length-claimed.length,claimed,nextAt:null,slots,blocks,unlockedCaseIds,currentCaseIds:current?.caseIds||[],currentCycle:current?.number||null,currentStart:current?.start||null,currentEnd:current?.end||null};
 }

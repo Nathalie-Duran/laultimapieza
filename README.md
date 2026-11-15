@@ -38,7 +38,7 @@ La red del terminal no permite publicar por git; los archivos se han subido medi
 ## Investigación y calendario (15/11/2026)
 Demo nueva con deducción de reloj y autor. Los doce enigmas tienen controles distintos; el servidor verifica respuestas y guarda ayudas/intentos. Llegar al final sin resolver no concede la pieza. Hitos a 3/6/9 y epílogo con decisión persistente. Conserva el progreso narrativo anterior; las piezas pendientes se recuperan al contrastar el enigma.
 
-Cuatro elecciones por ciclo mensual pagado, días 0/7/14/21; pendientes acumulables con acceso activo, repeticiones sin coste. La temporada contiene 12 casos y como máximo tres ciclos mensuales de 29,95 EUR. El calendario de Stripe se configura para cancelar automáticamente al terminar la temporada.
+Cada pago mensual confirmado desbloquea inmediatamente un bloque fijo de cuatro casos: 01–04, 05–08 y 09–12. Los pendientes se acumulan y requieren suscripción activa para jugar; el panel cuenta los resueltos del bloque actual por historia terminada y enigma resuelto. La temporada contiene 12 casos y como máximo tres ciclos mensuales de 29,95 EUR. El calendario de Stripe se configura para cancelar automáticamente al terminar la temporada.
 
 ### Activar contratación (pendiente de cuenta real y pruebas de integración)
 La integración está desactivada por defecto. En el alojamiento, configurar STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID (EUR 2995, mensual, impuestos incluidos), STRIPE_PORTAL_CONFIGURATION (cancelación habilitada), BILLING_TERMS_URL y BILLING_PRIVACY_URL con datos legales reales. Primero usar claves de prueba; completar compra, webhook, renovación, cancelación, reembolso y recuperación de acceso. Solo entonces establecer BILLING_ENABLED=true con claves del entorno correspondiente. Nunca escribir secretos en Git.
@@ -48,3 +48,9 @@ No se ha conectado una cuenta de Stripe real ni procesado cobros. La gestión de
 ### Avisos y métricas
 /api/waitlist guarda y retira una solicitud con el correo verificado de Firebase. No envía correos; el envío de apertura requiere servicio de correo y ejecución posterior autorizada. Tabla lup_member_data, campo waitlist. Contadores diarios agregados en lup_metrics; la demo solicita opt-in y no guarda respuestas, identificadores o IP. Los eventos de partidas se cuentan en el servidor. Son recuentos, no tasas de retención por cohortes ni visitantes únicos.
 27 pruebas automatizadas y verificación de historias/medios. Las pruebas de base de datos/pago usan dobles; no equivalen a una compra ni a una prueba real MySQL.
+
+
+## Owner access and sign-in domain
+The verified owner identity has editorial access to all 13 stories, independent of billing and the release calendar. The server compares the Firebase-verified email identifier in admin-access.mjs. Browser role/profile fields cannot grant access. This role does not allow reading other users' private games. Owner Checkout requests are rejected to avoid an unnecessary subscription.
+
+Google sign-in uses the same Firebase project and account IDs. The custom callback is https://laultimapieza.es/__/auth/handler, authorized on the existing OAuth client. firebase-proxy.mjs forwards only reserved Firebase helper paths to the fixed project; no arbitrary destination, app bearer token or app cookie is forwarded. Google configuration propagation must be checked end to end before treating the custom domain as ready. 30 automated tests passed, including owner access boundaries and helper proxy requests. Billing remains disabled until provider settings and test-mode validation are complete.

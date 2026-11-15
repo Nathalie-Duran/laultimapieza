@@ -1,6 +1,7 @@
 import { ApiError } from './auth-provider.mjs';
 
 const schema = [
+  `CREATE TABLE IF NOT EXISTS lup_mail_outbox (id CHAR(64) PRIMARY KEY, email VARCHAR(320) NOT NULL, type VARCHAR(30) NOT NULL, data_json LONGTEXT NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'pending', attempts INT NOT NULL DEFAULT 0, next_at BIGINT NOT NULL, first_attempt BIGINT NULL, provider_id VARCHAR(100) NULL, last_error VARCHAR(60) NULL, INDEX lup_mail_pending(status,next_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_member_data (user_id VARCHAR(128) COLLATE utf8mb4_bin PRIMARY KEY, customer_id VARCHAR(80) NULL, data_json LONGTEXT NOT NULL, INDEX lup_customer(customer_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_metrics (day_key VARCHAR(10) NOT NULL, event_key VARCHAR(40) NOT NULL, total INT NOT NULL DEFAULT 0, PRIMARY KEY(day_key,event_key)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_season_rewards (
@@ -45,6 +46,21 @@ export function createDatabase(env=process.env) {
       await initialized;
       await connection.beginTransaction();
       const store = {
+        async enqueueMail(id,email,type,data){
+          if(typeof email!=='string'||!email.includes('@'))return;
+          await query('INSERT IGNORE INTO lup_mail_outbox(id,email,type,data_json,next_at) VALUES (?,?,?,?,?)',[id,email,type,JSON.stringify(data),Date.now()]);
+        },
+        async claimMail(){
+          const now=Date.now();
+          // Stop ambiguous retries before the provider's 24-hour idempotency window expires.
+          await query("UPDATE lup_mail_outbox SET status='review' WHERE status IN ('pending','processing') AND first_attempt IS NOT NULL AND first_attempt<?",[now-20*3600000]);
+          const row=(await query("SELECT * FROM lup_mail_outbox WHERE status IN ('pending','processing') AND next_at<=? ORDER BY next_at LIMIT 1 FOR UPDATE SKIP LOCKED",[now]))[0];
+          if(!row)return null;
+          await query("UPDATE lup_mail_outbox SET status='processing',attempts=attempts+1,first_attempt=COALESCE(first_attempt,?),next_at=? WHERE id=?",[now,now+120000,row.id]);
+          return {id:row.id,email:row.email,type:row.type,data:JSON.parse(row.data_json)};
+        },
+        async finishMail(id,providerId){await query("UPDATE lup_mail_outbox SET status='sent',provider_id=?,last_error=NULL WHERE id=?",[providerId,id]);},
+        async retryMail(id,error){await query("UPDATE lup_mail_outbox SET status=IF(attempts>=8,'review','pending'),next_at=?,last_error=? WHERE id=?",[Date.now()+300000,error,id]);},
         async getMemberData(uid) {
           await query('INSERT IGNORE INTO lup_member_data (user_id,data_json) VALUES (?,?)',[uid,'{}']);
           return JSON.parse((await query('SELECT data_json FROM lup_member_data WHERE user_id=? FOR UPDATE',[uid]))[0].data_json);
@@ -56,9 +72,9 @@ export function createDatabase(env=process.env) {
         async saveSeasonSolved(uid,season) { await query('INSERT IGNORE INTO lup_season_rewards (user_id,season,solved_at) VALUES (?,?,?)',[uid,season,new Date().toISOString()]); },
         async ensureProfile(user) {
           const now=new Date().toISOString();
-          await query('INSERT IGNORE INTO lup_profiles (user_id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)',
+          const created=await query('INSERT IGNORE INTO lup_profiles (user_id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)',
             [user.userId,user.name?.trim().slice(0,32)||'Investigador','#b1846b',now,now]);
-          return this.getProfile(user.userId);
+          return {...await this.getProfile(user.userId),newProfile:created.affectedRows===1};
         },
         async getProfile(uid) { return profile((await query('SELECT * FROM lup_profiles WHERE user_id=?',[uid]))[0]); },
         async updateProfile(uid,name,color) {

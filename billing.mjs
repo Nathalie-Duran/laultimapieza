@@ -1,6 +1,7 @@
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {ApiError} from './auth-provider.mjs';
 import {releaseCalendar} from './progression.mjs';
+import {mailKey} from './mail-service.mjs';
 export function validSignature(raw,header,secret,now=Date.now()){
   const fields=String(header||'').split(','),time=Number(fields.find(x=>x.startsWith('t='))?.slice(2));
   if(!time||Math.abs(now/1000-time)>300||!secret)return false;
@@ -45,6 +46,12 @@ export function createBilling(env=process.env,fetcher=fetch){
     const periodEnd=Math.max(0,...data.cycles.filter(c=>!c.revoked).map(c=>c.end));
     const active=['active','canceled'].includes(sub.status)&&periodEnd>Date.now()&&!sub.pause_collection;
     data.periodEnd=periodEnd;data.active=active;
+    if(active&&store.enqueueMail){
+      for(const invoice of invoices.data||[]){
+        const cycle=data.cycles.find(c=>c.id===invoice.id&&!c.revoked);
+        if(cycle&&cycle.end>Date.now()&&invoice.customer_email)await store.enqueueMail(mailKey('subscription',invoice.id),invoice.customer_email,'subscription',{periodEnd:cycle.end,renewal:invoice.billing_reason==='subscription_cycle'});
+      }
+    }
     await store.saveMemberData(uid,data);
     return {data,active};
   }
@@ -52,15 +59,15 @@ export function createBilling(env=process.env,fetcher=fetch){
     configured,
     publicConfig(){return {checkoutAvailable:configured,termsUrl:configured?env.BILLING_TERMS_URL:null,privacyUrl:configured?env.BILLING_PRIVACY_URL:null};},
     async membership(store,uid){const {data,active}=await sync(store,uid);return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),periodEnd:data.periodEnd||null,waitlist:!!data.waitlist,hasCustomer:!!data.customer};},
-    async canPlay({store,uid}){return (await sync(store,uid)).active;},
+    async canPlay({store,uid,caseId}){const {data,active}=await sync(store,uid);if(active&&caseId&&caseId!=='habitacion-309'&&!releaseCalendar(data.cycles||[],data.claims||[]).unlockedCaseIds.includes(caseId))throw new ApiError(409,'Este caso está bloqueado. Cada pago mensual confirmado desbloquea los cuatro casos del siguiente bloque.','CASE_NOT_RELEASED');return active;},
     async claim(store,uid,caseId){
       const {data,active}=await sync(store,uid);
       if(!active)throw new ApiError(402,'Necesitas una suscripción activa para jugar.','SUBSCRIPTION_REQUIRED');
       if(caseId==='habitacion-309')return;
       data.claims ||= [];
-      if(data.claims.includes(caseId))return;
       const calendar=releaseCalendar(data.cycles||[],data.claims);
-      if(!calendar.available)throw new ApiError(409,calendar.nextAt?'Tu siguiente caso se desbloquea el '+new Date(calendar.nextAt).toLocaleDateString('es-ES',{timeZone:'Europe/Madrid'})+'.':'Ya has elegido los casos disponibles de tu temporada.','CASE_NOT_RELEASED');
+      if(!calendar.unlockedCaseIds.includes(caseId))throw new ApiError(409,'Este caso pertenece a un bloque todavía bloqueado. Se abrirán cuatro casos más con el siguiente pago mensual confirmado.','CASE_NOT_RELEASED');
+      if(data.claims.includes(caseId))return;
       data.claims.push(caseId);await store.saveMemberData(uid,data);
     },
     async checkout(store,user){
@@ -71,7 +78,7 @@ export function createBilling(env=process.env,fetcher=fetch){
       if(price.unit_amount!==2995||price.currency!=='eur'||price.recurring?.interval!=='month'||price.recurring?.interval_count!==1||price.tax_behavior!=='inclusive')throw new ApiError(503,'El precio está pendiente de configuración.','BILLING_UNAVAILABLE');
       if(!data.customer){const customer=await stripe('customers',{email:user.email,'metadata[lup_uid]':user.userId},'lup-customer-'+user.userId);data.customer=customer.id;await store.saveMemberData(user.userId,data);}
       const minute=Math.floor(Date.now()/1800000);
-      const result=await stripe('checkout/sessions',{mode:'subscription',customer:data.customer,'line_items[0][price]':env.STRIPE_PRICE_ID,'line_items[0][quantity]':'1','subscription_data[metadata][lup_uid]':user.userId,client_reference_id:user.userId,success_url:origin+'/#planes?checkout=complete',cancel_url:origin+'/#planes',locale:'es','custom_text[submit][message]':'Temporada de 12 casos. 4 por ciclo mensual, 29,95 € por ciclo (IVA incluido). Cancelable antes de renovar. Máximo 3 ciclos; los casos pendientes se acumulan mientras el acceso esté activo.'},'lup-checkout-'+user.userId+'-'+minute);
+      const result=await stripe('checkout/sessions',{mode:'subscription',customer:data.customer,'line_items[0][price]':env.STRIPE_PRICE_ID,'line_items[0][quantity]':'1','subscription_data[metadata][lup_uid]':user.userId,client_reference_id:user.userId,success_url:origin+'/#planes?checkout=complete',cancel_url:origin+'/#planes',locale:'es','custom_text[submit][message]':'Temporada de 12 casos. 4 casos desbloqueados juntos con cada pago mensual de 29,95 € (IVA incluido). Cancelable antes de renovar. Máximo 3 ciclos; los casos pendientes se acumulan mientras el acceso esté activo.'},'lup-checkout-'+user.userId+'-'+minute);
       return {url:result.url};
     },
     async portal(store,uid){const data=await store.getMemberData(uid);if(!data.customer)throw new ApiError(409,'Todavía no tienes una suscripción.');return {url:(await stripe('billing_portal/sessions',{customer:data.customer,configuration:env.STRIPE_PORTAL_CONFIGURATION,return_url:origin+'/#perfil',locale:'es'})).url};},
