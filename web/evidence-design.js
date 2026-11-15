@@ -56,6 +56,7 @@ const cases={
   web:{title:'Catálogo de las Doce Mesas',sections:[['Equivalencias del catálogo',['07 Puente = U; 02 Barco = T; 11 Casa = N; 04 Faro = T; 09 Libro = N; 01 Llave = C; 12 Campana = S; 06 Reloj = A; 03 Luna = J; 10 Estrella = R; 08 Taza = O; 05 Árbol = O. Las letras repetidas son intencionadas.']],['Guion posterior de Bruno',['Añadido tras aprobar la prueba: «La persona portadora hablará por todos». No tiene firmas de los contribuyentes. Bruno acepta corregirlo tras cotejar el protocolo.']],['Permisos individuales',['Doce aportaciones de personas adultas. Se admiten edición coral con crédito individual, fichas por autor, lectura sin grabación y consejo de cuatro puestos rotatorios elegidos entre los contribuyentes antes de otra publicación. Cada autor conserva su aprobación individual. No se amplía a historias nuevas ni a intimidades de terceros.']]],task:'Consulta las equivalencias para completar el sobre y localiza la frase añadida después de imprimirlo.'},
   audioTask:'La lectura explica la colocación y lectura de las casillas y el alcance de la custodia.',connection:'La voz dicta el procedimiento; el catálogo aporta las letras; la imagen permite comprobar qué responsabilidad se imprimió realmente.'}
 };
+if(root.CartasCase)cases['cartas-medianoche']=root.CartasCase.evidence;
 root.EvidenceDesign={cases};
 if(!root.STORIES)return;
 for(const story of root.STORIES){
@@ -66,6 +67,11 @@ for(const story of root.STORIES){
  plan.artifacts=[{id:story.id+'-visual',type:'image',title:d.image.title,description:'Examina el documento visual y sus detalles. Puedes abrirlo a tamaño completo.',roles:['A'],nodes,src:'/evidence/'+story.id+'.svg',transcript:imageText,question:d.image.task},
  {...audio,roles:['A'],nodes,description:'Testimonio sonoro: aporta información que tendrás que cruzar con las otras fuentes.',question:d.audioTask},
  {id:story.id+'-records',type:'website',title:d.web.title,description:'Abre esta web del universo del caso. Contiene registros distintos de la imagen y del audio.',roles:['B'],nodes,src:'/evidence/'+story.id+'.html',transcript:d.web.sections.map(s=>s[0]+'\n'+s[1].join('\n')).join('\n\n'),question:d.web.task}];
+ if(story.id==='cartas-medianoche'&&root.CartasCase){
+  plan.finalDocuments={};
+  plan.artifacts[1]={id:'cartas-clara-v2',type:'video',title:'Clara · el detalle que recuerda',description:'Un testimonio breve. Escucha el detalle que distingue Clara y contrástalo con el archivo.',roles:['A'],nodes,src:'/cartas-clara.mp4',transcript:root.CartasCase.voice,question:d.audioTask};
+  continue;
+ }
  story.rules=(story.rules||[]).map(t=>t.replace(/Los cuatro medios incluyen texto accesible/,'Cada fuente tiene una alternativa accesible del mismo contenido'));
  for(const node of Object.values(story.nodes)){
   node.evidence={A:{title:'Tu trabajo con imagen y audio',text:d.image.task+' '+d.audioTask},B:{title:'Tu trabajo con el archivo web',text:d.web.task}};
