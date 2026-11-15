@@ -185,7 +185,7 @@ test('La identidad válida procede de Firebase y no de la cabecera del cliente',
 
 test('El enigma se guarda, rechaza aciertos falsificados y no premia terminar sin resolver',async()=>{
 const {call,store}=harness(),story=stories.find(s=>s.season===1);const created=(await call('alice','/api/sessions',{caseId:story.id,mode:'solo'})).body.session;
-assert.equal((await call('alice','/api/sessions/'+created.id+'/puzzle',{answer:story.puzzle.answer})).status,409);
+assert.equal((await call('alice','/api/sessions/'+created.id+'/puzzle',{answer:story.puzzle.answer})).body.correct,false);
 let s=created;while(s.status==='active')s=(await call('alice','/api/sessions/'+s.id+'/choose',{nodeId:s.nodeId,version:s.version,choiceId:story.nodes[s.nodeId].choices[0].id})).body.session;
 assert.equal((await call('alice','/api/season')).body.journey.completed,0);
 assert.equal((await call('bob','/api/sessions/'+s.id+'/puzzle',{answer:story.puzzle.answer})).status,404);

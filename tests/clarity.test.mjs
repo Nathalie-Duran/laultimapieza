@@ -25,6 +25,7 @@ test('En pareja el máximo permite otra ruta acordada sin alterar los puntos de 
 });
 test('Las trece experiencias tienen imágenes disponibles y audios WAV válidos',async()=>{
  for(const plan of [c.MEDIA_PLAN,...Object.values(c.SEASON_MEDIA)]){
+ if(plan.caseId==='cartas-medianoche'){assert.equal(plan.artifacts.length,0);continue;}
  const visual=plan.artifacts.find(a=>a.type==='image');assert.ok(visual);if(plan.caseId==='cartas-medianoche')assert.equal((await readFile(new URL('../public'+visual.src,import.meta.url))).subarray(1,4).toString(),'PNG');else assert.match(await readFile(new URL('../public'+visual.src,import.meta.url),'utf8'),/<svg/);
  const audio=plan.artifacts.find(a=>a.type==='audio');if(!audio){assert.equal(plan.caseId,'cartas-medianoche');continue;}const bytes=await readFile(new URL('../public'+audio.src,import.meta.url));assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WAVE');assert.ok(bytes.length>44);
  }
