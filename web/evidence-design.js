@@ -69,7 +69,9 @@ for(const story of root.STORIES){
  {id:story.id+'-records',type:'website',title:d.web.title,description:'Abre esta web del universo del caso. Contiene registros distintos de la imagen y del audio.',roles:['B'],nodes,src:'/evidence/'+story.id+'.html',transcript:d.web.sections.map(s=>s[0]+'\n'+s[1].join('\n')).join('\n\n'),question:d.web.task}];
  if(story.id==='cartas-medianoche'&&root.CartasCase){
   plan.finalDocuments={};
+  plan.artifacts[0]={...plan.artifacts[0],title:'Originales A y B',description:'Dos sobres, dos cartas. Amplía la imagen para distinguir los matasellos y leer las palabras.',src:'/cartas-ab.png',transcript:d.image.cards.slice(0,2).map(c=>c.join('. ')).join('\n\n')};
   plan.artifacts[1]={id:'cartas-clara-v2',type:'video',title:'Clara · el detalle que recuerda',description:'Un testimonio breve. Escucha el detalle que distingue Clara y contrástalo con el archivo.',roles:['A'],nodes,src:'/cartas-clara.mp4',transcript:root.CartasCase.voice,question:d.audioTask};
+  plan.artifacts.splice(1,0,{...plan.artifacts[0],id:'cartas-originales-cd',title:'Originales C y D',src:'/cartas-cd.png',transcript:d.image.cards.slice(2).map(c=>c.join('. ')).join('\n\n')});
   continue;
  }
  story.rules=(story.rules||[]).map(t=>t.replace(/Los cuatro medios incluyen texto accesible/,'Cada fuente tiene una alternativa accesible del mismo contenido'));
