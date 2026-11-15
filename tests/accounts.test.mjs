@@ -4,6 +4,8 @@ import {readFile} from 'node:fs/promises';
 import {createContext,runInContext} from 'node:vm';
 import {createIdentityVerifier,ApiError} from '../auth-provider.mjs';
 import {createGameApi} from '../game-api.mjs';
+import {isAdministrator} from '../admin-access.mjs';
+
 
 const config={apiKey:'test-key',authDomain:'test-project.firebaseapp.com',projectId:'test-project',appId:'test-app'};
 const context=createContext({structuredClone,crypto:globalThis.crypto});
@@ -191,4 +193,21 @@ const wrong=await call('alice','/api/sessions/'+s.id+'/puzzle',{answer:'falso',c
 const help=await call('alice','/api/sessions/'+s.id+'/puzzle',{action:'hint'});assert.equal(help.body.hints.length,1);
 const solved=await call('alice','/api/sessions/'+s.id+'/puzzle',{answer:story.puzzle.answer});assert.equal(solved.body.correct,true);assert.equal(solved.body.journey.completed,1);
 assert.equal((await call('alice','/api/bootstrap')).body.sessions[0].investigation.hints,1);
+});
+
+test('El acceso editorial exige identidad verificada y no se hereda por perfil o peticion',async()=>{
+  assert.equal(isAdministrator({email:'owner@example.test',emailVerified:true,role:'admin'}),false);
+  assert.equal(isAdministrator({emailVerified:false}),false);
+  const store=fakeStore();let identity={userId:'owner',email:'owner@example.test',emailVerified:true};
+  const billing={membership:async()=>({canPlay:false}),claim:async()=>{throw new Error('Admin must not consume paid credits');},checkout:async()=>{throw new Error('Admin must not be charged');}};
+  const api=createGameApi({config,engine,stories,billing,authorizePlay:async()=>false,isAdministrator:u=>u.emailVerified===true&&u.email==='owner@example.test',withStore:fn=>fn(store),verify:async()=>identity});
+  const call=async(path,value)=>{const r=await api(new Request('https://example.test'+path,{method:value?'POST':'GET',headers:{'content-type':'application/json'},...(value?{body:JSON.stringify(value)}:{})}));return {status:r.status,data:await r.json()};};
+  const boot=await call('/api/bootstrap');assert.equal(boot.data.membership.role,'admin');assert.equal(boot.data.membership.calendar.available,12);
+  for(const story of stories){const r=await call('/api/sessions',{caseId:story.id,mode:'solo'});assert.equal(r.status,200);assert.equal((await call('/api/sessions/'+r.data.session.id)).status,200);}
+  assert.equal((await call('/api/billing/checkout',{})).status,409);
+  identity={userId:'visitor',email:'visitor@example.test',emailVerified:true,role:'admin'};
+  assert.equal((await call('/api/sessions',{caseId:stories[0].id,mode:'solo',role:'admin',email:'owner@example.test',emailVerified:true})).status,402);
+  assert.equal((await call('/api/bootstrap')).data.membership.canPlay,false);
+  const id=[...store.sessions.keys()][0];assert.equal((await call('/api/sessions/'+id)).status,404);
+  identity={userId:'owner',email:'changed@example.test',emailVerified:true};assert.equal((await call('/api/sessions/'+id)).status,402);
 });
