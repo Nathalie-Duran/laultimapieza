@@ -2,12 +2,13 @@ import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { ApiError, isConfigured } from './auth-provider.mjs';
 import { readJourney, solveJourney } from './season-journey.mjs';
 import { checkPuzzle } from './progression.mjs';
-import { adminMembership } from './admin-access.mjs';
+import { adminMembership, canManageSite } from './admin-access.mjs';
 import { mailKey } from './mail-service.mjs';
 
 const COLORS=['#b1846b','#a7b6a0','#dca6a1','#a2b2c9'];
 const hash=code=>createHash('sha256').update(code).digest('hex');
-const memberProfile=p=>({userId:p.userId,name:p.name,color:p.color,avatar:'detective'});
+const AVATARS=new Set(['detective','cobre','jade','ambar','tinta','coral','plata']);
+const memberProfile=p=>({userId:p.userId,name:p.name,color:p.color,avatar:AVATARS.has(p.avatar)?p.avatar:'detective'});
 const fail=(status,message,code)=>{throw new ApiError(status,message,code);};
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Vary':'Authorization'}});
 function member(record,uid) {
@@ -74,6 +75,13 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       if(rate&&rate.until>now){if(++rate.count>180)fail(429,'Espera unos segundos antes de continuar.');}
       else {if(rates.size>10000)rates.clear();rates.set(uid,{count:1,until:now+60000});}
       const input=method==='GET'?null:await body(request);
+      if(path==='/api/admin/analytics'&&method==='GET'){
+        if(!canManageSite(user))fail(403,'Esta vista está reservada a la propietaria.');
+        const days=Number(url.searchParams.get('days')||30);
+        if(![7,30,90].includes(days))fail(400,'Elige 7, 30 o 90 días.');
+        const report=await withStore(async store=>{await store.markEditorial(uid);return store.analytics({days,billingEnabled:billing?.configured===true,stories});});
+        return json(report);
+      }
       const result=await withStore(async store=>{
         const profile=await store.ensureProfile(user);
         if(store.enqueueMail){
@@ -95,11 +103,12 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           await store.saveMemberData(uid,data);return {waitlist:data.waitlist};
         }
         if(path==='/api/bootstrap'&&method==='GET'){
+          if(isAdministrator(user)&&store.markEditorial)await store.markEditorial(uid);
           const sessions=await store.listSessions(uid);
           const membership=isAdministrator(user)?adminMembership():billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
           const guestOwners=[...new Set(sessions.filter(s=>s.ownerId!==uid).map(s=>s.ownerId))];
           const guestAccess=[];for(const owner of guestOwners)if(await authorizePlay({store,uid:owner})===true)guestAccess.push(owner);
-          membership.ownAccess=membership.canPlay;membership.guestOwners=guestAccess;membership.canPlay ||= guestAccess.length>0;
+          membership.canManage=canManageSite(user);membership.ownAccess=membership.canPlay;membership.guestOwners=guestAccess;membership.canPlay ||= guestAccess.length>0;
           return {profile,sessions,journey:await readJourney(store,stories,uid,sessions),activeSessionId:profile.activeSessionId||null,membership};
         }
         if(path==='/api/season'&&method==='GET')return {journey:await readJourney(store,stories,uid)};
@@ -112,7 +121,8 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         if(path==='/api/profile'&&method==='PUT'){
           const name=typeof input.name==='string'?input.name.trim():'';
           if(name.length<2||name.length>32||/[\u0000-\u001f\u007f]/.test(name)||!COLORS.includes(input.color))fail(400,'Revisa el nombre y el color de tu perfil.');
-          return {profile:await store.updateProfile(uid,name,input.color)};
+          if(input.avatarChoice!==undefined&&!AVATARS.has(input.avatarChoice))fail(400,'Elige un avatar de la colección.');
+          return {profile:await store.updateProfile(uid,name,input.color,input.avatarChoice)};
         }
         if(path==='/api/sessions'&&method==='POST'){
           if(!stories.some(s=>s.id===input.caseId)||!['solo','duo'].includes(input.mode))fail(400,'Elige un caso y un modo disponibles.');
