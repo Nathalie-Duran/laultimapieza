@@ -1,0 +1,218 @@
+/* Case invitations share the same reading layout for a visitor and a returning player. */
+.invite-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1.06fr) minmax(0, .94fr);
+  align-items: start;
+  gap: clamp(1.75rem, 4vw, 4rem);
+  max-inline-size: 76rem;
+  margin-inline: auto;
+  padding-block: clamp(1.25rem, 3.8vw, 3.5rem);
+}
+.invite-page .invite-content {
+  min-inline-size: 0;
+  max-inline-size: 41rem;
+}
+.invite-page .invite-content > .text-link:first-child {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2.75rem;
+  margin: 0;
+}
+.invite-page .invite-content > .ui-kicker {
+  margin: clamp(.75rem, 2.5vw, 1.5rem) 0 .6rem;
+  line-height: 1.45;
+}
+.invite-page .invite-content h1 {
+  max-inline-size: 18ch;
+  font-size: clamp(2.6rem, 4.6vw, 4.75rem) !important;
+  line-height: 1.04;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+.invite-page .invite-question {
+  max-inline-size: 38ch;
+  margin-block: .95rem .55rem;
+}
+.invite-page .invite-description {
+  max-inline-size: 53ch;
+  margin-block: .55rem 1rem;
+  line-height: 1.6;
+}
+.invite-page .invite-poster {
+  align-self: start;
+  min-inline-size: 0;
+  margin: clamp(1rem, 4vw, 4rem) 0 0;
+}
+.invite-page .invite-poster img {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  aspect-ratio: 1200 / 630;
+  object-fit: contain;
+  background: #162028;
+  border: 1px solid #695d4f;
+  border-radius: .65rem;
+}
+.invite-page .case-share summary,
+.invite-page .invite-privacy summary {
+  display: list-item;
+  min-block-size: 2.75rem;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+  padding-block: .65rem;
+}
+.invite-page .case-share input {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.archive-landing {
+  min-inline-size: 0;
+}
+details.archive-memories,
+.archive-memories > details {
+  min-inline-size: 0;
+  margin-block: 1rem;
+  padding-inline: clamp(.8rem, 2.5vw, 1.5rem);
+  color: #ede9df;
+  background: #121c25;
+  border: 1px solid #495058;
+  border-radius: .65rem;
+}
+details.archive-memories > summary,
+.archive-memories > details > summary {
+  display: list-item;
+  min-block-size: 2.75rem;
+  box-sizing: border-box;
+  padding-block: .85rem;
+  color: #f3d29f;
+  font-weight: 650;
+  line-height: 1.4;
+  cursor: pointer;
+}
+details.archive-memories[open],
+.archive-memories > details[open] {
+  padding-block-end: .8rem;
+}
+
+:where(a[href], button:enabled, summary):focus-visible {
+  outline: 3px solid #f4cb8c;
+  outline-offset: 3px;
+}
+.skip:focus-visible {
+  position: fixed;
+  z-index: 10000;
+  inset: max(.6rem, env(safe-area-inset-top, 0px)) auto auto max(.6rem, env(safe-area-inset-left, 0px));
+  inline-size: auto;
+  block-size: auto;
+  min-block-size: 2.75rem;
+  padding: .75rem 1rem;
+  margin: 0;
+  transform: none;
+  clip: auto;
+  clip-path: none;
+  overflow: visible;
+  color: #171c21;
+  background: #ffdfa6;
+  border-radius: .4rem;
+}
+@media (forced-colors: active) {
+  :where(a[href], button:enabled, summary):focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+@media (max-width: 760px) {
+  .invite-page {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: .6rem;
+    padding-block: .45rem 1.1rem;
+  }
+  .invite-page .invite-content {
+    display: contents;
+  }
+  .invite-page .invite-content > * {
+    order: 8;
+    min-inline-size: 0;
+  }
+  .invite-page .invite-content > .text-link:first-child {
+    order: 0;
+    justify-self: start;
+  }
+  .invite-page .invite-content > .ui-kicker {
+    order: 1;
+    margin: 0;
+    letter-spacing: .09em;
+  }
+  .invite-page .invite-content h1 {
+    order: 2;
+    margin: 0;
+    font-size: clamp(2.05rem, 8.5vw, 3.4rem) !important;
+  }
+  .invite-page .invite-poster {
+    order: 3;
+    display: block;
+    inline-size: min(100%, 26rem);
+    margin: .15rem 0;
+  }
+  .invite-page .invite-question {
+    order: 4;
+    margin: .15rem 0;
+    font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+    line-height: 1.35;
+  }
+  .invite-page .invite-content > .button {
+    order: 5;
+    inline-size: min(100%, 26rem);
+    min-block-size: 2.75rem;
+    box-sizing: border-box;
+    margin: 0;
+    white-space: normal;
+  }
+  .invite-page .invite-content > .action-note {
+    order: 6;
+    margin: 0;
+    line-height: 1.45;
+  }
+  .invite-page .invite-description {
+    order: 7;
+    margin: .3rem 0;
+  }
+  .invite-page .invite-content > .text-link:not(:first-child) {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-block-size: 2.75rem;
+  }
+  .invite-page .case-share,
+  .invite-page .invite-privacy {
+    margin: 0;
+  }
+  html:has(.mobile-nav) {
+    scroll-padding-block-end: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  .mobile-nav {
+    padding-bottom: max(.25rem, env(safe-area-inset-bottom, 0px));
+  }
+  .page:has(.invite-page, .archive-landing) footer {
+    padding-block-end: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Short screens keep the primary action above the artwork. */
+@media (max-width: 760px) and (max-height: 680px) {
+  .invite-page .invite-content > .button {
+    order: 3;
+  }
+  .invite-page .invite-content > .action-note {
+    order: 4;
+  }
+  .invite-page .invite-poster {
+    order: 5;
+    max-inline-size: 21rem;
+  }
+  .invite-page .invite-question {
+    order: 6;
+  }
+}
