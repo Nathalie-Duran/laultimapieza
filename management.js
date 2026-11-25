@@ -1,13 +1,14 @@
 (function (root) {
   'use strict';
 
-  const number = new Intl.NumberFormat('es-ES');
-  const euro = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
+  const number = new Intl.NumberFormat('es-ES', { useGrouping: 'always' });
+  const euro = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', useGrouping: 'always' });
   const percent = new Intl.NumberFormat('es-ES', { style: 'percent', maximumFractionDigits: 1 });
   const dayFormat = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' });
   const dateFormat = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   const updatedFormat = new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Madrid' });
   const ranges = [7, 30, 90];
+  const goalStorageKey = 'lup.management.netGoal.v1';
   const charts = {
     accounts: { label: 'Cuentas', series: [['accounts', 'Altas de cuenta']] },
     subscriptions: { label: 'Suscripciones', series: [['subscriptionStarts', 'Altas de pago'], ['subscriptionEnds', 'Bajas efectivas']] },
@@ -69,6 +70,73 @@
         ${tile('Cobros brutos', format(t.paidCents, true), 'Importes confirmados, antes de reembolsos', true)}
       </dl></section>`;
   }
+  function comparison(data) {
+    const current = data.comparison?.current, previous = data.comparison?.previous;
+    if (!current || !previous) return '<section class="mg-panel mg-block"><h2>Comparación comercial</h2><p class="mg-note">Comparación pendiente de datos de ambos periodos.</p></section>';
+    const periodLabel = period => dateText(period.from, dayFormat) + ' – ' + dateText(period.to, dayFormat);
+    const indicators = [['accounts', 'Altas de cuenta'], ['noticeAdds', 'Solicitudes de aviso'], ['newSubscriptions', 'Altas de suscripción'], ['cancellations', 'Bajas efectivas'], ['grossCents', 'Cobros brutos']];
+    return `<section class="mg-panel mg-block"><div class="mg-section-heading"><h2>Comparación comercial</h2><span>Dos periodos de ${format(data.days)} días completos · UTC</span></div>
+      <div class="mg-table-wrap" tabindex="0" role="region" aria-label="Comparación entre periodos"><table class="mg-comparison"><caption class="mg-sr">Diferencia entre el periodo reciente, cerrado ayer, y el anterior. N/D indica cobertura insuficiente.</caption><thead><tr><th scope="col">Indicador</th><th scope="col">Anterior<small>${periodLabel(previous)}</small></th><th scope="col">Reciente<small>${periodLabel(current)}</small></th><th scope="col">Diferencia</th></tr></thead><tbody>${indicators.map(([key, label]) => {
+        const a = previous[key], b = current[key], money = key === 'grossCents';
+        const delta = valid(a) && valid(b) ? b - a : null;
+        return `<tr><th scope="row">${label}</th><td>${valid(a) ? format(a, money) : 'N/D'}</td><td>${valid(b) ? format(b, money) : 'N/D'}</td><td class="mg-delta">${valid(delta) ? (delta > 0 ? '+' : '') + format(delta, money) : 'N/D'}</td></tr>`;
+      }).join('')}</tbody></table></div></section>`;
+  }
+  function readDeductions(raw) {
+    const text = String(raw).trim();
+    if (!text) return null;
+    // Spanish grouping and decimal comma, plus ungrouped decimals with a point.
+    if (!/^(?:\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)$/.test(text)) return NaN;
+    const normalized = /\.\d{3}(?:[.,]|$)/.test(text) ? text.replace(/\./g, '') : text;
+    const [units, decimals = ''] = normalized.replace(',', '.').split('.');
+    const cents = Number(units) * 100 + Number(decimals.padEnd(2, '0'));
+    return Number.isSafeInteger(cents) ? cents : NaN;
+  }
+  function rememberedGoal() {
+    if (!permitted()) return '';
+    try {
+      const cents = Number(root.localStorage.getItem(goalStorageKey));
+      return Number.isSafeInteger(cents) && cents > 0 ? (cents / 100).toFixed(2).replace('.', ',') : '';
+    } catch { return ''; }
+  }
+  function rememberGoal(raw) {
+    if (!permitted()) return;
+    const cents = readDeductions(raw);
+    try {
+      if (cents === null) root.localStorage.removeItem(goalStorageKey);
+      else if (valid(cents) && cents > 0) root.localStorage.setItem(goalStorageKey, String(cents));
+    } catch { /* The current calculation also works when storage is unavailable. */ }
+  }
+  function goalResult(gross, raw, goalRaw) {
+    if (!valid(gross)) return '<p class="mg-note">El neto estimado estará disponible cuando haya cobertura de cobros para este mes.</p>';
+    const deductions = readDeductions(raw), goal = readDeductions(goalRaw);
+    if (deductions === null) return '<p class="mg-note">Introduce las deducciones para calcular el neto estimado y cuánto te falta. Puedes indicar 0 si corresponde.</p>';
+    if (!valid(deductions)) return '<p class="mg-note">Introduce un importe positivo o cero, con un máximo de dos decimales.</p>';
+    const net = gross - deductions;
+    const measured = `<div><dt>Neto simulado</dt><dd>${format(net, true)}</dd></div>`;
+    if (!(valid(goal) && goal > 0)) {
+      const note = goal === null ? 'Añade un objetivo para calcular el avance.' : 'El objetivo debe ser un importe superior a cero, con un máximo de dos decimales.';
+      return `<dl class="mg-goal-values">${measured}</dl><p class="mg-note">${note}</p>`;
+    }
+    const missing = Math.max(0, goal - net), progress = Math.max(0, Math.min(goal, net));
+    return `<dl class="mg-goal-values">${measured}<div><dt>Falta para el objetivo</dt><dd>${format(missing, true)}</dd></div></dl><div class="mg-goal-progress"><progress max="${goal}" value="${progress}" aria-label="Avance hacia el objetivo neto" aria-valuetext="${percent.format(net / goal)}"></progress><span>${percent.format(net / goal)} del objetivo</span></div>`;
+  }
+  function monthlyGoal(data) {
+    const m = data.month, goal = rememberedGoal();
+    return `<section class="mg-panel mg-block mg-goal"><div class="mg-section-heading"><h2>Objetivo mensual e ingresos</h2><span>${m?.from && m?.to ? dateText(m.from) + ' – ' + dateText(m.to) + ' · UTC' : 'Mes natural en curso'}</span></div>
+      <div class="mg-confirmed"><span>Cobros brutos confirmados del mes</span><strong>${valid(m?.grossCents) ? format(m.grossCents, true) : 'N/D'}</strong></div>
+      <div class="mg-goal-cols"><div><label class="mg-goal-label" for="mg-target">Objetivo neto mensual (€)</label><input id="mg-target" data-mg-target type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="${escape(goal)}" maxlength="24" aria-describedby="mg-target-help"><p class="mg-note" id="mg-target-help">Opcional. El objetivo se recuerda en este navegador. Vacía el campo para borrarlo.</p></div><div><label class="mg-goal-label" for="mg-deductions">Deducciones acumuladas del mes (€)</label><input id="mg-deductions" data-mg-deductions type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="p. ej., 125,50" maxlength="24" aria-describedby="mg-deduction-help" ${valid(m?.grossCents) ? '' : 'disabled'}><p class="mg-note" id="mg-deduction-help">Suma devoluciones, comisiones, gastos e impuestos hasta la fecha. Las deducciones se usan solo para esta simulación.</p></div></div><div class="mg-goal-result" aria-live="polite" aria-atomic="true">${goalResult(m?.grossCents, '', goal)}</div></section>`;
+  }
+  function activation(data) {
+    const cohort = data.activation;
+    const windowLabel = cohort?.from && cohort?.to ? 'Altas de cuenta del ' + dateText(cohort.from) + ' al ' + dateText(cohort.to) + ' (UTC).' : 'Las fechas de alta del grupo aún están pendientes de histórico.';
+    function cohortFraction(count) {
+      if (!valid(count) || !valid(cohort?.accounts)) return 'N/D';
+      if (cohort.accounts === 0) return '0 de 0';
+      return ratio(count, cohort.accounts) + ' · ' + format(count) + ' de ' + format(cohort.accounts);
+    }
+    return `<section class="mg-panel"><h2>Primeros 30 días de una cuenta</h2><p class="mg-note">${escape(windowLabel)} Cada cuenta ha tenido 30 días completos de seguimiento.</p><dl class="mg-rows">${metricRow('Cuentas del grupo', valid(cohort?.accounts) ? format(cohort.accounts) : 'N/D')}${metricRow('Guardaron su primera partida propia', cohortFraction(cohort?.played))}${metricRow('Hicieron su primer pago', cohortFraction(cohort?.paid))}</dl><p class="mg-note">Las partidas recuperadas cuentan el día en que se guardaron en la web.</p></section>`;
+  }
   function lineSegments(daily, key, x, y) {
     const pieces = [];
     let points = [];
@@ -109,9 +177,55 @@
     return `<div class="mg-legend">${config.series.map(([, label], index) => `<span><i class="mg-swatch-${index}"></i>${label}</span>`).join('')}</div>
       <div class="mg-chart-grid">${graph(daily, config)}</div>${detail}`;
   }
+  function dailyReportCsv(dashboard) {
+    const columns = [
+      ['accounts', 'Altas de cuenta'],
+      ['noticeAdds', 'Solicitudes de aviso'],
+      ['noticeRemoves', 'Retiradas de aviso'],
+      ['subscriptionStarts', 'Altas de suscripción de pago'],
+      ['subscriptionEnds', 'Bajas efectivas de suscripción'],
+      ['paidCents', 'Cobros brutos antes de reembolsos (EUR)'],
+      ['sessionsStarted', 'Partidas iniciadas'],
+      ['cohortCompleted', 'Partidas iniciadas ese día y ya resueltas']
+    ];
+    const lines = [['Fecha (UTC)', ...columns.map(([, label]) => label)].join(';')];
+    for (const day of dashboard.daily) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day.date)) throw new Error('Fecha de informe no válida.');
+      if (day.date < dashboard.from || day.date > dashboard.to) continue;
+      const cells = columns.map(([key]) => {
+        const value = day[key];
+        if (value == null) return '';
+        if (!Number.isSafeInteger(value) || value < 0) throw new Error('Valor de informe no válido.');
+        if (key !== 'paidCents') return String(value);
+        return Math.floor(value / 100) + ',' + String(value % 100).padStart(2, '0');
+      });
+      lines.push([day.date, ...cells].join(';'));
+    }
+    return '\uFEFF' + lines.join('\r\n') + '\r\n';
+  }
+  function downloadDaily(report, el) {
+    const status = el.querySelector('.mg-status');
+    let url;
+    try {
+      const csv = dailyReportCsv(report);
+      const validDate = /^\d{4}-\d{2}-\d{2}$/;
+      if (!validDate.test(report.from) || !validDate.test(report.to)) throw new Error('Fechas no disponibles');
+      url = root.URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'la-ultima-pieza-evolucion-' + report.from + '_' + report.to + '.csv';
+      document.body.append(link);
+      try { link.click(); } finally { link.remove(); }
+      status.textContent = 'Informe diario preparado para descargar.';
+    } catch {
+      status.textContent = 'No se ha podido descargar el informe. Actualiza los datos y vuelve a intentarlo.';
+    } finally {
+      if (url) root.setTimeout(() => root.URL.revokeObjectURL(url), 1000);
+    }
+  }
   function chart(data) {
     return `<section class="mg-panel mg-block"><div class="mg-section-heading"><h2>Evolución diaria</h2>
-      <label class="mg-select"><span>Indicador</span><select data-mg-chart>${Object.entries(charts).map(([key, val]) => `<option value="${key}" ${key === selectedChart ? 'selected' : ''}>${val.label}</option>`).join('')}</select></label></div><div class="mg-chart-body">${chartBody(data)}</div></section>`;
+      <div class="mg-chart-actions"><label class="mg-select"><span>Indicador</span><select data-mg-chart>${Object.entries(charts).map(([key, val]) => `<option value="${key}" ${key === selectedChart ? 'selected' : ''}>${val.label}</option>`).join('')}</select></label><button type="button" class="mg-refresh" data-mg-export ${data.daily.length ? '' : 'disabled'}>Descargar CSV diario</button></div></div><div class="mg-chart-body">${chartBody(data)}</div></section>`;
   }
   function activity(data) {
     const t = data.totals, rows = [...data.cases].sort((a, b) => b.started - a.started || b.completed - a.completed || String(a.title).localeCompare(String(b.title), 'es'));
@@ -132,7 +246,7 @@
       empty && !data.billingEnabled ? 'Contratación cerrada. En este periodo ningún ciclo llegó a su fecha de renovación.' :
       empty ? 'En este periodo ningún ciclo llegó a su fecha de renovación.' :
       'Se cuentan las suscripciones cuyo ciclo anterior venció en el periodo y cuyo siguiente pago está confirmado. Se excluyen los ciclos revocados.';
-    return `<section class="mg-panel mg-block"><h2>Renovaciones de la temporada</h2><dl class="mg-rows">${groups.map(([label, group]) => {
+    return `<section class="mg-panel"><h2>Renovaciones de la temporada</h2><dl class="mg-rows">${groups.map(([label, group]) => {
       if (!valid(group?.eligible) || !valid(group?.renewed)) return metricRow(label, 'Sin histórico');
       const fraction = format(group.renewed) + ' de ' + format(group.eligible);
       return metricRow(label, group.eligible > 0 ? ratio(group.renewed, group.eligible) + ' · ' + fraction : fraction);
@@ -146,14 +260,15 @@
     if (data.coverage?.undatedSessions > 0) notes.push('Partidas sin fecha de inicio, excluidas del análisis del periodo: ' + format(data.coverage.undatedSessions) + '.');
     return `<div class="mg-columns mg-block"><section class="mg-panel"><h2>Avisos de apertura</h2><dl class="mg-rows">${metricRow('Solicitudes recibidas', format(t.noticeAdds))}${metricRow('Solicitudes retiradas', format(t.noticeRemoves))}</dl><p class="mg-note">Estos movimientos proceden del formulario público. El total de avisos vigentes incluye también las solicitudes de cuentas verificadas y cuenta cada correo una vez.</p></section>
       <section class="mg-panel"><h2>Motivos de baja</h2><dl class="mg-rows">${metricRow('Cancelación voluntaria', format(t.voluntaryEnds))}${metricRow('Fin de temporada', format(t.seasonEnds))}${metricRow('Otro motivo o sin clasificar', format(t.otherEnds))}</dl></section></div>
-      <section class="mg-panel mg-block"><h2>Demo e invitaciones</h2><p class="mg-note">Recuentos de eventos con permiso para el análisis. Una persona puede generar varios eventos. Los porcentajes de conversión individual requieren otra medición.</p><div class="mg-columns"><dl class="mg-rows">${metricRow('Inicios de demo', format(o.demo_start))}${metricRow('Demos completadas', format(o.demo_complete))}${metricRow('Pistas consultadas en la demo', format(o.demo_hint))}</dl><dl class="mg-rows">${metricRow('Llegadas por invitación', format(o.ref_visit))}${metricRow('Inicios de demo por invitación', format(o.ref_demo))}${metricRow('Avisos solicitados por invitación', format(o.ref_notice))}</dl></div></section>
+      <section class="mg-panel mg-block"><h2>Demo e invitaciones</h2><p class="mg-note">Recuentos de eventos con permiso para el análisis. Una persona puede generar varios eventos. El total de visitantes únicos de la web se desconoce.</p><div class="mg-columns"><dl class="mg-rows">${metricRow('Inicios de demo', format(o.demo_start))}${metricRow('Demos completadas', format(o.demo_complete))}${metricRow('Pistas consultadas en la demo', format(o.demo_hint))}</dl><dl class="mg-rows">${metricRow('Llegadas por invitación', format(o.ref_visit))}${metricRow('Inicios de demo por invitación', format(o.ref_demo))}${metricRow('Avisos solicitados por invitación', format(o.ref_notice))}</dl></div></section>
       <aside class="mg-method"><h2>Cómo leer los datos</h2><p>La evolución se agrupa en días UTC. La actividad editorial identificada se excluye de los perfiles y las partidas. Una raya indica que el dato no está disponible o que falta una base para calcular el porcentaje.</p>${notes.map(note => `<p>${escape(note)}</p>`).join('')}</aside>`;
   }
   function show(data) {
     const el = host();
     if (!el || !permitted()) return;
     const content = el.querySelector('.mg-content');
-    content.innerHTML = summary(data) + chart(data) + renewals(data) + activity(data) + details(data);
+    content.innerHTML = summary(data) + monthlyGoal(data) + comparison(data) + chart(data)
+      + '<div class="mg-columns mg-block">' + activation(data) + renewals(data) + '</div>' + activity(data) + details(data);
     content.setAttribute('aria-busy', 'false');
     el.querySelector('.mg-status').textContent = 'Actualizado el ' + dateText(data.generatedAt, updatedFormat) + ' (hora de Madrid).';
   }
@@ -205,12 +320,24 @@
           days = next;
           load();
         } else if (button.matches('[data-mg-refresh],[data-mg-retry]') && !loading) load();
+        else if (button.matches('[data-mg-export]') && report) downloadDaily(report, el);
       });
       el.addEventListener('change', event => {
         if (!permitted()) { clear(); return; }
+        if (event.target.matches('[data-mg-target]')) { rememberGoal(event.target.value); return; }
         if (!event.target.matches('[data-mg-chart]') || !Object.hasOwn(charts, event.target.value) || !report) return;
         selectedChart = event.target.value;
         el.querySelector('.mg-chart-body').innerHTML = chartBody(report);
+      });
+      el.addEventListener('input', event => {
+        if (!permitted()) { clear(); return; }
+        if (!event.target.matches('[data-mg-deductions],[data-mg-target]') || !report) return;
+        const gross = report.month?.grossCents;
+        const deductions = el.querySelector('[data-mg-deductions]').value;
+        const target = el.querySelector('[data-mg-target]').value;
+        const amount = readDeductions(event.target.value);
+        event.target.setAttribute('aria-invalid', String(Number.isNaN(amount) || (event.target.matches('[data-mg-target]') && amount === 0)));
+        el.querySelector('.mg-goal-result').innerHTML = goalResult(gross, deductions, target);
       });
     }
     setControls(el);

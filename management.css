@@ -87,6 +87,24 @@
 .management .mg-method h2 { font-size: 1.3rem!important; }
 .management .mg-method p { margin: .5rem 0 0; max-width: 90ch; }
 .management .mg-sr { position: absolute; clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; white-space: nowrap; }
+.management .mg-comparison thead small { display: block; font-size: .78rem; font-weight: 400; line-height: 1.4; color: var(--mg-muted); }
+.management .mg-delta { font-weight: 650; }
+.management .mg-confirmed, .management .mg-goal-progress, .management .mg-chart-actions { display: flex; gap: .5rem .9rem; align-items: center; flex-wrap: wrap; }
+.management .mg-confirmed { justify-content: space-between; border-bottom: 1px solid var(--mg-rule); padding: 0 0 .85rem; margin-bottom: 1rem; color: var(--mg-muted); }
+.management .mg-confirmed strong { color: var(--mg-paper); font: 500 1.65rem/1.1 Georgia,serif; font-variant-numeric: tabular-nums; }
+.management .mg-goal-cols { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .85rem 1.3rem; }
+.management .mg-goal-label { display: block; font-size: .92rem; line-height: 1.45; margin: 0 0 .45rem; font-weight: 600; }
+.management .mg-goal input { width: 100%; max-width: 19rem; min-height: 44px; border-radius: .42rem; padding: .55rem .75rem; border: 1px solid #61716e; color: var(--mg-paper); background: #0c1419; font-size: 1rem; }
+.management .mg-goal input[aria-invalid=true] { border-color: #ecc095; }
+.management .mg-goal input:disabled { opacity: .55; }
+.management .mg-goal input::placeholder { color: var(--mg-muted); }
+.management .mg-goal-result { padding: .75rem 1rem; margin-top: 1rem; border-left: 3px solid var(--mg-gold); background: #1b2626; }
+.management .mg-goal-result .mg-note { margin: .15rem 0; }
+.management .mg-goal-values { display: flex; align-items: baseline; flex-wrap: wrap; gap: .55rem 2rem; }
+.management .mg-goal-values dt { color: var(--mg-muted); font-size: .88rem; }
+.management .mg-goal-values dd { font: 500 1.45rem/1.4 Georgia,serif; font-variant-numeric: tabular-nums; }
+.management .mg-goal-progress { margin-top: .6rem; color: var(--mg-gold); font-size: .88rem; }
+.management .mg-goal-progress progress { width: min(19rem,100%); height: .55rem; border: 0; accent-color: var(--mg-gold); }
 @media(max-width:950px) {
   .management .mg-tiles,.management .mg-activity { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
@@ -105,4 +123,8 @@
   .management .mg-table-wrap th,.management .mg-table-wrap td { padding: .55rem .4rem; }
   .management .mg-table-wrap tbody th { min-width: 8rem; }
   .management .mg-status { margin-bottom: .3rem; }
+  .management .mg-goal-cols { grid-template-columns: minmax(0,1fr); }
+  .management .mg-chart-actions { align-items: stretch; gap: .45rem; }
+  .management .mg-rows dd { flex-shrink: 0; }
+  .management .mg-comparison tbody th:first-child { min-width: 6rem; }
 }

@@ -30,6 +30,20 @@ function sumCovered(rows, key) {
   return values.length ? values.reduce((total, value) => total + value, 0) : null;
 }
 
+function sumComplete(rows, key) {
+  if (!rows.length || rows.some(row => row[key] === null)) return null;
+  return rows.reduce((total, row) => total + row[key], 0);
+}
+
+function summarizeWindow(byDay, start, end, noticeCoverageStart) {
+  const from = dayOf(start), to = dayOf(end - DAY);
+  const rows = [...byDay.values()].filter(row => row.date >= from && row.date <= to);
+  return {from, to, accounts: sumComplete(rows, 'accounts'),
+    noticeAdds: noticeCoverageStart != null && noticeCoverageStart <= start ? sumComplete(rows, 'noticeAdds') : null,
+    newSubscriptions: sumComplete(rows, 'subscriptionStarts'),
+    cancellations: sumComplete(rows, 'subscriptionEnds'), grossCents: sumComplete(rows, 'paidCents')};
+}
+
 const excludeEditorialSession = `NOT EXISTS (
   SELECT 1 FROM lup_editorial_users editor WHERE editor.user_id = s.owner_id
 ) AND NOT EXISTS (
@@ -63,6 +77,58 @@ async function readNotices(query) {
       AND NOT EXISTS (SELECT 1 FROM lup_editorial_users e WHERE e.user_id=m.user_id)
   ) AS unique_requests`);
   return Number(row.total);
+}
+
+async function activationCohort(query, start, end, paymentsAvailable) {
+  const from = new Date(start).toISOString(), until = new Date(end).toISOString();
+  const include = `p.created_at>=? AND p.created_at<?
+    AND NOT EXISTS (SELECT 1 FROM lup_editorial_users editor WHERE editor.user_id=p.user_id)`;
+  // Keys are for counting distinct owners within this transaction. None leave the report.
+  const rows = await query(`SELECT p.user_id AS account_key, p.created_at AS registered_at,
+    JSON_EXTRACT(m.data_json,'$.cycles') AS verified_cycles,
+    JSON_UNQUOTE(JSON_EXTRACT(m.data_json,'$.active')) AS paid_active
+    FROM lup_profiles p LEFT JOIN lup_member_data m ON m.user_id=p.user_id
+    WHERE ${include}`, [from,until]);
+  const accounts = new Map();
+  let paid = 0, coveragePaid = paymentsAvailable;
+  for (const row of rows) {
+    const registered = timestamp(row.registered_at);
+    const boundary = registered === null ? null : registered + 30 * DAY;
+    accounts.set(row.account_key, {registered, boundary, played: false, unknownGame: registered === null});
+    const cycles = jsonValue(row.verified_cycles, []);
+    const unsettled = cycles.some(c => !c.id || !timestamp(c.paidAt) || !Number.isSafeInteger(c.amountPaid));
+    const confirmed = cycles.filter(c => c.id && Number.isSafeInteger(c.amountPaid) && c.amountPaid > 0)
+      .map(c => timestamp(c.paidAt)).filter(time => time !== null);
+    const firstPayment = confirmed.length ? Math.min(...confirmed) : null;
+    if (registered !== null && firstPayment !== null && firstPayment >= registered && firstPayment < boundary) {
+      paid++;
+    } else if (registered === null || unsettled || (String(row.paid_active) === 'true' && !cycles.length)) {
+      coveragePaid = false;
+    }
+  }
+  if (accounts.size) {
+    const sessions = await query(`SELECT s.owner_id AS account_key,
+      JSON_UNQUOTE(JSON_EXTRACT(s.state_json,'$.createdAt')) AS created_at,
+      JSON_UNQUOTE(JSON_EXTRACT(s.state_json,'$.startedAt')) AS started_at,
+      JSON_UNQUOTE(JSON_EXTRACT(s.state_json,'$.reportCreatedAt')) AS report_created_at
+      FROM lup_profiles p JOIN lup_sessions s ON s.owner_id=p.user_id
+      WHERE ${include} AND ${excludeEditorialSession}`, [from,until]);
+    for (const row of sessions) {
+      const account = accounts.get(row.account_key);
+      if (!account) continue;
+      // Imports count on the date they were stored online, not an assumed offline play date.
+      const created = timestamp(row.report_created_at) ?? timestamp(row.created_at) ?? timestamp(row.started_at);
+      if (created === null) account.unknownGame = true;
+      else if (created >= account.registered && created < account.boundary) account.played = true;
+    }
+  }
+  let played = 0, coveragePlayed = true;
+  for (const account of accounts.values()) {
+    if (account.played) played++;
+    else if (account.unknownGame) coveragePlayed = false;
+  }
+  return {from: dayOf(start), to: dayOf(end-DAY), accounts: accounts.size,
+    played: coveragePlayed ? played : null, paid: coveragePaid ? paid : null};
 }
 
 async function readProgress(query, start, after, stories, byDay) {
@@ -144,7 +210,7 @@ function renewalCohorts(cycles, available, byDay, now) {
   return result;
 }
 
-async function readBilling(query, billingEnabled, byDay, now) {
+async function readBilling(query, billingEnabled, byDay, selectedDays, now) {
   const rows = await query(`SELECT
     JSON_EXTRACT(m.data_json,'$.cycles') AS cycles,
     JSON_EXTRACT(m.data_json,'$.billingHistory') AS billing_history,
@@ -155,7 +221,7 @@ async function readBilling(query, billingEnabled, byDay, now) {
       AND (JSON_EXTRACT(m.data_json,'$.cycles') IS NOT NULL OR JSON_EXTRACT(m.data_json,'$.billingHistory') IS NOT NULL
            OR JSON_EXTRACT(m.data_json,'$.subscription') IS NOT NULL)`);
   let activeSubscriptions = 0, scheduledCancellations = 0, hasEvidence = false, partial = false;
-  let voluntaryEnds = 0, seasonEnds = 0, otherEnds = 0, incompleteRevenue = false;
+  let voluntaryEnds = 0, seasonEnds = 0, otherEnds = 0;
   let incompleteLifecycle = false, missingCurrentSchedule = false, missingPaidPeriods = false;
   const retentionCycles = [];
   for (const row of rows) {
@@ -165,11 +231,26 @@ async function readBilling(query, billingEnabled, byDay, now) {
     const paidIds = new Set();
     const invoices = new Set();
     if (active) activeSubscriptions++;
-    if (active && !cycles.length) missingPaidPeriods = true;
+    if (active && !cycles.length) {
+      missingPaidPeriods = true;
+      for (const bucket of byDay.values()) bucket.paidCents = null;
+    }
     if (cycles.length || active) hasEvidence = true;
     retentionCycles.push(...cycles);
     for (const cycle of cycles) {
-      if (!cycle.id || invoices.has(cycle.id)) continue;
+      if (!cycle.id) {
+        partial = true;
+        incompleteLifecycle = true;
+        const paid = timestamp(cycle.paidAt);
+        if (paid === null) {
+          for (const bucket of byDay.values()) bucket.paidCents = null;
+        } else if (paid <= now) {
+          const bucket = byDay.get(dayOf(paid));
+          if (bucket) bucket.paidCents = null;
+        }
+        continue;
+      }
+      if (invoices.has(cycle.id)) continue;
       invoices.add(cycle.id);
       if (cycle.subscription) paidIds.add(cycle.subscription);
       else incompleteLifecycle = true;
@@ -178,18 +259,13 @@ async function readBilling(query, billingEnabled, byDay, now) {
         partial = true;
         if (when !== null) {
           const day = byDay.get(dayOf(when));
-          if (day) { day.paidCents = null; incompleteRevenue = true; }
+          if (day) day.paidCents = null;
         } else {
           // The old record has no date of collection. Its service period is not proof
           // of the day on which money moved, so omit the affected historical total.
-          const end = timestamp(cycle.end);
-          const earliest = [...byDay.keys()][0];
-          if (end === null || dayOf(end) >= earliest) {
-            for (const bucket of byDay.values()) bucket.paidCents = null;
-            incompleteRevenue = true;
-          }
+          for (const bucket of byDay.values()) bucket.paidCents = null;
         }
-      } else {
+      } else if (when <= now) {
         // Gross collections include subsequently refunded invoices. No net estimate.
         incrementDate(byDay,'paidCents',when,cycle.amountPaid);
       }
@@ -198,14 +274,16 @@ async function readBilling(query, billingEnabled, byDay, now) {
     for (const sub of history) {
       if (!sub || !paidIds.has(sub.id) || tracked.has(sub.id)) continue;
       tracked.add(sub.id);
-      if (timestamp(sub.startedAt)) incrementDate(byDay,'subscriptionStarts',sub.startedAt);
+      if (timestamp(sub.startedAt) && timestamp(sub.startedAt) <= now) incrementDate(byDay,'subscriptionStarts',sub.startedAt);
       else incompleteLifecycle = true;
       const ended = timestamp(sub.endedAt);
       if (ended !== null && ended <= now && byDay.has(dayOf(ended))) {
         incrementDate(byDay,'subscriptionEnds',ended);
-        if (sub.reason === 'voluntary') voluntaryEnds++;
-        else if (sub.reason === 'season_end') seasonEnds++;
-        else otherEnds++;
+        if (selectedDays.has(dayOf(ended))) {
+          if (sub.reason === 'voluntary') voluntaryEnds++;
+          else if (sub.reason === 'season_end') seasonEnds++;
+          else otherEnds++;
+        }
       }
       if (sub.id === row.current_subscription && active && !ended && timestamp(sub.cancelScheduledAt) && sub.reason !== 'season_end') scheduledCancellations++;
     }
@@ -218,7 +296,7 @@ async function readBilling(query, billingEnabled, byDay, now) {
     day.subscriptionStarts = null;
     day.subscriptionEnds = null;
   }
-  const retention = renewalCohorts(retentionCycles, available && !missingPaidPeriods, byDay, now);
+  const retention = renewalCohorts(retentionCycles, available && !missingPaidPeriods, selectedDays, now);
   return {
     retention,
     activeSubscriptions: available ? activeSubscriptions : null,
@@ -226,7 +304,7 @@ async function readBilling(query, billingEnabled, byDay, now) {
     voluntaryEnds: available && !incompleteLifecycle ? voluntaryEnds : null,
     seasonEnds: available && !incompleteLifecycle ? seasonEnds : null,
     otherEnds: available && !incompleteLifecycle ? otherEnds : null,
-    incompleteRevenue, partial: partial || incompleteLifecycle || missingCurrentSchedule || (available && retention.second.eligible === null)
+    available, partial: partial || incompleteLifecycle || missingCurrentSchedule || (available && retention.second.eligible === null)
   };
 }
 
@@ -236,42 +314,54 @@ export async function readAnalytics(query, {days, billingEnabled, stories}) {
   const now = Date.now(), today = Math.floor(now / DAY) * DAY;
   const first = today - (days - 1) * DAY;
   const start = new Date(first).toISOString(), after = new Date(today + DAY).toISOString();
+  const currentStart = today - days * DAY, previousStart = currentStart - days * DAY;
+  const utcNow = new Date(now);
+  const monthStart = Date.UTC(utcNow.getUTCFullYear(), utcNow.getUTCMonth(), 1);
+  const historyStart = Math.min(previousStart, monthStart);
   const [coverageRow] = await query('SELECT started_at FROM lup_reporting_since WHERE id=1');
   const began = timestamp(coverageRow?.started_at);
   const noticeSince = began === null ? null : new Date(began).toISOString();
   const byDay = new Map();
-  for (let i = 0; i < days; i++) {
-    const date = dayOf(first + i * DAY);
+  for (let time = historyStart; time <= today; time += DAY) {
+    const date = dayOf(time);
     const noticeDefault = noticeSince && date >= noticeSince.slice(0,10) ? 0 : null;
     byDay.set(date, {date, accounts: 0, noticeAdds: noticeDefault, noticeRemoves: noticeDefault,
       subscriptionStarts: 0, subscriptionEnds: 0, paidCents: 0, sessionsStarted: 0, cohortCompleted: 0});
   }
-  const accounts = await readAccounts(query, start, after, byDay);
+  const selectedDays = new Map([...byDay].filter(([date]) => date >= dayOf(first)));
+  const accounts = await readAccounts(query, new Date(historyStart).toISOString(), after, byDay);
   const notices = await readNotices(query);
   const metrics = await query('SELECT day_key,event_key,total FROM lup_metrics WHERE day_key >= ? AND day_key <= ?',
-    [dayOf(first),dayOf(today)]);
+    [dayOf(historyStart),dayOf(today)]);
   const optional = Object.fromEntries(OPTIONAL.map(key => [key,0]));
   for (const {day_key, event_key, total} of metrics) {
     const bucket = byDay.get(day_key);
     if (!bucket) continue;
-    if (Object.hasOwn(optional, event_key)) optional[event_key] += Number(total);
+    if (selectedDays.has(day_key) && Object.hasOwn(optional, event_key)) optional[event_key] += Number(total);
     if (event_key === 'notice_add' && bucket.noticeAdds !== null) bucket.noticeAdds += Number(total);
     if (event_key === 'notice_remove' && bucket.noticeRemoves !== null) bucket.noticeRemoves += Number(total);
   }
-  const games = await readProgress(query, start, after, stories, byDay);
-  const billing = await readBilling(query, billingEnabled, byDay, now);
-  const daily = [...byDay.values()];
+  const games = await readProgress(query, start, after, stories, selectedDays);
+  const billing = await readBilling(query, billingEnabled, byDay, selectedDays, now);
+  const daily = [...selectedDays.values()];
   const totals = {};
   for (const key of Object.keys(daily[0])) if (key !== 'date') totals[key] = sumCovered(daily, key);
-  if (billing.incompleteRevenue) totals.paidCents = null;
+  totals.paidCents = sumComplete(daily, 'paidCents');
   Object.assign(totals, {activePlayers: games.activePlayers, voluntaryEnds: billing.voluntaryEnds,
     seasonEnds: billing.seasonEnds, otherEnds: billing.otherEnds});
+  const comparison = {current: summarizeWindow(byDay, currentStart, today, began),
+    previous: summarizeWindow(byDay, previousStart, currentStart, began)};
+  const monthToDate = summarizeWindow(byDay, monthStart, today + DAY);
+  const month = {from: monthToDate.from, to: monthToDate.to, grossCents: monthToDate.grossCents};
+  // Full UTC birth dates only. The newest eligible account has had at least 30*24 hours.
+  const matureEnd = today - 30 * DAY;
+  const activation = await activationCohort(query, matureEnd - days * DAY, matureEnd, billing.available);
   return {
     days, from: dayOf(first), to: dayOf(today), generatedAt: new Date(now).toISOString(),
     billingEnabled: !!billingEnabled, noticeSince,
     stock: {accounts, notices, activeSubscriptions: billing.activeSubscriptions,
       scheduledCancellations: billing.scheduledCancellations},
-    totals, daily, cases: games.cases, optional, retention: billing.retention,
+    totals, daily, cases: games.cases, optional, retention: billing.retention, comparison, month, activation,
     coverage: {noticePartial: began === null || began > first, billingPartial: billing.partial,
       undatedSessions: games.undatedSessions}
   };
