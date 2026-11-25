@@ -1,6 +1,7 @@
 (function(root){
   'use strict';
   let bridge,authMode='login',sequence=0,unsubscribe,lastIdentity;
+  let authStatus='loading';
   const A=()=>root.AccountAccess;
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const action=(label,name,primary=false)=>`<button type="button" class="button${primary?' primary':''}" data-action="${name}">${label}</button>`;
@@ -9,7 +10,18 @@
     bridge.modal(`<span class="eyebrow sage">UN ÚLTIMO PASO</span><h2 id="modal-title">Confirma tu correo.</h2><p>Abre el enlace de verificación que te hemos enviado a <span class="auth-email">${esc(A().user?.email)}</span>. Después vuelve aquí para continuar.</p><p class="micro">Si no lo encuentras, revisa la carpeta de correo no deseado.</p><div class="account-actions">${action('Ya he confirmado el correo','auth-check',true)}${action('Reenviar correo','auth-resend')}</div><p id="auth-error" class="auth-error" role="alert"></p><div class="auth-links">${action('Cerrar sesión','auth-logout')}</div>`);
   }
   function open(mode='login'){
-    if(!A().enabled){bridge.modal(`<h2 id="modal-title">El acceso estará disponible pronto.</h2><p>Estamos preparando las cuentas para que puedas guardar tus partidas y continuar en otro dispositivo.</p>`);return;}
+    if(!bridge)return;
+    if(authStatus==='loading'){
+      bridge.modal('<h2 id="modal-title">Abriendo tu cuenta…</h2><p role="status" data-auth-loading>Conectando con el servicio de acceso.</p>');
+      const pending=document.querySelector('#modal [data-auth-loading]');
+      A().ready.catch(()=>{}).then(()=>{if(pending?.isConnected&&pending.closest('dialog')?.open)open(mode);});
+      return;
+    }
+    if(authStatus!=='ready'){
+      const message=authStatus==='error'?'No se ha podido conectar con el servicio de cuentas.':'El acceso con cuenta está desactivado en este momento.';
+      bridge.modal('<h2 id="modal-title">Acceso a tu cuenta</h2><p>'+message+'</p>'+(authStatus==='error'?action('Reintentar conexión','auth-reload',true):'<a class="button" href="#casos">Explorar los casos</a>'));
+      return;
+    }
     if(A().user&&!A().user.emailVerified){verification();return;}
     authMode=mode;const register=mode==='register',reset=mode==='reset';
     bridge.modal(`<span class="eyebrow sage">TU HISTORIA CONTINÚA</span><h2 id="modal-title">${reset?'Recupera tu contraseña.':register?'Crea tu cuenta.':'Vuelve a tu historia.'}</h2><p>${reset?'Te enviaremos un enlace para elegir una nueva contraseña.':register?'Crear tu cuenta es gratis. Para jugar los casos completos necesitarás además una suscripción de pago.':'Entra para recuperar tus partidas, finales y habilidades.'}</p>${!reset?`<button type="button" class="button auth-provider" data-action="auth-google"><span aria-hidden="true">G</span> Continuar con Google</button><div class="auth-divider">o con tu correo electrónico</div>`:''}<form id="account-form" class="auth-form" data-mode="${mode}">${register?'<label class="field">Nombre o alias<input name="name" required minlength="2" maxlength="32" autocomplete="nickname" placeholder="Tu nombre de investigador"></label>':''}<label class="field">Correo electrónico<input name="email" type="email" required maxlength="254" autocomplete="email" inputmode="email" placeholder="tu@correo.com"></label>${!reset?`<label class="field">Contraseña<span class="auth-password"><input id="account-password" name="password" type="password" required ${register?'minlength="12"':''} maxlength="128" autocomplete="${register?'new-password':'current-password'}" ${register?'aria-describedby="password-help"':''}><button type="button" class="text-button" data-action="auth-show-password" aria-controls="account-password" aria-pressed="false">Mostrar</button></span></label>${register?'<p class="micro" id="password-help">Al menos 12 caracteres. Puedes usar una frase fácil de recordar.</p>':''}<label class="auth-remember"><input name="remember" type="checkbox">Recordarme en este dispositivo personal</label>`:''}<div id="auth-error" class="auth-error" role="alert"></div><button class="button primary wide" type="submit">${reset?'Enviar enlace':register?'Crear mi cuenta':'Iniciar sesión'}</button></form><div class="auth-links">${reset?action('Volver a iniciar sesión','auth-login'):register?action('Ya tengo cuenta','auth-login'):action('Crear una cuenta','auth-register')}${!reset&&!register?action('He olvidado mi contraseña','auth-reset'):''}</div><p class="auth-privacy">Google gestiona la autenticación. La última pieza guarda tu perfil y tus partidas vinculados a tu cuenta. La opción «Recordarme» mantiene el acceso en este dispositivo.</p>`);
@@ -40,8 +52,8 @@
   function header(){return A().user?action('Cerrar sesión','auth-logout'):action('Iniciar sesión','auth-login');}
   async function start(value){
     bridge=value;
-    try{const active=await A().ready;bridge.cloud(active);bridge.loading(false);if(active){unsubscribe=A().subscribe(changed);}else bridge.render();}
-    catch{bridge.cloud(true);bridge.loading(false);bridge.reset();bridge.render();bridge.toast('No hemos podido conectar con el servicio de cuentas. Recarga la página para volver a intentarlo.');}
+    try{const active=await A().ready;authStatus=active?'ready':'disabled';bridge.cloud(active);bridge.loading(false);if(active){unsubscribe=A().subscribe(changed);}else bridge.render();}
+    catch{authStatus='error';bridge.cloud(true);bridge.loading(false);bridge.reset();bridge.render();bridge.toast('No hemos podido conectar con el servicio de cuentas. Recarga la página para volver a intentarlo.');}
   }
   document.addEventListener('submit',async event=>{
     if(event.target.id==='import-local-form'){
@@ -66,6 +78,7 @@
     const control=event.target.closest('[data-action]'),name=control?.dataset.action;if(!name?.startsWith('auth-'))return;
     event.preventDefault();if(control.disabled)return;
     if(['auth-login','auth-register','auth-reset'].includes(name)){open(name.slice(5));return;}
+    if(name==='auth-reload'){root.location.reload();return;}
     if(name==='auth-show-password'){const input=document.querySelector('#account-password');if(input){input.type=input.type==='password'?'text':'password';control.textContent=input.type==='text'?'Ocultar':'Mostrar';control.setAttribute('aria-pressed',String(input.type==='text'));}return;}
     control.disabled=true;error('');
     try{
