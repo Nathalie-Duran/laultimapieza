@@ -1,6 +1,11 @@
 import { ApiError } from './auth-provider.mjs';
+import { readAnalytics } from './analytics.mjs';
 
 const schema = [
+  `CREATE TABLE IF NOT EXISTS lup_user_avatars (user_id VARCHAR(128) COLLATE utf8mb4_bin PRIMARY KEY, avatar VARCHAR(12) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS lup_editorial_users (user_id VARCHAR(128) COLLATE utf8mb4_bin PRIMARY KEY) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS lup_reporting_since (id INT PRIMARY KEY, started_at VARCHAR(30) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
   `CREATE TABLE IF NOT EXISTS lup_opening_notices (email VARCHAR(254) PRIMARY KEY, receipt_hash CHAR(64) CHARACTER SET ascii NOT NULL UNIQUE, requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_mail_outbox (id CHAR(64) PRIMARY KEY, email VARCHAR(320) NOT NULL, type VARCHAR(30) NOT NULL, data_json LONGTEXT NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'pending', attempts INT NOT NULL DEFAULT 0, next_at BIGINT NOT NULL, first_attempt BIGINT NULL, provider_id VARCHAR(100) NULL, last_error VARCHAR(60) NULL, INDEX lup_mail_pending(status,next_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_member_data (user_id VARCHAR(128) COLLATE utf8mb4_bin PRIMARY KEY, customer_id VARCHAR(80) NULL, data_json LONGTEXT NOT NULL, INDEX lup_customer(customer_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -26,7 +31,7 @@ const schema = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
 ];
 function profile(row) {
-  return row ? { userId: row.user_id, name: row.name, color: row.color, avatar:'detective',
+  return row ? { userId: row.user_id, name: row.name, color: row.color, avatar:row.avatar||'detective',
     activeSessionId:row.active_session_id, createdAt:row.created_at, updatedAt:row.updated_at } : null;
 }
 function state(row) {
@@ -43,20 +48,25 @@ export function createDatabase(env=process.env) {
       ...(env.DB_SSL_CA ? {ssl:{ca:env.DB_SSL_CA,rejectUnauthorized:true}} : {})});
     const query = async (sql, values=[]) => (await connection.execute(sql,values))[0];
     try {
-      if (!initialized) initialized = (async()=>{for(const sql of schema) await connection.query(sql);})().catch(error=>{initialized=null;throw error;});
+      if (!initialized) initialized = (async()=>{for(const sql of schema) await connection.query(sql);await query('INSERT IGNORE INTO lup_reporting_since(id,started_at) VALUES(1,?)',[new Date().toISOString()]);})().catch(error=>{initialized=null;throw error;});
       await initialized;
       await connection.beginTransaction();
       const store = {
+        async markEditorial(uid){await query('INSERT IGNORE INTO lup_editorial_users(user_id) VALUES(?)',[uid]);},
+        analytics(options){return readAnalytics(query,options);},
         async addOpeningNotice(email,receiptHash){
           const result=await query('INSERT IGNORE INTO lup_opening_notices(email,receipt_hash) VALUES (?,?)',[email,receiptHash]);
+          if(result.affectedRows===1)await this.metric('notice_add');
           return result.affectedRows===1;
         },
         async removeOpeningNotice(receiptHash){
           const result=await query('DELETE FROM lup_opening_notices WHERE receipt_hash=?',[receiptHash]);
+          if(result.affectedRows>0)await this.metric('notice_remove');
           return result.affectedRows>0;
         },
         async removeVerifiedOpeningNotice(email){
-          await query('DELETE FROM lup_opening_notices WHERE email=?',[email.trim().toLowerCase()]);
+          const result=await query('DELETE FROM lup_opening_notices WHERE email=?',[email.trim().toLowerCase()]);
+          if(result.affectedRows>0)await this.metric('notice_remove');
         },
         async enqueueMail(id,email,type,data){
           if(typeof email!=='string'||!email.includes('@'))return;
@@ -88,18 +98,30 @@ export function createDatabase(env=process.env) {
             [user.userId,user.name?.trim().slice(0,32)||'Investigador','#b1846b',now,now]);
           return {...await this.getProfile(user.userId),newProfile:created.affectedRows===1};
         },
-        async getProfile(uid) { return profile((await query('SELECT * FROM lup_profiles WHERE user_id=?',[uid]))[0]); },
-        async updateProfile(uid,name,color) {
+        async getProfile(uid) { return profile((await query('SELECT p.*,a.avatar FROM lup_profiles p LEFT JOIN lup_user_avatars a ON a.user_id=p.user_id WHERE p.user_id=?',[uid]))[0]); },
+        async updateProfile(uid,name,color,avatarChoice) {
+          if(avatarChoice==='detective')await query('DELETE FROM lup_user_avatars WHERE user_id=?',[uid]);
+          else if(avatarChoice)await query('INSERT INTO lup_user_avatars(user_id,avatar) VALUES(?,?) ON DUPLICATE KEY UPDATE avatar=?',[uid,avatarChoice,avatarChoice]);
           await query('UPDATE lup_profiles SET name=?,color=?,updated_at=? WHERE user_id=?',[name,color,new Date().toISOString(),uid]);
           return this.getProfile(uid);
         },
         async setActive(uid,id) { await query('UPDATE lup_profiles SET active_session_id=? WHERE user_id=?',[id,uid]); },
-        async listSessions(uid) {
-          return (await query('SELECT s.state_json FROM lup_sessions s JOIN lup_members m ON m.session_id=s.id WHERE m.user_id=? ORDER BY s.updated_at DESC LIMIT 200',[uid])).map(row=>JSON.parse(row.state_json));
+        async withAvatars(sessions){
+          const ids=[...new Set(sessions.flatMap(s=>s.members.map(m=>m.userId)))];
+          if(!ids.length)return sessions;
+          const rows=await query('SELECT user_id,avatar FROM lup_user_avatars WHERE user_id IN ('+ids.map(()=>'?').join(',')+')',ids);
+          const choices=new Map(rows.map(row=>[row.user_id,row.avatar]));
+          for(const s of sessions)for(const member of s.members)member.avatar=choices.get(member.userId)||'detective';
+          return sessions;
         },
-        async getSession(id) { return state((await query('SELECT * FROM lup_sessions WHERE id=? FOR UPDATE',[id]))[0]); },
+        async listSessions(uid) {
+          const sessions=(await query('SELECT s.state_json FROM lup_sessions s JOIN lup_members m ON m.session_id=s.id WHERE m.user_id=? ORDER BY s.updated_at DESC LIMIT 200',[uid])).map(row=>JSON.parse(row.state_json));
+          return this.withAvatars(sessions);
+        },
+        async getSession(id) { const record=state((await query('SELECT * FROM lup_sessions WHERE id=? FOR UPDATE',[id]))[0]);if(record)await this.withAvatars([record.session]);return record; },
         async findInvite(hash) { return state((await query('SELECT * FROM lup_sessions WHERE invite_hash=? FOR UPDATE',[hash]))[0]); },
         async insertSession(session) {
+          session.reportCreatedAt=new Date().toISOString();
           await query('INSERT INTO lup_sessions (id,owner_id,state_json,updated_at) VALUES (?,?,?,?)',[session.id,session.ownerId,JSON.stringify(session),new Date().toISOString()]);
           for(const member of session.members) await this.addMember(session.id,member.userId);
         },
