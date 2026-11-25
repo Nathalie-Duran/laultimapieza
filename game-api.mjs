@@ -43,7 +43,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       if(!['GET','POST','PUT'].includes(method)) fail(405,'Método no permitido.');
       if(path==='/api/metrics'&&method==='POST'){
         const metric=await body(request);
-        if(!['demo_start','demo_solved','demo_complete','demo_hint','plans_view'].includes(metric.event))fail(400,'Evento no válido.');
+        if(!['demo_start','demo_solved','demo_complete','demo_hint','plans_view','ref_visit','ref_demo'].includes(metric.event))fail(400,'Evento no válido.');
         // Explicit opt-in in the demo. Only aggregate counters: no email, IP or answer stored.
         if(metric.consent!==true)return json({recorded:false});
         await withStore(store=>store.metric(metric.event));return json({recorded:true});
@@ -63,7 +63,10 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         if(now>=noticeWindow.end){noticeWindow.end=now+60000;noticeWindow.count=0;}
         if(++noticeWindow.count>120)fail(429,'Hay muchas solicitudes. Vuelve a intentarlo en un minuto.');
         const receipt=randomBytes(24).toString('hex');
-        await withStore(store=>store.addOpeningNotice(email,hash(receipt)));
+        await withStore(async store=>{
+          const created=await store.addOpeningNotice(email,hash(receipt));
+          if(created&&input.referralMetrics===true)await store.metric('ref_notice');
+        });
         return json({accepted:true,receipt},202);
       }
       const user=await verify(request),uid=user.userId;
