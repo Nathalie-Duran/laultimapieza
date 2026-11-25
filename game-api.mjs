@@ -26,6 +26,7 @@ async function body(request) {
 // No browser field, profile edit or local import can grant paid access.
 export function createGameApi({config,storageReady=true,verify,withStore,engine,stories,origins=[],authorizePlay=async()=>false,billing=null,isAdministrator=()=>false}) {
   const rates=new Map();
+  const noticeWindow={end:0,count:0};
   async function requireSubscription(store,uid,user,caseId){
     if(uid===user?.userId&&isAdministrator(user))return;
     if(await authorizePlay({store,uid,caseId})!==true)fail(402,'Necesitas una suscripción activa para acceder a los retos. Tu progreso se conserva.','SUBSCRIPTION_REQUIRED');
@@ -46,6 +47,24 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         // Explicit opt-in in the demo. Only aggregate counters: no email, IP or answer stored.
         if(metric.consent!==true)return json({recorded:false});
         await withStore(store=>store.metric(metric.event));return json({recorded:true});
+      }
+      if(path==='/api/opening-notice' && (method==='POST'||method==='PUT')){
+        if(!origin || !origins.includes(origin))fail(403,'Abre el formulario desde La última pieza.');
+        const input=await body(request);
+        if(method==='PUT'){
+          if(typeof input.receipt!=='string'||!/^[a-f0-9]{48}$/.test(input.receipt))fail(400,'La solicitud no es válida.');
+          const removed=await withStore(store=>store.removeOpeningNotice(hash(input.receipt)));
+          if(!removed)return json({accepted:false,error:'Esta clave no corresponde a una solicitud activa. Si lo pediste antes, usa el navegador original o retíralo desde tu cuenta verificada.'},409);
+          return json({accepted:true});
+        }
+        const email=typeof input.email==='string'?input.email.trim().toLowerCase():'';
+        if(!email||email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||input.consent!==true)fail(400,'Revisa tu correo y confirma que quieres recibir el aviso.');
+        const now=Date.now();
+        if(now>=noticeWindow.end){noticeWindow.end=now+60000;noticeWindow.count=0;}
+        if(++noticeWindow.count>120)fail(429,'Hay muchas solicitudes. Vuelve a intentarlo en un minuto.');
+        const receipt=randomBytes(24).toString('hex');
+        await withStore(store=>store.addOpeningNotice(email,hash(receipt)));
+        return json({accepted:true,receipt},202);
       }
       const user=await verify(request),uid=user.userId;
       const now=Date.now(),rate=rates.get(uid);
@@ -68,6 +87,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         if(path==='/api/billing/portal'&&method==='POST'&&billing)return billing.portal(store,uid);
         if(path==='/api/waitlist'&&method==='PUT'){
           if(typeof input.enabled!=='boolean')fail(400,'Elige si quieres recibir el aviso.');
+          if(!input.enabled&&user.emailVerified&&store.removeVerifiedOpeningNotice)await store.removeVerifiedOpeningNotice(user.email);
           const data=await store.getMemberData(uid);data.waitlist=input.enabled;data.waitlistEmail=input.enabled?user.email:null;data.waitlistAt=input.enabled?new Date().toISOString():null;
           await store.saveMemberData(uid,data);return {waitlist:data.waitlist};
         }
