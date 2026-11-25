@@ -21,6 +21,8 @@
   let generation = 0;
   let loading = false;
   let report = null;
+  let sessionGoalCents;
+  let goalPersisted = false;
 
   function permitted() { return root.ClubAccess?.state?.canManage === true; }
   function host() { return document.getElementById('management-panel'); }
@@ -94,18 +96,28 @@
   }
   function rememberedGoal() {
     if (!permitted()) return '';
-    try {
-      const cents = Number(root.localStorage.getItem(goalStorageKey));
-      return Number.isSafeInteger(cents) && cents > 0 ? (cents / 100).toFixed(2).replace('.', ',') : '';
-    } catch { return ''; }
+    if (sessionGoalCents === undefined) {
+      try {
+        const stored = Number(root.localStorage.getItem(goalStorageKey));
+        sessionGoalCents = Number.isSafeInteger(stored) && stored > 0 ? stored : null;
+        goalPersisted = sessionGoalCents !== null;
+      } catch { sessionGoalCents = null; }
+    }
+    return sessionGoalCents === null ? '' : (sessionGoalCents / 100).toFixed(2).replace('.', ',');
   }
   function rememberGoal(raw) {
-    if (!permitted()) return;
+    if (!permitted()) return '';
     const cents = readDeductions(raw);
+    if (cents !== null && (!valid(cents) || cents <= 0)) return 'Objetivo sin guardar. Introduce un importe superior a cero con un máximo de dos decimales.';
+    sessionGoalCents = cents;
+    goalPersisted = false;
     try {
       if (cents === null) root.localStorage.removeItem(goalStorageKey);
-      else if (valid(cents) && cents > 0) root.localStorage.setItem(goalStorageKey, String(cents));
-    } catch { /* The current calculation also works when storage is unavailable. */ }
+      else root.localStorage.setItem(goalStorageKey, String(cents));
+      goalPersisted = root.localStorage.getItem(goalStorageKey) === (cents === null ? null : String(cents));
+    } catch { /* The value stays available in this panel for the current account session. */ }
+    if (cents === null) return goalPersisted ? 'Objetivo borrado de este navegador.' : 'Objetivo borrado de esta sesión. El almacenamiento del navegador no está disponible.';
+    return goalPersisted ? 'Objetivo guardado en este navegador.' : 'Objetivo disponible en esta sesión. El almacenamiento del navegador no está disponible.';
   }
   function goalResult(gross, raw, goalRaw) {
     if (!valid(gross)) return '<p class="mg-note">El neto estimado estará disponible cuando haya cobertura de cobros para este mes.</p>';
@@ -125,7 +137,21 @@
     const m = data.month, goal = rememberedGoal();
     return `<section class="mg-panel mg-block mg-goal"><div class="mg-section-heading"><h2>Objetivo mensual e ingresos</h2><span>${m?.from && m?.to ? dateText(m.from) + ' – ' + dateText(m.to) + ' · UTC' : 'Mes natural en curso'}</span></div>
       <div class="mg-confirmed"><span>Cobros brutos confirmados del mes</span><strong>${valid(m?.grossCents) ? format(m.grossCents, true) : 'N/D'}</strong></div>
-      <div class="mg-goal-cols"><div><label class="mg-goal-label" for="mg-target">Objetivo neto mensual (€)</label><input id="mg-target" data-mg-target type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="${escape(goal)}" maxlength="24" aria-describedby="mg-target-help"><p class="mg-note" id="mg-target-help">Opcional. El objetivo se recuerda en este navegador. Vacía el campo para borrarlo.</p></div><div><label class="mg-goal-label" for="mg-deductions">Deducciones acumuladas del mes (€)</label><input id="mg-deductions" data-mg-deductions type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="p. ej., 125,50" maxlength="24" aria-describedby="mg-deduction-help" ${valid(m?.grossCents) ? '' : 'disabled'}><p class="mg-note" id="mg-deduction-help">Suma devoluciones, comisiones, gastos e impuestos hasta la fecha. Las deducciones se usan solo para esta simulación.</p></div></div><div class="mg-goal-result" aria-live="polite" aria-atomic="true">${goalResult(m?.grossCents, '', goal)}</div></section>`;
+      <div class="mg-goal-cols"><div><label class="mg-goal-label" for="mg-target">Objetivo neto mensual (€)</label><input id="mg-target" data-mg-target type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="${escape(goal)}" maxlength="24" aria-describedby="mg-target-help mg-target-status"><p class="mg-note" id="mg-target-help">Opcional. Se guarda mientras escribes. Vacía el campo para borrarlo.</p><p class="mg-note" id="mg-target-status" role="status" aria-live="polite">${goal ? goalPersisted ? 'Objetivo guardado en este navegador.' : 'Objetivo disponible en esta sesión.' : ''}</p></div><div><label class="mg-goal-label" for="mg-deductions">Deducciones acumuladas del mes (€)</label><input id="mg-deductions" data-mg-deductions type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="p. ej., 125,50" maxlength="24" aria-describedby="mg-deduction-help" ${valid(m?.grossCents) ? '' : 'disabled'}><p class="mg-note" id="mg-deduction-help">Suma devoluciones, comisiones, gastos e impuestos hasta la fecha. Las deducciones se usan solo para esta simulación.</p></div></div><div class="mg-goal-result" aria-live="polite" aria-atomic="true">${goalResult(m?.grossCents, '', goal)}</div></section>`;
+  }
+  function saveGoalField(el) {
+    const field = el.querySelector('[data-mg-target]');
+    if (!field || !permitted() || field.dataset.lastHandled === field.value) return;
+    field.dataset.lastHandled = field.value;
+    const message = rememberGoal(field.value);
+    const amount = readDeductions(field.value);
+    field.setAttribute('aria-invalid', String(Number.isNaN(amount) || amount === 0));
+    el.querySelector('#mg-target-status').textContent = message;
+  }
+  function simulate(el, gross) {
+    const deductions = el.querySelector('[data-mg-deductions]');
+    deductions.setAttribute('aria-invalid', String(Number.isNaN(readDeductions(deductions.value))));
+    el.querySelector('.mg-goal-result').innerHTML = goalResult(gross, deductions.value, el.querySelector('[data-mg-target]').value);
   }
   function activation(data) {
     const cohort = data.activation;
@@ -267,8 +293,18 @@
     const el = host();
     if (!el || !permitted()) return;
     const content = el.querySelector('.mg-content');
+    saveGoalField(el);
     content.innerHTML = summary(data) + monthlyGoal(data) + comparison(data) + chart(data)
       + '<div class="mg-columns mg-block">' + activation(data) + renewals(data) + '</div>' + activity(data) + details(data);
+    const goal = el.querySelector('[data-mg-target]');
+    goal.dataset.lastHandled = goal.value;
+    const onGoalInput = () => {
+      if (!permitted() || host() !== el) return;
+      saveGoalField(el);
+      simulate(el, data.month?.grossCents);
+    };
+    goal.addEventListener('input', onGoalInput, true);
+    goal.addEventListener('change', onGoalInput, true);
     content.setAttribute('aria-busy', 'false');
     el.querySelector('.mg-status').textContent = 'Actualizado el ' + dateText(data.generatedAt, updatedFormat) + ' (hora de Madrid).';
   }
@@ -282,6 +318,7 @@
     loading = true;
     report = null;
     const el = host();
+    saveGoalField(el);
     setControls(el);
     el.querySelector('.mg-status').textContent = 'Consultando los últimos ' + days + ' días…';
     el.querySelector('.mg-content').replaceChildren();
@@ -324,20 +361,13 @@
       });
       el.addEventListener('change', event => {
         if (!permitted()) { clear(); return; }
-        if (event.target.matches('[data-mg-target]')) { rememberGoal(event.target.value); return; }
         if (!event.target.matches('[data-mg-chart]') || !Object.hasOwn(charts, event.target.value) || !report) return;
         selectedChart = event.target.value;
         el.querySelector('.mg-chart-body').innerHTML = chartBody(report);
       });
       el.addEventListener('input', event => {
         if (!permitted()) { clear(); return; }
-        if (!event.target.matches('[data-mg-deductions],[data-mg-target]') || !report) return;
-        const gross = report.month?.grossCents;
-        const deductions = el.querySelector('[data-mg-deductions]').value;
-        const target = el.querySelector('[data-mg-target]').value;
-        const amount = readDeductions(event.target.value);
-        event.target.setAttribute('aria-invalid', String(Number.isNaN(amount) || (event.target.matches('[data-mg-target]') && amount === 0)));
-        el.querySelector('.mg-goal-result').innerHTML = goalResult(gross, deductions, target);
+        if (event.target.matches('[data-mg-deductions]') && report) simulate(el, report.month?.grossCents);
       });
     }
     setControls(el);
@@ -349,6 +379,8 @@
     generation++;
     loading = false;
     report = null;
+    sessionGoalCents = undefined;
+    goalPersisted = false;
     days = 30;
     selectedChart = 'accounts';
     host()?.replaceChildren();
