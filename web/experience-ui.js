@@ -44,7 +44,7 @@ function coverStory(m){
   <img class="cover-photo" src="${sceneImage(first)||'/cartas-portada.png'}" alt="" fetchpriority="high">
   <div class="cover-intro"><p class="cover-caption">Cartas a medianoche</p><h1 id="cover-title">Mi carta dice «BAJO».<br><em>¿Qué dice la tuya?</em></h1><p class="cover-lead">Álex tiene las palabras. Noa, las coordenadas. Al juntar las cartas, aparece el primer lugar donde buscar.</p></div>
   <div class="cover-clues" aria-label="Fragmentos de las dos cartas"><div class="clue-slip"><span>Carta de Álex</span><strong>BAJO · LLUVIA · RELOJ</strong><small>Primera fila de la cuadrícula</small></div><div class="clue-slip"><span>Carta de Noa</span><strong>Ventana 1 → A1</strong><small>Primera marca de la plantilla</small></div></div>
-  <div class="cover-start">${m.canPlay?'<a class="button primary" href="#casos">Elegir un caso</a>':'<button class="button primary" data-action="preview-open">Probar un misterio gratis</button><p>Clínica Vallejo · Sin cuenta ni tarjeta</p>'}</div>
+  <div class="cover-start">${m.canPlay?'<a class="button primary" href="#casos">Elegir un caso</a>':'<button class="button primary" data-action="preview-open">Jugar a Clínica Vallejo gratis</button><p>Demo para una o dos personas · Sin cuenta ni tarjeta</p>'}</div>
  </section>`;
 }
 
