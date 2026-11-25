@@ -1,0 +1,181 @@
+.vh-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.04fr);
+  align-items: center;
+  gap: clamp(1.5rem, 3.5vw, 4.75rem);
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  padding: clamp(1.5rem, 3.5vw, 3.8rem);
+  border: 1px solid #474d4a;
+  border-radius: .75rem;
+  color: #f4ead4;
+  background:
+    radial-gradient(ellipse at 86% 49%, #324846 0%, transparent 48%),
+    linear-gradient(115deg, #131a1d 5%, #1c2a2b 76%, #283736);
+}
+.vh-hero .vh-copy {
+  position: relative;
+  min-inline-size: 0;
+  z-index: 1;
+}
+.vh-hero .vh-kicker {
+  margin: 0;
+  color: #ebc486;
+  font-family: inherit;
+  font-size: .82rem;
+  font-weight: 650;
+  letter-spacing: .095em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.vh-hero .vh-copy h1 {
+  margin: .58rem 0 .9rem;
+  color: #fff1d7;
+  font-family: Georgia, 'Times New Roman', serif !important;
+  font-size: clamp(3rem, 5.75vw, 6rem) !important;
+  font-weight: 400;
+  letter-spacing: -.052em;
+  line-height: 1.01;
+  text-wrap: balance;
+}
+.vh-hero .vh-lead {
+  max-inline-size: 38ch;
+  margin: 0;
+  color: #e1e2d9;
+  font-size: clamp(1.04rem, 1.45vw, 1.3rem);
+  line-height: 1.54;
+}
+.vh-hero .vh-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .7rem;
+  margin-block-start: clamp(1rem, 2vw, 1.85rem);
+}
+.vh-hero .vh-actions .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  max-inline-size: 100%;
+  min-block-size: 3rem;
+  padding: .8rem 1.4rem;
+  border: 1px solid #e9be79;
+  border-radius: .45rem;
+  color: #201d17;
+  background: #f0ca88;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: normal;
+}
+.vh-hero .vh-actions .button:hover {
+  background: #ffdaa2;
+}
+.vh-hero .vh-actions .button:focus-visible {
+  outline: 3px solid #fff3d8;
+  outline-offset: 4px;
+}
+.vh-hero .vh-meta {
+  margin: .6rem 0 0;
+  color: #d0d1c7;
+  font-size: .93rem;
+  line-height: 1.4;
+}
+.vh-hero .vh-evidence {
+  position: relative;
+  justify-self: center;
+  inline-size: 100%;
+  max-inline-size: 39rem;
+  aspect-ratio: 1.38;
+  margin: 0;
+}
+.vh-hero .vh-evidence img {
+  position: absolute;
+  display: block;
+  block-size: auto;
+  max-inline-size: none;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.vh-hero .vh-plan {
+  inset-inline-start: 3%;
+  inset-block-end: 7%;
+  inline-size: 77%;
+  transform: rotate(-8deg);
+  border: 1px solid #7f9398;
+  box-shadow: 0 .8rem 1.6rem #02070b77;
+}
+.vh-hero .vh-form {
+  inset-inline-end: 5%;
+  inset-block-start: 4%;
+  inline-size: 62%;
+  transform: rotate(5deg);
+  box-shadow: -.15rem .7rem 1.2rem #03060680;
+}
+@media (max-width: 820px) {
+  .vh-hero {
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+    gap: .9rem;
+  }
+  .vh-hero .vh-copy h1 {
+    font-size: clamp(2.8rem, 6.8vw, 4.3rem) !important;
+  }
+}
+@media (max-width: 640px) {
+  .vh-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: .7rem;
+    padding: clamp(.95rem, 4.1vw, 1.55rem);
+  }
+  .vh-hero .vh-copy {
+    display: contents;
+  }
+  .vh-hero .vh-kicker { order: 1; }
+  .vh-hero .vh-copy h1 {
+    order: 2;
+    margin: 0;
+    font-size: clamp(2.65rem, 10.6vw, 4.35rem) !important;
+  }
+  .vh-hero .vh-lead {
+    order: 3;
+    max-inline-size: 43ch;
+    font-size: 1rem;
+    line-height: 1.43;
+  }
+  .vh-hero .vh-evidence {
+    order: 4;
+    inline-size: min(100%, 22rem);
+    aspect-ratio: 1.78;
+  }
+  .vh-hero .vh-plan {
+    inset-inline-start: 4%;
+    inset-block-end: 8%;
+    inline-size: 65%;
+  }
+  .vh-hero .vh-form {
+    inset-inline-end: 6%;
+    inset-block-start: 5%;
+    inline-size: 48%;
+  }
+  .vh-hero .vh-actions {
+    order: 5;
+    margin: 0;
+  }
+  .vh-hero .vh-actions .button {
+    inline-size: 100%;
+  }
+  .vh-hero .vh-meta {
+    order: 6;
+    margin: -.15rem 0 0;
+  }
+}
+@media (max-width: 640px) and (max-height: 700px) {
+  .vh-hero .vh-actions { order: 4; }
+  .vh-hero .vh-meta { order: 5; }
+  .vh-hero .vh-evidence { order: 6; }
+}
+@media (forced-colors: active) {
+  .vh-hero .vh-actions .button { border-color: ButtonText; }
+  .vh-hero .vh-actions .button:focus-visible { outline-color: Highlight; }
+}
