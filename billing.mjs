@@ -31,9 +31,26 @@ export function createBilling(env=process.env,fetcher=fetch){
     for(const invoice of invoices.data||[]){
       const line=invoice.lines?.data?.find(l=>(l.pricing?.price_details?.price||l.price?.id)===env.STRIPE_PRICE_ID);
       if(!line||!['subscription_create','subscription_cycle'].includes(invoice.billing_reason)||invoice.amount_paid<2995||invoice.currency!=='eur')continue;
-      cycles.push({id:invoice.id,start:line.period.start*1000,end:line.period.end*1000,revoked:(data.revokedInvoices||[]).includes(invoice.id)});
+      cycles.push({id:invoice.id,subscription:sub.id,amountPaid:invoice.amount_paid,paidAt:invoice.status_transitions?.paid_at?invoice.status_transitions.paid_at*1000:null,start:line.period.start*1000,end:line.period.end*1000,revoked:(data.revokedInvoices||[]).includes(invoice.id)});
     }
     data.cycles=[...new Map([...(data.cycles||[]),...cycles].map(c=>[c.id,{...c,revoked:(data.revokedInvoices||[]).includes(c.id)}])).values()].sort((a,b)=>a.start-b.start);
+    // Keep one verified status per subscription. Replayed webhooks update the same record.
+    data.billingHistory ||= {};
+    for(const item of candidates){
+      const paid=data.cycles.filter(c=>c.subscription===item.id);
+      const previous=data.billingHistory[item.id]||{};
+      const firstPaid=paid.map(c=>c.paidAt).filter(Number.isFinite).sort((a,b)=>a-b)[0];
+      if(!firstPaid&&!previous.startedAt)continue;
+      const endedAt=item.ended_at?item.ended_at*1000:null;
+      const finalEnd=paid.length>=3?Math.max(...paid.map(c=>c.end)):null;
+      const scheduledEnd=item.cancel_at?item.cancel_at*1000:null;
+      const requested=item.cancellation_details?.reason==='cancellation_requested';
+      const scheduledByUser=item.cancel_at_period_end||Boolean(requested&&scheduledEnd);
+      const fullSeason=finalEnd&&endedAt&&endedAt>=finalEnd-1000;
+      data.billingHistory[item.id]={id:item.id,startedAt:previous.startedAt||firstPaid,
+        cancelScheduledAt:!endedAt&&scheduledByUser&&(!finalEnd||scheduledEnd!==finalEnd)?(scheduledEnd||Math.max(...paid.map(c=>c.end),0)||null):null,
+        endedAt,status:item.status,reason:endedAt?(fullSeason?'season_end':requested?'voluntary':'other'):null};
+    }
     // Set the complete finite schedule on the provider before granting access.
     // Retries recover the schedule attached to the subscription; a rollback cannot duplicate it.
     if(sub.status==='active'&&!sub.cancel_at_period_end&&!data.scheduleConfigured){
