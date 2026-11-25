@@ -124,6 +124,20 @@
       </dl>
       <div class="mg-table-wrap" tabindex="0" role="region" aria-label="Progreso de los casos"><table><caption class="mg-sr">Partidas por caso, con el estado actual de las iniciadas en el periodo</caption><thead><tr><th scope="col">Caso</th><th scope="col">Iniciadas</th><th scope="col">Resueltas</th><th scope="col">Finalización</th><th scope="col">A solas</th><th scope="col">En pareja</th></tr></thead><tbody>${rows.map(r => `<tr><th scope="row">${escape(r.title)}</th><td>${format(r.started)}</td><td>${format(r.completed)}</td><td>${ratio(r.completed, r.started)}</td><td>${format(r.solo)}</td><td>${format(r.duo)}</td></tr>`).join('')}</tbody></table></div></section>`;
   }
+  function renewals(data) {
+    const groups = [['Segundo mes', data.retention?.second], ['Tercer mes', data.retention?.third]];
+    const measured = groups.some(([, group]) => valid(group?.eligible) && valid(group?.renewed));
+    const empty = measured && groups.every(([, group]) => group?.eligible === 0);
+    const note = !measured ? 'Este informe todavía no dispone del historial de renovaciones.' :
+      empty && !data.billingEnabled ? 'Contratación cerrada. En este periodo ningún ciclo llegó a su fecha de renovación.' :
+      empty ? 'En este periodo ningún ciclo llegó a su fecha de renovación.' :
+      'Se cuentan las suscripciones cuyo ciclo anterior venció en el periodo y cuyo siguiente pago está confirmado. Se excluyen los ciclos revocados.';
+    return `<section class="mg-panel mg-block"><h2>Renovaciones de la temporada</h2><dl class="mg-rows">${groups.map(([label, group]) => {
+      if (!valid(group?.eligible) || !valid(group?.renewed)) return metricRow(label, 'Sin histórico');
+      const fraction = format(group.renewed) + ' de ' + format(group.eligible);
+      return metricRow(label, group.eligible > 0 ? ratio(group.renewed, group.eligible) + ' · ' + fraction : fraction);
+    }).join('')}</dl><p class="mg-note">${note}</p></section>`;
+  }
   function details(data) {
     const t = data.totals, o = data.optional, since = data.noticeSince ? dateText(data.noticeSince) : '';
     const notes = [];
@@ -139,7 +153,7 @@
     const el = host();
     if (!el || !permitted()) return;
     const content = el.querySelector('.mg-content');
-    content.innerHTML = summary(data) + chart(data) + activity(data) + details(data);
+    content.innerHTML = summary(data) + chart(data) + renewals(data) + activity(data) + details(data);
     content.setAttribute('aria-busy', 'false');
     el.querySelector('.mg-status').textContent = 'Actualizado el ' + dateText(data.generatedAt, updatedFormat) + ' (hora de Madrid).';
   }

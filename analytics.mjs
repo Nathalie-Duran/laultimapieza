@@ -106,6 +106,44 @@ async function readProgress(query, start, after, stories, byDay) {
   return {cases: [...cases.values()], undatedSessions, activePlayers: Number(active.total)};
 }
 
+function renewalCohorts(cycles, available, byDay, now) {
+  const subscriptions = new Map();
+  // Keep refunded periods in chronological order so a refunded second month
+  // can never turn a third payment into a successful first renewal.
+  for (const cycle of cycles) {
+    const start = timestamp(cycle.start), end = timestamp(cycle.end), paid = timestamp(cycle.paidAt);
+    if (!cycle.subscription || !cycle.id || start === null || end === null || end <= start || paid === null) {
+      available = false;
+      continue;
+    }
+    if (paid > now) continue;
+    if (!subscriptions.has(cycle.subscription)) subscriptions.set(cycle.subscription, new Map());
+    const periods = subscriptions.get(cycle.subscription);
+    const existing = periods.get(start);
+    if (existing && existing.end !== end) available = false;
+    periods.set(start, {start, end, valid: existing?.valid === true || !cycle.revoked});
+  }
+  const cohort = () => ({eligible: available ? 0 : null, renewed: available ? 0 : null});
+  const result = {second: cohort(), third: cohort()};
+  if (!available) return result;
+  for (const periods of subscriptions.values()) {
+    const ordered = [...periods.values()].sort((left, right) => left.start - right.start);
+    // The provider schedules contiguous monthly service periods. A later
+    // payment after an uncovered gap is not the next monthly renewal.
+    let period = ordered[0];
+    for (const bucket of [result.second, result.third]) {
+      if (!period) break;
+      const next = periods.get(period.end);
+      if (period.valid && period.end <= now && byDay.has(dayOf(period.end))) {
+        bucket.eligible++;
+        if (next?.valid) bucket.renewed++;
+      }
+      period = next;
+    }
+  }
+  return result;
+}
+
 async function readBilling(query, billingEnabled, byDay, now) {
   const rows = await query(`SELECT
     JSON_EXTRACT(m.data_json,'$.cycles') AS cycles,
@@ -118,7 +156,8 @@ async function readBilling(query, billingEnabled, byDay, now) {
            OR JSON_EXTRACT(m.data_json,'$.subscription') IS NOT NULL)`);
   let activeSubscriptions = 0, scheduledCancellations = 0, hasEvidence = false, partial = false;
   let voluntaryEnds = 0, seasonEnds = 0, otherEnds = 0, incompleteRevenue = false;
-  let incompleteLifecycle = false, missingCurrentSchedule = false;
+  let incompleteLifecycle = false, missingCurrentSchedule = false, missingPaidPeriods = false;
+  const retentionCycles = [];
   for (const row of rows) {
     const cycles = jsonValue(row.cycles, []);
     const history = Object.values(jsonValue(row.billing_history, {}));
@@ -126,7 +165,9 @@ async function readBilling(query, billingEnabled, byDay, now) {
     const paidIds = new Set();
     const invoices = new Set();
     if (active) activeSubscriptions++;
+    if (active && !cycles.length) missingPaidPeriods = true;
     if (cycles.length || active) hasEvidence = true;
+    retentionCycles.push(...cycles);
     for (const cycle of cycles) {
       if (!cycle.id || invoices.has(cycle.id)) continue;
       invoices.add(cycle.id);
@@ -177,13 +218,15 @@ async function readBilling(query, billingEnabled, byDay, now) {
     day.subscriptionStarts = null;
     day.subscriptionEnds = null;
   }
+  const retention = renewalCohorts(retentionCycles, available && !missingPaidPeriods, byDay, now);
   return {
+    retention,
     activeSubscriptions: available ? activeSubscriptions : null,
     scheduledCancellations: available && !missingCurrentSchedule ? scheduledCancellations : null,
     voluntaryEnds: available && !incompleteLifecycle ? voluntaryEnds : null,
     seasonEnds: available && !incompleteLifecycle ? seasonEnds : null,
     otherEnds: available && !incompleteLifecycle ? otherEnds : null,
-    incompleteRevenue, partial: partial || incompleteLifecycle || missingCurrentSchedule
+    incompleteRevenue, partial: partial || incompleteLifecycle || missingCurrentSchedule || (available && retention.second.eligible === null)
   };
 }
 
@@ -228,7 +271,7 @@ export async function readAnalytics(query, {days, billingEnabled, stories}) {
     billingEnabled: !!billingEnabled, noticeSince,
     stock: {accounts, notices, activeSubscriptions: billing.activeSubscriptions,
       scheduledCancellations: billing.scheduledCancellations},
-    totals, daily, cases: games.cases, optional,
+    totals, daily, cases: games.cases, optional, retention: billing.retention,
     coverage: {noticePartial: began === null || began > first, billingPartial: billing.partial,
       undatedSessions: games.undatedSessions}
   };
