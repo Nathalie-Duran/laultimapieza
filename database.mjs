@@ -1,6 +1,7 @@
 import { ApiError } from './auth-provider.mjs';
 
 const schema = [
+  `CREATE TABLE IF NOT EXISTS lup_opening_notices (email VARCHAR(254) PRIMARY KEY, receipt_hash CHAR(64) CHARACTER SET ascii NOT NULL UNIQUE, requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_mail_outbox (id CHAR(64) PRIMARY KEY, email VARCHAR(320) NOT NULL, type VARCHAR(30) NOT NULL, data_json LONGTEXT NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'pending', attempts INT NOT NULL DEFAULT 0, next_at BIGINT NOT NULL, first_attempt BIGINT NULL, provider_id VARCHAR(100) NULL, last_error VARCHAR(60) NULL, INDEX lup_mail_pending(status,next_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_member_data (user_id VARCHAR(128) COLLATE utf8mb4_bin PRIMARY KEY, customer_id VARCHAR(80) NULL, data_json LONGTEXT NOT NULL, INDEX lup_customer(customer_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_metrics (day_key VARCHAR(10) NOT NULL, event_key VARCHAR(40) NOT NULL, total INT NOT NULL DEFAULT 0, PRIMARY KEY(day_key,event_key)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -46,6 +47,16 @@ export function createDatabase(env=process.env) {
       await initialized;
       await connection.beginTransaction();
       const store = {
+        async addOpeningNotice(email,receiptHash){
+          await query('INSERT INTO lup_opening_notices(email,receipt_hash) VALUES (?,?) ON DUPLICATE KEY UPDATE email=lup_opening_notices.email',[email,receiptHash]);
+        },
+        async removeOpeningNotice(receiptHash){
+          const result=await query('DELETE FROM lup_opening_notices WHERE receipt_hash=?',[receiptHash]);
+          return result.affectedRows>0;
+        },
+        async removeVerifiedOpeningNotice(email){
+          await query('DELETE FROM lup_opening_notices WHERE email=?',[email.trim().toLowerCase()]);
+        },
         async enqueueMail(id,email,type,data){
           if(typeof email!=='string'||!email.includes('@'))return;
           await query('INSERT IGNORE INTO lup_mail_outbox(id,email,type,data_json,next_at) VALUES (?,?,?,?,?)',[id,email,type,JSON.stringify(data),Date.now()]);
