@@ -48,7 +48,8 @@ export function createDatabase(env=process.env) {
       await connection.beginTransaction();
       const store = {
         async addOpeningNotice(email,receiptHash){
-          await query('INSERT INTO lup_opening_notices(email,receipt_hash) VALUES (?,?) ON DUPLICATE KEY UPDATE email=lup_opening_notices.email',[email,receiptHash]);
+          const result=await query('INSERT IGNORE INTO lup_opening_notices(email,receipt_hash) VALUES (?,?)',[email,receiptHash]);
+          return result.affectedRows===1;
         },
         async removeOpeningNotice(receiptHash){
           const result=await query('DELETE FROM lup_opening_notices WHERE receipt_hash=?',[receiptHash]);
