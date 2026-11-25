@@ -73,6 +73,14 @@
 .management thead th { background: #18262a; color: #d5dfd8; font-size: .86rem; font-weight: 600; position: sticky; top: 0; }
 .management tbody th { font-weight: 500; }
 .management tbody tr:last-child>* { border-bottom: 0; }
+/* Keep the case or metric visible when its values scroll horizontally. */
+.management .mg-table-wrap:not(.mg-daily-wrap) { isolation: isolate; }
+.management .mg-table-wrap:not(.mg-daily-wrap) th:first-child {
+  position: sticky; inset-inline-start: 0; z-index: 1;
+  background: var(--mg-panel); box-shadow: 1px 0 var(--mg-rule);
+}
+.management .mg-table-wrap:not(.mg-daily-wrap) thead th { z-index: 2; }
+.management .mg-table-wrap:not(.mg-daily-wrap) thead th:first-child { z-index: 3; background: #18262a; }
 .management .mg-activity { margin: .7rem 0 1rem; gap: .8rem; }
 .management .mg-activity .mg-tile { border: 0; border-left: 2px solid #58635b; border-radius: 0; padding: .1rem 0 .1rem .7rem; background: transparent; }
 .management .mg-activity .mg-tile dd:first-of-type { font-size: 1.65rem; margin: .25rem 0; }
@@ -127,4 +135,24 @@
   .management .mg-chart-actions { align-items: stretch; gap: .45rem; }
   .management .mg-rows dd { flex-shrink: 0; }
   .management .mg-comparison tbody th:first-child { min-width: 6rem; }
+  .management .mg-table-wrap:not(.mg-daily-wrap) th:first-child {
+    max-width: min(11rem,38vw); overflow-wrap: anywhere;
+  }
+}
+@media(max-width:400px) {
+  .management .mg-tiles { grid-template-columns: minmax(0,1fr); gap: .45rem; }
+  .management .mg-tiles .mg-tile {
+    flex-direction: row; flex-wrap: wrap; align-items: baseline;
+    gap: .12rem .6rem; padding: .65rem .8rem;
+  }
+  .management .mg-tiles .mg-tile dt { flex: 1 1 7rem; }
+  .management .mg-tiles .mg-tile dd:first-of-type {
+    flex: 0 1 auto; max-width: 100%; margin: 0; overflow-x: auto;
+    font-size: clamp(1.25rem,6vw,1.5rem); white-space: nowrap;
+  }
+  .management .mg-tiles .mg-tile-note { flex-basis: 100%; margin-top: .12rem; }
+  .management .mg-confirmed strong, .management .mg-goal-values dd {
+    max-width: 100%; overflow-x: auto; white-space: nowrap;
+  }
+  .management .mg-goal-values > div { min-width: 0; max-width: 100%; }
 }

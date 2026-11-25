@@ -53,7 +53,7 @@
     return `<section class="management" id="management-panel" aria-labelledby="management-title">
       <header class="mg-head"><div><p class="mg-kicker">Administración</p><h1 id="management-title">Evolución de la web</h1></div>
       <div class="mg-toolbar"><div class="mg-range" role="group" aria-label="Periodo de análisis">${ranges.map(value => `<button type="button" data-mg-days="${value}" aria-pressed="${value === days}">${value} días</button>`).join('')}</div><button class="mg-refresh" type="button" data-mg-refresh>Actualizar</button></div></header>
-      <p class="mg-status" role="status" aria-live="polite"></p><div class="mg-content" aria-busy="true"></div></section>`;
+      <p class="mg-status" role="status" aria-live="polite"></p><p class="mg-sr" data-mg-goal-announcement role="status" aria-live="polite" aria-atomic="true"></p><div class="mg-content" aria-busy="true"></div></section>`;
   }
   function summary(data) {
     const s = data.stock, t = data.totals;
@@ -137,21 +137,35 @@
     const m = data.month, goal = rememberedGoal();
     return `<section class="mg-panel mg-block mg-goal"><div class="mg-section-heading"><h2>Objetivo mensual e ingresos</h2><span>${m?.from && m?.to ? dateText(m.from) + ' – ' + dateText(m.to) + ' · UTC' : 'Mes natural en curso'}</span></div>
       <div class="mg-confirmed"><span>Cobros brutos confirmados del mes</span><strong>${valid(m?.grossCents) ? format(m.grossCents, true) : 'N/D'}</strong></div>
-      <div class="mg-goal-cols"><div><label class="mg-goal-label" for="mg-target">Objetivo neto mensual (€)</label><input id="mg-target" data-mg-target type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="${escape(goal)}" maxlength="24" aria-describedby="mg-target-help mg-target-status"><p class="mg-note" id="mg-target-help">Opcional. Se guarda mientras escribes. Vacía el campo para borrarlo.</p><p class="mg-note" id="mg-target-status" role="status" aria-live="polite">${goal ? goalPersisted ? 'Objetivo guardado en este navegador.' : 'Objetivo disponible en esta sesión.' : ''}</p></div><div><label class="mg-goal-label" for="mg-deductions">Deducciones acumuladas del mes (€)</label><input id="mg-deductions" data-mg-deductions type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="p. ej., 125,50" maxlength="24" aria-describedby="mg-deduction-help" ${valid(m?.grossCents) ? '' : 'disabled'}><p class="mg-note" id="mg-deduction-help">Suma devoluciones, comisiones, gastos e impuestos hasta la fecha. Las deducciones se usan solo para esta simulación.</p></div></div><div class="mg-goal-result" aria-live="polite" aria-atomic="true">${goalResult(m?.grossCents, '', goal)}</div></section>`;
+      <div class="mg-goal-cols"><div><label class="mg-goal-label" for="mg-target">Objetivo neto mensual (€)</label><input id="mg-target" data-mg-target type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="${escape(goal)}" maxlength="24" aria-describedby="mg-target-help"><p class="mg-note" id="mg-target-help">Opcional. Se guarda mientras escribes. Vacía el campo para borrarlo.</p><p class="mg-note" id="mg-target-status">${goal ? goalPersisted ? 'Objetivo guardado en este navegador.' : 'Objetivo disponible en esta sesión.' : ''}</p></div><div><label class="mg-goal-label" for="mg-deductions">Deducciones acumuladas del mes (€)</label><input id="mg-deductions" data-mg-deductions type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="p. ej., 125,50" maxlength="24" aria-describedby="mg-deduction-help" ${valid(m?.grossCents) ? '' : 'disabled'}><p class="mg-note" id="mg-deduction-help">Suma devoluciones, comisiones, gastos e impuestos hasta la fecha. Las deducciones se usan solo para esta simulación.</p></div></div><div class="mg-goal-result">${goalResult(m?.grossCents, '', goal)}</div></section>`;
   }
   function saveGoalField(el) {
     const field = el.querySelector('[data-mg-target]');
     if (!field || !permitted() || field.dataset.lastHandled === field.value) return;
     field.dataset.lastHandled = field.value;
     const message = rememberGoal(field.value);
-    const amount = readDeductions(field.value);
-    field.setAttribute('aria-invalid', String(Number.isNaN(amount) || amount === 0));
     el.querySelector('#mg-target-status').textContent = message;
   }
   function simulate(el, gross) {
     const deductions = el.querySelector('[data-mg-deductions]');
-    deductions.setAttribute('aria-invalid', String(Number.isNaN(readDeductions(deductions.value))));
     el.querySelector('.mg-goal-result').innerHTML = goalResult(gross, deductions.value, el.querySelector('[data-mg-target]').value);
+  }
+  function announceAfterEdit(el, field, goal, gross) {
+    let announced = field.value;
+    function confirm() {
+      if (!permitted() || host() !== el || field.value === announced) return;
+      announced = field.value;
+      if (field === goal) saveGoalField(el);
+      simulate(el, gross);
+      const amount = readDeductions(field.value);
+      field.setAttribute('aria-invalid', String(Number.isNaN(amount) || (field === goal && amount === 0)));
+      const feedback = field === goal ? el.querySelector('#mg-target-status') : el.querySelector('.mg-goal-result');
+      el.querySelector('[data-mg-goal-announcement]').textContent = feedback.innerText.trim().replace(/\s+/g, ' ');
+    }
+    field.addEventListener('blur', confirm);
+    field.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); confirm(); }
+    });
   }
   function activation(data) {
     const cohort = data.activation;
@@ -305,6 +319,8 @@
     };
     goal.addEventListener('input', onGoalInput, true);
     goal.addEventListener('change', onGoalInput, true);
+    announceAfterEdit(el, goal, goal, data.month?.grossCents);
+    announceAfterEdit(el, el.querySelector('[data-mg-deductions]'), goal, data.month?.grossCents);
     content.setAttribute('aria-busy', 'false');
     el.querySelector('.mg-status').textContent = 'Actualizado el ' + dateText(data.generatedAt, updatedFormat) + ' (hora de Madrid).';
   }
