@@ -46,9 +46,9 @@
       heading = pieces ? 'Elige tu siguiente misterio' : 'Tu primera investigación';
       description = canPlay
         ? 'Elige un caso del catálogo. Puedes seguir las dos pistas a solas o investigar con un cómplice.'
-        : 'Prueba un misterio independiente de 3–5 minutos y descubre cómo se cruzan las pistas.';
+        : 'Investiga la caja 87-V de la Clínica Vallejo en dos sesiones, a solas o en pareja.';
       actions = canPlay ? browse('Elegir un caso') :
-        '<button type="button" class="button primary" data-action="preview-open">Probar la demo gratis</button>' + plans(false);
+        '<button type="button" class="button primary" data-action="preview-open">Jugar a Clínica Vallejo</button>' + plans(false);
     } else if (!mayOpen(session)) {
       kicker = sessionState(session);
       heading = title(session, stories);
@@ -178,7 +178,7 @@
     const {owned, canPlay} = model;
     const ongoing = owned.filter(session => !finished(session)), complete = owned.filter(finished);
     const groups = group(ongoing, 'En curso', model, true, true) + group(complete, 'Terminadas', model, !ongoing.length, true);
-    const firstCase = canPlay ? browse('Elegir un caso') : '<button type="button" class="button primary" data-action="preview-open">Probar la demo gratis</button>';
+    const firstCase = canPlay ? browse('Elegir un caso') : '<button type="button" class="button primary" data-action="preview-open">Jugar a Clínica Vallejo</button>';
     const join = input.online && input.userId ? '<button type="button" class="button" data-action="join">Unirme con un código</button>' : '';
     return '<section class="pn-dashboard pn-archive" aria-labelledby="pn-sessions-title"><div class="pn-section-heading"><h1 id="pn-sessions-title">Mis partidas</h1>' + join + '</div>' +
       (owned.length ? groups : '<p class="pn-empty">Todavía no tienes partidas guardadas.</p><div class="pn-actions">' + firstCase + '</div>') + '</section>';
