@@ -159,7 +159,7 @@
     return typeof stamp === 'string' && /^\d{4}-\d{2}-\d{2}/.test(stamp) && Number.isFinite(Date.parse(stamp));
   }
 
-  function notebookModel({sessions = [], stories = [], canPlay = false, userId, caseAllowed} = {}) {
+  function notebookModel({sessions = [], stories = [], canPlay = false, userId, caseAllowed, online = false, membership} = {}) {
     const catalog = new Map(stories.map(story => [story.id, story]));
     const owned = sessions.filter(session => session?.id && userId && (session.ownerId === userId ||
       session.members?.some(member => member?.userId === userId)));
@@ -167,7 +167,8 @@
       if (!canPlay) return false;
       const invited = session.mode === 'duo' && userId && session.ownerId && session.ownerId !== userId &&
         session.members?.some(member => member?.userId === userId);
-      return invited || typeof caseAllowed !== 'function' || (catalog.has(session.caseId) && caseAllowed(session.caseId));
+      if (invited && online) return membership?.guestOwners?.includes(session.ownerId) === true;
+      return typeof caseAllowed !== 'function' || (catalog.has(session.caseId) && caseAllowed(session.caseId));
     }
     return {catalog, owned, mayOpen, canPlay, details: sessionDetails(owned, catalog)};
   }
