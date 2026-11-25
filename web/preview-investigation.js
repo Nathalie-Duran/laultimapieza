@@ -65,10 +65,9 @@
     if (state) state.status.textContent = message;
   }
   function navigateCommercial() {
-    const target = root.ClubAccess?.canPlay ? 'casos' : 'planes';
     close();
-    if (document.body.dataset.vallejoStandalone === 'true') root.location.assign('/#' + target);
-    else root.location.hash = target;
+    if (document.body.dataset.vallejoStandalone === 'true') root.location.assign('/#casos');
+    else root.location.hash = root.ClubAccess?.canPlay ? 'casos' : 'planes';
   }
   function hintFor(st) {
     const session = st.sessions[st.section];
@@ -343,6 +342,7 @@
     st.next.addEventListener('click', () => select(st.section, st.index + 1));
     st.nextSession.addEventListener('click', () => continueSession(st));
     st.offer.textContent = root.ClubAccess?.canPlay ? 'Elegir mi siguiente caso' : (root.ClubAccess?.checkoutAvailable ? 'Ver la temporada' : 'Ver el aviso de apertura');
+    if (document.body.dataset.vallejoStandalone === 'true') st.offer.textContent = 'Explorar los casos de la temporada';
     st.offer.addEventListener('click', navigateCommercial);
     q('.vp-close').addEventListener('click', event => { event.stopPropagation(); suspend(); });
     q('.vp-reset').addEventListener('click', () => {
