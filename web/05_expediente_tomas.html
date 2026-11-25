@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Expediente 0212 · Clínica Vallejo</title>
+<style>
+:root{--fondo:#1b2220;--papel:#d9d3c0;--tinta:#26261f;--rojo:#7d2f2a;--linea:#aaa48e}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--fondo);color:var(--tinta);font:18px/1.5 Georgia,"Times New Roman",serif}
+main{width:100%;max-width:600px;background:var(--papel);padding:36px 32px 32px;border-left:10px solid var(--rojo);box-shadow:0 18px 50px #000a}
+h1{margin:0;font-size:2rem}
+h2{margin:24px 0 8px;font-size:1.05rem;border-bottom:2px solid var(--linea)}
+.sub{margin:2px 0 20px;font-style:italic;color:#5b584a}
+.num{float:right;font:700 1.1rem "Courier New",monospace;color:var(--rojo)}
+.trans{margin:0;padding:14px 16px;background:#cfc9b3;font:.95rem/1.7 "Courier New",monospace}
+.trans p{margin:0 0 8px}
+.hueco{display:inline-block;min-width:2.4em;padding:0 6px;text-align:center;background:var(--fondo);color:#ece8d8;font-weight:700}
+label{display:block;margin-top:20px;font-weight:700}
+small{display:block;color:#5b584a;font-size:.85rem;font-weight:400}
+input{width:100%;margin-top:6px;padding:10px 12px;font:1.2rem "Courier New",monospace;color:var(--tinta);background:#ece8d8;border:2px solid var(--linea);border-radius:0}
+input:focus-visible,button:focus-visible{outline:3px solid var(--rojo);outline-offset:2px}
+button{margin-top:22px;width:100%;padding:14px;font:700 1.05rem Georgia,serif;color:#ece8d8;background:var(--rojo);border:0;cursor:pointer}
+button:hover{background:#5e211d}
+#msg{min-height:1.6em;margin:14px 0 0;color:var(--rojo);font-weight:700}
+.sacude{animation:sac .35s}
+@keyframes sac{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+@media (prefers-reduced-motion:reduce){.sacude{animation:none}}
+dl{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0 0 12px;font:1rem "Courier New",monospace}
+dt{font-weight:700}dd{margin:0}
+.dibujo{display:block;width:200px;margin:8px auto;background:#e8e3d0;border:2px solid var(--linea)}
+.nota{padding:12px 16px;border-left:4px solid var(--rojo);background:#cfc9b3;font-style:italic}
+ul{margin:0;padding-left:20px;font:.95rem "Courier New",monospace}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+<section id="puerta">
+  <span class="num">N.º 0212</span>
+  <h1>Tomás Ferrer</h1>
+  <p class="sub">Expediente bloqueado · acceso restringido</p>
+  <h2>Transcripción parcial · sesión 1 · paciente: Marta Ibáñez</h2>
+  <div class="trans">
+    <p><b>VALLEJO:</b> Cuéntame otra vez el sueño, Marta.</p>
+    <p><b>MARTA:</b> Camino por un pasillo hasta una puerta. Dentro hay una cama, y en la cama hay alguien con mi cara.</p>
+    <p><b>VALLEJO:</b> ¿Y esa persona duerme?</p>
+    <p><b>MARTA:</b> No soy yo quien duerme, doctor. <span class="hueco">1</span> <span class="hueco">2</span> <span class="hueco">3</span>.</p>
+    <p><b>VALLEJO:</b> Entonces la ayudaremos a descansar. En la Sala 7.</p>
+  </div>
+  <form id="f" autocomplete="off">
+    <label for="frase">Contraseña del expediente<small>Las tres palabras que faltan, en orden</small></label>
+    <input id="frase" required>
+    <button type="submit">Abrir expediente</button>
+    <p id="msg" role="alert"></p>
+  </form>
+</section>
+
+<section id="expediente" class="hidden">
+  <span class="num">N.º 0212</span>
+  <h1>Tomás Ferrer</h1>
+  <p class="sub">Expediente abierto</p>
+  <dl>
+    <dt>Edad</dt><dd>12 años</dd>
+    <dt>Habitación</dt><dd>102</dd>
+    <dt>Médico</dt><dd>Dr. E. Vallejo</dd>
+  </dl>
+  <h2>Único documento: dibujo a lápiz</h2>
+  <svg class="dibujo" viewBox="0 0 240 300" role="img" aria-label="Dibujo a lápiz de una puerta con un 7 en el centro">
+    <g fill="none" stroke="#55534a" stroke-width="3" stroke-linecap="round">
+      <rect x="45" y="25" width="150" height="250"/>
+      <rect x="62" y="42" width="116" height="216" stroke-width="2"/>
+      <circle cx="162" cy="160" r="7"/>
+      <path d="M70 50l-8 12M80 50l-10 16M90 50l-12 18M70 240l8-12M82 244l10-14" stroke-width="1.5"/>
+    </g>
+    <text x="118" y="170" text-anchor="middle" font-family="Georgia,serif" font-size="96" fill="#55534a">7</text>
+  </svg>
+  <p class="nota">No abras si oyes golpes.</p>
+  <h2>Registro de accesos</h2>
+  <ul>
+    <li>1987 · Dr. E. Vallejo</li>
+    <li id="acceso"></li>
+  </ul>
+</section>
+</main>
+<script>
+const CLAVE = "RUxMQURVRVJNRURFTlRSTw==";
+const limpia = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
+document.getElementById("f").addEventListener("submit", e => {
+  e.preventDefault();
+  if (btoa(limpia(document.getElementById("frase").value)) === CLAVE) {
+    document.getElementById("puerta").classList.add("hidden");
+    document.getElementById("expediente").classList.remove("hidden");
+    document.getElementById("acceso").textContent = new Date().toLocaleDateString("es-ES") + " 03:07 · Marta Ibáñez";
+    window.scrollTo(0, 0);
+  } else {
+    const m = document.getElementById("msg");
+    m.textContent = "La puerta no se abre. Quien duerme ahí dentro no quiere que lo despiertes.";
+    m.classList.remove("sacude"); void m.offsetWidth; m.classList.add("sacude");
+  }
+});
+</script>
+</body>
+</html>
