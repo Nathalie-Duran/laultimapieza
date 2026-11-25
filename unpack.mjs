@@ -41,6 +41,11 @@ for (let i=0; i<count; i++) {
 try { await cp(new URL('./web/',import.meta.url),root,{recursive:true}); }
 catch(error) { if(error.code!=='ENOENT') throw error; }
 console.log(`Aplicación preparada: ${count} archivos y fuentes web actuales.`);
+// Copy the management interface and the profile portrait collection into the public build.
+const portraitAssets=['cobre','jade','ambar','tinta','coral','plata'].map(id=>'avatar-'+id+'.jpg');
+for(const asset of ['management.js','management.css','profile-space.css',...portraitAssets]){
+  await cp(new URL('./'+asset,import.meta.url),resolve(root,asset));
+}
 // Apply the same authored case revision in browsers, tests and server engines.
 const seasonFile=new URL('./public/season.js',import.meta.url);
 await writeFile(seasonFile,(await readFile(seasonFile,'utf8'))+'\n'+await readFile(new URL('./web/cartas-case.js',import.meta.url),'utf8'));
