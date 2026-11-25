@@ -8,7 +8,7 @@ function allowed(story,m){
  if(membership.ownAccess&&(story.season!==1||membership.calendar?.unlockedCaseIds?.includes(story.id)))return true;
  return (m.sessions||[]).some(s=>s.caseId===story.id&&s.members.some(x=>x.userId===m.userId)&&membership.guestOwners?.includes(s.ownerId));
 }
-function label(story,m){if(allowed(story,m))return '';const block=Math.ceil(story.episode/4);return `<span class="case-lock" aria-label="Caso bloqueado"><span aria-hidden="true">🔒</span> ${m.membership?.calendar?.unlockedCaseIds?.includes(story.id)?'Requiere suscripción activa':story.season===1?'Se abre con el pago '+block:'Requiere suscripción activa'}</span>`;}
+function label(story,m){if(allowed(story,m))return '';const block=Math.ceil(story.episode/4);return `<span class="case-lock" aria-label="Caso bloqueado"><span aria-hidden="true">🔒</span> ${m.membership?.calendar?.unlockedCaseIds?.includes(story.id)?'Requiere suscripción activa':story.season===1?'Incluido en el '+(['primer','segundo','tercer'][block-1]||block)+' mes':'Requiere suscripción activa'}</span>`;}
 function summary(m){
  const membership=m.membership||{},calendar=membership.calendar;
  if(membership.role==='admin')return '<section class="release-calendar"><span class="ui-kicker">ADMINISTRADORA</span><h2>Los trece retos disponibles.</h2><p>Tu acceso de revisión es completo y no depende de una suscripción. Los jugadores reciben cuatro casos de temporada con cada pago mensual.</p></section>';
