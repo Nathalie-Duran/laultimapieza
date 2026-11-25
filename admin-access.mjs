@@ -11,3 +11,7 @@ export function adminMembership(){
   return {role:'admin',canPlay:true,ownAccess:true,checkoutAvailable:false,hasCustomer:false,
     calendar:{available:12,released:12,claimed:[],nextAt:null},periodEnd:null};
 }
+// Management reports are restricted to the verified owner, separately from editorial play access.
+export function canManageSite(user){
+  return isAdministrator(user) && createHash('sha256').update(user.email.trim().toLowerCase()).digest('hex')==='ba01f0f954f366b47485721a7b3bce4485e1e19fb14e86d9c4de7baff3102c78';
+}
