@@ -27,6 +27,22 @@ function valdemarGame(){
 }
 function seasonMap(membership) { return window.ValdemarPlano.view(valdemarState(membership)); }
 function classicMap(){return window.ExperienceUI.map(experienceModel());}
+let sealEntryPending = true;
+function sealRequested() {
+  const [page, query] = location.hash.split('?');
+  return page === '#mapa-clasico' && new URLSearchParams(query).get('seccion') === 'sello';
+}
+function openRequestedSeal() {
+  if (!sealEntryPending || !sealRequested()) return;
+  const title = document.getElementById('cipher-title');
+  if (!title) return;
+  requestAnimationFrame(() => {
+    if (!title.isConnected || !sealEntryPending || !sealRequested()) return;
+    sealEntryPending = false;
+    title.closest('.cipher-section').scrollIntoView({block:'start', behavior:'instant'});
+    title.focus({preventScroll:true});
+  });
+}
 function profileWithSubscription(){return profile();}
 function plans(){return window.ClubAccess.plans();}
 function enrollment(){return plans();}
@@ -241,6 +257,7 @@ function render(){window.CartasWorkspace?.capture();const route=(location.hash.s
 }
 const p=me();document.body.classList.toggle('postal-visitor', !p && !online && ['inicio','invitacion','valdemar','valdemar-jugar','archivo-clasico','casos','mapa','mapa-clasico','planes','alta-club'].includes(route));$('#sidebar-profile').innerHTML=p?`<a class="profile-mini" href="#perfil">${avatar(p)}<span><b>${esc(p.name)}</b><small>${online?'Tu cuenta':'Perfil local'}</small></span></a>`:(cloudMode?window.AccountUI.header():button('Crear mi perfil','new-profile'));$('#profile-button').innerHTML=p?portraitContent(p):'+';$('#connection-status').textContent=cloudMode?(accountLoading?'Cargando cuenta…':online?'Guardado':'Sin iniciar sesión'):'En este dispositivo';if(cloudMode&&online)showSaveState(saveState);$('#account-shortcut').innerHTML=cloudMode?window.AccountUI.header():'';$('#mode-note').innerHTML=window.ClubAccess.banner();$('#main').innerHTML=({inicio:homeWithPlans,invitacion:()=>window.ExperienceUI.invitation(story(document.body.dataset.featuredCase),{...experienceModel(),referred:new URLSearchParams(location.search).get('via')==='invitacion'}),casos:experienceCatalog,'archivo-clasico':classicCatalog,valdemar:()=>valdemarDetail(window.ClubAccess.state),'valdemar-jugar':valdemarGame,'edicion-valdemar':()=>management?window.ValdemarEdicion.view():'<p>Acceso reservado a la propietaria.</p>',mapa:()=>seasonMap(online?window.ClubAccess.state:{}),'mapa-clasico':classicMap,equipo:team,perfil:profileWithSubscription,gestion:()=>management?window.ManagementUI.view():'<section class="account-card"><h1>Gestión de la web</h1><p>Esta sección está reservada a la cuenta propietaria.</p><a class="button" href="#perfil">Mi cuenta</a></section>',partida:game,planes:plans,'alta-club':enrollment,archivo:archivePage,suscripcion:subscription}[route]||homeWithPlans)();if(route==='gestion'&&management){window.ManagementUI.mount();const manageLink=document.createElement('a');manageLink.className='button';manageLink.href='#edicion-valdemar';manageLink.textContent='Edición de Valdemar';$('#main').prepend(manageLink);}
 if(route==='mapa')window.ValdemarPlano.mount();
+if(route==='mapa-clasico')openRequestedSeal();
 if(route==='edicion-valdemar'&&management)window.ValdemarEdicion.mount(window.GameAccountBridge);
 if(route==='valdemar-jugar' && document.getElementById('valdemar-player')){const id=seasonId();window.ValdemarPlayer.render(id, window.GameAccountBridge,{catalogHref:'#casos?mes='+Math.ceil(id/4)});}if(route==='partida')window.CartasWorkspace?.mount(current(),story(current()?.caseId),sceneViews.get(current()?.id)??current()?.history.length,p?.userId);}
 function profileModal(edit=false){if(cloudMode&&!online)return window.AccountUI.open();const p=edit?me():null;modal(`<span class="eyebrow sage">TU IDENTIDAD EN LA HISTORIA</span><h2 id="modal-title">${edit?'Editar mi perfil':'¿Cómo te llamamos?'}</h2><p>${online?'Tu perfil se vincula a tu sesión de acceso.':'Un nombre o alias para jugar en este dispositivo. No es necesario introducir correo ni contraseña.'}</p><form id="profile-form" data-edit="${!!edit}"><label class="field">Nombre o alias<input name="name" maxlength="32" minlength="2" required autocomplete="nickname" value="${esc(p?.name||'')}" placeholder="Tu nombre de investigador"></label>${window.ProfilePortraitPreview?.markup()||''}${avatarPicker(p)}<fieldset style="border:0;padding:0;margin:18px 0"><legend style="font-size:11px">Tu color</legend><div class="color-options">${COLORS.map((color,i)=>`<label class="color-option"><input type="radio" name="color" value="${color}" ${(p?.color||COLORS[0])===color?'checked':''}><span class="color-dot" style="background:${color}"></span><span class="sr-only">${['Terracota','Salvia','Rosa','Azul'][i]}</span></label>`).join('')}</div></fieldset><div id="form-error"></div><button class="button primary wide" type="submit">${edit?'Guardar cambios':'Crear mi perfil'} ↗</button></form>`);window.ProfilePortraitPreview?.mount(document.getElementById('profile-form'));}
@@ -298,8 +315,9 @@ document.querySelector('a.skip')?.addEventListener('click',event=>{event.prevent
 window.addEventListener('hashchange',event=>{
   if($('#modal').open)close();
   const oldRoute=new URL(event.oldURL).hash.split('?')[0],route=location.hash.split('?')[0];
+  sealEntryPending = true;
   render();
-  if(route==='#mapa'&&oldRoute===route)return;
+  if((route==='#mapa'&&oldRoute===route)||sealRequested())return;
   window.scrollTo({top:0,behavior:'instant'});
   const main=$('#main');
   const selected=route===oldRoute?main.querySelector('.notebook-nav [aria-current="page"],.month-nav [aria-current="page"],.vd-months [aria-current="page"]'):null;
