@@ -93,7 +93,7 @@
     if (!recipient || !/^[^\s@?&#,;]+@[^\s@?&#,;]+$/.test(recipient)) return '';
     const subject = 'Te invito a investigar «' + title(invite.caseId) + '»';
     const body = '¿Jugamos a «' + title(invite.caseId) + '» en La Última Pieza?\n\n' +
-      'Entra con este correo para ver la invitación en tu perfil. Podrás aceptarla cuando tengas el caso abierto en tu pase.\n\n' +
+      'Entra con este correo para ver la invitación en tu perfil. Podrás aceptarla cuando tengas acceso a este juego en tu cuenta.\n\n' +
       'https://www.laultimapieza.es/#perfil?seccion=pareja';
     return '<a class="button" href="mailto:' + esc(encodeURIComponent(recipient).replace('%40','@')) + '?subject=' +
       esc(encodeURIComponent(subject)) + '&amp;body=' + esc(encodeURIComponent(body)) + '">Compartir por correo</a>';
@@ -115,7 +115,7 @@
       detail = accepted ? 'Dejaréis de compartir esta partida.' : 'La invitación dejará de estar disponible.';
       actions = button('Volver', 'cancel', id) + button(accepted ? 'Separar la pareja' : 'Retirar invitación', 'revoke', id);
     } else if (accepted) {
-      detail = available ? 'Entrad desde vuestras cuentas con los dos pases activos.' : 'Necesitas acceso a este caso para continuar.';
+      detail = available ? 'Entrad desde vuestras cuentas para continuar la investigación.' : 'Necesitas acceso a este caso para continuar.';
       actions = (available ? '<a class="button primary" href="' + gameUrl(caseId) + '">Abrir partida</a>' : linkToPass) +
         button('Dejar de jugar en pareja', 'confirm-revoke', id);
     } else if (sent) {
@@ -262,8 +262,10 @@
       const lists = groups.filter(([,items]) => items.length).map(([heading, items]) =>
         '<section><h3>' + heading + '</h3><ul class="pp-list">' + items.map(i =>
           invitationCard(i, this.available.includes(i.caseId), this.confirming)).join('') + '</ul></section>').join('');
+      const access = window.ClubAccess?.state?.role === 'admin' ? 'Para investigar juntos, el juego tiene que estar abierto en las dos cuentas.' :
+        'Cada persona juega desde su cuenta y necesita tener ese juego abierto en su propio pase.';
       this.innerHTML = '<section class="pp-panel" aria-labelledby="pp-title"><header><h2 id="pp-title">Jugar en pareja</h2>' +
-        '<p>Elige con quién investigar cada caso. Cada persona juega desde su cuenta y necesita tener ese juego abierto en su propio pase.</p></header>' +
+        '<p>Elige con quién investigar cada caso. ' + access + '</p></header>' +
         '<div class="pp-layout"><section class="pp-compose">' + this.compose() + '</section><div class="pp-inbox">' +
         (lists || '<section><h3>Tus invitaciones</h3><p>Cuando te inviten al correo de esta cuenta, podrás responder aquí. También verás las invitaciones que envíes.</p></section>') +
         '<button type="button" class="text-button" data-partner-action="reload">Actualizar invitaciones</button></div></div>' +

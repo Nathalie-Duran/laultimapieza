@@ -28,10 +28,11 @@
     const partnerName=partner?.name||'Tu pareja';
     function display(message='') {
       frame.dataset.playMode=mode||'pending';frame.dataset.playPaper=mode==='duo'?paper:'all';
-      for(const {solo,duo,roleLine} of views){
+      for(const {solo,duo,preview,roleLine} of views){
         solo.setAttribute('aria-pressed',String(mode==='solo'));
-        duo.setAttribute('aria-pressed',String(mode==='duo'));
+        duo.setAttribute('aria-pressed',String(Boolean(partner)));
         solo.disabled=duo.disabled=pending;
+        if(preview){preview.setAttribute('aria-pressed',String(mode==='duo'));preview.disabled=pending;}
         if(roleLine)roleLine.textContent=mode==='duo'
           ?(editorial?'Vista editorial · Papel ':'Tu papel ')+(paper==='A'?'1':'2')+(partner?' · '+partnerName+' lleva el papel '+(paper==='A'?'2':'1'):'')
           :'';
@@ -60,7 +61,7 @@
     function showPairTools() {
       if(!partner&&!editorial)return;
       if(editorial && mode==='duo'){
-        tools.append(element('p','gm-description','Vista editorial. Alterna entre los dos papeles para comprobar las pistas de cada jugador.'));
+        tools.append(element('p','gm-description','Revisión en esta pantalla. Alterna entre los dos papeles para comprobar las pistas de cada jugador.'));
         const group=element('div','gm-options');
         for(const [i,r] of ['A','B'].entries()){
           const btn=button('Revisar papel '+(i+1),()=>{
@@ -87,7 +88,7 @@
         if(result?.mode!==next)throw Error('No se ha podido cambiar la modalidad. Vuelve a intentarlo.');
         if(partner){reopen();return;}
         mode=next;tools.replaceChildren();tasks();applyPapers();showPairTools();
-        display(next==='solo'?'Estás jugando en solitario.':'Vista editorial en pareja.');
+        display(next==='solo'?'Estás jugando en solitario.':'Has abierto la revisión de los dos papeles en esta pantalla.');
       }catch(error){if(!disposed)display(error.message||'No se ha podido guardar la modalidad.');}
       finally{if(!disposed){pending=false;display();}}
     }
@@ -112,7 +113,7 @@
       const invitations=result.invitations.filter(row=>row.caseId===caseId);
       const accepted=invitations.find(row=>row.status==='accepted');
       if(accepted){
-        tools.append(element('p','gm-description','Este caso ya tiene pareja. Para jugar juntos, ambos necesitáis el caso abierto en vuestro pase.'));
+        tools.append(element('p','gm-description','Este caso ya tiene pareja. Para jugar juntos, ambos necesitáis acceso al caso desde vuestra cuenta.'));
         const check=button('Comprobar acceso',async()=>{
           check.disabled=true;
           try{const state=await readState();if(disposed||version!==pickerVersion)return;
@@ -146,7 +147,7 @@
         const input=element('input');input.type='email';input.name='partnerEmail';input.required=true;input.maxLength=254;
         input.autocomplete='off';input.spellcheck=false;input.setAttribute('autocapitalize','none');
         input.placeholder='nombre@ejemplo.es';input.value=result.preferredEmail||'';label.append(input);
-        const send=element('button','gm-option','Enviar invitación');send.type='submit';
+        const send=element('button','gm-option','Invitar a mi compañero');send.type='submit';
         form.append(label,send);
         form.addEventListener('submit',async event=>{
           event.preventDefault();if(send.disabled||!form.reportValidity())return;
@@ -161,7 +162,7 @@
           }catch(error){if(!disposed && version===pickerVersion)display(error.message||'No se ha podido enviar la invitación.');}
           finally{send.disabled=false;}
         });
-        tools.append(element('p','gm-description','Ambos necesitáis este caso en vuestro pase. Podéis jugar desde dispositivos distintos.'),form);
+        tools.append(element('p','gm-description','Tu compañero recibirá la invitación en su cuenta. Podéis jugar desde dispositivos distintos cuando ambos tengáis acceso al caso.'),form);
       }
       const manage=element('a','gm-profile','Gestionar invitaciones en mi perfil');
       manage.href='/#perfil?seccion=pareja&juego='+caseId;tools.append(manage);
@@ -169,11 +170,8 @@
     async function duoChoice(box) {
       if(pending||disposed)return;
       movePanel(box);
-      if(partner||editorial){
-        if(editorial && mode!=='duo')await setMode('duo');
-        else{tasks();showPairTools();display();}
-        return;
-      }
+      if(partner){tasks();showPairTools();display();return;}
+      roles.replaceChildren();
       const version=pickerVersion;display('Consultando tu pareja y tus invitaciones…');
       try{
         const result=await partners('/api/partners');
@@ -181,14 +179,22 @@
         status.textContent='';inviteForm(result,version);
       }catch(error){if(!disposed && version===pickerVersion)display(error.message||'No se han podido cargar tus invitaciones.');}
     }
+    function previewChoice(box) {
+      if(!editorial||partner||pending||disposed)return;
+      movePanel(box);
+      if(mode!=='duo')return setMode('duo');
+      tasks();showPairTools();display();
+    }
     function choices(box,title) {
       box.setAttribute('aria-label',title);
       const group=element('div','gm-options');group.setAttribute('role','group');group.setAttribute('aria-label','Modalidad de la partida');
       const solo=button('En solitario',()=>soloChoice(box)),duo=button('En pareja',()=>duoChoice(box));
       group.append(solo,duo);box.append(element('h2','gm-label',title),group);
+      const preview=editorial?button('Revisión editorial de los dos papeles',()=>previewChoice(box)):null;
+      if(preview){preview.className+=' gm-preview';box.append(preview);}
       const roleLine=box===change?element('p','gm-role-line'):null;
       if(roleLine)box.append(roleLine);
-      views.push({box,solo,duo,roleLine});
+      views.push({box,solo,duo,preview,roleLine});
     }
     choices(entry,'Cómo quieres jugar');choices(change,'Modalidad de la partida');
     entry.append(panel);tasks();showPairTools();display();
@@ -200,7 +206,7 @@
       }
     });
     async function refresh() {
-      if(disposed||pending||loading||document.hidden||editorial)return;
+      if(disposed||pending||loading||document.hidden)return;
       loading=true;
       try {
         const state=await readState();

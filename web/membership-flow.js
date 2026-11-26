@@ -54,7 +54,7 @@ const valdemarHooks=[
  'El pasajero de enfrente reconoce la letra de su padre en la carta que te dio tu madre. El tren sigue en marcha.',
  'Un padre y su hija llaman a la emisora desde años distintos. Escucha sus voces antes de decidir a quién devolver la llamada.'
 ];
-function adminCard(){return '<section class="account-card"><span class="club-kicker">ADMINISTRADORA</span><h2>Tu acceso editorial</h2><p>Puedes probar los 48 juegos de las cuatro temporadas y consultar el archivo clásico.</p>'+root.Colecciones.menu('')+'</section>';}
+function adminCard(){return '<section class="account-card"><span class="club-kicker">Acceso editorial</span><h2>Tienes los 48 juegos abiertos</h2><p>Puedes abrir cualquiera de los cuatro tableros sin contratar un pase. Desde tu perfil puedes elegir a otra persona para cada juego.</p><a class="button" href="/#perfil?seccion=pareja">Elegir con quién jugar</a>'+root.Colecciones.menu('')+'</section>';}
 function questions(standalone=false){
  const heading=standalone?'h1':'h2';
  return `<section class="pase-preguntas" aria-labelledby="pase-faq"><p class="pase-supra">Antes de jugar</p><${heading} id="pase-faq" tabindex="-1">Preguntas frecuentes</${heading}>
@@ -150,7 +150,7 @@ function plans(){
    </article>${questions()}</div>
  </section>`;
 }
-root.ClubAccess={...old,plans,enrollment:plans,banner(){if(typeof location!=='undefined'&&['#planes','#alta-club','#suscripcion'].includes(location.hash.split('?')[0]))return '';return state.role==='admin'?'<aside class="paid-banner" aria-label="Acceso de administradora"><span class="paid-dot" aria-hidden="true"></span><p><strong>Administradora: todos los retos disponibles.</strong> Sin suscripci&oacute;n ni cobros.</p><a href="'+(state.canManage===true?'#gestion':'#casos')+'">'+(state.canManage===true?'Abrir gestión':'Explorar retos')+'</a></aside>':(state.canPlay||state.seasonAccess?.availableCases?.length)?'':old.banner();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){state=value||{canPlay:false};},account(){
+root.ClubAccess={...old,plans,enrollment:plans,banner(){if(typeof location!=='undefined'&&['#planes','#alta-club','#suscripcion'].includes(location.hash.split('?')[0]))return '';return state.role==='admin'?'<aside class="paid-banner" aria-label="Acceso editorial"><span class="paid-dot" aria-hidden="true"></span><p><strong>Acceso editorial</strong> · Tienes los 48 juegos disponibles.</p><a href="'+(state.canManage===true?'#gestion':'#casos')+'">'+(state.canManage===true?'Abrir gestión':'Explorar retos')+'</a></aside>':(state.canPlay||state.seasonAccess?.availableCases?.length)?'':old.banner();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){state=value||{canPlay:false};},account(){
  if(state.role==='admin') return adminCard();
  const access=state.seasonAccess;
  const current=access?.seasons?.filter(s=>s.paidBlocks.length).at(-1);

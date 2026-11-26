@@ -20,6 +20,7 @@
   background:transparent;color:inherit;border-radius:.35rem;padding:.45rem .78rem;text-decoration:none;cursor:pointer;
 }
 .vd-player .gm-option:is([aria-pressed=true],[type=submit]) {background:var(--gm-accent);color:#17211c;border-color:var(--gm-accent);}
+.vd-player .gm-preview {display:flex;margin-block:.4rem .1rem;padding:.3rem .6rem;font-size:.8rem;}
 .vd-player .gm-option:disabled {opacity:.65;cursor:progress;}
 .vd-player .gm-option:focus-visible,.vd-player .gm-profile:focus-visible {outline:2px solid var(--gm-accent);outline-offset:2px;}
 .vd-player .gm-panel {min-width:0;}
