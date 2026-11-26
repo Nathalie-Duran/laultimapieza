@@ -259,3 +259,35 @@ test('Al vencer el periodo, una renovación ya bonificada conserva su descuento 
     assert.equal((await f.store.getMemberData(uid)).cycles[0].amountPaid,2995);
   }
 });
+
+test('La pausa o el impago del titular retira el cupón del calendario y del borrador sin tocar la factura liquidada',async()=>{
+  for(const status of ['paused','unpaid','past_due','pause_collection']){
+    const f=fixture();
+    await f.prefer(address);await f.prefer(user.email,other);await f.purchase();
+    f.subscribe();
+    const sub=f.stripe.subs[0];
+    sub.status=status==='pause_collection'?'active':status;
+    if(status==='pause_collection')sub.pause_collection={behavior:'void'};
+    const receipt=invoice(1498);
+    f.stripe.invoices=[receipt];sub.discounts=structuredClone(receipt.discounts);
+    const schedule=f.stripe.schedule,phase=schedule.phases[0];
+    Object.assign(schedule,{status:'active',subscription:sub.id,end_behavior:'cancel'});
+    schedule.current_phase.end_date=phase.end_date;
+    phase.discounts=[{coupon}];
+    const draft=structuredClone(receipt);
+    Object.assign(draft,{id:'draft-holder',status:'draft',parent:{subscription_details:{subscription:sub.id}}});
+    draft.lines.data[0].period={start:now+30*86400,end:now+60*86400};f.stripe.drafts=[draft];
+    const member=await f.store.getMemberData(uid);
+    Object.assign(member,{subscription:sub.id,schedule:sub.schedule,scheduleConfigured:true,partnerDiscountPeerKey:emailKey(address)});
+    await f.store.saveMemberData(uid,member);
+    await f.billing.refreshPartnerOffer(fn=>fn(f.store),uid);
+    const posts=f.requests.filter(request=>request.method==='POST');
+    assert.deepEqual(posts.map(request=>request.path).sort(),['invoices/draft-holder','subscription_schedules/'+schedule.id],status);
+    const update=posts.find(request=>request.path.startsWith('subscription_schedules')).body;
+    assert.equal(update.get('phases[0][discounts]'),'');assert.equal(update.get('proration_behavior'),'none');
+    assert.equal(update.get('phases[0][end_date]'),String(phase.end_date));
+    assert.equal(posts.find(request=>request.path==='invoices/draft-holder').body.get('discounts'),'');
+    assert.equal((await f.store.getMemberData(uid)).cycles[0].amountPaid,1498);
+    assert.equal(receipt.amount_paid,1498);assert.equal(f.stripe.drafts[0].discounts.length,0);
+  }
+});
