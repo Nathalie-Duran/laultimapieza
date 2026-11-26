@@ -218,6 +218,14 @@
 .pase-temporada .pase-preguntas summary::marker { color: var(--pase-acento); }
 .pase-temporada .pase-preguntas details p { margin: 0 0 1rem; max-width: 57ch; color: #d8dcd1; line-height: 1.58; }
 .pase-temporada .pase-preguntas details a { color: var(--pase-acento); text-decoration: underline; text-underline-offset: .2em; }
+.pase-temporada .pase-preguntas details a[href^="/"] {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 44px;
+  margin-top: .35rem;
+}
 .pase-temporada .pase-detalle:has(> .pase-ficha:only-child) { grid-template-columns: minmax(0, 42rem); justify-content: center; border: 0; padding-top: 0; }
 .pase-temporada .pase-ficha h1 { margin: .45rem 0 1.3rem; color: var(--pase-tinta); font: 400 clamp(2.2rem, 4vw, 3.8rem)/1.08 var(--pase-display); letter-spacing: -.045em; }
 .pase-temporada .pase-ficha [data-manage-notice] { padding: .95rem; border: 1px solid #b5a991; border-radius: .32rem; color: var(--pase-tinta); }
