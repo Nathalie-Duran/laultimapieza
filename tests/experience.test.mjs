@@ -34,3 +34,17 @@ test('La colección no cuenta estados falsos, partidas ajenas, repeticiones ni e
  const map=ctx.ExperienceUI.map(anonymous);assert.equal((map.match(/class="map-station /g)||[]).length,12);assert.match(map,/id="season-key"[^>]*disabled/);assert.doesNotMatch(map,/class="secret-epilogue"/);assert.doesNotMatch(map,/UMBRALOCULTO/);
  assert.match(ctx.ExperienceUI.detail(c,anonymous),/Ver suscripción/);assert.doesNotMatch(ctx.ExperienceUI.detail(c,anonymous),/data-action="setup"/);
 });
+
+test('La promoción clásica presenta los doce casos y solo invita a la demo de Clínica Vallejo',()=>{
+ const model={stories:ctx.STORIES,sessions:[],canPlay:false};
+ const retired=ctx.STORIES.find(s=>s.id==='habitacion-309');
+ for(const catalogMonth of [1,2,3]){
+   const html=ctx.ExperienceUI.catalog({...model,catalogMonth});
+   assert.equal((html.match(/class="shelf-card /g)||[]).length,4);
+   assert.match(html,/Clínica Vallejo/);
+   assert.doesNotMatch(html,/habitaci[oó]n[ -]309|Bellamar|Caso adicional/i);
+ }
+ for(const html of [ctx.ExperienceUI.map(model),ctx.ExperienceUI.invitation(retired,model),ctx.ExperienceUI.detail(retired,model)]){
+   assert.doesNotMatch(html,/habitaci[oó]n[ -]309|Bellamar|Caso adicional/i);
+ }
+});

@@ -5,6 +5,7 @@ import {releaseCalendar} from '../progression.mjs';
 import {worldSeasonAccess,resetValdemarProgress} from '../valdemar-wallet.mjs';
 import {createBilling} from '../billing.mjs';
 import {createHmac,randomBytes} from 'node:crypto';
+import {summarizeSeasonActivity} from '../season-activity.mjs';
 
 const now = Date.now();
 const day = 86400000;
@@ -55,6 +56,71 @@ function service(seed) {
     }
   };
 }
+test('season activity dates genuine actions only, preserves unknown legacy starts and isolates editors',async()=>{
+  const api=service(memberAt(1));
+  await api.call('cases/1');
+  assert(!api.data.valdemarCaseProgress?.paid?.[1]);
+  await api.call('cases/1/mode',{mode:'duo'});
+  const start=api.data.valdemarCaseProgress.paid[1].startedAt;
+  assert(Number.isFinite(start));
+  await api.call('cases/1/mode',{mode:'duo'});
+  assert.equal(api.data.valdemarCaseProgress.paid[1].updatedAt,start);
+  const first={index:0,choice:['x','z']};
+  await api.call('cases/2/stage',{index:0,choice:['z','x']});
+  assert.equal(api.data.valdemarCaseProgress.paid[2],undefined);
+  await api.call('cases/2/stage',first);
+  const stage=structuredClone(api.data.valdemarCaseProgress.paid[2]);
+  assert.equal(stage.startedAt,stage.firstAdvancedAt);
+  await api.call('cases/2/stage',first);
+  assert.deepEqual(api.data.valdemarCaseProgress.paid[2],stage);
+  await api.call('cases/3/mode',{mode:'solo'},true);
+  assert.equal(api.data.valdemarCaseProgress.paid[3],undefined);
+  assert.equal((await api.call('partidas')).games[1].updatedAt,stage.updatedAt);
+  const old=memberAt(1);
+  old.valdemarCaseProgress={paid:{1:{mode:'solo',hourStep:2}}};
+  old.valdemarSeasonOne={paid:{welcomes:[],won:[2],opened:[],second:[]}};
+  const legacy=service(old);
+  await legacy.call('cases/1/mode',{mode:'duo'});
+  await legacy.call('cases/2/mode',{mode:'solo'});
+  for(const id of [1,2]){assert(Number.isFinite(legacy.data.valdemarCaseProgress.paid[id].updatedAt));assert.equal(legacy.data.valdemarCaseProgress.paid[id].startedAt,undefined);}
+});
+test('14-day activity measures a different case with a confirmed stage, and only mature known-start accounts',()=>{
+  const since=now-100*day, startedAt=now-20*day;
+  const row=(progress={},extra={})=>({progress,cycles:[],sideIds:new Set(),...extra});
+  const users=[
+    row({1:{startedAt},2:{startedAt:startedAt+day,firstAdvancedAt:startedAt+14*day}}),
+    row({1:{startedAt,firstAdvancedAt:startedAt+day},2:{startedAt:startedAt+day}}),
+    row({1:{startedAt},2:{startedAt:startedAt+day,firstAdvancedAt:startedAt+14*day+1}}),
+    row({1:{startedAt:now-day},2:{startedAt:now,firstAdvancedAt:now}}),
+    row({1:{startedAt},2:{mode:'solo',hourStep:2}}),
+    row({1:{startedAt}},{sideIds:new Set([7])}),
+    row({1:{startedAt},2:{startedAt:startedAt+1,firstAdvancedAt:startedAt+day}},{resetAt:since}),
+    row({1:{startedAt},2:{startedAt,firstAdvancedAt:startedAt+1}})
+  ];
+  const result=summarizeSeasonActivity(users,{days:30,now,first:now-29*day,since});
+  assert.equal(result.cohort.eligible,3);
+  assert.equal(result.firstPlayers,5);
+  assert.equal(result.cohort.second,1);
+  assert.equal(result.olderStarts,2);
+  assert.equal(result.seasons.length,4);
+  assert.equal(result.seasons[0].cases[0].started,8);
+});
+test('season purchases count eligible holders once and exclude incomplete, future and refunded periods',()=>{
+  const prior=memberAt(4);
+  const cases=complete(prior,numbers(1,12));
+  const fourth=prior.cycles[3];
+  const row=(progress,cycles)=>({progress,cycles,sideIds:new Set()});
+  const custom=(fields)=>[...prior.cycles.slice(0,3),{...fourth,...fields}];
+  const rows=[
+    row(cases.valdemarCaseProgress.paid,prior.cycles),
+    row(cases.valdemarCaseProgress.paid,custom({revoked:true})),
+    row(cases.valdemarCaseProgress.paid,custom({start:now+day,end:now+8*day})),
+    row({1:{choice:'c'}},prior.cycles),
+    row(cases.valdemarCaseProgress.paid,prior.cycles.map((v,i)=>i===0?{...v,revoked:true}:v))
+  ];
+  const {transitions}=summarizeSeasonActivity(rows,{days:30,first:now-29*day,now,since:now-day});
+  assert.deepEqual(transitions[0],{from:1,eligible:3,bought:1});
+});
 test('a paid cycle unlocks the correct four cases, without changing the established calendar',async()=>{
   for(const month of numbers(1,12)){
     const state=memberAt(month);

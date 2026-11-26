@@ -11,6 +11,7 @@ const config={apiKey:'test-key',authDomain:'test-project.firebaseapp.com',projec
 const context=createContext({structuredClone,crypto:globalThis.crypto});
 for(const file of ['stories.js','season.js','engine.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
 const engine=context.GameEngine,stories=context.STORIES;
+const availableStory=stories.find(story=>story.id==='ultima-funcion');
 function fakeStore(){
   const profiles=new Map(),sessions=new Map(),rewards=new Map(),memberData=new Map();
   return {
@@ -119,7 +120,7 @@ test('Reiniciar solo borra el progreso de la cuenta confirmada y conserva los bl
 
 test('El titular conserva su partida cuando se reinicia la cuenta invitada, y los reintentos antiguos no afectan partidas nuevas',async()=>{
   const {call,store}=harness();
-  const story=stories[0], owner={userId:'alice',name:'Alice'}, guest={userId:'bob',name:'Bob'};
+  const story=availableStory, owner={userId:'alice',name:'Alice'}, guest={userId:'bob',name:'Bob'};
   await call('bob','/api/bootstrap');
   const pair=engine.makeSession(story.id,[owner,guest],'duo');
   await store.insertSession(pair);
@@ -162,7 +163,7 @@ test('El plano solo revela piezas de casos terminados por la cuenta y exige doce
 });
 test('Sin suscripción se bloquean nuevas partidas y no bastan campos enviados por el navegador',async()=>{
   const {call,store}=harness(async()=>false);
-  const result=await call('alice','/api/sessions',{caseId:stories[0].id,mode:'solo',subscription:'active',canPlay:true,paid:true});
+  const result=await call('alice','/api/sessions',{caseId:availableStory.id,mode:'solo',subscription:'active',canPlay:true,paid:true});
   assert.equal(result.status,402);assert.equal(result.body.code,'SUBSCRIPTION_REQUIRED');assert.equal(store.sessions.size,0);
   const profile=await call('alice','/api/bootstrap');assert.equal(profile.status,200);assert.equal(profile.body.membership.canPlay,false);
   assert.equal((await call('alice','/api/profile',{name:'Alice',color:'#b1846b',paid:true},'PUT')).status,200);
@@ -171,7 +172,7 @@ test('Sin suscripción se bloquean nuevas partidas y no bastan campos enviados p
 test('Perder la suscripción bloquea continuar, votar e invitar sin borrar el progreso',async()=>{
   let active=true;
   const {call}=harness(async({uid})=>active&&uid==='alice');
-  const created=(await call('alice','/api/sessions',{caseId:stories[0].id,mode:'duo'})).body;
+  const created=(await call('alice','/api/sessions',{caseId:availableStory.id,mode:'duo'})).body;
   active=false;
   const id=created.session.id;
   assert.equal((await call('alice','/api/sessions/'+id)).status,402);
@@ -186,7 +187,7 @@ test('Perder la suscripción bloquea continuar, votar e invitar sin borrar el pr
   assert.equal((await call('bob','/api/sessions/'+id)).status,200);
 });
 test('Importar progreso local no concede acceso de pago',async()=>{
-  const {call}=harness(async()=>false),story=stories[0];
+  const {call}=harness(async()=>false),story=availableStory;
   const imported=await call('alice','/api/import-local',{localSessionId:'legacy',caseId:story.id,history:[]});
   assert.equal(imported.status,200);
   assert.equal((await call('alice','/api/sessions/'+imported.body.session.id)).status,402);
@@ -195,11 +196,11 @@ test('Importar progreso local no concede acceso de pago',async()=>{
 test('La configuración de producción deniega acceso por defecto sin proveedor de pago',async()=>{
   const store=fakeStore();
   const api=createGameApi({config,engine,stories,withStore:fn=>fn(store),verify:async()=>({userId:'alice',name:'Alice',paid:true})});
-  const result=await api(new Request('https://example.test/api/sessions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({caseId:stories[0].id,mode:'solo'})}));
+  const result=await api(new Request('https://example.test/api/sessions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({caseId:availableStory.id,mode:'solo'})}));
   assert.equal(result.status,402);assert.equal(store.sessions.size,0);
 });
 test('Una cuenta no puede leer, reanudar, votar ni invitar a partidas ajenas',async()=>{
-  const {call}=harness();const created=await call('alice','/api/sessions',{caseId:stories[0].id,mode:'solo'});assert.equal(created.status,200);
+  const {call}=harness();const created=await call('alice','/api/sessions',{caseId:availableStory.id,mode:'solo'});assert.equal(created.status,200);
   const id=created.body.session.id;
   assert.equal((await call('bob','/api/sessions/'+id)).status,404);
   assert.equal((await call('bob','/api/sessions/'+id+'/choose',{nodeId:'x',choiceId:'x',version:0})).status,404);
@@ -209,8 +210,8 @@ test('Una cuenta no puede leer, reanudar, votar ni invitar a partidas ajenas',as
   assert.equal((await call('','/api/bootstrap')).status,401);
 });
 test('El servidor guarda el avance y rechaza puntuaciones y versiones manipuladas',async()=>{
-  const {call}=harness();const created=await call('alice','/api/sessions',{caseId:stories[0].id,mode:'solo',ownerId:'eve'});
-  const s=created.body.session,choice=stories[0].nodes[s.nodeId].choices[0];
+  const {call}=harness();const created=await call('alice','/api/sessions',{caseId:availableStory.id,mode:'solo',ownerId:'eve'});
+  const s=created.body.session,choice=availableStory.nodes[s.nodeId].choices[0];
   const moved=await call('alice',`/api/sessions/${s.id}/choose`,{nodeId:s.nodeId,choiceId:choice.id,version:0,scores:{inteligencia:99999},userId:'eve'});
   assert.equal(moved.status,200);assert.equal(moved.body.session.ownerId,'alice');assert.equal(moved.body.session.nodeId,choice.next);
   assert.notEqual(moved.body.session.members[0].scores.inteligencia,99999);
@@ -220,17 +221,17 @@ test('El servidor guarda el avance y rechaza puntuaciones y versiones manipulada
   assert.equal(restored.sessions[0].nodeId,choice.next);
 });
 test('Las invitaciones son privadas, caducan y solo admiten a un segundo usuario',async()=>{
-  const {call,store}=harness();const created=(await call('alice','/api/sessions',{caseId:stories[0].id,mode:'duo'})).body;
+  const {call,store}=harness();const created=(await call('alice','/api/sessions',{caseId:availableStory.id,mode:'duo'})).body;
   assert.ok(created.inviteCode);assert.notEqual(store.sessions.get(created.session.id).inviteHash,created.inviteCode);
   const joined=await call('bob','/api/join',{code:created.inviteCode});assert.equal(joined.status,200);assert.equal(joined.body.session.members.length,2);
   assert.equal((await call('eve','/api/join',{code:created.inviteCode})).status,400);
-  const second=(await call('alice','/api/sessions',{caseId:stories[0].id,mode:'duo'})).body;
+  const second=(await call('alice','/api/sessions',{caseId:availableStory.id,mode:'duo'})).body;
   store.sessions.get(second.session.id).inviteUntil=Date.now()-1;
   assert.equal((await call('bob','/api/join',{code:second.inviteCode})).status,400);
   assert.equal((await call('bob','/api/bootstrap')).body.sessions.length,1);
 });
 test('Cambiar el equipo conserva la partida y revoca solo los permisos de quien sale',async()=>{
-  const {store,call}=harness(async({uid})=>uid==='alice'),story=stories[0];
+  const {store,call}=harness(async({uid})=>uid==='alice'),story=availableStory;
   const created=(await call('alice','/api/sessions',{caseId:story.id,mode:'solo'})).body.session;
   const path='/api/sessions/'+created.id;
   const cast=(who,s,choiceId)=>call(who,path+'/choose',{nodeId:s.nodeId,choiceId,version:s.version});
@@ -305,7 +306,7 @@ test('El motor local permite cambiar de modalidad entre turnos y conserva los cr
   for(const key of engine.KEYS.slice(0,3))assert.equal(restored.members[1].scores[key],legacy.effects[key]||0);
 });
 test('Repetir una creación confirmada no duplica la partida',async()=>{
-  const {call}=harness();const input={caseId:stories[0].id,mode:'solo',requestId:crypto.randomUUID()};
+  const {call}=harness();const input={caseId:availableStory.id,mode:'solo',requestId:crypto.randomUUID()};
   await call('alice','/api/sessions',input);await call('alice','/api/sessions',input);
   assert.equal((await call('alice','/api/bootstrap')).body.sessions.length,1);
   assert.equal((await call('eve','/api/sessions',input)).status,404);
@@ -373,10 +374,11 @@ test('El acceso editorial exige identidad verificada y no se hereda por perfil o
   const api=createGameApi({config,engine,stories,billing,authorizePlay:async()=>false,isAdministrator:u=>u.emailVerified===true&&u.email==='owner@example.test',withStore:fn=>fn(store),verify:async()=>identity});
   const call=async(path,value)=>{const r=await api(new Request('https://example.test'+path,{method:value?'POST':'GET',headers:{'content-type':'application/json'},...(value?{body:JSON.stringify(value)}:{})}));return {status:r.status,data:await r.json()};};
   const boot=await call('/api/bootstrap');assert.equal(boot.data.membership.role,'admin');assert.equal(boot.data.membership.calendar.available,12);
-  for(const story of stories){const r=await call('/api/sessions',{caseId:story.id,mode:'solo'});assert.equal(r.status,200);assert.equal((await call('/api/sessions/'+r.data.session.id)).status,200);}
+  assert.equal((await call('/api/sessions',{caseId:'habitacion-309',mode:'solo'})).status,410);
+  for(const story of stories.filter(s=>s.season===1)){const r=await call('/api/sessions',{caseId:story.id,mode:'solo'});assert.equal(r.status,200);assert.equal((await call('/api/sessions/'+r.data.session.id)).status,200);}
   assert.equal((await call('/api/billing/checkout',{})).status,409);
   identity={userId:'visitor',email:'visitor@example.test',emailVerified:true,role:'admin'};
-  assert.equal((await call('/api/sessions',{caseId:stories[0].id,mode:'solo',role:'admin',email:'owner@example.test',emailVerified:true})).status,402);
+  assert.equal((await call('/api/sessions',{caseId:availableStory.id,mode:'solo',role:'admin',email:'owner@example.test',emailVerified:true})).status,402);
   assert.equal((await call('/api/bootstrap')).data.membership.canPlay,false);
   const id=[...store.sessions.keys()][0];assert.equal((await call('/api/sessions/'+id)).status,404);
   identity={userId:'owner',email:'changed@example.test',emailVerified:true};assert.equal((await call('/api/sessions/'+id)).status,402);
@@ -412,4 +414,22 @@ test('Shared revision requires the owner, removes old votes and waits for a new 
  s=(await call('bob','/api/sessions/'+s.id+'/choose',{nodeId:s.nodeId,choiceId:choice.id,version:s.version})).body.session;
  assert.equal(s.history.length,1);assert.equal(s.nodeId,choice.next);
  for(const m of s.members)assert.equal(Object.values(m.scores).reduce((a,b)=>a+b,0),3);
+});
+
+test('La 309 conserva las partidas anteriores y rechaza nuevas solicitudes de juego',async()=>{
+  const {call,store}=harness(), caseId='habitacion-309';
+  for(const mode of ['solo','duo']){
+    const result=await call('alice','/api/sessions',{caseId,mode});
+    assert.equal(result.status,410);
+    assert.equal(result.body.code,'CASE_RETIRED');
+  }
+  const empty=await call('alice','/api/import-local',{caseId,localSessionId:'empty',history:[]});
+  assert.equal(empty.status,410);
+  assert.equal(store.sessions.size,0);
+  const old=engine.makeSession(caseId,[{userId:'alice',name:'Alice'}],'solo');
+  await store.insertSession(old);
+  assert.equal((await call('alice','/api/sessions/'+old.id)).body.session.id,old.id);
+  assert.equal((await call('alice','/api/sessions',{caseId,mode:'solo',requestId:old.id})).body.session.id,old.id);
+  assert.equal((await call('bob','/api/sessions/'+old.id)).status,404);
+  assert.equal((await call('alice','/api/bootstrap')).body.sessions.length,1);
 });
