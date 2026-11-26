@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   let active;
-  const views = [['desk','Expediente'],['game','Reto paralelo'],['dual','Mesa doble'],['help','Sobre de ayuda'],['ending','Resolver el caso']];
+  const views = [['desk','Expediente'],['game','Reto paralelo'],['help','Sobre de ayuda'],['ending','Resolver el caso']];
   const covers = ['tren-detenido','habitacion-309','ultima-invitacion','frecuencia-17','marea-quieta','retrato-prestado','archivo-ausencias','jardin-invierno','ciudad-invisible','mesa-13','cartas-medianoche','cuaderno-investigacion'];
   const coverDescriptions = [
     'Una cinta de casete descansa en el banco de un andén bajo la lluvia.',
@@ -9,9 +9,9 @@
     'Dos viajeros se miran frente a una carta en el último tren.',
     'Una onda de sonido ilumina la consola y el micrófono de una emisora.',
     'Un ferry navega entre dos faros al anochecer.',
-    'Una caja de esmalte azul, tres fichas y un martillo de subasta.',
+    'Un reloj, un gemelo y un botón azul sobre el paño de la subasta.',
     'Una tira de negativos fotográficos bajo la luz roja del cuarto de revelado.',
-    'Una flor naranja sobre un banco del invernadero.',
+    'Una camelia blanca descansa en un banco del invernadero.',
     'Planos superpuestos ante una puerta tapiada en una casa antigua.',
     'Dos sillas vacías y dos sobres en una mesa de boda.',
     'Dos manos dejan sus piezas de madera sobre el tablero de un club.',
@@ -104,12 +104,18 @@
   function selectView(c,view,focus=false) {
     if(!valid(c) || c.blocked) return;
     if(view!==c.view)c.hourView?.pause();
+    if(view==='help' && c.view!=='help'){
+      c.helpFrom=c.view||'desk';
+      renderHelp(c);
+    }
     c.view=view;
-    const desk=view==='desk'||view==='dual', game=view==='game'||view==='dual';
+    const game=view==='game', together=game && c.withDesk, desk=view==='desk'||together;
     if(!desk)pauseAudio(c.desk);
     c.desk.hidden=!desk;c.gamePanel.hidden=!game;c.pair.hidden=!desk&&!game;
-    c.pair.classList.toggle('vd-dual',view==='dual');
-    c.dualTools.hidden=view!=='dual';
+    c.pair.classList.toggle('vd-with-desk',Boolean(together));
+    c.deskToggle.setAttribute('aria-expanded',String(Boolean(together)));
+    c.deskToggle.textContent=together?'Ocultar el expediente':'Consultar expediente junto al reto';
+    c.returnToBoard.hidden=!together;
     c.help.hidden=view!=='help';c.ending.hidden=view!=='ending';
     if(c.hotel)c.hotel.hidden=view!=='hotel';
     for(const [id,b] of c.viewButtons)b.setAttribute('aria-pressed',String(id===view));
@@ -120,7 +126,7 @@
     }
     if(game&&!c.gameMounted) mountGame(c);
     if(focus){
-      const target=view==='dual'?c.dualTools:desk?c.desk:game?c.gamePanel:view==='hotel'?c.hotel:view==='help'?c.help:c.ending;
+      const target=game?c.gamePanel:desk?c.desk:view==='hotel'?c.hotel:view==='help'?c.help:c.ending;
       target.focus({preventScroll:true});target.scrollIntoView({block:'start'});
     }
   }
@@ -157,13 +163,17 @@
   function buildDesk(c) {
     const story=c.data.story;
     c.desk=element('section',null,'vd-panel vd-desk');c.desk.tabIndex=-1;
+    c.desk.id='vd-expediente-'+c.id;
+    c.returnToBoard=button('Volver al tablero',()=>{
+      c.deskToggle.focus({preventScroll:true});c.gamePanel.scrollIntoView({block:'start'});
+    },'vd-link');
     c.evidence=element('div',null,'vd-evidence');
-    c.desk.append(element('h2','Mesa de investigación'));
+    c.desk.append(c.returnToBoard,element('h2','Mesa de investigación'));
     if(c.data.hour && window.ValdemarHour){
       const hourNode=element('div');c.desk.append(hourNode);
       c.hourView=window.ValdemarHour.mount(hourNode,c.data.hour,{
         hotelNode:c.hotel,
-        submit:(index,choice)=>request(c,'stage',{index,choice}),
+        submit:(index,choice,sources)=>request(c,'stage',{index,choice,...(sources?{sources}:{})}),
         reload:async()=>{const latest=await request(c);c.data.progress=latest.progress;return latest.hour;},
         change:hour=>{c.data.hour=hour;renderEnding(c);},
         visitHotel:()=>selectView(c,'hotel',true),
@@ -196,8 +206,9 @@
         body.append(consume);
       } else {
         body.append(element('p','Tu llavero está vacío. Puedes seguir consultando las pruebas o ganar una llave en un reto pendiente.','vd-note'));
-        if(!wallet.won.includes(c.id))body.append(button('Ir al reto paralelo',()=>selectView(c,'game',true),'vd-primary'));
-        else body.append(link('Elegir otro caso',c.catalog,'vd-link'));
+        if(!wallet.won.includes(c.id)){
+          if(c.helpFrom!=='game')body.append(button('Ir al reto paralelo',()=>selectView(c,'game',true),'vd-primary'));
+        }else body.append(link('Elegir otro caso',c.catalog,'vd-link'));
       }
     } else {
       body.append(element('h3','Primera orientación'),element('p',hints[0] || 'Recupera la partida para consultar esta orientación.','vd-clue'));
@@ -211,7 +222,10 @@
     }
     const envelope=element('div',null,'vd-letter');
     envelope.dataset.open=String(open);
-    envelope.append(element('h2',c.id===2?'Sobre de la gobernanta':'Sobre de ayuda'),body,status);
+    const from=c.helpFrom||'desk';
+    const backLabel={game:'Volver al reto',hotel:'Volver a la recepción',ending:'Volver a la resolución',desk:'Volver al expediente'}[from];
+    envelope.append(element('h2',c.id===2?'Sobre de la gobernanta':'Sobre de ayuda'),body,status,
+      button(backLabel,()=>selectView(c,from,true),'vd-link'));
     help.replaceChildren(envelope);
   }
   function trackGame(c,board,session) {
@@ -264,7 +278,17 @@
     c.retryReward=button('Volver a comprobar la victoria',()=>earn(c,c.play));c.retryReward.hidden=true;
     c.restart=button('Reiniciar el reto',()=>mountGame(c));c.restart.hidden=true;
     const heading=element('header',null,'vd-game-heading');
-    heading.append(element('p','Reto paralelo','vd-eyebrow'),element('h2',c.game.title),element('p',c.game.pitch,'vd-note'));
+    c.deskToggle=button('Consultar expediente junto al reto',()=>{
+      c.withDesk=!c.withDesk;
+      if(!c.withDesk)c.hourView?.pause();
+      selectView(c,'game');
+      if(c.withDesk){
+        c.desk.focus({preventScroll:true});c.desk.scrollIntoView({block:'start'});
+      }
+    },'vd-desk-toggle');
+    c.deskToggle.setAttribute('aria-controls',c.desk.id);
+    c.deskToggle.setAttribute('aria-expanded','false');
+    heading.append(element('h2',c.game.title),element('p',c.game.pitch,'vd-note'),c.deskToggle);
     c.gamePanel.append(heading,c.board,c.rewardStatus,c.retryReward,c.restart,
       button('Consultar mi sobre',()=>selectView(c,'help',true),'vd-link'));
   }
@@ -306,7 +330,8 @@
         if(result.progress)c.data.progress=result.progress;
         if(result.correct){ renderEnding(c);c.ending.focus({preventScroll:true}); }
         else{send.disabled=false;status.textContent='La hipótesis deja pruebas sin explicar. Revisa las dos carpetas y los documentos compartidos.';}
-      },e=>{send.disabled=false;status.textContent=errorMessage(e);})));
+      },e=>{send.disabled=false;status.textContent=errorMessage(e);})),
+        button('Revisar el expediente',()=>selectView(c,'desk',true),'vd-link'));
       return;
     }
     if(progress.choice) {
@@ -330,7 +355,7 @@
     const head=element('header',null,'vd-intro');
     const cover=element('img',null,'vd-cover');
     cover.addEventListener('error',()=>{cover.alt='';cover.src='/'+covers[c.id-1]+'.jpg';},{once:true});
-    cover.src='/valdemar-art-'+number+'.webp';cover.alt=coverDescriptions[c.id-1];
+    cover.src=catalogItem?.image || '/valdemar-art-'+number+'.webp';cover.alt=coverDescriptions[c.id-1];
     cover.width=764;cover.height=508;cover.decoding='async';
     const still=element('figure',null,'vd-still');
     still.append(cover);
@@ -347,14 +372,11 @@
     const availableViews=c.data.hour?.hotel&&window.ValdemarHour?[views[0],['hotel','Recepción del hotel'],...views.slice(1)]:views;
     for(const [id,label] of availableViews){const b=button(label,()=>selectView(c,id));b.dataset.view=id;c.viewButtons.set(id,b);nav.append(b);}
     c.pair=element('div',null,'vd-pair');c.help=element('section',null,'vd-panel vd-help');c.ending=element('section',null,'vd-panel vd-ending');
-    c.help.tabIndex=-1;c.ending.tabIndex=-1;c.dualTools=element('div',null,'vd-dual-tools');c.dualTools.tabIndex=-1;
+    c.help.tabIndex=-1;c.ending.tabIndex=-1;
     if(c.data.hour?.hotel && window.ValdemarHour){c.hotel=element('section',null,'vd-panel vhour vhour-hotel-panel');c.hotel.tabIndex=-1;}
-    c.dualTools.append(element('p','Una persona contrasta las pruebas y la otra intenta ganar la llave. Si juegas a solas, cambia de mesa cuando quieras.'),
-      button('Ir a las pruebas',()=>{c.desk.focus();c.desk.scrollIntoView({block:'start'});}),
-      button('Ir al tablero',()=>{c.gamePanel.focus();c.gamePanel.scrollIntoView({block:'start'});}));
     buildDesk(c);buildGame(c);renderEnding(c);updateWallet(c,c.data);
-    c.pair.append(c.desk,c.gamePanel);
-    c.frame.replaceChildren(head,nav,c.dualTools,c.pair,c.help,c.ending);
+    c.pair.append(c.gamePanel,c.desk);
+    c.frame.replaceChildren(head,nav,c.pair,c.help,c.ending);
     if(c.hotel){
       c.hotel.append(button('Volver a la investigación',()=>selectView(c,'desk',true),'vd-primary'));
       c.frame.append(c.hotel);

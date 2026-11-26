@@ -111,8 +111,8 @@
     const correct=state.choice==='estacion';
     if(correct)state.solved=true;
     state.message=correct
-      ? 'Línea conectada. Los dos timbres corresponden al ala de la estación. Al otro lado, una huésped pregunta en voz baja si hay alguien escuchando.'
-      : 'Esa línea da al patio y solo usa un timbre. Escucha otra vez o consulta la guía y prueba la otra conexión.';
+      ? 'Aviso localizado. Los dos timbres sitúan la llamada en el ala de la estación. El clic final indica que se ha pedido una copia de planta.'
+      : 'El ala del patio usa un solo timbre. Vuelve a escuchar cuántos suenan antes de la pausa.';
     showAnswer(panel);
   });
   document.addEventListener('toggle',event=>{

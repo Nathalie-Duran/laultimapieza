@@ -43,7 +43,7 @@
 .vd-player button:disabled {opacity:.65;cursor:default}
 .vd-player button.vd-primary {background:var(--vd-gold);border-color:var(--vd-gold);color:#272017;font-weight:700}
 .vd-player button.vd-primary:hover:not(:disabled){background:#ffdaa5;color:#201b14}
-.vd-player :is(button,summary,select,a,textarea,input):focus-visible,.vd-player section[tabindex="-1"]:focus-visible,.vd-player .vd-dual-tools:focus-visible {outline:3px solid var(--vd-gold);outline-offset:3px}
+.vd-player :is(button,summary,select,a,textarea,input):focus-visible,.vd-player section[tabindex="-1"]:focus-visible {outline:3px solid var(--vd-gold);outline-offset:3px}
 .vd-player .vd-intro {display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);position:relative;isolation:isolate;overflow:hidden;border:1px solid var(--vd-border);border-radius:.9rem;background:linear-gradient(155deg,var(--vd-case-soft),#131c20)}
 .vd-player .vd-intro-copy {min-width:0;padding:clamp(1.1rem,3.3vw,3rem)}
 .vd-player .vd-still {position:relative;isolation:isolate;align-self:stretch;min-width:0;min-height:19rem;margin:0;overflow:hidden;background:var(--vd-case-soft)}
@@ -61,11 +61,8 @@
 .vd-player .vd-tabs button[aria-pressed=true],.vd-player .vd-controls button[aria-pressed=true] {background:var(--vd-case-soft);border-color:var(--vd-case-accent);color:#fff}
 .vd-player .vd-tabs button[aria-pressed=true] {box-shadow:inset 0 -.2rem 0 var(--vd-case-accent);font-weight:700}
 .vd-player .vd-pair {min-width:0}
-.vd-player .vd-pair.vd-dual {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;align-items:start}
-.vd-player .vd-panel,.vd-player .vd-dual-tools {background:var(--vd-panel);color:var(--vd-ink);border:1px solid var(--vd-border);padding:clamp(1rem,2.1vw,1.9rem);border-radius:.8rem;min-width:0;margin:0 0 .9rem}
-.vd-player .vd-dual-tools {padding:.65rem 1rem}
-.vd-player .vd-dual-tools p {margin:.15rem 0}
-.vd-player .vd-dual-tools button {display:none}
+.vd-player .vd-pair.vd-with-desk {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;align-items:start}
+.vd-player .vd-panel {background:var(--vd-panel);color:var(--vd-ink);border:1px solid var(--vd-border);padding:clamp(1rem,2.1vw,1.9rem);border-radius:.8rem;min-width:0;margin:0 0 .9rem}
 .vd-player .vd-folders {border-bottom:1px solid var(--vd-border);padding:0 0 .75rem;margin:0 0 1.2rem}
 .vd-player .vd-note,.vd-player .vd-status {color:var(--vd-sub)}
 .vd-player .vd-status:not(:empty) {border-left:.19rem solid #759582;padding:.45rem .85rem;margin:.9rem 0}
@@ -101,7 +98,7 @@
 .vd-player .vd-ending {border-top:3px solid var(--vd-case-accent)}
 .vd-player .vd-ending>.vd-note {font-size:1.05rem;max-width:55ch}
 .vd-player .vd-game .vd-board select {min-block-size:2.75rem}
-.vd-player .vd-dual-tools {border-inline-start:.3rem solid var(--vd-case-accent)}
+.vd-player .vd-desk-toggle {margin-top:.35rem;border-color:var(--vd-case-accent);color:var(--vd-case-accent)}
 .vd-player .vd-decision fieldset {border:0;margin:0;padding:0;min-width:0}
 .vd-player .vd-decision legend {font-weight:650;margin:.55rem 0 .75rem}
 .vd-player .vd-decision label {display:flex;align-items:baseline;gap:.65rem;margin:.45rem 0;padding:.65rem .85rem;background:var(--vd-darker);border:1px solid var(--vd-border);border-radius:.4rem;cursor:pointer}
@@ -109,12 +106,13 @@
 .vd-player .vd-decision input {inline-size:1rem;block-size:1rem;flex:none;accent-color:#9ed2b9}
 .vd-player .vd-decision button {margin-top:.7rem}
 .vd-player audio {max-width:100%}
-@media(max-width:1050px){.vd-player .vd-pair.vd-dual{display:block}.vd-player .vd-dual-tools button{display:inline-block;margin:.45rem .35rem 0 0}}
+@media(max-width:1050px){.vd-player .vd-pair.vd-with-desk{display:block}}
 @media(max-width:660px){
   .vd-player .vd-intro {grid-template-columns:minmax(0,1fr)}
   .vd-player .vd-still {grid-row:1;min-height:0;aspect-ratio:2.15}
   .vd-player .vd-headlinks {margin-bottom:.65rem}
-  .vd-player .vd-tabs {grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem}
+  .vd-player .vd-tabs {grid-template-columns:repeat(2,minmax(0,1fr));gap:.3rem}
+  .vd-player .vd-tabs button:last-child:nth-child(odd) {grid-column:1/-1}
   .vd-player .vd-tabs button {min-height:2.8rem;padding:.4rem .3rem;font-size:.86rem}
   .vd-player .vd-panel {padding:.9rem}
   .vd-player .vd-game-heading {margin:-.9rem -.9rem 1rem;padding:1.2rem}

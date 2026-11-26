@@ -232,6 +232,37 @@
     select('');
     return shelf;
   }
+  function corroborationField(spec,sources,onChange) {
+    const field=el('fieldset',null,'vhour-corroboration');
+    const legend=el('legend',spec.prompt||'¿Qué pruebas lo sostienen?');
+    const list=el('div',null,'vhour-source-list');
+    const count=el('p',null,'vhour-source-count');
+    count.setAttribute('role','status');
+    count.setAttribute('aria-atomic','true');
+    const inputs=[];
+    function update() {
+      const full=sources.size===spec.count;
+      for(const input of inputs)input.disabled=full && !input.checked;
+      count.textContent=sources.size+' de '+spec.count+' fuentes seleccionadas.'+
+        (full?' Desmarca una para cambiarla.':'');
+    }
+    for(const option of spec.options) {
+      const label=el('label',null,'vhour-source'),input=el('input');
+      input.type='checkbox';input.name='vhour-source';input.value=option.id;
+      input.addEventListener('change',()=>{
+        if(input.checked && sources.size<spec.count)sources.add(option.id);
+        else if(!input.checked)sources.delete(option.id);
+        input.checked=sources.has(option.id);
+        update();onChange();
+      });
+      inputs.push(input);
+      label.append(input,el('span',option.label));
+      list.append(label);
+    }
+    field.append(legend,count,list);
+    update();
+    return field;
+  }
   function decision(stage,index,controller,refresh) {
     const form=el('form',null,'vhour-task');
     form.dataset.mode=stage.mode;
@@ -245,7 +276,9 @@
     const ordering=stage.mode==='order';
     const required = Number.isInteger(stage.requiredCount) && stage.requiredCount>0 && stage.requiredCount<=options.length
       ? stage.requiredCount : null;
-    const ready=()=>required?selected.length===required:selected.length>0;
+    const sources=new Set();
+    const ready=()=>(required?selected.length===required:selected.length>0) &&
+      (!stage.corroboration || sources.size===stage.corroboration.count);
     let sending=false;
     if(ordering) {
       const summary=el('div',null,'vhour-order-summary'), count=el('span',null,'vhour-order-count');
@@ -328,12 +361,24 @@
       }
       field.append(list);submit.disabled=true;
     }
-    form.append(el('h4','Tu hipótesis','vhour-decision-title'),field,submit,status);
+    form.append(el('h4','Tu hipótesis','vhour-decision-title'),field);
+    let sourceField;
+    if(stage.corroboration) {
+      sourceField=corroborationField(stage.corroboration,sources,()=>{
+        status.textContent='';submit.disabled=!ready();
+      });
+      form.append(sourceField);
+    }
+    form.append(submit,status);
     form.addEventListener('submit',async event=>{
       event.preventDefault();if(sending||!ready())return;
-      sending=true;submit.disabled=true;field.disabled=true;status.textContent='Contrastando la respuesta…';
+      sending=true;submit.disabled=true;field.disabled=true;
+      if(sourceField)sourceField.disabled=true;
+      status.textContent='Contrastando la respuesta…';
       try {
-        const reply=await controller.submit(index,selected.slice());
+        const reply=await (sourceField
+          ? controller.submit(index,selected.slice(),Array.from(sources))
+          : controller.submit(index,selected.slice()));
         if(reply.correct)refresh(reply.hour,reply.feedback);
         else if(reply.hour?.current!==index && reply.hour)refresh(reply.hour,reply.feedback);
         else status.textContent=reply.feedback||'Revisa las pruebas e inténtalo de nuevo.';
@@ -345,7 +390,10 @@
           }catch { /* La próxima respuesta puede reintentarse. */ }
         }
         status.textContent=e.message||'No se ha podido guardar. Vuelve a intentarlo.';
-      } finally {sending=false;submit.disabled=!ready();field.disabled=false;}
+      } finally {
+        sending=false;submit.disabled=!ready();field.disabled=false;
+        if(sourceField)sourceField.disabled=false;
+      }
     });
     return form;
   }
@@ -448,7 +496,20 @@
         if(hotel && controller.visitHotel)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
         const workbench=el('div',null,'vhour-workbench');
         workbench.dataset.stage=String(index+1);
-        workbench.append(proofShelf(stage.materials||[],state),decision(stage,index,controller,(next,note)=>{controller.change(next);render(next,note,true);}));
+        const shelf=proofShelf(stage.materials||[],state);
+        const instrument=stage.instrument;
+        const makeTool=instrument && window.ValdemarTalleres?.[instrument.id];
+        if(typeof makeTool==='function') {
+          const tool=makeTool(instrument.data);
+          const title=tool?.querySelector?.('h2,h3,h4,h5,h6')?.textContent || tool?.getAttribute?.('aria-label');
+          if(title) {
+            const drawer=el('details',null,'vhour-instrument');
+            drawer.open=window.matchMedia?.('(min-width: 64rem)').matches ?? true;
+            drawer.append(el('summary',title),tool);
+            shelf.append(drawer);
+          } else if(tool)shelf.append(tool);
+        }
+        workbench.append(shelf,decision(stage,index,controller,(next,note)=>{controller.change(next);render(next,note,true);}));
         main.append(workbench);
         if(focus){heading.focus({preventScroll:true});heading.scrollIntoView?.({block:'start',behavior:'instant'});}
       } else {
