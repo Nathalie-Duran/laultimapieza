@@ -5,7 +5,7 @@ import {worldSeasonAccess, valdemarWallet, withValdemarTransaction, WORLD_CASE_C
 import {readValdemarRelease} from './valdemar-release.mjs';
 import {evaluateHourStage,readHour,requireHourComplete,roleMaterials} from './valdemar-hour.mjs';
 import {hasCaseActivity,recordCaseActivity} from './season-activity.mjs';
-import {endPair,partnerCases,partnerInfo,syncPairProgress} from './partner-api.mjs';
+import {endPair,partnerCases,partnerInfo,partnerScope,syncPairProgress} from './partner-api.mjs';
 
 const files = new Map();
 // Only versioned, server-owned files are passed here. No path comes from the request.
@@ -19,21 +19,21 @@ function asset(name) {
 
 const formatNames={text:'el documento',testimony:'el testimonio',ledger:'el registro',visual:'la lámina',audio:'el audio',web:'el archivo web'};
 const formatList=new Intl.ListFormat('es',{type:'conjunction'});
-function visibleRoles(story,role,record){
+function visibleRoles(story,role){
   if(!role || !Array.isArray(story.roles))return story.roles;
   const ownIndex=role==='A'?0:1,otherRole=role==='A'?'B':'A';
-  const stage=story.hour?.stages?.[record?.hourStep||0];
-  const formats=[...new Set((stage?.materials || []).filter(item=>item.role===otherRole)
-    .map(item=>formatNames[item.kind]).filter(Boolean))];
+  const materials=(story.hour?.stages||[]).flatMap(stage=>stage.materials||[]);
+  const formats=[...new Set(materials.filter(item=>item.role===otherRole)
+    .map(item=>formatNames[item.kind]).filter(Boolean))].slice(0,3);
   const task=formats.length
-    ? 'Examina '+formatList.format(formats)+' de su carpeta y comparte lo que encuentre.'
+    ? 'A lo largo del caso, examina '+formatList.format(formats)+' de su carpeta y comparte lo que encuentre.'
     : 'Contrasta sus pruebas con las tuyas para decidir cómo resolver el caso.';
   return story.roles.map((description,index)=>index===ownIndex?description:task);
 }
 
-function visibleStory(story,role,record) {
+function visibleStory(story,role) {
   const {id,title,place,question,solo,intro,challengePrompt,evidenceCards,choices,hypotheses} = story;
-  return {id,title,place,question,roles:visibleRoles(story,role,record),solo,intro,challengePrompt,
+  return {id,title,place,question,roles:visibleRoles(story,role),solo,intro,challengePrompt,
     evidenceCards:evidenceCards && roleMaterials(evidenceCards,role),choices,hypotheses};
 }
 
@@ -173,7 +173,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
   const action = match?.[2] || 'read';
   if (method !== (action==='read' || action==='pair-state' ? 'GET' : 'POST')) throw new ApiError(405,'Método no permitido.');
   return withValdemarTransaction(withStore, async store => {
-    const reservation=id && !editorial && store.getCasePartner ? await store.getCasePartner(uid,id,Date.now()) : null;
+    const reservation=id && store.getCasePartner ? await store.getCasePartner(uid,id,Date.now()) : null;
     const poll=action==='pair-state';
     const membership = editorial ? null : poll && billing?.pollMembership ? await billing.pollMembership(store,uid) : await billing?.membership(store,uid,{readOnly:gamesRoute});
     const data = await store.getMemberData(uid,{readOnly:gamesRoute});
@@ -210,11 +210,11 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       return {wallet,released:availableCases.length,availableCases,completed};
     }
     const personal = data.valdemarCaseProgress?.[scope]?.[id];
-    const accepted=reservation?.status==='accepted'?reservation:null;
+    const accepted=reservation?.status==='accepted' && partnerScope(reservation,uid)===scope ? reservation : null;
     let pair=null;
-    if(accepted && membership?.canPlay===true){
+    if(accepted && (editorial || membership?.canPlay===true)){
       const other=accepted.ownerId===uid?accepted.guestId:accepted.ownerId;
-      if((await partnerCases(store,billing,other,{poll})).includes(id))pair=accepted;
+      if((await partnerCases(store,billing,other,{poll,editorial:partnerScope(accepted,other)==='editorial'})).includes(id))pair=accepted;
     }
     if(method==='POST' && (input?.partnerId??null)!==(pair?.id??null)){
       throw new ApiError(409,'La pareja de esta partida ha cambiado. Vuelve a abrir el juego.','PAIR_CHANGED');
@@ -271,7 +271,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const hints = visibleHints(story,wallet);
     if (action !== 'read') return {wallet,hints,...(newWorld && action==='reward' ? {feedback:story.side.success} : {})};
     const role=partner?.role;
-    const dossier = {story:visibleStory(story,role,record),hour:readHour(story,record,role),wallet,hints,progress:visibleProgress(record,story),
+    const dossier = {story:visibleStory(story,role),hour:readHour(story,record,role),wallet,hints,progress:visibleProgress(record,story),
       mode,partner,editorialPreview:editorial===true};
     if (newWorld) return {...dossier,side:visibleSide(story.side,role)};
     const gameScript = await asset('valdemar-challenges-'+Math.ceil(id/4)+'.js');
