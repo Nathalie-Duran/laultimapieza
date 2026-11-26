@@ -1,0 +1,290 @@
+window.MundosCatalogo = Object.freeze([
+  {
+    "id": 13,
+    "title": "Las tres bocas del estuario",
+    "place": "Embarcadero de Nácar",
+    "question": "¿Dónde dejó la barquera la valija que nunca llegó al faro?",
+    "roles": [
+      "Lees los calcos y orientas la carta de los canales.",
+      "Reconoces señales de servicio y reconstruyes la hora de paso."
+    ],
+    "world": "expedicion",
+    "month": 4
+  },
+  {
+    "id": 14,
+    "title": "El observatorio que perdió el norte",
+    "place": "Cúpula de Cobre",
+    "question": "¿Por qué el catálogo situó una estrella al otro lado del cielo?",
+    "roles": [
+      "Orientas placas y mirillas.",
+      "Reconstruyes la sesión con la cinta horaria y los diarios."
+    ],
+    "world": "expedicion",
+    "month": 4
+  },
+  {
+    "id": 15,
+    "title": "El jardín de las lluvias prestadas",
+    "place": "Terrazas de Musgo",
+    "question": "¿Quién regó las terrazas cuando el aljibe y el cielo estaban secos?",
+    "roles": [
+      "Sigues hojas, manchas y testigos de humedad.",
+      "Recompones turnos y lecturas de la acequia."
+    ],
+    "world": "expedicion",
+    "month": 4
+  },
+  {
+    "id": 16,
+    "title": "El tren bajo la montaña",
+    "place": "Estación de Pizarra",
+    "question": "¿Qué transportó en realidad el último convoy del túnel de pizarra?",
+    "roles": [
+      "Cotejas vagones, apartaderos y rastros de ruedas.",
+      "Recompones el manifiesto y las llamadas del personal."
+    ],
+    "world": "expedicion",
+    "month": 4
+  },
+  {
+    "id": 17,
+    "title": "La puerta de las cien sombras",
+    "place": "Cantera del Mediodía",
+    "question": "¿Qué abría el arco de la cantera si delante de él nunca hubo un muro?",
+    "roles": [
+      "Proyectas calcos, perfiles y sombras.",
+      "Lees los contratos de cantera y las notas de los aprendices."
+    ],
+    "world": "expedicion",
+    "month": 5
+  },
+  {
+    "id": 18,
+    "title": "El mercado de los pesos huecos",
+    "place": "Zoco de las Balanzas",
+    "question": "¿Por qué una caja de ámbar pesa menos al venderse y más cuando vuelve al puesto?",
+    "roles": [
+      "Reconstruyes las pesadas y las taras.",
+      "Sigues las marcas de custodia y los recibos del zoco."
+    ],
+    "world": "expedicion",
+    "month": 5
+  },
+  {
+    "id": 19,
+    "title": "Las voces del puente colgante",
+    "place": "Garganta del Eco",
+    "question": "¿Cómo cruzó el aviso de cierre cuando nadie podía pisar el puente?",
+    "roles": [
+      "Comparas los calcos del puente y los trazados del barranco.",
+      "Escuchas las llamadas y ordenas las respuestas de las dos laderas."
+    ],
+    "world": "expedicion",
+    "month": 5
+  },
+  {
+    "id": 20,
+    "title": "La cámara de la marea quieta",
+    "place": "Gruta de las Tres Lunas",
+    "question": "¿Cómo registró la gruta agua inmóvil mientras el mar exterior subía?",
+    "roles": [
+      "Levantas cortes de galerías y niveles de la pared.",
+      "Comparas mareógrafos e inventarios de los guardianes."
+    ],
+    "world": "expedicion",
+    "month": 5
+  },
+  {
+    "id": 21,
+    "title": "La biblioteca de las semillas",
+    "place": "Jardín del Umbral",
+    "question": "¿Qué sobre conserva la variedad que una jardinera prometió a dos aldeas?",
+    "roles": [
+      "Observas cápsulas, dibujos de flores y marcas de injerto.",
+      "Lees préstamos, cultivos sucesivos y devoluciones."
+    ],
+    "world": "expedicion",
+    "month": 6
+  },
+  {
+    "id": 22,
+    "title": "El espejismo de las dos caravanas",
+    "place": "Salinas del Espejo",
+    "question": "¿Llegaron dos caravanas al islote de sal o se duplicó una sola?",
+    "roles": [
+      "Reconstruyes perfiles y posiciones sobre una cuadrícula.",
+      "Conviertes horarios y comparas inventarios de viaje."
+    ],
+    "world": "expedicion",
+    "month": 6
+  },
+  {
+    "id": 23,
+    "title": "El teatro de los vientos",
+    "place": "Anfiteatro del Collado",
+    "question": "¿Qué músico pudo tocar el último acorde cuando el escenario estaba vacío?",
+    "roles": [
+      "Interpretas las acotaciones y las posiciones de los tubos.",
+      "Reconoces los timbres y contrastas los partes del collado."
+    ],
+    "world": "expedicion",
+    "month": 6
+  },
+  {
+    "id": 24,
+    "title": "La última casilla de ámbar",
+    "place": "Patio de las Doce Manos",
+    "question": "¿Para qué se talló la casilla central que no admite ninguna ficha?",
+    "roles": [
+      "Comparas improntas y ensamblas los bordes del tablero.",
+      "Cruzas actas de talleres y marcas de quienes usaron las piezas."
+    ],
+    "world": "expedicion",
+    "month": 6
+  },
+  {
+    "id": 25,
+    "title": "El huésped del azogue",
+    "place": "Pensión del Espejo",
+    "question": "Si en el cuarto seis no hay nadie, ¿de quién es la mano que sigue quitándose un anillo en el espejo?",
+    "roles": [
+      "Examina el dormitorio y los reflejos desde la puerta.",
+      "Reconstruye los cambios de habitación en los libros de la patrona."
+    ],
+    "world": "umbravia",
+    "month": 7
+  },
+  {
+    "id": 26,
+    "title": "La última risa de la feria",
+    "place": "Carrusel de las Zarzas",
+    "question": "¿Por qué Boca de Tiza ríe a oscuras justo cuando la taquillera cuenta un asiento vacío?",
+    "roles": [
+      "Escucha al autómata y compara el sentido de marcha.",
+      "Verifica los antiguos billetes de la barraca y el montaje de cada figura."
+    ],
+    "world": "umbravia",
+    "month": 7
+  },
+  {
+    "id": 27,
+    "title": "La función de los ausentes",
+    "place": "Cine Niebla",
+    "question": "¿Quién proyecta cada noche la silueta de una mujer sobre una pantalla desconectada?",
+    "roles": [
+      "Reconstruye los fotogramas y su posición en la sala.",
+      "Comprueba las reformas y escucha lo que oyó la acomodadora."
+    ],
+    "world": "umbravia",
+    "month": 7
+  },
+  {
+    "id": 28,
+    "title": "Las cartas bajo la lengua",
+    "place": "Estafeta de los Olmos",
+    "question": "¿Por qué llegan cartas con la letra de personas vivas contando cosas que aún no recuerdan haber escrito?",
+    "roles": [
+      "Sigue los matasellos y las marcas de los rodillos.",
+      "Escucha a los destinatarios y contrasta las entregas con las rutas del cartero."
+    ],
+    "world": "umbravia",
+    "month": 7
+  },
+  {
+    "id": 29,
+    "title": "El turno de las sombras",
+    "place": "Lavadero de la Acequia",
+    "question": "¿De quién es la quinta sombra si solo cuatro lavanderas entraron al turno de noche?",
+    "roles": [
+      "Sigue la luz, las siluetas y el caudal de las pilas.",
+      "Contrasta el turno oral con los recibos de ropa y la libreta de llaves."
+    ],
+    "world": "umbravia",
+    "month": 8
+  },
+  {
+    "id": 30,
+    "title": "La frecuencia de los jueves",
+    "place": "Emisora de la Loma",
+    "question": "¿Por qué una locutora que lleva treinta años en silencio pregunta por teléfono qué tiempo hizo mañana?",
+    "roles": [
+      "Escucha las cortinillas, las pausas y los saltos de la cinta.",
+      "Comprueba las parrillas, los partes meteorológicos y los registros de llamada."
+    ],
+    "world": "umbravia",
+    "month": 8
+  },
+  {
+    "id": 31,
+    "title": "La casa que cabe en un cajón",
+    "place": "Taller de Maquetas",
+    "question": "¿Por qué se enciende una ventana en la maqueta minutos antes de que alguien abandone su casa?",
+    "roles": [
+      "Mide las habitaciones, las sombras y la posición de sus ventanas.",
+      "Reconstruye por qué la maquetista movió las viviendas del barrio."
+    ],
+    "world": "umbravia",
+    "month": 8
+  },
+  {
+    "id": 32,
+    "title": "Los pasajeros de la niebla",
+    "place": "Apeadero del Tejo",
+    "question": "¿Por qué las maletas de un tren que nunca paró regresan cada noviembre a un andén sin vías?",
+    "roles": [
+      "Escucha las señales y sitúa las maletas en los andenes.",
+      "Corrige los horarios y sigue la numeración de las etiquetas de equipaje."
+    ],
+    "world": "umbravia",
+    "month": 8
+  },
+  {
+    "id": 33,
+    "title": "El jardín de los nombres prestados",
+    "place": "Invernadero de las Viudas",
+    "question": "¿Por qué una flor blanca abre cada vez que alguien pronuncia un apellido que no le pertenece?",
+    "roles": [
+      "Reconstruye el banco de macetas con fotografías y marcas de riego.",
+      "Comprueba los cambios de apellido en las tarjetas de visita del jardín."
+    ],
+    "world": "umbravia",
+    "month": 9
+  },
+  {
+    "id": 34,
+    "title": "El último toque de vísperas",
+    "place": "Campanario de Santa Bruma",
+    "question": "¿Quién toca la campana pequeña si su badajo lleva décadas expuesto en el museo?",
+    "roles": [
+      "Escucha las resonancias desde la torre y la plaza.",
+      "Rastrea por separado campana, badajo, reloj y martillo de horas."
+    ],
+    "world": "umbravia",
+    "month": 9
+  },
+  {
+    "id": 35,
+    "title": "La voz del fondo",
+    "place": "Aljibe de las Hilanderas",
+    "question": "¿Cómo puede una voz en un pozo cerrado pronunciar el mote que solo conocía la hermana de la guardesa?",
+    "roles": [
+      "Compara las tomas del brocal, los ecos y el nivel del agua.",
+      "Reconstruye las antiguas conducciones del aljibe y quién tenía acceso a cada galería."
+    ],
+    "world": "umbravia",
+    "month": 9
+  },
+  {
+    "id": 36,
+    "title": "Quien cierra el padrón",
+    "place": "Casa Consistorial",
+    "question": "¿Qué hay que escribir en el último renglón si el pueblo sigue llamando a alguien que nunca fue una persona?",
+    "roles": [
+      "Examina las marcas, los planos y las voces que quedaron en el salón de plenos.",
+      "Contrasta los tres libros de evacuación y reconstruye qué contaba realmente cada casilla."
+    ],
+    "world": "umbravia",
+    "month": 9
+  }
+]);

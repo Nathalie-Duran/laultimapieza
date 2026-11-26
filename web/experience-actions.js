@@ -12,7 +12,9 @@ document.addEventListener('click',async event=>{
   if(action==='season-ending'){const r=await bridge.request('/api/season/ending',{choice:button.dataset.choice});bridge.applyJourney(r.journey);bridge.toast('Tu decisión final está guardada.');}
   if(action==='billing-checkout'||action==='billing-portal'){
    const path=action==='billing-portal'||root.ClubAccess.state.ownAccess?'portal':'checkout';
-   const r=await bridge.request('/api/billing/'+path,{}),url=new URL(r.url);
+   const season=Number(button.dataset.season);
+   const payload=path==='checkout'&&[1,2,3].includes(season)?{season}:{};
+   const r=await bridge.request('/api/billing/'+path,payload),url=new URL(r.url);
    if(url.protocol!=='https:'||!['checkout.stripe.com','billing.stripe.com'].includes(url.hostname))throw new Error('No se ha podido abrir el pago seguro.');
    location.assign(url.href);
   }

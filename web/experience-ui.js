@@ -67,6 +67,12 @@ function coverStory(m) {
 }
 
 function homeSeasonOffer(m) {
+ const held=m.membership?.seasonAccess?.seasons?.filter(s=>s.paidBlocks.length).at(-1);
+ if(held){
+   const route=['casos','expedicion','umbravia'][held.number-1];
+   const name=held.number===1?'Valdemar':root.Mundos.nameOf(route);
+   return `<section class="season-strip vh-member-map"><div><h2>Tu colección de ${esc(name)}</h2><p>${held.completed} de 12 juegos terminados. ${held.finishAccess?'Has abonado los tres bloques de esta temporada.':'Tienes '+held.paidBlocks.length+' de 3 bloques abonados.'}</p></div><a class="shelf-link" href="#${route}">Ver mis juegos</a></section>`;
+ }
  if(m.canPlay)return `<section class="season-strip vh-member-map"><div><h2>Tu colección de Valdemar</h2><p>Explora las mesas de pistas y consigue llaves con los retos de cada historia.</p></div><a class="shelf-link" href="#casos">Abrir la temporada</a></section>`;
  const open=root.ClubAccess?.checkoutAvailable===true;
  const label=open?'Ver la suscripción':m.membership?.waitlist?'Ver mi aviso de apertura':'Avísame cuando abra';

@@ -1,0 +1,21 @@
+.colecciones-nav {display:flex;flex-wrap:wrap;gap:.4rem;align-items:stretch;margin:0 0 1.15rem;}
+.colecciones-nav a {min-height:44px;display:flex;flex-direction:column;justify-content:center;gap:.24rem;padding:.55rem 1.05rem;color:#efe9da;text-decoration:none;border:1px solid #4c5754;border-radius:4px;background:#14221f;}
+.colecciones-nav small,.colecciones-card small {font:650 .68rem/1.2 var(--sans,system-ui,sans-serif);letter-spacing:.10em;text-transform:uppercase;color:#dbcaac;}
+.colecciones-nav span {font:600 .9rem/1.24 var(--sans,system-ui,sans-serif);}
+.colecciones-nav a[aria-current=page] {background:#f3e5c9;color:#172820;border-color:#eece90;}
+.colecciones-nav a[aria-current=page] small {color:#604324;}
+.colecciones-nav a:hover {border-color:#e5cc95;}
+.colecciones-home {margin:clamp(1.7rem,3.5vw,4rem) 0;}
+.colecciones-home h2 {font:400 clamp(2rem,3.2vw,3.5rem)/1.05 Georgia,serif;letter-spacing:-.035em;color:#fff1d7;margin:0 0 1rem;}
+.colecciones-home>div {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;}
+.colecciones-card {position:relative;isolation:isolate;display:flex;align-items:end;min-height:clamp(12rem,18vw,17rem);overflow:hidden;color:#fff3da;text-decoration:none;border:1px solid #645e4f;border-radius:6px;}
+.colecciones-card img,.colecciones-card::before {position:absolute;inset:0;height:100%;width:100%;object-fit:cover;}
+.colecciones-card img {z-index:-2;object-position:center 53%;}
+.colecciones-card::before {content:"";z-index:-1;background:linear-gradient(0deg,#08100ff5 0%,#08100f9e 49%,#08100f0c 88%);}
+.colecciones-card>span {display:grid;gap:.42rem;padding:clamp(1rem,2.5vw,2rem);}
+.colecciones-card strong {color:#fff1d3;font:400 clamp(1.8rem,3.2vw,3.4rem)/1.05 Georgia,serif;}
+.colecciones-card b {width:fit-content;color:#fae6b8;font:600 .9rem/1.5 var(--sans,system-ui,sans-serif);}
+.colecciones-card i {font-style:normal;padding-inline-start:.22rem;}
+.colecciones-card:hover b {text-decoration:underline;text-underline-offset:.2em;}
+.colecciones-nav a:focus-visible,.colecciones-card:focus-visible {outline:3px solid #ffe3a0;outline-offset:3px;}
+@media(max-width:640px){.colecciones-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.25rem;}.colecciones-nav a{padding:.45rem;}.colecciones-nav span{font-size:.82rem;}.colecciones-nav small{font-size:.59rem;letter-spacing:.035em;}.colecciones-home>div{grid-template-columns:1fr;gap:.6rem;}.colecciones-card{min-height:10rem;}}

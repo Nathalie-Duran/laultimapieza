@@ -36,7 +36,7 @@
     ).join('')+'</div>';
   }
   function home() {
-    return `<section class="vd-section vd-home" aria-labelledby="shelf-title"><header class="vd-head"><div><p class="vd-label">Valdemar · Primer mes</p><h2 id="shelf-title" tabindex="-1">Cuatro historias para tu próxima noche.</h2></div><nav class="vd-route-links" aria-label="Explorar Valdemar"><a class="vd-textlink" href="/#casos">Ver las 12 historias</a><a class="vd-textlink" href="/#mapa">Plano secreto</a></nav></header>${cards(1)}</section>`;
+    return `<section class="vd-section vd-home" aria-labelledby="shelf-title"><header class="vd-head"><div><p class="vd-label">Valdemar · Primer mes</p><h2 id="shelf-title" tabindex="-1">Cuatro historias para tu próxima noche.</h2></div><nav class="vd-route-links" aria-label="Explorar Valdemar"><a class="vd-textlink" href="/#casos">Ver las 12 historias</a><a class="vd-textlink" href="/#mapa">Plano secreto</a></nav></header>${cards(1)}</section>`+(window.Colecciones?.discover()||'');
   }
   function list(opts={}) {
     const month=[1,2,3].includes(Number(opts.month))?Number(opts.month):1;
@@ -44,7 +44,8 @@
   }
   function entry(item,opts,unlocked) {
     const href=unlocked?'/#valdemar-jugar?id='+item.id:'/#planes';
-    return `<a class="vd-cta" href="${href}">${unlocked?'Abrir la investigación':opts.canPlay?'Ver mi pase':'Ver el pase de Valdemar'}</a>`;
+    const label=unlocked?(opts.completed?.includes(item.id)?'Ver mi desenlace':'Abrir la investigación'):opts.canPlay?'Ver mi pase':'Ver el pase de Valdemar';
+    return `<a class="vd-cta" href="${href}">${label}</a>`;
   }
   function hotelCall(cta) {
     return `<section class="vd-sampler" aria-labelledby="vd-call-title"><div class="vd-sampler-intro"><p class="vd-label">Prueba gratis · 1 min</p><h2 id="vd-call-title">Recepción de noche</h2><p>Suena el teléfono de servicio. La guía de la centralita está abierta junto al auricular. ¿Desde qué ala llega el aviso?</p></div>
@@ -59,7 +60,7 @@
     const item=get(id);
     if(!item)return '<section class="vd-section"><h1>Historia no encontrada</h1><a class="vd-textlink" href="/#casos">Volver a las doce historias</a></section>';
     const unlocked=access(item,opts);
-    const message=unlocked?'Incluida en tu acceso.':opts.canPlay?`Se abre en el mes ${item.month} de tu pase.`:`Incluida en el mes ${item.month} del pase de temporada.`;
+    const message=unlocked?(opts.fullyPaid?'Incluida en tu pase abonado de Valdemar.':'Incluida en tu acceso.'):opts.canPlay?`Se abre en el mes ${item.month} de tu pase.`:`Incluida en el mes ${item.month} del pase de temporada.`;
     const cta=entry(item,opts,unlocked);
     const sample=item.id===2?`<button type="button" data-vd-start class="${unlocked?'vd-ghost':'vd-cta'}">Atender la llamada</button>`:'';
     const actions=item.id===2?(unlocked?cta+sample:sample+cta.replace('class="vd-cta"','class="vd-ghost"')):cta+(unlocked?'':'<button type="button" data-action="preview-open" class="vd-ghost">Probar Clínica Vallejo gratis</button>');

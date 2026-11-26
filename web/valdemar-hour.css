@@ -70,6 +70,8 @@
 .vd-player .vhour-material .vhour-muted,.vd-player .vhour-material .vhour-status {color:#454c43}
 .vd-player .vhour-prose,.vd-player .vhour-clipping,.vd-player .vhour-quote {white-space:pre-line}
 .vd-player .vhour-recording .vhour-prose {margin:.6rem 0 0}
+.vhour-recording .vhour-audio {display:block;width:min(100%,30rem);max-width:100%;margin:.35rem 0 .75rem}
+.md-game[data-silent=true] .vhour-recording .vhour-audio {display:none}
 .vd-player .vhour-material .vhour-plate {box-shadow:inset 0 0 0 .45rem #c9d4cb;background:#e2ebe2;color:#173931}
 .vd-player .vhour-material .vhour-plate {
   background-image:linear-gradient(#4b685121 1px,transparent 1px),linear-gradient(90deg,#4b685121 1px,transparent 1px);

@@ -32,42 +32,79 @@ if(typeof document!=='undefined')document.addEventListener('submit',async event=
    const next=document.querySelector('.waiting-interest h3');if(next){next.tabIndex=-1;next.focus();}
  }catch(error){status.textContent=error.message||'No hay conexión. Vuelve a intentarlo.';button.disabled=false;}
 });
-function adminCard(){return '<section class="account-card"><span class="club-kicker">ADMINISTRADORA</span><h2>Acceso completo, sin suscripción.</h2><p>Tienes acceso editorial a las doce historias de Valdemar y al archivo clásico. Puedes repetirlos y guardar tu avance, sin esperar desbloqueos ni realizar pagos.</p><a class="button primary" href="#casos">Explorar todos los retos</a><a class="button" href="#mapa">Ver mi plano</a></section>';}
+const seasonNames=['Valdemar','El Tablero de Ámbar','Umbravía'];
+const seasonRoutes=['casos','expedicion','umbravia'];
+function adminCard(){return '<section class="account-card"><span class="club-kicker">ADMINISTRADORA</span><h2>Tu acceso editorial</h2><p>Puedes probar los 36 juegos de las tres temporadas y consultar el archivo clásico.</p>'+root.Colecciones.menu('')+'</section>';}
 function plans(){
  if(state.role==='admin')return adminCard();
- const action=config.checkoutAvailable?`<button class="button primary wide" data-action="${state.hasCustomer&&state.ownAccess?'billing-portal':'billing-checkout'}">${state.ownAccess?'Gestionar mi suscripción':'Empezar el primer mes por 29,95 €'}</button><p><a href="${esc(config.termsUrl)}" rel="noopener" target="_blank">Condiciones</a> · <a href="${esc(config.privacyUrl)}" rel="noopener" target="_blank">Privacidad</a></p>`:interest();
- const firstMonth=root.ValdemarCatalog.items.filter(s=>s.month===1);
+ const access=state.seasonAccess;
+ const offer=access?.nextPurchase;
+ const current=access?.seasons?.filter(s=>s.paidBlocks.length).at(-1);
+ const number=(state.ownAccess && current ? current.number : offer?.number)||current?.number||1;
+ const held=current?.number===number ? current : null;
+ const route=seasonRoutes[number-1],name=seasonNames[number-1];
+ const checkout=state.ownAccess
+   ? '<button class="button primary wide" data-action="billing-portal">Gestionar mi suscripción</button>'
+   : (!access||offer)
+     ? `<button class="button primary wide" data-action="billing-checkout" data-season="${number}">Contratar el pase de ${name} · 29,95 €/mes</button>`
+     : `<a class="button primary wide" href="#${route}">Volver a ${name}</a>`;
+ const terms=`<p><a href="${esc(config.termsUrl)}" rel="noopener" target="_blank">Condiciones</a> · <a href="${esc(config.privacyUrl)}" rel="noopener" target="_blank">Privacidad</a></p>`;
+ const action=config.checkoutAvailable?checkout+terms:held?.finishAccess?'<a class="button primary wide" href="#'+route+'">Volver a '+name+'</a>':interest();
+ const cycles=offer?.number===number ? offer.remainingCycles : held ? 3-held.paidBlocks.length : 3;
+ const costText=cycles===0 ? 'Has abonado los tres bloques de esta temporada.' :
+   cycles===3 ? 'Temporada completa de 12 juegos por 89,85 € en tres pagos.' :
+   cycles===1 ? 'Queda un bloque de 29,95 € para completar esta temporada.' :
+   'Quedan dos bloques de 29,95 €, 59,90 € en total, para completar esta temporada.';
+ const firstMonth=number===1?root.ValdemarCatalog.items.slice(0,4):(root.MundosCatalogo||[]).filter(s=>s.world===route).slice(0,4);
+ const destination=s=>number===1?'/valdemar/'+String(s.id).padStart(2,'0')+'/':'/#'+route+'?lugar='+((s.id-1)%12+1);
  return `<section class="club-plans season-offer">
    <header>
-     <p class="cover-caption">Temporada 01 · Valdemar</p>
+     <p class="cover-caption">Temporada 0${number} · ${name}</p>
      <h1>Cuatro misterios al mes.</h1>
-     <p class="season-intro">Explora una estación en dos épocas, atiende el turno de medianoche de un hotel o contesta una llamada de radio imposible.</p>
+     <p class="season-intro">Empieza en Valdemar. Tras resolver sus doce juegos podrás seguir en El Tablero de Ámbar. Cuando completes esa expedición, se abrirá el camino a Umbravía.</p>
+     ${current?.finishAccess && current.completed===12 && number>current.number ? '<p>Has completado '+seasonNames[current.number-1]+'. Su pase ya está abonado. Puedes volver a <a href="#'+seasonRoutes[current.number-1]+'">tus doce juegos</a> o contratar esta nueva temporada.</p>' : ''}
    </header>
    <div class="club-plan-grid">
      <article class="club-plan season-pass">
-       <h2>El pase de Valdemar</h2>
+       <h2>El pase de ${name}</h2>
        <p class="club-price"><strong>29,95 €</strong><span>/ mes</span></p>
-       <p class="club-small offer-availability">${config.checkoutAvailable?'IVA incluido.':'Precio previsto, IVA incluido. La suscripción abrirá próximamente.'}</p>
+       <p class="club-small offer-availability">${config.checkoutAvailable||held?'IVA incluido.':'Precio previsto, IVA incluido. La suscripción abrirá próximamente.'}</p>
        <p class="pass-benefit"><strong>Cuatro historias con cada pago mensual.</strong> Comparte la pantalla o juega a solas. Investiga audios, imágenes, documentos y archivos web, con un reto paralelo en cada historia.</p>
-       <p class="postal-terms">Temporada completa de 12 casos por 89,85 € en tres pagos. Puedes cancelar antes de la próxima renovación.</p>
-       <p>Una llave de bienvenida al contratar. Cada reto superado por primera vez da otra llave. Una llave abre un sobre con dos ayudas.</p>
+       <p class="postal-terms">${costText} ${cycles?'Puedes cancelar antes de la próxima renovación.':held?.finishAccess?'Puedes volver a los doce juegos desde tu cuenta.':'Cuando termines la temporada anterior se abrirán los juegos de este pase.'}</p>
+       <p>Recibes una única llave de bienvenida con tu primer pase. Cada reto superado por primera vez da otra llave. Una llave abre un sobre con dos ayudas.</p>
        ${action}
      </article>
      <div class="club-plan-aside">
        <article class="plan-cases">
-         <h2>Tu primer mes en Valdemar</h2>
-         <ul>${firstMonth.map(s=>`<li><a href="/valdemar/${String(s.id).padStart(2,'0')}/"><img src="${esc(s.image)}" width="74" height="50" loading="lazy" alt=""><span>${esc(s.title)}</span></a></li>`).join('')}</ul>
-         <a class="text-link" href="#casos">Explorar los 12 casos</a>
+         <h2>El primer bloque de ${name}</h2>
+         <ul>${firstMonth.map(s=>`<li><a href="${destination(s)}"><img src="${esc(s.image||'/mundo-'+s.id+'.webp')}" width="74" height="50" loading="lazy" alt=""><span>${esc(s.title)}</span></a></li>`).join('')}</ul>
+         <a class="text-link" href="#${route}">Explorar los 12 juegos</a>
        </article>
        <div class="plan-faq">
-         <details><summary>¿Cómo se abren los casos?</summary><p>Con cada pago se abren cuatro casos de golpe. Los anteriores siguen disponibles mientras tengas acceso activo. La temporada termina tras el tercer pago. Las llaves ganadas se pueden usar en cualquiera de las historias disponibles.</p></details>
-         <details><summary>¿Qué pasa con mis partidas si cancelo?</summary><p>Puedes jugar hasta el final del periodo pagado. Tu cuenta conserva los sobres abiertos y las llaves ganadas. Para continuar un caso completo necesitas acceso activo.</p></details>
+         <details><summary>¿Cómo se abren los juegos?</summary><p>Cada cuota mensual abre cuatro juegos de la misma temporada. Una temporada tiene tres bloques. Para acceder a la siguiente debes guardar el desenlace de los doce juegos y contratar su pase.</p></details>
+         <details><summary>¿Y si me falta un juego al terminar el pase?</summary><p>Si ya abonaste los tres bloques, puedes terminar los juegos pendientes de esa temporada. Tú decides cuándo contratar la siguiente. Si cancelas antes del tercer bloque, podrás jugar hasta el final del periodo pagado y retomar los bloques pendientes más adelante.</p></details>
        </div>
        <button class="button plan-demo" data-action="preview-open">Jugar gratis a Clínica Vallejo</button>
      </div>
    </div>
  </section>`;
 }
-root.ClubAccess={...old,plans,enrollment:plans,banner(){return state.role==='admin'?'<aside class="paid-banner" aria-label="Acceso de administradora"><span class="paid-dot" aria-hidden="true"></span><p><strong>Administradora: todos los retos disponibles.</strong> Sin suscripci&oacute;n ni cobros.</p><a href="'+(state.canManage===true?'#gestion':'#casos')+'">'+(state.canManage===true?'Abrir gestión':'Explorar retos')+'</a></aside>':old.banner();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){state=value||{canPlay:false};},account(){if(state.role==='admin')return adminCard();return `<section class="account-card"><span class="club-kicker">MI SUSCRIPCIÓN</span><h2>${state.ownAccess?'Tu temporada está activa':state.canPlay?'Acceso como invitado':'Sin suscripción activa'}</h2>${state.periodEnd?`<p>Acceso pagado hasta el ${new Date(state.periodEnd).toLocaleDateString('es-ES')}.</p>`:''}${state.hasCustomer?'<button class="button" data-action="billing-portal">Gestionar o cancelar mi suscripción</button>':'<a class="button" href="#planes">Ver plan y disponibilidad</a>'}${!config.checkoutAvailable?interest():''}${!config.checkoutAvailable&&!state.waitlist?'<button class="text-link" data-action="waitlist" data-enabled="false">Retirar los avisos asociados a mi correo verificado</button>':''}</section>`;}};
+root.ClubAccess={...old,plans,enrollment:plans,banner(){return state.role==='admin'?'<aside class="paid-banner" aria-label="Acceso de administradora"><span class="paid-dot" aria-hidden="true"></span><p><strong>Administradora: todos los retos disponibles.</strong> Sin suscripci&oacute;n ni cobros.</p><a href="'+(state.canManage===true?'#gestion':'#casos')+'">'+(state.canManage===true?'Abrir gestión':'Explorar retos')+'</a></aside>':old.banner();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){state=value||{canPlay:false};},account(){
+ if(state.role==='admin') return adminCard();
+ const access=state.seasonAccess;
+ const current=access?.seasons?.filter(s=>s.paidBlocks.length).at(-1);
+ const next=access?.nextPurchase;
+ const canFinish=current?.finishAccess && current.completed<12;
+ const title=current?.finishAccess&&current.completed===12?'Temporada completada':state.ownAccess?'Tu temporada está activa':canFinish?'Tu temporada está pendiente de terminar':current?'Tu pase está en pausa':state.canPlay?'Acceso como invitado':'Sin suscripción activa';
+ const progress=(access?.seasons||[]).filter(s=>s.paidBlocks.length).map(s=>{
+   const name=seasonNames[s.number-1];
+   const paid=s.finishAccess?'Pase abonado':s.paidBlocks.length+' de 3 bloques abonados';
+   return '<p><strong>'+name+'</strong> · '+paid+' · '+s.completed+' de 12 juegos terminados.</p><a class="button" href="#'+seasonRoutes[s.number-1]+'">Volver a '+name+'</a>';
+ }).join('');
+ const nextLink=!state.ownAccess&&next?'<a class="button" href="#planes">Ver el pase de '+seasonNames[next.number-1]+'</a>':'';
+ const period=state.periodEnd?'<p>Periodo abonado hasta el '+new Date(state.periodEnd).toLocaleDateString('es-ES')+'.</p>':'';
+ const billing=state.hasCustomer?'<button class="button" data-action="billing-portal">Gestionar mi suscripción</button>':'';
+ return '<section class="account-card"><span class="club-kicker">MI SUSCRIPCIÓN</span><h2>'+title+'</h2>'+progress+period+billing+nextLink+(!billing&&!nextLink&&!current?'<a class="button" href="#planes">Ver plan y disponibilidad</a>':'')+(!config.checkoutAvailable&&!current?interest():'')+(!config.checkoutAvailable&&!state.waitlist&&!current?'<button class="text-link" data-action="waitlist" data-enabled="false">Retirar los avisos asociados a mi correo verificado</button>':'')+'</section>';
+}};
 fetch('/api/billing/config',{cache:'no-store'}).then(r=>r.ok?r.json():{}).then(c=>{config=c;if(root.GameAccountBridge)root.GameAccountBridge.render();}).catch(()=>{});
 })(globalThis);

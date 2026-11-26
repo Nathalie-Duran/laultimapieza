@@ -34,13 +34,44 @@
   const roleNames = {A:'Papel 1',B:'Papel 2',AB:'Ambos papeles'};
   const kinds = {text:'Documento',testimony:'Testimonio',ledger:'Registro',visual:'Lámina',audio:'Audio',web:'Archivo web'};
   const normalize = text => String(text).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const playingStates = new Set();
   function stopVoice(state) {
     if (state.voice) {
       const current = state.voice;
       state.voice = null;
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      playingStates.delete(state);
+      if (current.audio) current.audio.pause();
+      else if (window.speechSynthesis) window.speechSynthesis.cancel();
       current.reset();
     }
+  }
+  function pauseAll() {
+    for(const state of playingStates)stopVoice(state);
+  }
+  window.addEventListener('pagehide',pauseAll);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseAll();});
+  function recording(item,state) {
+    const node=el('div',null,'vhour-recording');
+    const audio=el('audio',null,'vhour-audio');
+    audio.controls=true;audio.preload='none';audio.src=item.clip;
+    audio.setAttribute('aria-label',item.label);
+    const status=live();
+    const transcript=fold('Leer la transcripción',el('p',item.body,'vhour-prose'));
+    const entry={button:audio,audio,reset:()=>{}};
+    audio.addEventListener('play',()=>{
+      if(!node.isConnected||document.hidden||audio.closest('[hidden], [data-silent="true"], details:not([open])')){audio.pause();return;}
+      pauseAll();
+      state.voice=entry;playingStates.add(state);
+    });
+    function finish(){
+      if(state.voice===entry){state.voice=null;playingStates.delete(state);}
+    }
+    audio.addEventListener('pause',finish);audio.addEventListener('ended',finish);
+    audio.addEventListener('error',()=>{
+      finish();transcript.open=true;status.textContent='La grabación no se ha podido reproducir. Puedes leer la transcripción.';
+    });
+    node.append(audio,status,transcript);
+    return node;
   }
   function voiceCard(body, state, transcriptShown=false) {
     const node = el('div',null,'vhour-recording');
@@ -49,7 +80,7 @@
     if (available) {
       const button = control('Escuchar lectura',() => {
         if (state.voice?.button === button) { stopVoice(state); return; }
-        stopVoice(state);
+        pauseAll();
         const voice = new window.SpeechSynthesisUtterance(body);
         voice.lang = 'es-ES';
         const voices = window.speechSynthesis.getVoices().filter(v => /^es(?:[-_]|$)/i.test(v.lang));
@@ -57,11 +88,11 @@
         if (spanish) voice.voice = spanish;
         const reset = () => {button.textContent='Escuchar lectura';pressed(button,false);};
         const entry = {button,reset,voice};
-        state.voice = entry;
+        state.voice = entry;playingStates.add(state);
         button.textContent = 'Detener lectura'; pressed(button,true);
         function finish(failed) {
           if (state.voice !== entry) return;
-          state.voice = null; reset();
+          state.voice = null;playingStates.delete(state);reset();
           status.textContent = failed ? 'La voz de este dispositivo no está disponible. Puedes leer la transcripción.' : 'Lectura terminada.';
         }
         voice.onend = () => finish(false); voice.onerror = () => finish(true);
@@ -190,7 +221,8 @@
     name.append(el('small',kinds[item.kind]||'Prueba'),el('strong',item.label),el('span',roleNames[item.role]||'Ambos papeles','vhour-role'));
     summary.append(thumbnail,name);
     let content;
-    if(item.kind==='web')content=records(item);
+    if(item.kind==='audio' && item.clip)content=recording(item,state);
+    else if(item.kind==='web')content=records(item);
     else if(item.kind==='audio'||item.kind==='testimony')content=voiceCard(item.body,state);
     else if(item.kind==='ledger')content=evidenceTable(item);
     else if(item.kind==='visual')content=diagram(item);
@@ -527,5 +559,5 @@
     render(hour);
     return {update:next=>render(next),pause:()=>stopVoice(state)};
   }
-  window.ValdemarHour={mount};
+  window.ValdemarHour={mount,proofShelf,decision,stopVoice};
 })();
