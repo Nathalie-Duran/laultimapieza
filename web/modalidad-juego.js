@@ -14,78 +14,184 @@
     return node;
   }
   function create(frame,story,initial,save,onPaper,options) {
-    const {caseId,partner,readState,readDossier,data,onState,reopen}=options;
-    // A legacy shared-screen record has the same saved progress as a solo record.
-    let mode=partner?'duo':initial?'solo':null;
-    const paper=partner?.role==='B'?'B':'A';
-    const partnerName=partner?.name||'tu compañero';
-    let pending=false,disposed=false,confirming=false,loading=false,timer;
+    const {caseId,partner,readState,readDossier,data,onState,reopen,partners}=options;
+    const editorial=data.editorialPreview===true && !partner;
+    let mode=partner?'duo':editorial&&initial==='duo'?'duo':initial?'solo':null;
+    let paper=partner?.role==='B'?'B':'A';
+    let disposed=false,pending=false,loading=false,waiting=false,timer;
+    let pickerVersion=0;
     const views=[];
-    const href='/#perfil?seccion=pareja&juego='+caseId;
-    function applyPapers() {
-      window.ValdemarHour.filterByRole(frame,partner?paper:'');
-      onPaper?.(partner?paper:'');
-    }
+    const entry=element('section','gm-entry'),change=element('section','gm-change');
+    const panel=element('div','gm-panel'),roles=element('div','gm-roles'),tools=element('div','gm-tools');
+    const status=element('p','gm-status');status.setAttribute('role','status');status.tabIndex=-1;
+    panel.append(roles,tools,status);
+    const partnerName=partner?.name||'Tu pareja';
     function display(message='') {
-      frame.dataset.playMode=mode||'pending';
-      frame.dataset.playPaper=partner?paper:'all';
-      summary.textContent=partner?'Tu partida con '+partnerName:mode?'Modalidad · En solitario':'Elegir modalidad';
-      for(const view of views) {
-        view.solo.setAttribute('aria-pressed',String(mode==='solo'));
-        view.solo.disabled=pending;
-        view.confirm.hidden=!confirming;
-        view.confirmButton.disabled=view.cancelButton.disabled=pending;
-        view.notes.hidden=mode!=='solo'||!story.roles?.length;
-        view.status.textContent=message;
+      frame.dataset.playMode=mode||'pending';frame.dataset.playPaper=mode==='duo'?paper:'all';
+      for(const {solo,duo,roleLine} of views){
+        solo.setAttribute('aria-pressed',String(mode==='solo'));
+        duo.setAttribute('aria-pressed',String(mode==='duo'));
+        solo.disabled=duo.disabled=pending;
+        if(roleLine)roleLine.textContent=mode==='duo'
+          ?(editorial?'Vista editorial · Papel ':'Tu papel ')+(paper==='A'?'1':'2')+(partner?' · '+partnerName+' lleva el papel '+(paper==='A'?'2':'1'):'')
+          :'';
+      }
+      if(message)status.textContent=message;
+    }
+    function tasks() {
+      roles.replaceChildren();
+      if(!mode)return;
+      for(const [index,text] of (story.roles||[]).entries()){
+        const own=(index===0?'A':'B')===paper,number=index+1;
+        const card=element('div',own&&mode==='duo'?'gm-task gm-own':'gm-task');
+        const who=mode==='solo'?'':editorial?(own?' · vista actual':' · otra vista'):(own?' · tú':' · '+partnerName);
+        card.append(element('strong',null,'Papel '+number+who),element('p',null,text));roles.append(card);
       }
     }
-    async function saveSolo() {
-      if(disposed||pending||mode==='solo')return;
+    function applyPapers() {
+      window.ValdemarHour.filterByRole(frame,mode==='duo'?paper:'');
+      onPaper?.(mode==='duo'?paper:'');
+    }
+    function movePanel(box) {
+      if(panel.parentElement!==box)box.append(panel);
+      pickerVersion++;
+      tools.replaceChildren();status.textContent='';
+    }
+    function showPairTools() {
+      if(!partner&&!editorial)return;
+      if(editorial && mode==='duo'){
+        tools.append(element('p','gm-description','Vista editorial. Alterna entre los dos papeles para comprobar las pistas de cada jugador.'));
+        const group=element('div','gm-options');
+        for(const [i,r] of ['A','B'].entries()){
+          const btn=button('Revisar papel '+(i+1),()=>{
+            paper=r;tasks();applyPapers();display();
+            for(const b of group.children)b.setAttribute('aria-pressed',String(b===btn));
+          });
+          btn.setAttribute('aria-pressed',String(paper===r));group.append(btn);
+        }
+        tools.append(group);
+      } else if(partner) {
+        tools.append(element('p','gm-description','Cada persona ve las pistas de su papel. Contad lo que habéis descubierto antes de acordar la respuesta.'));
+      }
+    }
+    function setPolling() {
+      window.clearInterval(timer);
+      if(partner||waiting)timer=window.setInterval(refresh,8000);
+    }
+    async function setMode(next) {
+      if(pending||disposed)return;
       pending=true;display('Guardando modalidad…');
-      try {
-        const result=await save('solo');
+      try{
+        const result=await save(next);
         if(disposed)return;
-        if(result?.mode!=='solo')throw Error('Vuelve a intentarlo para guardar la modalidad.');
+        if(result?.mode!==next)throw Error('No se ha podido cambiar la modalidad. Vuelve a intentarlo.');
         if(partner){reopen();return;}
-        mode='solo';display('Partida en solitario guardada.');applyPapers();
-      } catch(error) {
-        if(!disposed)display(error.message||'No se ha podido guardar la modalidad.');
-      } finally {
-        pending=false;
-        for(const view of views)view.solo.disabled=view.confirmButton.disabled=view.cancelButton.disabled=false;
+        mode=next;tools.replaceChildren();tasks();applyPapers();showPairTools();
+        display(next==='solo'?'Estás jugando en solitario.':'Vista editorial en pareja.');
+      }catch(error){if(!disposed)display(error.message||'No se ha podido guardar la modalidad.');}
+      finally{if(!disposed){pending=false;display();}}
+    }
+    function soloChoice(box) {
+      if(pending||disposed)return;
+      movePanel(box);
+      if(!partner){
+        if(mode!=='solo')return setMode('solo');
+        else{tasks();display('Puedes consultar las pistas de ambos papeles.');}
+        return;
       }
-    }
-    function panel(box) {
-      const group=element('div','gm-options');
-      group.setAttribute('role','group');group.setAttribute('aria-label','Modalidad de la partida');
-      const solo=button('En solitario',()=>{
-        if(partner){confirming=true;display();confirmButton.focus();}
-        else saveSolo();
+      const actions=element('div','gm-options');
+      const confirm=button('Continuar en solitario',async()=>{
+        confirm.disabled=back.disabled=true;
+        try{await setMode('solo');}finally{confirm.disabled=back.disabled=false;}
       });
-      const invite=element('a','gm-option',partner?'Gestionar pareja':'Invitar a alguien');
-      invite.href=href;group.append(solo,invite);
-      const description=element('p','gm-description',partner
-        ?'Juegas con '+partnerName+'. Tú llevas el papel '+(paper==='A'?'1':'2')+'. Las etapas y el desenlace se guardan en las dos cuentas.'
-        :'A solas puedes consultar los dos papeles. Para investigar con otra persona, invítala a este caso desde tu perfil.');
-      const confirm=element('div','gm-confirm');
-      const confirmButton=button('Continuar en solitario',saveSolo);
-      const cancelButton=button('Seguir en pareja',()=>{confirming=false;display();solo.focus();});
-      const actions=element('div','gm-options');actions.append(confirmButton,cancelButton);
-      confirm.append(element('p','gm-description','La partida dejará de estar compartida. Cada persona conservará lo que ya habéis resuelto.'),actions);
-      const notes=element('details','gm-solo-notes'),tasks=element('ol');
-      for(const text of story.roles||[])tasks.append(element('li',null,text));
-      notes.append(element('summary',null,'Ver tus dos tareas'),tasks);
-      const status=element('p','gm-status');status.setAttribute('role','status');
-      box.append(group,description);
-      const instruction=partner&&story.roles?.[paper==='A'?0:1];
-      if(instruction)box.append(element('p','gm-instruction',instruction));
-      box.append(confirm,notes,status);
-      views.push({solo,confirm,confirmButton,cancelButton,notes,status});
+      const back=button('Seguir en pareja',()=>{movePanel(box);showPairTools();views.find(view=>view.box===box)?.duo.focus();});
+      actions.append(confirm,back);
+      tools.append(element('p','gm-description','Si dejas la partida en pareja, cada persona conservará lo que ya habéis resuelto.'),actions);confirm.focus();
     }
-    const entry=element('section','gm-entry'),heading=element('h2','gm-label',partner?'Investigación compartida':'Tu mesa de juego');
-    entry.setAttribute('aria-label','Modalidad de la partida');entry.append(heading);panel(entry);
-    const change=element('details','gm-change'),summary=element('summary');
-    change.append(summary);const inner=element('div','gm-change-body');change.append(inner);panel(inner);
+    function inviteForm(result,version) {
+      const invitations=result.invitations.filter(row=>row.caseId===caseId);
+      const accepted=invitations.find(row=>row.status==='accepted');
+      if(accepted){
+        tools.append(element('p','gm-description','Este caso ya tiene pareja. Para jugar juntos, ambos necesitáis el caso abierto en vuestro pase.'));
+        const check=button('Comprobar acceso',async()=>{
+          check.disabled=true;
+          try{const state=await readState();if(disposed||version!==pickerVersion)return;
+            if(state.partner)reopen();else display('La partida compartida aún no está disponible.');
+          }catch(error){if(!disposed)display(error.message);}finally{check.disabled=false;}
+        });tools.append(check);return;
+      }
+      if(!result.availableCases.includes(caseId)){
+        const a=element('a','gm-option','Ver mi pase');a.href='/#planes';
+        tools.append(element('p','gm-description','Necesitas tener este caso abierto en tu pase antes de invitar o aceptar.'),a);return;
+      }
+      const incoming=invitations.filter(row=>row.direction==='received' && row.status==='pending');
+      for(const row of incoming){
+        const name=row.partnerName||row.partnerEmail||'La otra persona';
+        const accept=button('Aceptar y jugar',async()=>{
+          accept.disabled=true;
+          try{
+            await partners('/api/partners/'+encodeURIComponent(row.id)+'/accept',{});
+            if(!disposed)reopen();
+          }catch(error){if(!disposed)display(error.message||'No se ha podido aceptar la invitación.');}
+          finally{accept.disabled=false;}
+        });
+        tools.append(element('p','gm-description',name+' te ha invitado a este caso.'),accept);
+      }
+      const outgoing=invitations.find(row=>row.direction==='sent'&&row.status==='pending');
+      if(outgoing){
+        waiting=true;setPolling();
+        tools.append(element('p','gm-description','Has invitado a '+(outgoing.partnerEmail||outgoing.partnerName||'tu pareja')+'. La partida compartida se abrirá aquí cuando acepte.'));
+      }else if(!incoming.length){
+        const form=element('form','gm-form'),label=element('label',null,'Correo de tu compañero de juego');
+        const input=element('input');input.type='email';input.name='partnerEmail';input.required=true;input.maxLength=254;
+        input.autocomplete='off';input.spellcheck=false;input.setAttribute('autocapitalize','none');
+        input.placeholder='nombre@ejemplo.es';input.value=result.preferredEmail||'';label.append(input);
+        const send=element('button','gm-option','Enviar invitación');send.type='submit';
+        form.append(label,send);
+        form.addEventListener('submit',async event=>{
+          event.preventDefault();if(send.disabled||!form.reportValidity())return;
+          send.disabled=true;const email=input.value.trim();
+          try{
+            await partners('/api/partners',{caseId,email});
+            if(disposed)return;
+            waiting=true;setPolling();
+            if(version!==pickerVersion)return;
+            tools.replaceChildren(element('p','gm-description','Invitación guardada para '+email+'. Cuando la acepte, se abrirá aquí vuestra partida.'));
+            display('Esperando a tu compañero.');
+          }catch(error){if(!disposed && version===pickerVersion)display(error.message||'No se ha podido enviar la invitación.');}
+          finally{send.disabled=false;}
+        });
+        tools.append(element('p','gm-description','Ambos necesitáis este caso en vuestro pase. Podéis jugar desde dispositivos distintos.'),form);
+      }
+      const manage=element('a','gm-profile','Gestionar invitaciones en mi perfil');
+      manage.href='/#perfil?seccion=pareja&juego='+caseId;tools.append(manage);
+    }
+    async function duoChoice(box) {
+      if(pending||disposed)return;
+      movePanel(box);
+      if(partner||editorial){
+        if(editorial && mode!=='duo')await setMode('duo');
+        else{tasks();showPairTools();display();}
+        return;
+      }
+      const version=pickerVersion;display('Consultando tu pareja y tus invitaciones…');
+      try{
+        const result=await partners('/api/partners');
+        if(disposed||version!==pickerVersion)return;
+        status.textContent='';inviteForm(result,version);
+      }catch(error){if(!disposed && version===pickerVersion)display(error.message||'No se han podido cargar tus invitaciones.');}
+    }
+    function choices(box,title) {
+      box.setAttribute('aria-label',title);
+      const group=element('div','gm-options');group.setAttribute('role','group');group.setAttribute('aria-label','Modalidad de la partida');
+      const solo=button('En solitario',()=>soloChoice(box)),duo=button('En pareja',()=>duoChoice(box));
+      group.append(solo,duo);box.append(element('h2','gm-label',title),group);
+      const roleLine=box===change?element('p','gm-role-line'):null;
+      if(roleLine)box.append(roleLine);
+      views.push({box,solo,duo,roleLine});
+    }
+    choices(entry,'Cómo quieres jugar');choices(change,'Modalidad de la partida');
+    entry.append(panel);tasks();showPairTools();display();
     const observer=new MutationObserver(records=>{
       for(const record of records)for(const node of record.addedNodes) {
         if(node.nodeType===1 && (node.matches('.vhour-shelf')||node.querySelector('.vhour-shelf'))){
@@ -94,7 +200,7 @@
       }
     });
     async function refresh() {
-      if(disposed||pending||loading||document.hidden)return;
+      if(disposed||pending||loading||document.hidden||editorial)return;
       loading=true;
       try {
         const state=await readState();
@@ -109,12 +215,10 @@
         if(!disposed && partner)display(error.message||'No se ha podido actualizar la partida. Volveremos a intentarlo.');
       } finally {loading=false;}
     }
-    display();
     return {entry,change,get mode(){return mode;},
       mount(){
         applyPapers();observer.observe(frame,{childList:true,subtree:true});
-        document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);
-        if(partner)timer=window.setInterval(refresh,8000);
+        document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);setPolling();
       },
       destroy(){
         disposed=true;observer.disconnect();window.clearInterval(timer);

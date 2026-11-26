@@ -12,6 +12,66 @@
   const gameUrl = id => '/#' + (id <= 12 ? 'valdemar-jugar' : 'mundos-jugar') + '?id=' + id + '&retomar=1';
   const linkToPass = '<a class="button" href="/#planes">Ver mi pase</a>';
 
+  class PreferredPartner extends HTMLElement {
+    connectedCallback() {
+      this.innerHTML = `<section class="pp-preference" aria-labelledby="pp-preference-title">
+        <div class="pp-preference-intro"><h2 id="pp-preference-title">Tu compañero de juego</h2>
+        <p id="pp-preference-help">Guarda su correo para tenerlo a mano. Cuando elijas un juego, podrás invitarle o escribir otro correo.</p>
+        <a class="text-link" href="/#perfil?seccion=pareja">Elegir un juego <span aria-hidden="true">→</span></a></div>
+        <form class="pp-preference-form"><label for="pp-preferred-email">Correo de tu compañero de juego</label>
+        <div class="pp-preference-controls"><input id="pp-preferred-email" type="email" name="email" required maxlength="254"
+          autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.es" aria-describedby="pp-preference-help">
+        <button class="button primary" type="submit">Guardar correo</button></div>
+        <div class="pp-preference-feedback"><span role="status" aria-live="polite"></span>
+        <button class="text-button" type="button" data-pref-remove hidden>Quitar correo</button>
+        <button class="text-button" type="button" data-pref-retry hidden>Volver a intentar</button></div></form></section>`;
+      const form = this.querySelector('form');
+      form.onsubmit = event => {
+        event.preventDefault();
+        if (!this.busy) this.sync({email:form.elements.email.value.trim()});
+      };
+      this.querySelector('[data-pref-remove]').onclick = () => this.sync({email:null});
+      this.querySelector('[data-pref-retry]').onclick = () => this.sync();
+      this.sync();
+    }
+
+    disconnectedCallback() { this.readToken = null; this.busy = false; }
+
+    async sync(body) {
+      if (this.busy) return;
+      const token = this.readToken = Symbol();
+      const form = this.querySelector('form');
+      const email = form.elements.email, save = form.querySelector('[type="submit"]');
+      const remove = form.querySelector('[data-pref-remove]'), retry = form.querySelector('[data-pref-retry]');
+      const status = form.querySelector('[role="status"]');
+      const reading = body === undefined;
+      this.busy = true;
+      email.disabled = save.disabled = remove.disabled = true;
+      retry.hidden = true;
+      this.setAttribute('aria-busy','true');
+      status.textContent = reading ? 'Cargando…' : 'Guardando…';
+      try {
+        const response = await window.GameAccountBridge.request('/api/partners/preferred', body);
+        if (this.readToken !== token) return;
+        const current = response.preferredEmail || '';
+        email.value = current;
+        remove.hidden = !current;
+        status.textContent = reading ? '' : current ? 'Correo guardado.' : 'Correo retirado.';
+      } catch (error) {
+        if (this.readToken !== token) return;
+        retry.hidden = !reading;
+        status.textContent = error.message || 'No se ha podido consultar el correo.';
+      } finally {
+        if (this.readToken === token) {
+          this.busy = false;
+          this.removeAttribute('aria-busy');
+          email.disabled = save.disabled = remove.disabled = !retry.hidden;
+          if (!reading) email.focus({preventScroll:true});
+        }
+      }
+    }
+  }
+
   function expiry(value) {
     if (!value) return '';
     const when = new Date(value);
@@ -45,6 +105,11 @@
     const sent = invite.direction === 'sent';
     const partner = invite.partnerName || invite.partnerEmail || 'La otra persona';
     const who = (accepted ? 'Con ' : sent ? 'Para ' : 'De ') + partner;
+    const story = details(caseId);
+    const roleNumber = sent ? 1 : 2;
+    const role = (sent ? story?.roleA : story?.roleB) || story?.roles?.[roleNumber - 1];
+    const assignment = accepted ? '<p class="pp-role"><strong>Juegas el papel ' + roleNumber + '</strong>' +
+      (role ? '<span>' + esc(role) + '</span>' : '') + '</p>' : '';
     let detail = '', actions = '';
     if (confirming === id) {
       detail = accepted ? 'Dejaréis de compartir esta partida.' : 'La invitación dejará de estar disponible.';
@@ -62,7 +127,7 @@
     }
     return '<li class="pp-card">' + img(caseId) + '<div><small>' + esc(season(caseId)) +
       '</small><h4>' + esc(title(caseId)) + '</h4><p class="pp-who">' + esc(who) + '</p>' +
-      (detail ? '<p>' + esc(detail) + '</p>' : '') + '<div class="pp-actions">' + actions + '</div></div></li>';
+      assignment + (detail ? '<p>' + esc(detail) + '</p>' : '') + '<div class="pp-actions">' + actions + '</div></div></li>';
   }
 
   function groupedOptions(ids, selected) {
@@ -132,6 +197,7 @@
       if (this.request !== request) return;
       this.available = result.availableCases.filter(validId).sort((a, b) => a - b);
       this.invites = result.invitations.filter(i => validId(i.caseId));
+      this.preferredEmail = result.preferredEmail || '';
     }
 
     async mutate(endpoint, body, notice) {
@@ -179,7 +245,7 @@
       const form = requested ? '<p>Este caso aún está cerrado en tu pase.</p>' + linkToPass :
         existing ? '<p>' + (existing.status === 'accepted' ? 'Ya tienes pareja para este caso.' : 'Ya hay una invitación pendiente para este caso.') + '</p>' :
         '<form class="pp-form"><label for="pp-email">Correo de la persona que quieres invitar</label>' +
-        '<input id="pp-email" type="email" name="email" required maxlength="254" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.es">' +
+        '<input id="pp-email" type="email" name="email" value="' + esc(this.preferredEmail) + '" required maxlength="254" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.es">' +
         '<button class="button primary" type="submit">Enviar invitación</button></form>';
       return '<h3>Invitar a alguien</h3><label for="pp-game">Elige el juego</label><select id="pp-game" name="game">' +
         (requested ? '<option value="' + current + '" selected>' + esc(title(current)) + ' · cerrado</option>' : '') +
@@ -204,5 +270,6 @@
         '<p role="status" aria-live="polite" tabindex="-1" class="pp-status"></p></section>';
     }
   }
+  if (!customElements.get('preferred-partner')) customElements.define('preferred-partner', PreferredPartner);
   if (!customElements.get('profile-partners')) customElements.define('profile-partners', ProfilePartners);
 })();

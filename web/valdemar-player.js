@@ -191,7 +191,7 @@
     if(c.data.hour && window.ValdemarHour){
       const hourNode=element('div');c.desk.append(hourNode);
       c.hourView=window.ValdemarHour.mount(hourNode,c.data.hour,{
-        hotelNode:c.hotel,
+        hotelNode:c.hotel,role:c.data.partner?.role,
         submit:(index,choice,sources)=>request(c,'stage',{index,choice,...(sources?{sources}:{})}),
         reload:async()=>{const latest=await request(c);c.data.progress=latest.progress;return latest.hour;},
         change:hour=>{c.data.hour=hour;renderEnding(c);},
@@ -384,7 +384,8 @@
     headlinks.append(link('Ver en el plano','#mapa?lugar='+c.id,'vd-link'),link('Todas las historias',c.catalog,'vd-link'),c.balance);
     const description=element('div',null,'vd-intro-copy');
     c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,mode=>request(c,'mode',{mode}),paper=>c.showModePaper?.(paper),{
-      caseId:c.id,partner:c.data.partner,data:c.data,readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
+      caseId:c.id,partner:c.data.partner,data:c.data,partners:(path,body)=>c.bridge.request(path,body),
+      readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
       onState:state=>window.ModalidadJuego.syncProgress(c.data,state,c.hourView,()=>renderEnding(c)),reopen:()=>reopen(c)
     });
     description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title),c.modeControl.entry,element('p',story.question,'vd-question'));

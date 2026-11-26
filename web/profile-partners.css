@@ -1,4 +1,22 @@
 profile-partners {display:block;min-width:0;margin-block:1.25rem 2.5rem}
+preferred-partner {display:block;min-width:0;margin-block:1rem 1.4rem}
+.pp-preference {display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(1.1rem,4vw,3.8rem);align-items:center;padding:clamp(1.1rem,2.4vw,2rem);border:1px solid #52645b;border-inline-start:4px solid #dbb472;border-radius:.85rem;background:linear-gradient(115deg,#1e3431,#111e21);color:#faf1dd}
+.pp-preference h2 {margin:0;font-size:clamp(1.45rem,2.2vw,2rem);line-height:1.2;color:#fbf2dc}
+.pp-preference p {margin:.45rem 0 .3rem;color:#c6d5cd;max-width:55ch;line-height:1.5}
+.pp-preference .text-link {display:inline-flex;align-items:center;gap:.45rem;min-height:44px;color:#f3cd87;text-underline-offset:.2em}
+.pp-preference-form,.pp-preference-intro {min-width:0}
+.pp-preference-form label {display:block;margin-bottom:.45rem;font-weight:650;color:#fff8e9}
+.pp-preference-controls {display:flex;align-items:stretch;flex-wrap:wrap;gap:.5rem}
+.pp-preference-controls input {flex:1 1 14rem;min-width:0;max-width:100%;box-sizing:border-box;padding:.7rem .8rem;border:1px solid #76938c;border-radius:.45rem;background:#0a1619;color:#fff7e3;font:inherit;font-size:max(1rem,16px)}
+.pp-preference-controls input::placeholder {color:#a6b6ad}
+.pp-preference-controls :is(input,button),.pp-preference-feedback button {min-height:44px}
+.pp-preference-feedback {display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:.3rem;color:#c6dfd6;font-size:.93rem}
+.pp-preference-feedback .text-button {color:#d6e8df;text-decoration:underline;text-underline-offset:.15em}
+.pp-preference-feedback [hidden] {display:none!important}
+.pp-preference :is(input,button,a):focus-visible {outline:2px solid #f4c57f;outline-offset:3px}
+.pp-card .pp-role {border-inline-start:2px solid #9ccab7;margin:.6rem 0;padding-inline-start:.65rem}
+.pp-role strong,.pp-role span {display:block}
+.pp-role strong {color:#c5e8d8}
 .pp-panel {--pp-line:#385452;--pp-muted:#c0ceca;--pp-accent:#a6dfce;overflow:hidden;border:1px solid var(--pp-line);border-radius:1rem;background:#101e21;color:#f3efe3}
 .pp-panel>header {padding:clamp(1.25rem,3.5vw,3rem);padding-bottom:1.4rem;background:linear-gradient(115deg,#1a3635,#132528 65%)}
 .pp-panel h2,.pp-panel h3,.pp-panel h4 {margin:0;color:#fbf3df}
@@ -30,6 +48,7 @@ profile-partners {display:block;min-width:0;margin-block:1.25rem 2.5rem}
 .pp-panel .pp-status:not(:empty) {margin:0 clamp(1.25rem,3.5vw,3rem) 1.5rem;border-left:3px solid var(--pp-accent);padding:.4rem .8rem;color:#fbf7ec}
 .pp-status:empty {margin:0}
 @media(max-width:750px) {
+  .pp-preference {grid-template-columns:minmax(0,1fr);gap:.7rem}
   .pp-layout {grid-template-columns:minmax(0,1fr)}
   .pp-inbox:has(.pp-card) {grid-row:1}
 }

@@ -640,7 +640,7 @@
     q('.vp-play-mode select').addEventListener('change',event=>{
       st.playMode=event.target.value==='duo'?'duo':'solo';
       updateNav();
-      note(st.playMode==='duo'?'En pareja. Una persona consulta el Archivo y la otra examina las pruebas.':'En solitario. Puedes consultar los dos grupos de pistas.');
+      note(st.playMode==='duo'?'Compartid esta pantalla para jugar a la demo. El papel 1 consulta el Archivo y el papel 2 examina las pruebas. Contad al otro lo que habéis encontrado.':'En solitario. Puedes consultar los dos grupos de pistas.');
     });
     Object.assign(st, { shell: q('.vp-shell'), sessionCaption: q('[data-vp-caption]'), side: q('.vp-side'), shelfToggle: q('.vp-shelf-toggle'), sideList: q('.vp-doc-list'), sessionList: q('.vp-sessions'), heading: q('.vp-doc-title'), reader: q('.vp-reader'), zoom: q('.vp-zoom'), status: q('.vp-live'), previous: q('.vp-prev'), next: q('.vp-next'), nextSession: q('.vp-next-session'), offer: q('.vp-finale') });
     Object.assign(st, { adjust: q('.vp-adjust'), bright: q('.vp-brighten'), mirror: q('.vp-mirror'), separate: q('.vp-separate'), pairInfo: q('.vp-pair'), pairText: q('.vp-pair span'), pairLink: q('.vp-pair a'), hintBox: q('.vp-hints'), hintList: q('.vp-hint-list'), hintStatus: q('.vp-hint-status'), hintMore: q('.vp-hint-more'), hintTable: q('.vp-hint-table') });

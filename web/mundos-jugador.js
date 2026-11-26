@@ -183,7 +183,7 @@
     target.append(el('p',side.brief,'md-question'));
     const work=el('div',null,'vhour-workbench');
     c.sideVoice={voice:null};
-    work.append(window.ValdemarHour.proofShelf(side.materials,c.sideVoice),window.ValdemarHour.decision(
+    work.append(window.ValdemarHour.proofShelf(side.materials,c.sideVoice,c.data.partner?.role),window.ValdemarHour.decision(
       {...side,task:side.task||'¿Qué solución encaja con las pruebas del reto?'},0,{
         submit:async(_index,choice)=>{
           try {
@@ -206,7 +206,8 @@
     const top=el('div',null,'md-game-top');c.balance=el('span','','md-wallet');c.balance.setAttribute('aria-live','polite');
     top.append(link('← '+worlds.edition(item.world).returnLabel,worlds.route(item.world,item.id)),c.balance);
     c.modeControl=window.ModalidadJuego.create(frame,story,c.data.mode,mode=>request(c,'mode',{mode}),null,{
-      caseId:item.id,partner:c.data.partner,data:c.data,readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
+      caseId:item.id,partner:c.data.partner,data:c.data,partners:(path,body)=>c.bridge.request(path,body),
+      readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
       onState:state=>window.ModalidadJuego.syncProgress(c.data,state,c.hour,()=>renderEnd(c)),reopen:()=>reopen(c)
     });
     copy.append(top,el('p',worlds.nameOf(item.world)+' · '+item.place,'md-caption'),el('h1',story.title),c.modeControl.entry,el('p',story.question,'md-game-question'),el('p',story.intro,'md-game-prose'));
@@ -224,6 +225,7 @@
     }
     frame.replaceChildren(header,nav,c.modeControl.change,...Object.values(c.panels));
     c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
+      role:c.data.partner?.role,
       submit:(index,choice,sources)=>request(c,'stage',{index,choice,...(sources?{sources}:{})}),
       reload:async()=>{const result=await request(c);c.data.progress=result.progress;return result.hour;},
       change:hour=>{c.data.hour=hour;renderEnd(c);},

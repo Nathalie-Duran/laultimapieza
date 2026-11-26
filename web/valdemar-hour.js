@@ -237,28 +237,32 @@
       if(shelf.dataset.roleFilter!==(role||'all'))shelfFilters.get(shelf)?.(role);
     }
   }
-  function proofShelf(items,state) {
+  function proofShelf(items,state,assignedRole) {
     const shelf=el('div',null,'vhour-shelf');
     const tools=el('div',null,'vhour-shelf-tools');
     const heading=el('h4',null,'vhour-shelf-title');
     tools.append(heading);
-    const records=items.map(item=>({item,card:material(item,state)}));
+    const fixedRole=assignedRole==='A'||assignedRole==='B'?assignedRole:null;
+    const visibleFor=(item,role)=>!role || item.role==null || item.role==='AB' || item.role===role;
+    const records=items.filter(item=>visibleFor(item,fixedRole)).map(item=>({item,card:material(item,state)}));
     const filters=el('div',null,'vhour-filter');
     filters.setAttribute('aria-label','Filtrar las pruebas por papel');
     const buttons=[];
-    function select(role) {
+    function select(requestedRole) {
+      const role=fixedRole || requestedRole;
       for(const entry of buttons)pressed(entry.button,entry.role===role);
       let visible=0;
       for(const {item,card} of records){
-        card.hidden=!!role && (item.role==='A'||item.role==='B') && item.role!==role;
+        card.hidden=!visibleFor(item,role);
         if(!card.hidden)visible++;
         if(card.hidden && state.voice && card.contains(state.voice.button))stopVoice(state);
       }
       shelf.dataset.roleFilter=role||'all';
       shelf.dataset.visibleCount=stack.dataset.visibleCount=String(visible);
-      heading.textContent=visible===1?'Una prueba':visible+' pruebas';
+      const count=visible===1?'Una prueba':visible+' pruebas';
+      heading.textContent=fixedRole?roleNames[fixedRole]+' · '+count:count;
     }
-    if(items.some(m=>m.role==='A'||m.role==='B')) {
+    if(!fixedRole && items.some(m=>m.role==='A'||m.role==='B')) {
       for (const [role,label] of [['','Todas las pruebas'],['A','Papel 1'],['B','Papel 2']]){
         const b=control(label,()=>select(role));b.dataset.vhourRole=role||'all';buttons.push({role,button:b});filters.append(b);
       }
@@ -534,7 +538,7 @@
         if(hotel && controller.visitHotel)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
         const workbench=el('div',null,'vhour-workbench');
         workbench.dataset.stage=String(index+1);
-        const shelf=proofShelf(stage.materials||[],state);
+        const shelf=proofShelf(stage.materials||[],state,controller.role);
         const instrument=stage.instrument;
         const makeTool=instrument && window.ValdemarTalleres?.[instrument.id];
         if(typeof makeTool==='function') {
@@ -558,7 +562,7 @@
       const notes=hour.journal||[];
       if(notes.length) {
         const box=el('div',null,'vhour-journal');
-        for(const note of notes)box.append(fold(note.title,el('p',note.success||note.brief,'vhour-clipping'),proofShelf(note.materials||[],state)));
+        for(const note of notes)box.append(fold(note.title,el('p',note.success||note.brief,'vhour-clipping'),proofShelf(note.materials||[],state,controller.role)));
         main.append(fold('Cuaderno de etapas resueltas · '+notes.length,box));
       }
     }

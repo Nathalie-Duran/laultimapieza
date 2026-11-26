@@ -238,7 +238,7 @@ function profile(initialSection){
   const requested=initialSection||new URLSearchParams(location.hash.split('?')[1]||'').get('seccion');
   const section=['estilo','cuenta',...(cloudMode?['pareja']:[])].includes(requested)?requested:'progreso';
   const top='<div class="profile-dashboard">'+notebookHeader(p,section);
-  if(section==='progreso')return top+notebookProgress(p,sessions,t)+'</div>';
+  if(section==='progreso')return top+(online?'<preferred-partner></preferred-partner>':'')+notebookProgress(p,sessions,t)+'</div>';
   if(section==='pareja')return top+'<profile-partners></profile-partners></div>';
   if(section==='cuenta')return top+(cloudMode&&online?window.ClubAccess.account()+window.AccountUI.accountCard():'<p>Tu perfil se guarda en este dispositivo.</p>')+'</div>';
   const continuing=sessions.find(s=>s.status==='active');
