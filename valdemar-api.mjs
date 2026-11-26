@@ -39,14 +39,14 @@ function visibleHints(story,wallet) {
 
 const playModes = new Set(['solo','duo']);
 
-async function personalGames(data,scope,access,store,loadRelease) {
+async function personalGames(data,scope,access,store,loadRelease,pairedCases) {
   const records=data.valdemarCaseProgress?.[scope] || {};
   const wallet=data.valdemarSeasonOne?.[scope] || {};
   const sideProgress=new Set([...(wallet.won || []),...(wallet.opened || []),...(wallet.second || [])]);
   const games=[];
   for(let id=1;id<=WORLD_CASE_COUNT;id++){
     const record=records[id] || {};
-    const mode=playModes.has(record.mode)?record.mode:null;
+    const mode=record.mode==='duo' && scope==='paid' && !pairedCases.includes(id)?'solo':playModes.has(record.mode)?record.mode:null;
     const finished=Boolean(record.choice);
     const current=finished?5:Math.max(0,Math.min(5,Number.isInteger(record.hourStep)?record.hourStep:0));
     if(mode || current || record.deduced || sideProgress.has(id)){
@@ -164,7 +164,10 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const data = await store.getMemberData(uid,{readOnly:gamesRoute});
     const access = !editorial && membership?.seasonAccess || worldSeasonAccess(data,{editorial,active:!editorial && membership?.canPlay===true});
     const scope = editorial ? 'editorial' : 'paid';
-    if (gamesRoute) return personalGames(data,scope,access,store,loadRelease);
+    if (gamesRoute){
+      const pairedCases=!editorial && store.listPairedCases ? await store.listPairedCases(uid) : [];
+      return personalGames(data,scope,access,store,loadRelease,pairedCases);
+    }
     if (sealRoute) {
       const number=Number(sealRoute[1]),season=access.seasons[number-1];
       if(!season)throw new ApiError(404,'Este sello no está disponible.');
@@ -203,13 +206,14 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     }
     const partner=partnerInfo(pair,uid);
     const record=pair?pair.progress:personal;
-    const mode=pair?'duo':accepted?'solo':playModes.has(personal?.mode)?personal.mode:null;
+    const mode=pair?'duo':accepted || !editorial && personal?.mode==='duo'?'solo':playModes.has(personal?.mode)?personal.mode:null;
     if(poll)return pair
       ? {partner,mode,hour:{current:record.choice?5:record.hourStep||0},progress:{deduced:record.deduced===true,choice:record.choice||null}}
       : {partner:null,mode};
     if (action==='mode') {
       const mode=input?.mode;
       if (!playModes.has(mode)) throw new ApiError(400,'Elige jugar en solitario o en pareja.','INVALID_PLAY_MODE');
+      if(!editorial && mode==='duo' && !pair)throw new ApiError(409,'Para jugar en pareja, invita a la otra persona desde tu perfil. Ambos necesitáis acceso a este juego.','PAIR_REQUIRED');
       if(accepted && mode==='solo'){
         await endPair(store,accepted);
         return {mode,partner:null};

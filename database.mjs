@@ -82,6 +82,10 @@ export function createDatabase(env=process.env) {
         async getPartner(id){
           return partner((await query('SELECT * FROM lup_case_partners WHERE id=? FOR UPDATE',[id]))[0]);
         },
+        async listPairedCases(uid){
+          const rows=await query("SELECT case_id FROM lup_case_partners WHERE status='accepted' AND (owner_id=? OR guest_id=?)",[uid,uid]);
+          return rows.map(row=>row.case_id);
+        },
         async getCasePartner(uid,caseId,now){
           const rows=await query(`SELECT p.* FROM lup_case_partner_slots s JOIN lup_case_partners p ON p.id=s.invitation_id
             WHERE s.user_id=? AND s.case_id=? FOR UPDATE`,[uid,caseId]);

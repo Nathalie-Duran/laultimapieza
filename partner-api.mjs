@@ -6,7 +6,7 @@ import {hasCaseActivity,recordCaseActivity} from './season-activity.mjs';
 
 const day=86400000;
 const emailAddress=value=>typeof value==='string'?value.trim().toLowerCase():'';
-const emailValid=value=>value.length<=254 && /^[^\s@\u0000-\u001f\u007f<>]+@[^\s@\u0000-\u001f\u007f<>]+\.[^\s@\u0000-\u001f\u007f<>]+$/u.test(value);
+const emailValid=value=>value.length<=254 && /^[^\s@,;:<>"\\\[\]\u0000-\u001f\u007f]{1,64}@[\p{L}\d](?:[\p{L}\d-]{0,61}[\p{L}\d])?(?:\.[\p{L}\d](?:[\p{L}\d-]{0,61}[\p{L}\d])?)+$/u.test(value);
 const unavailable=()=>new ApiError(404,'Esta invitación ya no está disponible.','INVITATION_UNAVAILABLE');
 const occupied=()=>new ApiError(409,'Ya tienes una invitación o una pareja para este juego. Puedes gestionarla en tu perfil.','CASE_PARTNER_EXISTS');
 
