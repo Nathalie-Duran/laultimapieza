@@ -63,10 +63,11 @@
     const message=unlocked?(opts.fullyPaid?'Incluida en tu pase abonado de Valdemar.':'Incluida en tu acceso.'):opts.canPlay?`Se abre en el mes ${item.month} de tu pase.`:`Incluida en el mes ${item.month} del pase de temporada.`;
     const cta=entry(item,opts,unlocked);
     const sample=item.id===2?`<button type="button" data-vd-start class="${unlocked?'vd-ghost':'vd-cta'}">Atender la llamada</button>`:'';
-    const actions=item.id===2?(unlocked?cta+sample:sample+cta.replace('class="vd-cta"','class="vd-ghost"')):cta+(unlocked?'':'<button type="button" data-action="preview-open" class="vd-ghost">Probar Clínica Vallejo gratis</button>');
+    const demo=`<a class="vd-ghost" href="/vallejo.html?caso=${number(item.id)}">Probar Clínica Vallejo gratis</a>`;
+    const actions=item.id===2?(unlocked?cta+sample:sample+cta.replace('class="vd-cta"','class="vd-ghost"')):cta;
     return `<article class="vd-detail"><nav class="vd-route-links" aria-label="Explorar Valdemar"><a class="vd-back" href="/#casos?mes=${item.month}">Volver al mes ${item.month}</a><a class="vd-back" href="/#mapa?mes=${item.month}&amp;lugar=${item.id}">Situar en el plano</a></nav>
       <header class="vd-feature"><figure><img src="${item.image}" width="764" height="508" alt="${esc(item.coverAlt)}" fetchpriority="high"><figcaption>${esc(item.place)}</figcaption></figure>
-      <div class="vd-description"><p class="vd-label">Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}</div><p class="vd-availability">${message}</p></div></header>
+      <div class="vd-description"><p class="vd-label">Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}${unlocked?'':demo}</div><p class="vd-availability">${message}</p></div></header>
       ${item.id===2?hotelCall(cta):''}
       <section class="vd-brief"><div><h2>Los papeles de esta historia</h2><p>A solas puedes consultar las dos carpetas. En pareja, compartid la pantalla y repartíos los papeles.</p></div><ol><li><strong>Papel 1</strong>${esc(item.roleA)}</li><li><strong>Papel 2</strong>${esc(item.roleB)}</li></ol></section>
       <p class="vd-method">Cruza audios, imágenes, documentos y archivos web. La primera vez que superes el reto paralelo de esta historia ganarás una llave. Puedes usarla para abrir un sobre de ayuda.</p></article>`;

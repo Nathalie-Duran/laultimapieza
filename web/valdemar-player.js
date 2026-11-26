@@ -370,7 +370,7 @@
     if(catalogItem?.place)still.append(element('figcaption',catalogItem.place));
     const headlinks=element('div',null,'vd-headlinks');c.balance=element('span','','vd-balance');
     c.balance.setAttribute('aria-live','polite');
-    headlinks.append(link('Todas las historias',c.catalog,'vd-link'),c.balance);
+    headlinks.append(link('Ver en el plano','#mapa?lugar='+c.id,'vd-link'),link('Todas las historias',c.catalog,'vd-link'),c.balance);
     const description=element('div',null,'vd-intro-copy');
     c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,mode=>request(c,'mode',{mode}),paper=>c.showModePaper?.(paper));
     description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title),c.modeControl.entry,element('p',story.question,'vd-question'));
@@ -391,7 +391,9 @@
       c.frame.append(c.hotel);
     }
     c.modeControl.mount();
-    selectView(c,c.data.progress?.choice?'ending':'desk');
+    const ending=Boolean(c.data.progress?.choice || (c.resume && c.data.hour && !c.data.hour.stage));
+    selectView(c,ending?'ending':'desk',ending && c.resume);
+    if(c.resume && !ending)c.hourView?.focusStage();
   }
   function showFailure(c,e) {
     c.modeControl?.destroy();
@@ -400,7 +402,7 @@
       const login=element('button','Entrar','vd-primary');
       login.type='button';login.dataset.action='auth-login';c.frame.append(login);
     } else if(e?.status===402 || e?.code==='CASE_NOT_RELEASED') c.frame.append(link('Ver mi suscripción','#planes','vd-link'));
-    else c.frame.append(button('Volver a intentar',()=>{const {id,bridge,catalog}=c;clear();render(id,bridge,{catalogHref:catalog});}));
+    else c.frame.append(button('Volver a intentar',()=>{const {id,bridge,catalog,resume}=c;clear();render(id,bridge,{catalogHref:catalog,resume});}));
     c.frame.append(link('Volver al catálogo',c.catalog,'vd-link'));
   }
   function render(value,bridge,options={}) {
@@ -412,7 +414,7 @@
     }
     clear();
     const catalog=options.catalogHref?.startsWith('#')?options.catalogHref:'#casos';
-    const c={id,bridge,catalog,frame:element('div',null,'vd-player'),pending:new Set()};active=c;
+    const c={id,bridge,catalog,resume:options.resume===true,frame:element('div',null,'vd-player'),pending:new Set()};active=c;
     host.replaceChildren(c.frame);
     if(!Number.isInteger(id)||id<1||id>12){c.frame.append(element('p','Este expediente no existe.'),link('Volver al catálogo',catalog));return;}
     if(!sessionLive(c)){showFailure(c,{status:401});return;}

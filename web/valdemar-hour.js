@@ -563,7 +563,12 @@
       }
     }
     render(hour);
-    return {update:next=>render(next),pause:()=>stopVoice(state)};
+    return {update:next=>render(next),pause:()=>stopVoice(state),focusStage(){
+      const heading=main.querySelector('h3');
+      if(!heading)return;
+      heading.focus({preventScroll:true});
+      heading.scrollIntoView({block:'start',behavior:'instant'});
+    }};
   }
   window.ValdemarHour={mount,proofShelf,decision,stopVoice,filterByRole};
 })();

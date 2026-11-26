@@ -38,12 +38,19 @@
     return session.mode === 'duo' ? 'Investigación en dúo' : 'Investigación en curso';
   }
 
+  function featureCard(image, kicker, heading, description, actions) {
+    return '<article class="pn-feature" aria-labelledby="pn-feature-title"><div class="pn-cover"><img src="' +
+      escape(image || notebookCover) + '" alt="" fetchpriority="high"></div><div class="pn-feature-copy"><p class="pn-kicker">' +
+      escape(kicker) + '</p><h2 id="pn-feature-title">' + escape(heading) + '</h2><p>' + escape(description) +
+      '</p><div class="pn-actions">' + actions + '</div></div></article>';
+  }
+
   function featured(session, stories, canPlay, mayOpen, userId, online, pieces, detail) {
     const context = detail ? title(session, stories) + ' · ' + detail : '';
     let kicker, heading, description, actions;
     if (!session) {
       kicker = 'Tu cuaderno de investigación';
-      heading = pieces ? 'Elige tu siguiente misterio' : 'Tu primera investigación';
+      heading = pieces || (online && userId) ? 'Elige tu siguiente misterio' : 'Tu primera investigación';
       description = canPlay
         ? 'Elige un caso del catálogo. Puedes seguir las dos pistas a solas o investigar con un cómplice.'
         : 'Investiga la caja 87-V de la Clínica Vallejo en dos sesiones, a solas o en pareja.';
@@ -78,10 +85,7 @@
         actions = control('resume', session.id, waiting(session) ? 'Abrir la partida' : 'Continuar la investigación', true, context);
       }
     }
-    return '<article class="pn-feature" aria-labelledby="pn-feature-title"><div class="pn-cover"><img src="' +
-      cover(session) + '" alt="" fetchpriority="high"></div><div class="pn-feature-copy"><p class="pn-kicker">' +
-      escape(detail ? kicker + ' · ' + detail : kicker) + '</p><h2 id="pn-feature-title">' + escape(heading) + '</h2><p>' + description +
-      '</p><div class="pn-actions">' + actions + '</div></div></article>';
+    return featureCard(cover(session), detail ? kicker + ' · ' + detail : kicker, heading, description, actions);
   }
 
   function seasonProgress(pieces, partial) {
@@ -188,6 +192,42 @@
       seasonList + classic + '</section>';
   }
 
+  if (root.customElements && !root.customElements.get('notebook-return')) {
+    root.customElements.define('notebook-return', class extends HTMLElement {
+      async connectedCallback() {
+        const bridge = root.GameAccountBridge;
+        if (!bridge?.isSignedIn()) return;
+        const token = this.readToken = Symbol();
+        try {
+          const {games} = await bridge.request('/api/valdemar/partidas');
+          if (!this.isConnected || this.readToken !== token || !bridge.isSignedIn() || !Array.isArray(games)) return;
+          const tally = this.closest('.pn-dashboard')?.querySelector('[data-notebook-ongoing]');
+          if (tally) {
+            tally.querySelector('strong').textContent = Number(this.dataset.classicOngoing) + games.filter(game => !game.finished).length;
+            tally.querySelector('span').textContent = 'Partidas en curso';
+          }
+          const latest = root.ExperienceUI.seasonReturn(games);
+          let card;
+          if (latest && latest.time >= Number(this.dataset.classicTime)) {
+            const action = link(latest.href.slice(1), 'Continuar mi partida', true, latest.title);
+            card = featureCard(latest.image, 'Tu partida en curso', latest.title, latest.detail, action);
+          } else if (games.length && this.hasAttribute('data-without-classic')) {
+            card = featureCard(notebookCover, 'Mis partidas', 'Tus investigaciones guardadas',
+              'Consulta los casos que has empezado y los desenlaces que has guardado.', link('archivo', 'Ver mis partidas'));
+          }
+          if (card) {
+            const focused = this.contains(document.activeElement);
+            this.innerHTML = card;
+            if (focused) this.querySelector('.button')?.focus({preventScroll: true});
+          }
+        } catch {
+          // The local notebook and its archive link remain usable if the request fails.
+        }
+      }
+      disconnectedCallback() { this.readToken = null; }
+    });
+  }
+
   function progress(input = {}) {
     const {activeSessionId, pieces, totals, canPlay = false, userId, online = false} = input;
     const model = notebookModel(input);
@@ -196,7 +236,10 @@
     const complete = owned.filter(finished);
     const playable = owned.filter(mayOpen);
     const candidates = playable.length ? playable : owned;
-    const current = candidates.find(session => !finished(session) && session.id === activeSessionId) ||
+    const showSeasons = online && userId && root.customElements?.get('notebook-return') && root.ExperienceUI?.seasonReturn;
+    const recent = showSeasons ? playable.filter(session => !finished(session) && session.caseId !== 'habitacion-309')
+      .sort((a, b) => root.ExperienceUI.classicActivity(b) - root.ExperienceUI.classicActivity(a))[0] : null;
+    const current = recent || candidates.find(session => !finished(session) && session.id === activeSessionId) ||
       candidates.find(session => !finished(session)) || candidates.find(session => session.id === activeSessionId) || candidates[0];
     const seasonCases = complete.filter(session => catalog.get(session.caseId)?.season === 1);
     const resolved = new Set(seasonCases.filter(session => hasResolution(session, catalog.get(session.caseId))).map(session => session.caseId));
@@ -204,17 +247,21 @@
     const count = Math.min(12, Math.max(0, Number.isFinite(pieces) ? Math.trunc(pieces) : resolved.size));
     const decisions = Number.isFinite(totals?.decisions) ? Math.max(0, Math.trunc(totals.decisions)) : '—';
     const summary = '<div class="notebook-numbers pn-summary" role="group" aria-label="Resumen de mi progreso"><div><strong>' +
-      decisions + '</strong><span>Decisiones completadas</span></div><div><strong>' + ongoing.length +
-      '</strong><span>Partidas en curso</span></div><div><strong>' + (partial && !count ? '—' : count) +
-      '</strong><span>Piezas confirmadas</span></div></div>';
-    const others = owned.filter(session => session.id !== current?.id);
+      decisions + '</strong><span>Decisiones del archivo clásico</span></div><div data-notebook-ongoing><strong>' + ongoing.length +
+      '</strong><span>Partidas clásicas en curso</span></div><div><strong>' + (partial && !count ? '-' : count) +
+      '</strong><span>Piezas del plano clásico</span></div></div>';
+    const others = showSeasons ? owned : owned.filter(session => session.id !== current?.id);
     const otherRows = others.length ? group(others.filter(session => !finished(session)), 'En curso', model, true) +
       group(others.filter(finished), 'Terminadas', model, !others.some(session => !finished(session))) :
-      '<p class="pn-empty">' + (current ? 'Tus demás investigaciones aparecerán aquí.' : 'Aquí encontrarás las partidas que empieces y los casos que termines.') + '</p>';
+      '<p class="pn-empty">' + (showSeasons ? 'Aún no tienes partidas del archivo clásico.' :
+        current ? 'Tus demás investigaciones aparecerán aquí.' : 'Aquí encontrarás las partidas que empieces y los casos que termines.') + '</p>';
+    const first = featured(current, catalog, canPlay, mayOpen, userId, online, count, details.get(current?.id));
+    const opening = showSeasons ? '<notebook-return data-classic-time="' + root.ExperienceUI.classicActivity(recent) +
+      '" data-classic-ongoing="' + ongoing.length + '"' + (owned.length ? '' : ' data-without-classic') + '>' + first + '</notebook-return>' : first;
     return '<div class="pn-dashboard">' +
-      featured(current, catalog, canPlay, mayOpen, userId, online, count, details.get(current?.id)) + summary + seasonProgress(count, partial) +
+      opening + summary + seasonProgress(count, partial) +
       '<section class="pn-archive" aria-labelledby="pn-archive-title"><div class="pn-section-heading"><h2 id="pn-archive-title">' +
-      (current ? 'Mis otras partidas' : 'Mis partidas') + '</h2><a class="text-link" href="#archivo">Ver mi archivo</a></div>' + otherRows + '</section></div>';
+      (showSeasons ? 'Mis partidas del archivo clásico' : current ? 'Mis otras partidas' : 'Mis partidas') + '</h2><a class="text-link" href="#archivo">Ver mi archivo</a></div>' + otherRows + '</section></div>';
   }
 
   root.PlayerNotebook = {...root.PlayerNotebook, progress, archive};

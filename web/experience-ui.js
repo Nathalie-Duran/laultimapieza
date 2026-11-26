@@ -96,17 +96,20 @@ function activityTime(value){
  const stamp=typeof value==='number'?value:Date.parse(value);
  return Number.isFinite(stamp)?stamp:0;
 }
+function classicActivity(game){
+ return activityTime(game?.updatedAt)||activityTime(game?.history?.at(-1)?.createdAt)||activityTime(game?.createdAt);
+}
 function classicReturn(m){
  if(!m.canPlay)return null;
  let recent=null;
  for(const game of m.sessions||[]){
-   if(game.caseId==='habitacion-309'||game.status==='finished'||!game.members?.some(p=>p.userId===m.userId))continue;
+   if(game.caseId==='habitacion-309'||game.status==='finished'||(game.ownerId!==m.userId&&!game.members?.some(p=>p.userId===m.userId)))continue;
    const story=m.stories?.find(s=>s.id===game.caseId);
    if(!story)continue;
    const invited=game.ownerId&&game.ownerId!==m.userId&&Array.isArray(m.membership?.guestOwners);
    if(invited&&!m.membership.guestOwners.includes(game.ownerId))continue;
    if(!invited&&root.MonthlyAccess&&!root.MonthlyAccess.allowed(story,m))continue;
-   const time=activityTime(game.updatedAt)||activityTime(game.history?.at(-1)?.createdAt)||activityTime(game.createdAt);
+   const time=classicActivity(game);
    if(recent&&recent.time>=time)continue;
    const moves=game.history?.length||0;
    recent={time,title:story.title,image:sceneImage(story),sessionId:game.id,
@@ -114,27 +117,61 @@ function classicReturn(m){
  }
  return recent;
 }
+function officialCase(id){
+ const first=id<=12;
+ const story=first?root.ValdemarCatalog?.get(id):root.Mundos?.story(id);
+ if(!story)return null;
+ return {title:story.title,seasonNumber:Math.ceil(id/12),image:first?story.image:'/mundo-'+id+'.webp',
+   href:'#'+(first?'valdemar-jugar':'mundos-jugar')+'?id='+id};
+}
 function seasonReturn(games){
  const eligible=games.filter(g=>g.available&&!g.finished&&Number.isInteger(g.id)&&g.id>=1&&g.id<=48)
    .sort((a,b)=>activityTime(b.updatedAt)-activityTime(a.updatedAt)||b.current-a.current||a.id-b.id);
  for(const game of eligible){
-   const first=game.id<=12;
-   const story=first?root.ValdemarCatalog?.get(game.id):root.Mundos?.story(game.id);
-   if(!story)continue;
+   const card=officialCase(game.id);
+   if(!card)continue;
    const stage=game.current>=game.total?'Desenlace pendiente':'Etapa '+(game.current+1)+' de '+game.total;
-   const detail=[first?'Valdemar':root.Mundos.nameOf(story.world),stage,
+   const season=root.Colecciones?.seasons[card.seasonNumber-1]?.name;
+   const detail=[season,stage,
      game.mode==='duo'?'En pareja':game.mode==='solo'?'En solitario':''].filter(Boolean).join(' · ');
-   return {time:activityTime(game.updatedAt),title:story.title,detail,image:first?story.image:'/mundo-'+game.id+'.webp',
-     href:'#'+(first?'valdemar-jugar':'mundos-jugar')+'?id='+game.id};
+   return {...card,time:activityTime(game.updatedAt),detail,href:card.href+'&retomar=1'};
  }
  return null;
 }
 function returnCard(game){
  if(!game)return '<section class="return-strip"><div><h2>Tus tableros de temporada</h2><p>Cada juego que terminas recupera una pieza de su sello.</p></div><a class="button" href="#tableros">Explorar mis tableros</a></section>';
- const label='Continuar '+game.title;
- const action=game.href?`<a class="button primary" href="${esc(game.href)}" aria-label="${esc(label)}">Continuar mi partida</a>`:
+ const label=(game.fresh?'Jugar a ':'Continuar ')+game.title;
+ const action=game.href?`<a class="button primary" href="${esc(game.href)}" aria-label="${esc(label)}">${game.fresh?'Abrir el caso':'Continuar mi partida'}</a>`:
    `<button class="button primary" data-action="resume" data-id="${esc(game.sessionId)}" aria-label="${esc(label)}">Continuar mi partida</button>`;
- return `<section class="return-strip vh-resume-card">${game.image?`<img src="${esc(game.image)}" alt="" width="160" height="100" decoding="async">`:''}<div><span class="ui-kicker">Tu partida en curso</span><h2>${esc(game.title)}</h2><p>${esc(game.detail)}</p></div>${action}</section>`;
+ return `<section class="return-strip vh-resume-card">${game.image?`<img src="${esc(game.image)}" alt="" width="160" height="100" decoding="async">`:''}<div><span class="ui-kicker">${game.fresh?'Tu próximo caso':'Tu partida en curso'}</span><h2>${esc(game.title)}</h2><p>${esc(game.detail)}</p></div>${action}</section>`;
+}
+function seasonOnHome(games,preferred){
+ const access=root.ClubAccess?.state?.seasonAccess;
+ if(!Array.isArray(access?.seasons)||!root.Colecciones?.seasons)return null;
+ const finished=new Set(games.filter(g=>g.finished).map(g=>g.id));
+ const passes=access.seasons.filter(pass=>Number.isInteger(pass.number)&&root.Colecciones.seasons[pass.number-1]);
+ const played=new Set(games.map(g=>Math.ceil(g.id/12)));
+ const pass=passes.find(p=>p.number===preferred)
+   ||passes.filter(p=>p.paidBlocks?.length).at(-1)
+   ||passes.filter(p=>played.has(p.number)).at(-1)
+   ||passes.find(p=>p.number===1);
+ if(!pass)return null;
+ const start=(pass.number-1)*12,metadata=root.Colecciones.seasons[pass.number-1];
+ const earned=Array.from({length:12},(_,i)=>i+1).filter(i=>finished.has(start+i));
+ const allowed=pass.availableCases??access.availableCases??[];
+ const nextId=allowed.find(id=>id>start&&id<=start+12&&!finished.has(id));
+ const first=nextId?officialCase(nextId):null;
+ const next=first?{...first,fresh:true,detail:metadata.name+' · Unos 60 minutos'}:null;
+ return {n:pass.number,metadata,earned,next};
+}
+function sealKeepsake({n,metadata,earned}){
+ const complete=earned.length===12;
+ const count=earned.length+' de 12 piezas recuperadas';
+ const link=complete?'Ver el sello y su epílogo':'Ver mi sello';
+ return `<section class="vh-keepsake" data-home-seal="${n}" data-complete="${complete}" aria-label="Tu sello de temporada">
+   <div class="ss-art vh-seal-art" aria-hidden="true">${root.SellosTemporada?.miniature?.(n,earned)||''}</div>
+   <div><span class="vh-seal-count">${count}</span><h2>${esc(metadata.seal)}</h2>
+     <a href="#${esc(metadata.board)}?seccion=sello" aria-label="${esc(link+' · '+metadata.seal)}">${link}</a></div></section>`;
 }
 if(root.customElements&&!root.customElements.get('home-resume')){
  root.customElements.define('home-resume',class extends HTMLElement{
@@ -146,11 +183,20 @@ if(root.customElements&&!root.customElements.get('home-resume')){
      try{
        const {games}=await bridge.request('/api/valdemar/partidas');
        if(!current())return;
-       const next=seasonReturn(games);
-       if(!next||next.time<Number(this.dataset.classicTime))return;
-       const focused=this.contains(document.activeElement);
-       this.innerHTML=returnCard(next);
-       if(focused)this.querySelector('.button')?.focus({preventScroll:true});
+       const latest=seasonReturn(games),card=this.querySelector('.return-strip');
+       const resume=latest&&latest.time>=Number(this.dataset.classicTime)?latest:null;
+       const collection=seasonOnHome(games,resume?.seasonNumber);
+       const primary=resume||(!card?.querySelector('[data-action="resume"]')&&collection?.next);
+       if(primary&&card){
+         const focused=card.contains(document.activeElement);
+         card.outerHTML=returnCard(primary);
+         if(focused)this.querySelector('.button')?.focus({preventScroll:true});
+       }
+       if(collection){
+         this.querySelector('.vh-keepsake')?.remove();
+         this.insertAdjacentHTML('beforeend',sealKeepsake(collection));
+         this.classList.add('vh-home-collection');
+       }
      }catch{
        if(!current()||this.querySelector('[data-action="resume"]'))return;
        const status=this.querySelector('p'), link=this.querySelector('a');
@@ -227,5 +273,5 @@ function roadmap(s,c,selected=s.history?.length||0){
  return `<section class="case-roadmap" aria-label="Avance de la experiencia"><div class="roadmap-summary"><div><span class="ui-kicker">TU RUTA EN ESTE CASO</span><strong>${finished?'Experiencia completada':s.status==='waiting'?'Esperando a tu cómplice':'Estás en la decisión '+Math.min(done+1,total)+' de '+total}</strong></div><span class="roadmap-counter">${done}<small> / ${total}</small></span></div><progress max="${total}" value="${done}" aria-label="Decisiones completadas">${done} de ${total}</progress><ol class="roadmap-stops">${labels.map((label,i)=>`<li class="${i<done?'done':i===done&&!finished?'current':''}" ${i===done&&!finished?'aria-current="step"':''}><button data-action="scene-view" data-index="${i}" ${i>done?'disabled':''} ${i===selected?'aria-current="step"':''}><b>${i<done?'✓':i+1}</b><span>${label}</span></button></li>`).join('')}<li class="${finished?'done':''}"><button data-action="scene-view" data-index="${done}" ${finished?'':'disabled'}><b>${finished?'✓':'◇'}</b><span>Tu final</span></button></li></ol><p>${finished?'Tu desenlace y tu progreso están guardados.':remaining+' '+(remaining===1?'decisión pendiente':'decisiones pendientes')+' para descubrir tu final.'} ${!finished&&s.mode==='duo'?'Un voto pendiente no hace avanzar la ruta.':''}</p></section>`;
 }
 function reward(s,m){if(s.status!=='finished')return '';const p=stop(m,s.caseId);if(!p?.letter)return '';return `<section class="piece-award"><span class="award-letter">${esc(p.letter)}</span><div><span class="ui-kicker">PIEZA ${String(p.episode).padStart(2,'0')} RECUPERADA</span><h2>Tu plano acaba de cambiar.</h2><p>${count(m)} de 12 experiencias completadas. Esta letra ya está guardada en tu colección.</p><a class="button primary" href="#mapa-clasico">Colocar mi pieza en el plano →</a></div></section>`;}
-root.ExperienceUI={home,catalog,map,detail,roadmap,reward,invitation,artworkPath:s=>icons[(s.episode||1)-1]||icons[0]};
+root.ExperienceUI={home,catalog,map,detail,roadmap,reward,invitation,classicActivity,seasonReturn,artworkPath:s=>icons[(s.episode||1)-1]||icons[0]};
 })(typeof window!=='undefined'?window:globalThis);

@@ -389,6 +389,17 @@
 .vp-shell .vp-receipt-actions .vp-season-link { display:inline-flex; align-items:center; min-height:44px; padding:.3rem 0; color:#294b3b; border:0; background:transparent; text-decoration:underline; text-underline-offset:.22em; }
 .vp-shell .vp-receipt-actions .vp-season-link:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
 .vp-shell .vp-intake-tool.vp-intake-audio { max-width:35.5rem; }
+.vp-shell .vp-intake-tool .vp-listen-next {
+  min-height:44px; margin-top:.45rem; padding:.55rem 1rem;
+  color:#fcf5e5; background:#34583f; border-color:#34583f;
+}
+.vp-shell .vp-delivery {
+  padding:.6rem clamp(.75rem,2.5vw,1.4rem); color:#233728; background:#e9dfc5;
+  border-block:1px solid #aa9b75; border-inline-start:4px solid #967447;
+}
+.vp-shell .vp-delivery strong { color:#5e4828; font:700 .75rem/1.3 "Segoe UI",sans-serif; }
+.vp-shell .vp-delivery p { margin:.18rem 0 0; color:#233728; font:400 .9rem/1.4 Georgia,serif; }
+.vp-shell .vp-footer-actions :is(.vp-next,.vp-next-session) { min-height:44px; }
 .vp-shell .vp-intake-audio::before {
  content:""; display:block; height:clamp(4.5rem,16vh,8rem); margin:0 0 1rem; border:1px solid #80724f; border-radius:3px;
  background: #3d3929 url("/vallejo-mesa-87v.webp") 92% 22%/192% auto no-repeat;

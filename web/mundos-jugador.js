@@ -47,7 +47,7 @@
       panel.append(el('p','Esta temporada se abre después de completar los doce desenlaces '+worlds.edition(c.item.world).previous.from+'. Cada mensualidad habilita cuatro casos.'),link('Consultar mi pase','#planes','md-cta'));
     }
     else if(reason==='gate') panel.append(link('Ver temporada anterior',worlds.edition(c.item.world).previous.href,'md-cta'));
-    else panel.append(button('Volver a intentar',()=>{const {id,item,bridge}=c;clear();mountGame(id||item.id,bridge);},'md-cta'));
+    else panel.append(button('Volver a intentar',()=>{const {item,bridge,resume}=c;clear();mountGame(item.id,bridge,resume);},'md-cta'));
     panel.append(link(worlds.edition(c.item.world).returnLabel,worlds.route(c.item.world,c.item.id)));
     c.frame.replaceChildren(panel);c.frame.removeAttribute('aria-busy');
   }
@@ -233,16 +233,18 @@
     c.modeControl.mount();
     c.observer=new MutationObserver(enhance);
     c.observer.observe(frame,{childList:true,subtree:true});
-    select(c,c.data.progress.choice?'end':'main');
+    const ending=Boolean(c.data.progress.choice || (c.resume && !c.data.hour.stage));
+    select(c,ending?'end':'main',ending && c.resume);
+    if(c.resume && !ending)c.hour.focusStage();
   }
-  function mountGame(id,bridge) {
+  function mountGame(id,bridge,resume=false) {
     const host=document.getElementById('md-game-host'),item=worlds.story(id);
     if(!host || !item || !bridge)return;
     if(current?.item.id===item.id && current.bridge===bridge && current.signed===bridge.isSignedIn()){
       if(current.frame.parentElement!==host)host.replaceChildren(current.frame);return;
     }
     clear();
-    const c={item,bridge,signed:bridge.isSignedIn(),frame:el('div',null,'md-game vd-player')};current=c;
+    const c={item,bridge,resume,signed:bridge.isSignedIn(),frame:el('div',null,'md-game vd-player')};current=c;
     host.replaceChildren(c.frame);
     if(!c.signed){showAccess(c,'Inicia sesión para consultar tu acceso a esta temporada.',401);return;}
     c.frame.setAttribute('aria-busy','true');c.frame.append(live('Abriendo la investigación…'));

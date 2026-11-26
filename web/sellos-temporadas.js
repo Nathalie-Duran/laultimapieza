@@ -11,8 +11,8 @@
   const point=(angle,r)=>{const a=(angle-90)*Math.PI/180;return (150+r*Math.cos(a)).toFixed(2)+' '+(150+r*Math.sin(a)).toFixed(2);};
   const wedge=(a,b,r)=>'M150 150 L'+point(a,r)+' A'+r+' '+r+' 0 0 1 '+point(b,r)+' Z';
   const arc=(a,b,r,t)=>'M'+point(a,r)+' A'+r+' '+r+' 0 0 1 '+point(b,r)+' L'+point(b,t)+' A'+t+' '+t+' 0 0 0 '+point(a,t)+' Z';
-  function drawing(n) {
-    const p='ss'+n,s=seals[n-1],gold='url(#'+p+'-gold)',stone='url(#'+p+'-stone)';
+  function drawing(n,p='ss'+n,earned) {
+    const s=seals[n-1],gold='url(#'+p+'-gold)',stone='url(#'+p+'-stone)';
     let icon='';
     if(n===1){
       for(let i=0;i<8;i++){
@@ -44,7 +44,7 @@
     for(let i=0;i<12;i++){
       const angle=i*30,start=angle-15,end=angle+15,label=point(angle,124).split(' ');
       clips.push('<clipPath id="'+p+'-piece'+i+'"><path d="'+wedge(start,end,106)+'"/></clipPath>');
-      parts.push('<g class="ss-piece" data-piece="'+(i+1)+'"><path class="ss-segment" d="'+arc(start+.8,end-.8,138,110)+'"/><g class="ss-reveal" clip-path="url(#'+p+'-piece'+i+')"><use href="#'+p+'-emblem"/></g><text x="'+label[0]+'" y="'+label[1]+'">'+number(i+1)+'</text></g>');
+      parts.push('<g class="ss-piece" data-piece="'+(i+1)+'"'+(earned?.has(i+1)?' data-won="true"':'')+'><path class="ss-segment" d="'+arc(start+.8,end-.8,138,110)+'"/><g class="ss-reveal" clip-path="url(#'+p+'-piece'+i+')"><use href="#'+p+'-emblem"/></g><text x="'+label[0]+'" y="'+label[1]+'">'+number(i+1)+'</text></g>');
     }
     return '<svg viewBox="0 0 300 300" role="img" aria-label="'+esc(s.name+', '+s.motif+' de doce piezas')+'" focusable="false"><defs><linearGradient id="'+p+'-gold" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#846437"/><stop offset=".28" stop-color="#ffedb0"/><stop offset=".53" stop-color="#cb9953"/><stop offset=".78" stop-color="#f0d297"/><stop offset="1" stop-color="#83623a"/></linearGradient><radialGradient id="'+p+'-stone" cx=".3" cy=".25"><stop stop-color="'+s.color+'"/><stop offset=".68" stop-color="'+s.ink+'"/><stop offset="1" stop-color="#101c23"/></radialGradient>'+clips.join('')+'<g id="'+p+'-emblem"><circle cx="150" cy="150" r="106" fill="'+stone+'"/><circle cx="150" cy="150" r="91" fill="none" stroke="'+gold+'" stroke-width="1.5"/><g stroke="#eed29a" stroke-width="1.5">'+marks.join('')+'</g>'+icon+'</g></defs><circle cx="150" cy="150" r="144" fill="#162327" stroke="'+gold+'" stroke-width="3"/><circle cx="150" cy="150" r="109" fill="#1b262c" stroke="#9d845b"/><use class="ss-ghost" href="#'+p+'-emblem"/>'+parts.join('')+'</svg>';
   }
@@ -250,5 +250,10 @@
     load(snapshot);
     return panel;
   }
-  window.SellosTemporada=Object.freeze({view,mount,afterCase});
+  let miniatureId=0;
+  function miniature(n,earned){
+    if(!seals[n-1])return '';
+    return drawing(n,'ss-mini-'+(++miniatureId),new Set(earned));
+  }
+  window.SellosTemporada=Object.freeze({view,mount,afterCase,miniature});
 })();
