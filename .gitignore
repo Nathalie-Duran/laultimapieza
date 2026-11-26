@@ -4,3 +4,10 @@ node_modules/
 !.env.example
 *.log
 .DS_Store
+
+# Authoring and activation material. Publish only the encrypted release.
+/valdemar-stories.json
+/valdemar-evidence.json
+/valdemar-sample1.js
+/valdemar-s1-v*.json
+/valdemar-release.enc.pending

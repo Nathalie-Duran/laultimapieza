@@ -2,6 +2,7 @@ import {createHmac,timingSafeEqual} from 'node:crypto';
 import {ApiError} from './auth-provider.mjs';
 import {releaseCalendar} from './progression.mjs';
 import {mailKey} from './mail-service.mjs';
+import {creditValdemarWelcome} from './valdemar-wallet.mjs';
 export function validSignature(raw,header,secret,now=Date.now()){
   const fields=String(header||'').split(','),time=Number(fields.find(x=>x.startsWith('t='))?.slice(2));
   if(!time||Math.abs(now/1000-time)>300||!secret)return false;
@@ -63,6 +64,7 @@ export function createBilling(env=process.env,fetcher=fetch){
     const periodEnd=Math.max(0,...data.cycles.filter(c=>!c.revoked).map(c=>c.end));
     const active=['active','canceled'].includes(sub.status)&&periodEnd>Date.now()&&!sub.pause_collection;
     data.periodEnd=periodEnd;data.active=active;
+    creditValdemarWelcome(data);
     if(active&&store.enqueueMail){
       for(const invoice of invoices.data||[]){
         const cycle=data.cycles.find(c=>c.id===invoice.id&&!c.revoked);

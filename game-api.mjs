@@ -75,6 +75,16 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       if(rate&&rate.until>now){if(++rate.count>180)fail(429,'Espera unos segundos antes de continuar.');}
       else {if(rates.size>10000)rates.clear();rates.set(uid,{count:1,until:now+60000});}
       const input=method==='GET'?null:await body(request);
+      if(path==='/api/admin/valdemar-release'){
+        if(method!=='POST')fail(405,'Método no permitido.');
+        if(!origin||!origins.includes(origin)||!canManageSite(user))fail(403,'Esta operación está reservada a la propietaria.');
+        const {activateValdemarRelease}=await import('./valdemar-release.mjs');
+        return json(await withStore(store=>activateValdemarRelease(store,input)));
+      }
+      if(path.startsWith('/api/valdemar/')){
+        const {valdemarRequest}=await import('./valdemar-api.mjs');
+        return json(await valdemarRequest({path,method,input,uid,editorial:isAdministrator(user),withStore,billing}));
+      }
       if(path==='/api/admin/analytics'&&method==='GET'){
         if(!canManageSite(user))fail(403,'Esta vista está reservada a la propietaria.');
         const days=Number(url.searchParams.get('days')||30);

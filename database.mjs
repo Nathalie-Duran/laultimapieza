@@ -2,6 +2,10 @@ import { ApiError } from './auth-provider.mjs';
 import { readAnalytics } from './analytics.mjs';
 
 const schema = [
+  `CREATE TABLE IF NOT EXISTS lup_valdemar_release_keys (
+    release_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    activation_key BINARY(32) NOT NULL, installed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_user_avatars (user_id VARCHAR(128) COLLATE utf8mb4_bin PRIMARY KEY, avatar VARCHAR(12) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_editorial_users (user_id VARCHAR(128) COLLATE utf8mb4_bin PRIMARY KEY) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_reporting_since (id INT PRIMARY KEY, started_at VARCHAR(30) NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -52,6 +56,15 @@ export function createDatabase(env=process.env) {
       await initialized;
       await connection.beginTransaction();
       const store = {
+        async getValdemarKey(releaseId) {
+          const rows = await query('SELECT activation_key FROM lup_valdemar_release_keys WHERE release_id=?', [releaseId]);
+          return rows[0]?.activation_key || null;
+        },
+        async installValdemarKey(releaseId, key) {
+          await query('INSERT INTO lup_valdemar_release_keys(release_id,activation_key) VALUES (?,?) ON DUPLICATE KEY UPDATE release_id=VALUES(release_id)', [releaseId,key]);
+          const rows = await query('SELECT activation_key FROM lup_valdemar_release_keys WHERE release_id=? FOR UPDATE', [releaseId]);
+          return rows[0]?.activation_key || null;
+        },
         async markEditorial(uid){await query('INSERT IGNORE INTO lup_editorial_users(user_id) VALUES(?)',[uid]);},
         analytics(options){return readAnalytics(query,options);},
         async addOpeningNotice(email,receiptHash){
