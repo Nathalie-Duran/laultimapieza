@@ -31,8 +31,8 @@ export function createBilling(env=process.env,fetcher=fetch){
     if(!response.ok)throw new ApiError(503,'No podemos comprobar el pago ahora. Inténtalo de nuevo.','BILLING_UNAVAILABLE');
     return response.json();
   }
-  async function sync(store,uid){
-    const data=await store.getMemberData(uid);
+  async function sync(store,uid,{readOnly=false}={}){
+    const data=await store.getMemberData(uid,{readOnly});
     if(!configured||!data.customer)return {data,active:false};
     const subs=await stripe('subscriptions?customer='+encodeURIComponent(data.customer)+'&status=all&limit=10');
     const candidates=subs.data.filter(s=>s.metadata?.lup_uid===uid&&s.items?.data?.some(i=>i.price?.id===env.STRIPE_PRICE_ID));
@@ -74,6 +74,7 @@ export function createBilling(env=process.env,fetcher=fetch){
     // Set the complete finite schedule on the provider before granting access.
     // Retries recover the schedule attached to the subscription; a rollback cannot duplicate it.
     if(sub.status==='active'&&!sub.cancel_at_period_end&&!data.scheduleConfigured){
+      if(readOnly)return {data,active:false,purchaseHeld};
       const schedule=sub.schedule?await stripe('subscription_schedules/'+sub.schedule):await stripe('subscription_schedules',{from_subscription:sub.id},'lup-season-'+sub.id);
       const start=schedule.current_phase?.start_date||schedule.phases?.[0]?.start_date;
       if(!start)throw new ApiError(503,'Estamos confirmando el calendario de tu temporada.','BILLING_UNAVAILABLE');
@@ -85,6 +86,7 @@ export function createBilling(env=process.env,fetcher=fetch){
     const periodEnd=Math.max(0,...ownCycles.filter(c=>!c.revoked && c.start<=now).map(c=>c.end));
     const active=['active','canceled'].includes(sub.status)&&periodEnd>now&&!sub.pause_collection;
     data.periodEnd=periodEnd;data.active=active;
+    if(readOnly)return {data,active,purchaseHeld};
     creditValdemarWelcome(data);
     if(active&&store.enqueueMail){
       for(const invoice of invoices.data||[]){
@@ -98,7 +100,7 @@ export function createBilling(env=process.env,fetcher=fetch){
   return {
     configured,
     publicConfig(){return {checkoutAvailable:configured,termsUrl:configured?env.BILLING_TERMS_URL:null,privacyUrl:configured?env.BILLING_PRIVACY_URL:null};},
-    async membership(store,uid){const {data,active,purchaseHeld}=await sync(store,uid);return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess:worldSeasonAccess(data,{active,purchaseHeld}),periodEnd:data.periodEnd||null,waitlist:!!data.waitlist,hasCustomer:!!data.customer};},
+    async membership(store,uid,options){const {data,active,purchaseHeld}=await sync(store,uid,options);return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess:worldSeasonAccess(data,{active,purchaseHeld}),periodEnd:data.periodEnd||null,waitlist:!!data.waitlist,hasCustomer:!!data.customer};},
     async canPlay({store,uid,caseId}){const {data,active}=await sync(store,uid);if(active&&caseId&&caseId!=='habitacion-309'&&!releaseCalendar(data.cycles||[],data.claims||[]).unlockedCaseIds.includes(caseId))throw new ApiError(409,'Este caso está bloqueado. Cada pago mensual confirmado desbloquea los cuatro casos del siguiente bloque.','CASE_NOT_RELEASED');return active;},
     async claim(store,uid,caseId){
       const {data,active}=await sync(store,uid);

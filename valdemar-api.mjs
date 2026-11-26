@@ -38,7 +38,7 @@ function visibleHints(story,wallet) {
 
 const playModes = new Set(['solo','duo']);
 
-function personalGames(data,scope,access) {
+async function personalGames(data,scope,access,store,loadRelease) {
   const records=data.valdemarCaseProgress?.[scope] || {};
   const wallet=data.valdemarSeasonOne?.[scope] || {};
   const sideProgress=new Set([...(wallet.won || []),...(wallet.opened || []),...(wallet.second || [])]);
@@ -53,7 +53,30 @@ function personalGames(data,scope,access) {
         ...(Number.isFinite(record.updatedAt)?{updatedAt:record.updatedAt}:{})});
     }
   }
-  return {games};
+  const latest=games.filter(game=>game.available&&!game.finished)
+    .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)||b.current-a.current||a.id-b.id)[0];
+  if(latest){
+    try{
+      const release=await loadRelease(store);
+      const story=releasedStory(release,latest.id);
+      const stage=story?.hour?.stages?.[latest.current];
+      if(stage && typeof stage.title==='string' && typeof stage.task==='string'){
+        latest.checkpoint={title:stage.title,task:stage.task};
+      }else if(story && latest.current===latest.total){
+        const question=[story.question,story.challengePrompt].find(value=>typeof value==='string'&&value.trim());
+        latest.checkpoint=records[latest.id]?.deduced
+          ? {title:'Elige tu desenlace',task:'Decide qué hacer con lo que has descubierto.'}
+          : {title:'Deducción final',task:question || 'Contrasta tu hipótesis con las pruebas del expediente.'};
+      }
+    }catch(err){
+      if(err.code!=='VALDEMAR_RELEASE_PENDING')throw err;
+    }
+  }
+  return {games,access};
+}
+
+function releasedStory(release,id) {
+  return (id>CASE_ORDER.length ? release.nuevos : release.stories)?.find(item=>item.id===id);
 }
 
 function visibleSample(sample) {
@@ -132,11 +155,11 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
   const action = match?.[2] || 'read';
   if (method !== (action==='read' ? 'GET' : 'POST')) throw new ApiError(405,'Método no permitido.');
   return withValdemarTransaction(withStore, async store => {
-    const membership = editorial ? null : await billing?.membership(store,uid);
-    const data = await store.getMemberData(uid);
+    const membership = editorial ? null : await billing?.membership(store,uid,{readOnly:gamesRoute});
+    const data = await store.getMemberData(uid,{readOnly:gamesRoute});
     const access = !editorial && membership?.seasonAccess || worldSeasonAccess(data,{editorial,active:!editorial && membership?.canPlay===true});
     const scope = editorial ? 'editorial' : 'paid';
-    if (gamesRoute) return personalGames(data,scope,access);
+    if (gamesRoute) return personalGames(data,scope,access,store,loadRelease);
     if (sealRoute) {
       const number=Number(sealRoute[1]),season=access.seasons[number-1];
       if(!season)throw new ApiError(404,'Este sello no está disponible.');
@@ -179,7 +202,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       return {mode};
     }
     const release = await loadRelease(store);
-    const story = (newWorld ? release.nuevos : release.stories)?.find(item => item.id === id);
+    const story = releasedStory(release,id);
     if (!story) throw new ApiError(503,'El expediente está temporalmente fuera de servicio.');
     if (action === 'deduce' || action === 'ending' || action === 'stage') return progressAction(store,uid,scope,story,action,input);
     const sample = newWorld ? null : release.samples.find(item => item.id === id);

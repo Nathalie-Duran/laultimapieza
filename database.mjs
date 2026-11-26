@@ -100,9 +100,10 @@ export function createDatabase(env=process.env) {
         },
         async finishMail(id,providerId){await query("UPDATE lup_mail_outbox SET status='sent',provider_id=?,last_error=NULL WHERE id=?",[providerId,id]);},
         async retryMail(id,error){await query("UPDATE lup_mail_outbox SET status=IF(attempts>=8,'review','pending'),next_at=?,last_error=? WHERE id=?",[Date.now()+300000,error,id]);},
-        async getMemberData(uid) {
-          await query('INSERT IGNORE INTO lup_member_data (user_id,data_json) VALUES (?,?)',[uid,'{}']);
-          return JSON.parse((await query('SELECT data_json FROM lup_member_data WHERE user_id=? FOR UPDATE',[uid]))[0].data_json);
+        async getMemberData(uid,{readOnly=false}={}) {
+          if(!readOnly)await query('INSERT IGNORE INTO lup_member_data (user_id,data_json) VALUES (?,?)',[uid,'{}']);
+          const rows=await query('SELECT data_json FROM lup_member_data WHERE user_id=? FOR UPDATE',[uid]);
+          return rows.length ? JSON.parse(rows[0].data_json) : {};
         },
         async saveMemberData(uid,data) { await query('UPDATE lup_member_data SET customer_id=?,data_json=? WHERE user_id=?',[data.customer||null,JSON.stringify(data),uid]); },
         async findCustomer(id) { return (await query('SELECT user_id FROM lup_member_data WHERE customer_id=?',[id]))[0]?.user_id||null; },
