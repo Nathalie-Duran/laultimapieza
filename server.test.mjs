@@ -10,7 +10,7 @@ test('Entrega páginas y medios; admite búsqueda en vídeo y protege archivos i
   try {
     const home = await fetch(base);
     assert.equal(home.status,200);
-    assert.match(await home.text(), /La última pieza/);
+    assert.match(await home.text(), /<title>La Última Pieza\b/i);
     const audio = await fetch(base+'/media/vera-message.wav',{method:'HEAD'});
     assert.equal(audio.status,200); assert.match(audio.headers.get('content-type'),/audio\/wav/);
     const video = await fetch(base+'/media/camera-309.webm',{headers:{Range:'bytes=0-15'}});
