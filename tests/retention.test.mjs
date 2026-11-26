@@ -57,3 +57,46 @@ test('La integración de pago verifica factura y termina la temporada con un cal
  await assert.rejects(billing.claim(store,'alice','frecuencia-17'),e=>e.code==='CASE_NOT_RELEASED');
  await assert.rejects(billing.canPlay({store,uid:'alice',caseId:'frecuencia-17'}),e=>e.code==='CASE_NOT_RELEASED');
 });
+
+test('Los enlaces legales públicos son independientes entre sí y de las ventas',async()=>{
+  const terms='https://www.laultimapieza.es/condiciones', privacy='https://www.laultimapieza.es/privacidad';
+  const cannotPay=()=>{throw Error('No utilizar el proveedor de pago');};
+  for(const [termsUrl,privacyUrl] of [[null,null],[terms,null],[null,privacy],[terms,privacy]]){
+    const billing=createBilling({BILLING_TERMS_URL:termsUrl,BILLING_PRIVACY_URL:privacyUrl},cannotPay);
+    assert.deepEqual(billing.publicConfig(),{checkoutAvailable:false,termsUrl,privacyUrl});
+    await assert.rejects(billing.checkout({},{}),{code:'BILLING_UNAVAILABLE'});
+  }
+  const invalid=['https://','/solo-interna','//dominio.es','javascript:alert(1)','http://dominio.es',
+    'https://nombre:clave@dominio.es','https://localhost','https://127.0.0.1/doc','https://[::1]/doc',
+    'https://documentos.local./','https://ejemplo.home.arpa/doc','https://pruebas.invalid'];
+  for(const value of invalid){
+    const cfg=createBilling({BILLING_PRIVACY_URL:value,BILLING_TERMS_URL:terms},cannotPay).publicConfig();
+    assert.equal(cfg.privacyUrl,null,value);assert.equal(cfg.termsUrl,terms);
+  }
+});
+
+test('Un cliente puede gestionar su suscripción con las ventas cerradas sin abrir una compra',async()=>{
+  const env={BILLING_ENABLED:'false',STRIPE_SECRET_KEY:'fixture',STRIPE_PORTAL_CONFIGURATION:'customer-portal'};
+  const accounts={titular:{customer:'cus-fixture',cycles:[{id:'previous-payment'}]},nueva:{}};
+  const store={getMemberData:async(uid,options)=>{assert.equal(options?.readOnly,true);return structuredClone(accounts[uid]);}};
+  const destination='https://billing.stripe.com/p/session/fixture';
+  const requests=[];
+  const billing=createBilling(env,async(url,options)=>{
+    const path=new URL(url).pathname;requests.push(path);
+    assert.equal(path,'/v1/billing_portal/sessions');assert.equal(options.method,'POST');
+    assert.deepEqual(Object.fromEntries(options.body),{customer:'cus-fixture',configuration:'customer-portal',
+      return_url:'https://laultimapieza.es/#perfil?seccion=cuenta',locale:'es'});
+    return Response.json({url:destination});
+  });
+  assert.equal(billing.publicConfig().checkoutAvailable,false);
+  assert.deepEqual(await billing.portal(store,'titular'),{url:destination});
+  await assert.rejects(billing.portal(store,'nueva'),{status:409});
+  await assert.rejects(billing.checkout(store,{userId:'titular'}),{code:'BILLING_UNAVAILABLE'});
+  assert.deepEqual(requests,['/v1/billing_portal/sessions']);
+  for(const option of ['STRIPE_SECRET_KEY','STRIPE_PORTAL_CONFIGURATION']){
+    const missing=createBilling({...env,[option]:'  '},()=>assert.fail('No contactar con Stripe'));
+    await assert.rejects(missing.portal(store,'titular'),{status:503,code:'BILLING_PORTAL_UNAVAILABLE'});
+  }
+  const unavailable=createBilling(env,async()=>new Response(null,{status:401}));
+  await assert.rejects(unavailable.portal(store,'titular'),{status:503,code:'BILLING_PORTAL_UNAVAILABLE'});
+});

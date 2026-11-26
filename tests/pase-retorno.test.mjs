@@ -62,3 +62,19 @@ test('El enlace de revisión respeta tanto la temporada elegible como la preaper
   assert.doesNotMatch(waiting.page.ClubAccess.plans(),/data-action="billing-checkout"/);
   assert.equal(waiting.requests.length,0);
 });
+
+test('La ayuda y la retirada del aviso están disponibles sin contratar',async()=>{
+  for(const salesOpen of [false,true]){
+    const shop=await storefront(salesOpen);
+    shop.location.hash='#planes?seccion=preguntas';
+    const faq=shop.page.ClubAccess.plans();
+    assert.match(faq,/<h1[^>]*>Preguntas frecuentes<\/h1>/);
+    assert.match(faq,/href="\/privacidad.html"/);
+    assert.doesNotMatch(faq,/data-action="billing-checkout"/);
+    shop.location.hash='#planes?gestion=aviso';
+    assert.match(shop.page.ClubAccess.plans(),/Este navegador no conserva el resguardo/);
+    shop.login(1);
+    assert.match(shop.page.ClubAccess.plans(),/Retirar los avisos de mi correo verificado/);
+    assert.equal(shop.requests.length,0);
+  }
+});
