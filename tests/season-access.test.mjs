@@ -26,7 +26,7 @@ const numbers = (start,end) => Array.from({length:end-start+1},(_,i)=>start+i);
 const options = ['x','y','z'].map(id=>({id,label:'Pieza '+id}));
 const materials = [{id:'doc',label:'Parte',kind:'text',body:'Hay una señal azul.',role:'A'}];
 const world = id => ({
-  id,title:'Caso de ensayo '+id,place:'Estudio',intro:'Se oye un ruido.',roles:['Escucha','Mira'],
+  id,title:'Caso de ensayo '+id,place:'Estudio',question:'¿Qué explica la señal del caso '+id+'?',intro:'Se oye un ruido.',roles:['Escucha','Mira'],
   choices:[{id:'c',label:'Guardar'}],hypotheses:[{id:'h',label:'La explicación'}],correctHypothesis:'h',
   deduction:'RESOLUCION PRIVADA',outcomes:{c:'FIN PRIVADO'},hints:['AYUDA PRIVADA','SEGUNDA AYUDA'],
   side:{title:'Reconstruir',brief:'Compara',materials,mode:id===13?'order':'multi',options,answer:['y','x'],success:'PREMIO PRIVADO',retry:'Aún no encajan.'},
@@ -35,11 +35,11 @@ const world = id => ({
 const release = {stories:numbers(1,12).map(world),samples:[],nuevos:numbers(13,48).map(world),
   sellos:numbers(1,4).map(number=>({number,title:'Sello '+number,epilogue:'EPILOGO PRIVADO '+number}))};
 function service(seed) {
-  let committed=structuredClone(seed),tail=Promise.resolve(),loads=0;
+  let committed=structuredClone(seed),tail=Promise.resolve(),loads=0,writes=0;
   const withStore = fn => {
     const tx = tail.then(async()=>{
       let copy=structuredClone(committed);
-      const result=await fn({getMemberData:async()=>structuredClone(copy),saveMemberData:async(_,data)=>{copy=structuredClone(data);}});
+      const result=await fn({getMemberData:async()=>structuredClone(copy),saveMemberData:async(_,data)=>{writes++;copy=structuredClone(data);}});
       committed=copy;
       return result;
     });
@@ -47,7 +47,8 @@ function service(seed) {
     return tx;
   };
   return {
-    get data(){return committed;}, get loads(){return loads;},
+    get data(){return committed;}, get loads(){return loads;}, get writes(){return writes;},
+    update(change){return withStore(async store=>{const data=await store.getMemberData();await change(data);await store.saveMemberData('fixture',data);});},
     async call(path,input,editorial=false) {
       return valdemarRequest({path:'/api/valdemar/'+path,method:input===undefined?'GET':'POST',input,uid:'fixture',editorial,withStore,
         loadRelease:async()=>{loads++;return release;},
@@ -389,4 +390,85 @@ test('payment reconciliation pins opted-in receipts to their season, schedules f
       assert.deepEqual(state.revokedInvoices,['inv-new-1']);assert.equal(scheduled,1);
     }
   }
+});
+
+test('El índice entrega únicamente el próximo objetivo de la última partida disponible y separa el acceso editorial',async()=>{
+  const seed=memberAt(1);
+  seed.valdemarCaseProgress={paid:{
+    1:{mode:'duo',hourStep:1,updatedAt:30},2:{hourStep:3,updatedAt:30},3:{hourStep:3,updatedAt:30},
+    4:{hourStep:4,mode:'solo',updatedAt:20},5:{mode:'solo',updatedAt:50},6:{choice:'c',updatedAt:60}
+  },editorial:{32:{choice:'c',updatedAt:7},41:{mode:'solo',hourStep:0,updatedAt:5}}};
+  const api=service(seed),index=await api.call('partidas');
+  assert.deepEqual(index.access,worldSeasonAccess(seed));
+  const picked=index.games.filter(game=>game.checkpoint);
+  assert.equal(picked.length,1);assert.equal(picked[0].id,2);
+  assert.deepEqual(picked[0].checkpoint,{title:'Etapa 4',task:'Ordenad'});
+  assert(!index.games.find(game=>game.id===5).available);
+  const editor=await api.call('partidas',undefined,true);
+  assert.deepEqual(editor.access.availableCases,numbers(1,48));
+  assert.deepEqual(editor.games.map(game=>game.id),[32,41]);
+  assert.deepEqual(editor.games[1].checkpoint,{title:'Etapa 1',task:'Ordenad'});
+  assert(!editor.games[0].checkpoint);
+  for(const data of [index,editor]){
+    const text=JSON.stringify(data);
+    for(const secret of ['RESOLUCION PRIVADA','FIN PRIVADO','AYUDA PRIVADA','PREMIO PRIVADO','EPILOGO PRIVADO','Acertado','x","z','materials','options','answer','deduction','stageScript','gameScript'])assert(!text.includes(secret));
+  }
+  assert.deepEqual(api.data,seed);assert.equal(api.writes,0);
+});
+
+test('Los pasos finales distinguen la deducción pendiente de la decisión por guardar',async()=>{
+  const seed=memberAt(1);
+  for(const deduced of [false,true]){
+    seed.valdemarCaseProgress={paid:{1:{mode:'solo',hourStep:5,deduced}}};
+    const api=service(seed),{games}=await api.call('partidas');
+    assert.equal(games[0].checkpoint.title,deduced?'Elige tu desenlace':'Deducción final');
+    assert.equal(games[0].checkpoint.task,deduced?'Decide qué hacer con lo que has descubierto.':'¿Qué explica la señal del caso 1?');
+    assert.equal(games[0].current,5);assert(!games[0].finished);assert.equal(api.writes,0);
+  }
+  for(const state of [{},complete(memberAt(1),[1])]){
+    const api=service(state),{games,access}=await api.call('partidas');
+    assert(games.every(game=>!game.checkpoint));assert.deepEqual(access,worldSeasonAccess(state));
+    assert.equal(api.loads,0);assert.equal(api.writes,0);
+  }
+});
+
+test('Una revocación en curso se confirma antes de decidir si se puede leer el objetivo protegido',async()=>{
+  const seed=memberAt(1);seed.valdemarCaseProgress={paid:{1:{mode:'solo'}}};
+  const api=service(seed);
+  let unlock,entered;const gate=new Promise(done=>{unlock=done;}),locked=new Promise(done=>{entered=done;});
+  const revoked=api.update(async data=>{entered();await gate;data.cycles[0].revoked=true;data.active=false;});
+  await locked;
+  const pending=api.call('partidas');
+  unlock();await revoked;
+  const index=await pending;
+  assert.deepEqual(index.access.availableCases,[]);
+  assert.equal(index.games[0].available,false);assert(!index.games[0].checkpoint);
+  assert.equal(api.loads,0);assert.equal(api.writes,1);
+});
+
+test('Consultar el índice con Stripe activo no provisiona calendarios, saldos, correos ni partidas',async()=>{
+  const seed=memberAt(1);seed.customer='fixture-customer';seed.valdemarCaseProgress={paid:{1:{mode:'solo'}}};
+  const env={BILLING_ENABLED:'true',STRIPE_SECRET_KEY:'fixture',STRIPE_WEBHOOK_SECRET:'fixture',
+    STRIPE_PRICE_ID:'price',STRIPE_PORTAL_CONFIGURATION:'fixture',BILLING_TERMS_URL:'fixture',BILLING_PRIVACY_URL:'fixture'};
+  const calls=[];
+  const billing=createBilling(env,async(url,options)=>{
+    assert.equal(options.method,'GET');
+    const path=new URL(url).pathname;calls.push(path);
+    if(path==='/v1/subscriptions')return Response.json({data:[{id:seed.subscription,status:'active',
+      metadata:{lup_uid:'fixture'},items:{data:[{price:{id:'price'}}]}}]});
+    if(path==='/v1/invoices')return Response.json({data:[]});
+    assert.fail('Petición externa inesperada: '+path);
+  });
+  let loads=0;
+  const store={getMemberData:async(uid,options)=>{
+    assert.equal(uid,'fixture');assert.equal(options?.readOnly,true);return structuredClone(seed);
+  },saveMemberData(){assert.fail('Guardado inesperado');},enqueueMail(){assert.fail('Correo inesperado');}};
+  const get=()=>valdemarRequest({path:'/api/valdemar/partidas',method:'GET',uid:'fixture',
+    withStore:fn=>fn(store),billing,loadRelease:async()=>{loads++;return release;}});
+  const unprovisioned=await get();assert.deepEqual(unprovisioned.access.availableCases,[]);
+  assert(!unprovisioned.games[0].checkpoint);assert.equal(loads,0);
+  seed.scheduleConfigured=true;
+  const available=await get();assert.deepEqual(available.access.availableCases,numbers(1,4));
+  assert.equal(available.games[0].checkpoint.title,'Etapa 1');assert.equal(loads,1);
+  assert.deepEqual(calls,['/v1/subscriptions','/v1/invoices','/v1/subscriptions','/v1/invoices']);
 });

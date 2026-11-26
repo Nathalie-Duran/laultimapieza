@@ -4,6 +4,16 @@ import {readFile} from 'node:fs/promises';
 import {createContext,runInContext} from 'node:vm';
 import {seasonProgress} from '../season-journey.mjs';
 const ctx=createContext({structuredClone,crypto:globalThis.crypto});ctx.window=ctx;
+test('Cada ficha pública de Valdemar enlaza la demo con el caso de procedencia',async()=>{
+  const catalog=createContext({});catalog.window=catalog;
+  runInContext(await readFile(new URL('../web/valdemar-catalog.js',import.meta.url),'utf8'),catalog);
+  for(const item of catalog.ValdemarCatalog.items){
+    const code=String(item.id).padStart(2,'0');
+    const page=catalog.ValdemarCatalog.detail(item.id,{});
+    assert.ok(page.includes('href="/vallejo.html?caso='+code+'"'),item.title);
+    assert.doesNotMatch(page,/data-action="preview-open"/);
+  }
+});
 for(const file of ['stories.js','season.js','engine.js','experience-ui.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),ctx);
 test('La ruta coincide con todas las ramas reales de las trece historias y termina sin decisiones pendientes',()=>{
  for(const c of ctx.STORIES){
