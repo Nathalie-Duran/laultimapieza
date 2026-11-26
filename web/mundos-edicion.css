@@ -432,6 +432,13 @@
 }
 .md-gem-link:is(:hover,:focus-visible) {outline:2px solid #ffe0a0;outline-offset:2px;z-index:4;}
 .md-gem-link:is(:hover,:focus-visible) span {opacity:1;}
+.md-world[data-md-world=umbravia] .md-gem-link {
+  width:max(2.4rem,7%);height:max(2.6rem,17%);aspect-ratio:auto;
+  border-radius:36%;outline-offset:0;
+}
+.md-world[data-md-world=umbravia] .md-gem-link span {
+  color:#eaf7dc;background:#132320;border-color:#90b59b;
+}
 @media(max-width:850px){
   .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-atlas {grid-template-columns:minmax(0,1fr);}
   .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-file {

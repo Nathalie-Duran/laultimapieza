@@ -140,7 +140,7 @@
       const label = title(session, stories);
       const detail = details.get(session.id), context = detail ? label + ' · ' + detail : label;
       const canResume = mayOpen(session);
-      const state = [sessionState(session), detail, canResume ? '' : 'Requiere acceso'].filter(Boolean).join(' · ');
+      const state = [sessionState(session), session.caseId==='habitacion-309'?'Caso retirado del catálogo':'', detail, canResume ? '' : 'Requiere acceso'].filter(Boolean).join(' · ');
       const open = canResume ? control('resume', session.id, finished(session) ? 'Ver desenlace' : 'Abrir partida', false, context)
         : finished(session) && !onArchivePage ? link('archivo', 'Ver archivo', false, context)
         : canPlay ? browse('Elegir otro caso', false, context) : link('planes', 'Ver acceso', false, context);

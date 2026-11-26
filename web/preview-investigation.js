@@ -34,6 +34,72 @@
   const dialog = () => document.getElementById('scene-preview');
   let state = null;
   let consent = false;
+  const saveKey = 'lup.vallejo.bookmark.v1';
+  let memorySave = null;
+  let memoryOnly = false;
+  function readSave() {
+    if (memoryOnly) return memorySave;
+    let raw;
+    try { raw = root.localStorage.getItem(saveKey); }
+    catch { memoryOnly = true; return memorySave; }
+    try {
+      const save = JSON.parse(raw);
+      return save?.version === 1 && Number.isSafeInteger(save.round) ? save : null;
+    } catch { return null; }
+  }
+  function writeSave(save) {
+    memorySave = save;
+    if (memoryOnly) return;
+    try { root.localStorage.setItem(saveKey, JSON.stringify(save)); }
+    catch { memoryOnly = true; }
+  }
+  function hasProgress() {
+    const save = readSave();
+    return !!save && (save.playMode === 'duo' || (Array.isArray(save.consulted) && save.consulted.length > 0));
+  }
+  function asList(value) { return Array.isArray(value) ? value : []; }
+  function saveBookmark(st) {
+    const previous = readSave();
+    if (previous && previous.round !== st.round) return;
+    const hints = {...previous?.hints};
+    for (const [key,entry] of st.hintHistory) {
+      if (entry.seen) hints[key] = Math.max(Number(hints[key]) || 0, entry.seen);
+    }
+    const files = {...previous?.files};
+    const current = st.sessions[st.section];
+    if (st.lastIndex[st.section] !== undefined) files[current.id] = current.documents[st.lastIndex[st.section]].file;
+    // Store only positions and earned milestones. Form entries, text and recordings stay outside the bookmark.
+    writeSave({
+      version:1, round:st.round, section:current.id, mode:st.mode, tool:st.mode === 'tool' ? st.activeTool : null,
+      playMode:st.playMode, files, hints,
+      receipt:st.receiptConfirmed || previous?.receipt === true,
+      consulted:[...new Set([...asList(previous?.consulted), ...st.consulted])],
+      unlocked:[...new Set([...asList(previous?.unlocked), ...st.unlocked])],
+      counted:[...new Set([...asList(previous?.counted), ...st.counted])]
+    });
+  }
+  function restoreBookmark(st, save) {
+    if (!save) return;
+    st.playMode = save.playMode === 'duo' ? 'duo' : 'solo';
+    st.receiptConfirmed = save.receipt === true;
+    const seen = new Set(asList(save.consulted));
+    for (const tool of ['web','audio']) if (seen.has(tool)) st.consulted.add(tool);
+    for (const key of asList(save.counted)) if (typeof key === 'string') st.counted.add(key);
+    for (const [i,session] of st.sessions.entries()) {
+      if (i && !st.unlocked.has(st.sessions[i-1].id)) break;
+      if (asList(save.unlocked).includes(session.id)) st.unlocked.add(session.id);
+      for (const doc of session.documents) if (seen.has(doc.file)) st.consulted.add(doc.file);
+      const last = session.documents.findIndex(doc => doc.file === save.files?.[session.id]);
+      if (last >= 0) st.lastIndex[i] = last;
+      for (const [group,hints] of Object.entries(session.hints || {})) {
+        const key = session.id + '/' + group, count = save.hints?.[key];
+        if (Number.isInteger(count) && count > 0) st.hintHistory.set(key,{seen:Math.min(count,hints.length)});
+      }
+      if (save.section === session.id) st.section = i;
+    }
+    st.index = st.lastIndex[st.section] || 0;
+  }
+  function notifyProgress() { root.dispatchEvent(new Event('case-preview-progress')); }
   function sessions() {
     const first = Object.assign({}, marta, root.VallejoMarta);
     const second = root.VallejoTomas;
@@ -56,6 +122,7 @@
   function count(event, action = event) {
     if (!state || !consent || state.counted.has(action)) return;
     state.counted.add(action);
+    if (state.hasBookmark) saveBookmark(state);
     root.fetch('/api/metrics', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event, consent: true }), keepalive: true
@@ -66,7 +133,7 @@
     if (document.querySelector('link[data-vallejo-style],link[href*="vallejo-demo.css"]')) return;
     const link = node('link');
     link.rel = 'stylesheet';
-    link.href = '/vallejo-demo.css?v=pareja-4';
+    link.href = '/vallejo-demo.css?v=volver-1';
     link.dataset.vallejoStyle = '1';
     document.head.append(link);
   }
@@ -152,9 +219,12 @@
     for (const title of ['Copia','Hora','Timbre','Cotejo']) { const th = node('th','',title); th.scope='col'; head.append(th); }
     table.prepend(caption);
     const rows = table.createTBody();
-    const footer = node('p','vp-entry-status'); footer.setAttribute('role','status');
-    const next = button('Examinar la ficha de admisión','vp-button vp-entry-next',()=>openMedium(st,'image',0));
-    next.hidden = !st.receiptConfirmed;
+    const footer = node('p','vp-entry-status'); footer.id='vp-receipt-status'; footer.setAttribute('role','status');
+    const next = button('Examinar la ficha de admisión','vp-button vp-entry-next',()=>openMedium(st,'image',st.section));
+    next.setAttribute('aria-describedby',footer.id);
+    const actions = node('div','vp-receipt-actions');
+    actions.append(next,seasonLink('casos?mes=1','Ver los cuatro casos del primer mes',false));
+    actions.hidden = !st.receiptConfirmed;
     if (st.receiptConfirmed) footer.textContent = 'Copia D-24 identificada. Su resguardo corresponde a la ficha que acompañaba el correo.';
     for (const [id,time,signal] of [['D-18','03:08','Largo · corto · corto'],['D-21','03:12','Corto · largo · corto'],['D-24','03:12','Largo · corto · corto']]) {
       const row = rows.insertRow(); row.dataset.copy = id;
@@ -167,17 +237,20 @@
           return;
         }
         st.receiptConfirmed = true;
+        count('demo_receipt');
+        saveBookmark(st);
         row.dataset.matched = 'true';
         footer.textContent = 'Copia D-24 identificada. El Archivo confirma que la ficha adjunta al correo pertenece a esta entrega.';
-        next.hidden = false;
+        actions.hidden = false;
         table.querySelectorAll('button').forEach(control=>{control.disabled=true;});
+        next.focus();
       });
       action.setAttribute('aria-label','Cotejar la copia '+id);
       action.disabled = st.receiptConfirmed;
       if (st.receiptConfirmed && id === 'D-24') row.dataset.matched = 'true';
       row.insertCell().append(action);
     }
-    article.append(table,footer,next); pane.append(article);
+    article.append(table,footer,actions); pane.append(article);
   }
   function audioTool(pane) {
     const article = node('article','vp-intake-tool vp-intake-audio');
@@ -206,6 +279,7 @@
       if (medium.tool === 'web') receiptTool(st,pane); else audioTool(pane);
       st.reader.append(pane); st.panes.set(key,pane);
     }
+    if (medium.tool === 'web') pane.querySelector('.vp-entry-next').textContent = section === 0 ? 'Examinar la ficha de admisión' : 'Examinar el diario de Marta';
     hideOtherPanes(st,key); pane.hidden = false;
     shelf(false); updateNav(); st.heading.focus({preventScroll:true});
   }
@@ -235,11 +309,10 @@
     const hints = session.hints?.[group];
     if (!Array.isArray(hints) || !hints.length) return null;
     const key = session.id + '/' + group;
-    if (!st.hintHistory.has(key)) st.hintHistory.set(key, { seen: 0, nextAt: 0 });
+    if (!st.hintHistory.has(key)) st.hintHistory.set(key, { seen: 0 });
     return { session, group, key, hints, entry: st.hintHistory.get(key) };
   }
   function renderHints(st) {
-    root.clearTimeout(st.hintTimer);
     const h = hintFor(st);
     if (h?.key !== st.hintKey) st.hintBox.open = false;
     st.hintBox.hidden = !h;
@@ -254,22 +327,16 @@
     });
     st.hintTable.hidden = !(h.group === '04_carta_vallejo.png' && h.entry.seen >= 4);
     const done = h.entry.seen >= h.hints.length;
-    const wait = Math.max(0, h.entry.nextAt - Date.now());
     st.hintMore.hidden = done;
-    st.hintMore.disabled = !!wait;
     st.hintMore.textContent = h.entry.seen ? 'Revelar otra pista' : 'Revelar la primera pista';
-    let message = 'Las pistas se abren de una en una.';
-    if (done) message = 'Has consultado todas las pistas de esta prueba.';
-    else if (wait) message = 'La siguiente pista estará disponible en ' + Math.ceil(wait / 60000) + ' min.';
-    st.hintStatus.textContent = message;
-    if (!done && wait && !st.paused && st.hintBox.open) st.hintTimer = root.setTimeout(() => renderHints(st), Math.min(wait, 60000));
+    st.hintStatus.textContent = done ? 'Has consultado todas las pistas de esta prueba.' : 'Abre las pistas de una en una cuando las necesites.';
   }
   function revealHint(st) {
     const h = hintFor(st);
-    if (!h || h.entry.seen >= h.hints.length || h.entry.nextAt > Date.now()) return;
+    if (!h || h.entry.seen >= h.hints.length) return;
     h.entry.seen++;
-    h.entry.nextAt = Date.now() + Math.max(0, Number(h.session.hintWaitMinutes) || 0) * 60000;
     count('demo_hint', h.key + '/' + h.entry.seen);
+    saveBookmark(st);
     renderHints(st);
     note('Pista ' + h.entry.seen + '. ' + h.hints[h.entry.seen - 1]);
   }
@@ -343,9 +410,12 @@
       for (const control of [st.zoom,st.adjust,st.bright,st.mirror,st.separate]) control.hidden = true;
     }
     if (atTable || tool) {
-      root.clearTimeout(st.hintTimer);
       st.hintBox.open = false;
     } else renderHints(st);
+    if (st.consulted.size || st.playMode === 'duo' || st.hasBookmark) {
+      st.hasBookmark = true;
+      saveBookmark(st);
+    }
   }
   function unlock(st, section) {
     if (state !== st) return;
@@ -427,6 +497,10 @@
         }
       });
       if (door && record) {
+        if (st.unlocked.has(session.id)) {
+          door.classList.add('hidden');
+          record.classList.remove('hidden');
+        }
         const update = () => {
           if (door.classList.contains('hidden') && !record.classList.contains('hidden') && iframe.contentWindow.getComputedStyle(record).display !== 'none') unlock(st, section);
         };
@@ -507,14 +581,16 @@
       <div class="vp-help"><section class="vp-finale" hidden aria-labelledby="vp-finale-title"><h3 id="vp-finale-title">¿Sobrevivirá una cinta durante treinta años?</h3><p>Has abierto el expediente de Tomás. En «Mundos cruzados», dos épocas de la misma estación esconden tu siguiente pista. Es una de las cuatro historias del primer mes.</p><div class="vp-season-actions"></div><div class="case-share vp-share-demo"><button type="button" data-copy-invite="https://www.laultimapieza.es/vallejo.html?via=invitacion">Copiar enlace a la demo</button><p role="status" aria-live="polite"></p></div></section>
       <details class="vp-pair" hidden><summary>Consultar los dos documentos</summary><p><span></span> <a target="_blank" rel="noopener"></a></p></details>
       <details class="vp-hints" hidden><summary>Pistas de esta prueba</summary><div class="vp-hints-body"><ol class="vp-hint-list"></ol><button type="button" class="vp-hint-table" hidden>Ver la tabla de Vigenère</button><button type="button" class="vp-hint-more">Revelar la primera pista</button><small class="vp-hint-status"></small></div></details></div></section></div>
-      <footer class="vp-footer"><details class="vp-privacy"><summary>Opciones</summary><div class="vp-options"><label><input type="checkbox" data-vp-consent> Permitir contadores anónimos de uso de la demo, incluida la apertura del pase al terminar. Si llegué por invitación, también se contarán mi visita y mi solicitud de aviso. Opcional.</label><details class="vp-restart"><summary>Empezar de nuevo</summary><p>Se borrarán tus respuestas y pistas de esta partida.</p><button type="button" class="vp-reset">Reiniciar la demo</button></details></div></details>
+      <footer class="vp-footer"><details class="vp-privacy"><summary>Opciones</summary><div class="vp-options"><p data-save-info></p><label><input type="checkbox" data-vp-consent> Permitir contadores anónimos de uso de la demo, incluida la apertura del pase al terminar. Si llegué por invitación, también se contarán mi visita y mi solicitud de aviso. Opcional.</label><details class="vp-restart"><summary>Empezar de nuevo</summary><p>Se borrará el progreso de Clínica Vallejo guardado en este navegador.</p><button type="button" class="vp-reset">Reiniciar la demo</button></details></div></details>
       <div class="vp-footer-actions"><button class="vp-prev" type="button">Anterior</button><button class="vp-next" type="button">Siguiente</button><button class="vp-proceed vp-next-session" type="button" hidden>Abrir la siguiente sesión</button></div></footer><p class="vp-live" role="status" aria-live="polite"></p></div>`;
     const q = selector => host.querySelector(selector);
+    q('.vp-privacy').addEventListener('toggle',()=>{
+      q('[data-save-info]').textContent = memoryOnly ? 'Esta demo se conserva mientras mantengas la pestaña abierta.' : 'Tu demo se guarda en este navegador. Al volver, continuarás desde la última pista que consultaste.';
+    });
     q('.vp-play-mode select').value=st.playMode;
     q('.vp-play-mode select').addEventListener('change',event=>{
       st.playMode=event.target.value==='duo'?'duo':'solo';
-      if(st.mode==='table')tableCards(st);
-      else if(st.mode==='original')updateNav();
+      updateNav();
       note(st.playMode==='duo'?'En pareja. Una persona consulta el Archivo y la otra examina las pruebas.':'En solitario. Puedes consultar los dos grupos de pistas.');
     });
     Object.assign(st, { shell: q('.vp-shell'), sessionCaption: q('[data-vp-caption]'), side: q('.vp-side'), shelfToggle: q('.vp-shelf-toggle'), sideList: q('.vp-doc-list'), sessionList: q('.vp-sessions'), heading: q('.vp-doc-title'), reader: q('.vp-reader'), zoom: q('.vp-zoom'), status: q('.vp-live'), previous: q('.vp-prev'), next: q('.vp-next'), nextSession: q('.vp-next-session'), offer: q('.vp-finale') });
@@ -533,7 +609,10 @@
     q('.vp-season-actions').append(...(member ? [cases, plans] : [plans, cases]),seasonLink('tableros','Ver los cuatro tableros',false));
     q('.vp-close').addEventListener('click', event => { event.stopPropagation(); suspend(); });
     q('.vp-reset').addEventListener('click', () => {
+      const round = (readSave()?.round || 0) + 1;
       close();
+      writeSave({version:1,round});
+      notifyProgress();
       open();
     });
     st.hintMore.addEventListener('click', () => revealHint(st));
@@ -565,7 +644,6 @@
   function dispose(st) {
     if (state !== st) return;
     st.observers.forEach(observer => observer.disconnect());
-    root.clearTimeout(st.hintTimer);
     const host = dialog();
     host?.querySelectorAll('audio').forEach(player => player.pause());
     host?.removeEventListener('close', st.onClose);
@@ -573,15 +651,16 @@
     host?.classList.remove('vallejo-player');
     host?.replaceChildren();
     state = null;
+    notifyProgress();
     if (st.trigger?.isConnected) st.trigger.focus({ preventScroll: true });
   }
   function suspend() {
     const st = state, host = dialog();
     if (!st || !host?.open) return;
     st.paused = true;
-    root.clearTimeout(st.hintTimer);
     host.querySelectorAll('audio').forEach(player => player.pause());
     host.close();
+    notifyProgress();
     if (st.trigger?.isConnected) st.trigger.focus({ preventScroll: true });
   }
   function dismiss(st, event) {
@@ -619,7 +698,9 @@
     const trigger = document.activeElement;
     const parent = document.getElementById('modal');
     if (parent?.open) parent.close();
-    const st = { sessions: sessions(), section: 0, index: 0, mode:'table', playMode:'solo', consulted:new Set(), receiptConfirmed:false, lastIndex: [], panes: new Map(), unlocked: new Set(), counted: new Set(), hintHistory: new Map(), observers: [], trigger, paused: false };
+    const saved = readSave();
+    const st = { sessions: sessions(), section: 0, index: 0, mode:'table', playMode:'solo', consulted:new Set(), receiptConfirmed:false, lastIndex: [], panes: new Map(), unlocked: new Set(), counted: new Set(), hintHistory: new Map(), observers: [], trigger, paused: false, round:saved?.round || 0, hasBookmark:!!saved?.playMode };
+    restoreBookmark(st,saved);
     state = st;
     if (root.InvitationCounts?.enabled) consent = true;
     host.classList.add('vallejo-player');
@@ -630,6 +711,8 @@
     host.addEventListener('cancel', st.onCancel);
     if (!host.open) host.showModal();
     if (requested) openMedium(st,requested,0);
+    else if (saved?.mode === 'tool' && (saved.tool === 'audio' || saved.tool === 'web') && tableMedia[st.section].some(m=>m.tool===saved.tool)) openMedium(st,saved.tool,st.section);
+    else if (saved?.mode === 'original') select(st.section,st.index);
     else showTable(st);
     count('demo_start');
   }
@@ -637,6 +720,6 @@
     const trigger = event.target.closest?.('[data-action="preview-open"]');
     if (trigger) open(trigger.dataset.vpFormat);
   });
-  root.CasePreview = { open, close };
+  root.CasePreview = { open, close, hasProgress };
   if (document.body?.dataset.vallejoStandalone === 'true') open();
 })(window);

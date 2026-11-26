@@ -121,5 +121,134 @@
     }
     load(access);
   }
-  window.SellosTemporada=Object.freeze({view,mount});
+  function element(tag,text,cls) {
+    const node=document.createElement(tag);
+    if(text!=null)node.textContent=text;
+    if(cls)node.className=cls;
+    return node;
+  }
+  function link(label,href,cls) {
+    const a=element('a',label,cls);a.href=href;return a;
+  }
+  function calendarLine(line) {
+    // An iCalendar line may contain at most 75 octets, including a continuation space.
+    const encoder=new TextEncoder(),lines=[];
+    let current='',size=0;
+    for(const character of line){
+      const bytes=encoder.encode(character).length;
+      if(size+bytes>75){lines.push(current);current=' ';size=1;}
+      current+=character;size+=bytes;
+    }
+    lines.push(current);return lines.join('\r\n');
+  }
+  function planSession(story,href) {
+    const details=element('details',null,'ss-plan-session');
+    details.append(element('summary','Elegir fecha para jugar'));
+    const form=element('form'),label=element('label','Fecha y hora local de la partida');
+    const input=element('input');input.type='datetime-local';input.required=true;
+    label.append(input);
+    const save=element('button','Descargar cita de 60 minutos');save.type='submit';
+    const status=element('span');status.setAttribute('role','status');
+    form.append(label,save,status);details.append(form);
+    form.addEventListener('submit',event=>{
+      event.preventDefault();
+      const start=new Date(input.value);
+      if(!Number.isFinite(start.getTime())||start.getTime()<=Date.now()){
+        status.textContent='Elige una fecha y una hora futuras.';input.focus();return;
+      }
+      const stamp=date=>date.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+      const title=story.title.replace(/\\/g,'\\\\').replace(/\r\n?|\n/g,'\\n').replace(/([,;])/g,'\\$1');
+      const url=new URL(href,location.origin+'/').href;
+      const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//La Ultima Pieza//Partidas//ES','CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT','UID:'+crypto.randomUUID()+'@laultimapieza.es','DTSTAMP:'+stamp(new Date()),
+        'DTSTART:'+stamp(start),'DTEND:'+stamp(new Date(start.getTime()+3600000)),
+        'SUMMARY:La Última Pieza · '+title,'URL:'+url,'END:VEVENT','END:VCALENDAR'];
+      const file=URL.createObjectURL(new Blob([lines.map(calendarLine).join('\r\n')+'\r\n'],{type:'text/calendar;charset=utf-8'}));
+      const download=link('',file);download.download='la-ultima-pieza-caso-'+story.id+'.ics';download.hidden=true;
+      form.append(download);download.click();download.remove();
+      setTimeout(()=>URL.revokeObjectURL(file),30000);
+      status.textContent='Abre el archivo de la cita en tu calendario para añadirla.';
+    });
+    return details;
+  }
+  function afterCase(id,bridge,snapshot) {
+    const n=Math.ceil(id/12),local=(id-1)%12+1,offset=(n-1)*12,season=seals[n-1];
+    const panel=element('section',null,'ss-aftercase');
+    panel.setAttribute('aria-label','Tu sello y la próxima partida');
+    const status=element('p','Consultando las piezas de tu sello.');status.setAttribute('role','status');
+    panel.append(status);
+    const sealUrl='#'+season.world+'?lugar='+local+'&seccion=sello';
+    const sealLink=complete=>link(complete?'Ver el sello y su epílogo':'Ver mi sello',sealUrl,'ss-case-seal');
+    function draw(access) {
+      const pass=access?.seasons?.find(s=>s.number===n);
+      if(!Array.isArray(pass?.seal?.earned)||!Array.isArray(access?.availableCases))throw Error();
+      const pieces=new Set(pass.seal.earned.filter(piece=>Number.isInteger(piece)&&piece>=1&&piece<=12));
+      if(!pieces.has(local))throw Error();
+      const complete=pieces.size===12 && pass.seal.complete===true;
+      const membership=window.ClubAccess?.state||{},editor=membership.role==='admin';
+      const available=access.availableCases.filter(caseId=>Math.ceil(caseId/12)===n&&!pieces.has(caseId-offset)).sort((a,b)=>a-b);
+      const nextCase=available.find(caseId=>caseId>id)??available[0];
+      const image=element('figure',null,'ss-art');
+      image.innerHTML=drawing(n);image.setAttribute('aria-hidden','true');
+      for(const part of image.querySelectorAll('[data-piece]')){
+        part.dataset.won=String(pieces.has(Number(part.dataset.piece)));
+        if(Number(part.dataset.piece)===local)part.dataset.current='true';
+      }
+      const info=element('div',null,'ss-return-info'),actions=element('div',null,'ss-return-actions');
+      const piece=element('p','Pieza '+number(local)+' · '+season.name,'ss-return-piece');
+      const count=element('h3',complete?'Sello completo · 12 de 12':pieces.size+' de 12 piezas');
+      info.append(piece,count);
+      if(complete){
+        actions.append(sealLink(true));
+        const next=seals[n],nextPass=access.seasons.find(s=>s.number===n+1);
+        if(next){
+          const hasNext=access.availableCases.some(caseId=>Math.ceil(caseId/12)===n+1);
+          if(hasNext){
+            info.append(element('p','Puedes visitar el tablero de '+next.season+'.'));
+            actions.append(link('Explorar '+next.season,'#'+next.world));
+          }else{
+            info.append(element('p','Tu siguiente temporada es '+next.season+'. Su pase se contrata por separado.'));
+            const canPurchase=access.nextPurchase?.number===n+1 && nextPass?.previousReady;
+            actions.append(link(canPurchase?'Consultar el siguiente pase':'Descubrir '+next.season,canPurchase?'#planes':'#'+next.world));
+          }
+        } else {
+          info.append(element('p','El epílogo de la necrópolis cierra el cuarto tablero.'));
+          actions.append(link('Ver los cuatro tableros','#tableros'));
+        }
+      } else if(nextCase){
+        const story=n===1?window.ValdemarCatalog?.get(nextCase):window.Mundos?.story(nextCase);
+        if(!story)throw Error();
+        const url='#'+(n===1?'valdemar-jugar':'mundos-jugar')+'?id='+nextCase;
+        actions.append(link('Jugar a «'+story.title+'»',url,'ss-next-case'),sealLink(false));
+        info.append(actions,planSession(story,url));
+      } else {
+        const paidBlocks=Array.isArray(pass.paidBlocks)?pass.paidBlocks.length:0;
+        if(!editor && paidBlocks>0 && paidBlocks<3){
+          const period=membership.ownAccess && Number.isFinite(membership.periodEnd) && membership.periodEnd>Date.now()
+            ?' Tu periodo abonado termina el '+new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'long',year:'numeric'}).format(membership.periodEnd)+'.':'';
+          info.append(element('p','Has resuelto los casos disponibles. El siguiente bloque se abre cuando se confirme otra cuota de esta temporada.'+period));
+          actions.append(sealLink(false),link('Consultar mi pase','#planes'));
+        } else actions.append(sealLink(false),link('Explorar el tablero','#'+season.world));
+      }
+      if(!actions.parentNode)info.append(actions);
+      panel.dataset.sealRecovered=String(pieces.size);panel.dataset.season=String(n);
+      panel.replaceChildren(image,info);
+    }
+    async function load(access) {
+      status.textContent='Consultando las piezas de tu sello.';panel.replaceChildren(status);
+      panel.setAttribute('aria-busy','true');
+      try{
+        const data=await (access||bridge.request('/api/valdemar/seasons'));
+        if(panel.isConnected && bridge.isSignedIn())draw(data);
+      }catch{
+        if(!panel.isConnected || !bridge.isSignedIn())return;
+        status.textContent='Tu desenlace está guardado. No se ha podido actualizar el sello.';
+        const retry=element('button','Volver a consultar');retry.type='button';retry.addEventListener('click',()=>load());
+        panel.append(retry,sealLink(false));
+      }finally{panel.removeAttribute('aria-busy');}
+    }
+    load(snapshot);
+    return panel;
+  }
+  window.SellosTemporada=Object.freeze({view,mount,afterCase});
 })();

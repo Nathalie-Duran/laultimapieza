@@ -17,9 +17,9 @@
       number:3, offset:24, title:'Umbravía', short:'Umbravía',
       genre:'Terror psicológico',station:'Lugar',count:'lugares',progress:'faroles encendidos',done:'Caso resuelto, farol encendido.',notebook:'Archivo del pueblo',
       previous:{from:'del Tablero de Ámbar',back:'Volver al Tablero de Ámbar',href:'#expedicion'},
-      image:'/umbravia-abandonada.webp', imageAlt:'Pueblo abandonado a la luz de la luna. Bajo la niebla, un carrusel inmóvil, un cine tapiado y un campanario dominan las calles desiertas.',
-      intro:'Las calles están vacías. En el cine, una silueta cruza la pantalla desconectada. Elige qué puerta abrir.',
-      seal:'Farol de Umbravía',
+      image:'/umbravia-farol.webp', imageAlt:'Un farol de vidrio verde ilumina el pueblo abandonado. Entre la niebla se distinguen el carrusel, el cine y el campanario.',
+      intro:'En el cine, una silueta cruza la pantalla desconectada. Elige una puerta para investigar o toca el farol verde para ver las piezas de tu sello.',
+      seal:'Farol de Umbravía',sealCenter:[52.3,78.7],
       boardLabel:'Calles del pueblo abandonado de Umbravía', index:'Directorio del pueblo',
       selectLabel:'Localizar', launch:'Entrar en el caso', returnLabel:'Volver al pueblo',
       positions:[[17,27],[36,28],[63,28],[80,30],[13,46],[36,44],[60,49],[84,45],[17,77],[36,70],[61,73],[87,76]]
@@ -63,7 +63,9 @@
   }
   function sealLink(edition,world,local,onBoard=false) {
     if(!edition.seal)return '';
-    const label=world==='necropolis'&&!onBoard?'Ver las piezas del disco':'Ver el '+edition.seal;
+    let label='Ver el '+edition.seal;
+    if(world==='necropolis'&&!onBoard)label='Ver las piezas del disco';
+    if(world==='umbravia'&&onBoard)label='Abrir el sello del Farol de Umbravía';
     const position=onBoard?` style="--x:${edition.sealCenter[0]}%;--y:${edition.sealCenter[1]}%"`:'';
     return `<a class="${onBoard?'md-gem-link':'md-seal-link'}" href="#${world}?lugar=${local}&amp;seccion=sello"${position}>${onBoard?'<span>'+esc(label)+'</span>':esc(label)}</a>`;
   }

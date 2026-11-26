@@ -5,7 +5,20 @@ if(document.body.dataset.vallejoStandalone==='true')return;
 document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-action]'),action=button?.dataset.action;
  if(!['waitlist','billing-checkout','billing-portal','season-ending'].includes(action))return;
- const bridge=root.GameAccountBridge;if(!bridge.isSignedIn()){root.AccountUI.open();bridge.toast('Inicia sesión y vuelve a pulsar para confirmar tu solicitud.');return;}
+ const bridge=root.GameAccountBridge;
+ if(!bridge.isSignedIn()){
+   if(action==='billing-checkout'){
+     const season=Number(button.dataset.season);
+     if(!root.ClubAccess.checkoutAvailable||![1,2,3,4].includes(season))return;
+     history.replaceState(history.state,'','#planes?revisar='+season);
+     root.AccountUI.open();
+     bridge.toast('Entra en tu cuenta para revisar tu pase.');
+   }else{
+     root.AccountUI.open();
+     bridge.toast('Inicia sesión para continuar.');
+   }
+   return;
+ }
  if(button.disabled)return;button.disabled=true;
  try{
   if(action==='waitlist'){await bridge.request('/api/waitlist',{enabled:button.dataset.enabled==='true'},'PUT');await bridge.refresh();bridge.toast(button.dataset.enabled==='true'?'Solicitud de aviso guardada. No se ha realizado ningún cobro.':'Solicitud retirada.');}

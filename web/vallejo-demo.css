@@ -384,6 +384,10 @@
 .vp-shell .vp-intake-tool.vp-entry { border-top:5px solid #737d5e; border-left:1px solid #ad9e76; }
 .vp-shell .vp-entry-table tr[data-matched=true] :is(td,th) { background:#cbdcbe; color:#244136; font-weight:650; }
 .vp-shell .vp-intake-tool .vp-entry-next:not([hidden]) { margin-top:.8rem; background:#34583f; border-color:#34583f; color:#fff3d9; }
+.vp-shell .vp-receipt-actions:not([hidden]) { display:flex; align-items:center; flex-wrap:wrap; gap:.45rem 1.1rem; margin-top:1rem; }
+.vp-shell .vp-receipt-actions .vp-entry-next:not([hidden]) { margin:0; min-height:44px; }
+.vp-shell .vp-receipt-actions .vp-season-link { display:inline-flex; align-items:center; min-height:44px; padding:.3rem 0; color:#294b3b; border:0; background:transparent; text-decoration:underline; text-underline-offset:.22em; }
+.vp-shell .vp-receipt-actions .vp-season-link:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
 .vp-shell .vp-intake-tool.vp-intake-audio { max-width:35.5rem; }
 .vp-shell .vp-intake-audio::before {
  content:""; display:block; height:clamp(4.5rem,16vh,8rem); margin:0 0 1rem; border:1px solid #80724f; border-radius:3px;

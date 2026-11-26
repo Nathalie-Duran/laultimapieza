@@ -346,13 +346,13 @@
       const choice=story.choices.find(o=>o.id===progress.choice);
       const outcome=element('article',null,'vd-outcome');
       outcome.append(element('h3','Tu desenlace'),element('p',choice?.label||'Decisión guardada','vd-eyebrow'),element('p',progress.outcome||'Tu decisión ha quedado guardada para esta historia.'));
-      section.append(outcome,link('Regresar al catálogo',c.catalog,'vd-link'));
+      section.append(outcome,window.SellosTemporada.afterCase(c.id,c.bridge,c.endingAccess),link('Regresar al catálogo',c.catalog,'vd-link'));
       return;
     }
     section.append(decisionButtons(story.choices,'¿Cómo termina vuestra historia? La decisión quedará guardada.','Guardar mi desenlace',(choice,send,status)=>run(c,'ending',async()=>{
       send.disabled=true;
       const result=await request(c,'ending',{choice});
-      c.data.progress=result.progress;renderEnding(c);c.ending.focus({preventScroll:true});
+      c.data.progress=result.progress;c.endingAccess=result.seasonAccess;renderEnding(c);c.ending.focus({preventScroll:true});
     },e=>{send.disabled=false;status.textContent=errorMessage(e);})));
   }
   function build(c) {

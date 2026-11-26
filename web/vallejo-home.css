@@ -95,6 +95,41 @@
   font-size: .86rem;
   line-height: 1.45;
 }
+.vh-hero .vh-pass-line {
+  max-width: 47ch;
+  margin: 1.05rem 0 0;
+  padding-top: .8rem;
+  border-top: 1px solid #52645a;
+  color: #dde2d6;
+  font-size: .96rem;
+  line-height: 1.5;
+}
+.vh-pass-line strong { color: #fff2d9; font-weight: 600; }
+.vh-pass-line a { color: #f5ce95; text-underline-offset: .2em; }
+home-resume { display: block; }
+home-resume .vh-resume-card {
+  display: flex;
+  align-items: center;
+  gap: clamp(.8rem,2vw,1.6rem);
+  padding: .9rem clamp(1rem,2vw,1.75rem);
+  background: #172726;
+  border-color: #566f63;
+}
+.vh-resume-card > img {
+  flex: 0 0 auto; width: clamp(4rem,7vw,7rem); height: auto;
+  aspect-ratio: 1.4; object-fit: cover; border-radius: .35rem;
+}
+.vh-resume-card > div { min-width: 0; flex: 1; }
+home-resume .vh-resume-card p { font-size: .94rem; color: #d3ded3; line-height: 1.45; }
+home-resume .vh-resume-card .button { min-height: 44px; }
+@media(max-width:640px) {
+  home-resume .vh-resume-card {
+    display: grid; grid-template-columns: auto minmax(0,1fr); gap: .65rem .85rem;
+  }
+  home-resume .vh-resume-card > div:first-child,
+  home-resume .vh-resume-card .button { grid-column: 1/-1; }
+  home-resume .vh-resume-card img { width: 4.25rem; }
+}
 .vh-evidence {
   position: relative;
   justify-self: center;

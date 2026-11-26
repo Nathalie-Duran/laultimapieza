@@ -139,6 +139,7 @@
       try{
         const r=await request(c,action,action==='deduce'?{hypothesis:choice}:{choice});
         c.data.progress=r.progress;
+        if(action==='ending')c.endingAccess=r.seasonAccess;
         if(action==='deduce' && !r.correct) status.textContent='Queda una prueba sin explicar. Contrasta las fuentes del cuaderno antes de volver a intentarlo.';
         else{renderEnd(c);c.panels.end.focus({preventScroll:true});}
       }catch(e){
@@ -163,7 +164,7 @@
     if(progress.deduction)target.append(el('p',progress.deduction,'md-hint'));
     if(progress.choice){
       const name=story.choices.find(o=>o.id===progress.choice)?.label;
-      target.append(el('h3',name||'Tu decisión'),el('p',progress.outcome),link(worlds.edition(c.item.world).returnLabel,worlds.route(c.item.world,c.item.id),'md-cta'));
+      target.append(el('h3',name||'Tu decisión'),el('p',progress.outcome),window.SellosTemporada.afterCase(c.item.id,c.bridge,c.endingAccess),link(worlds.edition(c.item.world).returnLabel,worlds.route(c.item.world,c.item.id),'md-cta'));
     } else target.append(concludeForm(c,story.choices,'¿Cómo queréis cerrar esta historia? La decisión quedará guardada.','Guardar desenlace','ending'));
   }
   function renderSide(c,feedback) {

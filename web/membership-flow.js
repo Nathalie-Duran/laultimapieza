@@ -43,10 +43,12 @@ function plans(){
  const number=(state.ownAccess && current ? current.number : offer?.number)||current?.number||1;
  const held=current?.number===number ? current : null;
  const route=seasonRoutes[number-1],name=seasonNames[number-1];
+ const requested=typeof location!=='undefined'&&new URLSearchParams(location.hash.split('?')[1]).get('revisar');
+ const reviewing=!!(requested && root.GameAccountBridge?.isSignedIn() && config.checkoutAvailable && offer?.number===Number(requested) && !state.ownAccess);
  const checkout=state.ownAccess
    ? '<button class="button primary wide" data-action="billing-portal">Gestionar mi suscripción</button>'
    : (!access||offer)
-     ? `<button class="button primary wide" data-action="billing-checkout" data-season="${number}">Contratar el pase de ${name} · 29,95 €/mes</button>`
+     ? `<button class="button primary wide" data-action="billing-checkout" data-season="${number}">${reviewing?'Continuar al pago seguro':'Contratar el pase de '+name+' · 29,95 €/mes'}</button>`
      : `<a class="button primary wide" href="#${route}">Volver a ${name}</a>`;
  const terms=`<p><a href="${esc(config.termsUrl)}" rel="noopener" target="_blank">Condiciones</a> · <a href="${esc(config.privacyUrl)}" rel="noopener" target="_blank">Privacidad</a></p>`;
  const action=config.checkoutAvailable?checkout+terms:held?.finishAccess?'<a class="button primary wide" href="#'+route+'">Volver a '+name+'</a>':interest();
@@ -66,12 +68,12 @@ function plans(){
    </header>
    <div class="club-plan-grid">
      <article class="club-plan season-pass">
-       <h2>El pase de ${name}</h2>
+       <h2 id="pass-review-title" tabindex="-1">${reviewing?'Revisa tu pase de '+name:'El pase de '+name}</h2>
        <p class="club-price"><strong>29,95 €</strong><span>/ mes</span></p>
        <p class="club-small offer-availability">${config.checkoutAvailable||held?'IVA incluido.':'Precio previsto, IVA incluido. La suscripción abrirá próximamente.'}</p>
-       <p class="pass-benefit"><strong>Cuatro historias con cada pago mensual.</strong> Comparte la pantalla o juega a solas. Investiga audios, imágenes, documentos y archivos web, con un reto paralelo en cada historia.</p>
+       <p class="pass-benefit"><strong>Cuatro misterios de unos 60 minutos con cada cuota.</strong> Un solo pase sirve para jugar a solas o en pareja compartiendo pantalla. Si jugáis los cuatro, cada partida sale a unos 7,49 € en total.</p>
        <p class="postal-terms">${costText} ${cycles?'Puedes cancelar antes de la próxima renovación.':held?.finishAccess?'Puedes volver a los doce juegos desde tu cuenta.':'Cuando termines la temporada anterior se abrirán los juegos de este pase.'}</p>
-       <p>Recibes una llave al contratar cada nueva suscripción. La bienvenida se entrega una vez por suscripción. Cada reto superado por primera vez da otra llave. Una llave abre un sobre con dos ayudas.</p>
+       <p>Investiga audios, imágenes, textos y archivos web. Al contratar recibes una llave de bienvenida. Puedes ganar otra la primera vez que superas el reto paralelo de cada caso. Cada llave abre un sobre con dos ayudas.</p>
        ${action}
      </article>
      <div class="club-plan-aside">
@@ -89,7 +91,7 @@ function plans(){
    </div>
  </section>`;
 }
-root.ClubAccess={...old,plans,enrollment:plans,banner(){return state.role==='admin'?'<aside class="paid-banner" aria-label="Acceso de administradora"><span class="paid-dot" aria-hidden="true"></span><p><strong>Administradora: todos los retos disponibles.</strong> Sin suscripci&oacute;n ni cobros.</p><a href="'+(state.canManage===true?'#gestion':'#casos')+'">'+(state.canManage===true?'Abrir gestión':'Explorar retos')+'</a></aside>':old.banner();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){state=value||{canPlay:false};},account(){
+root.ClubAccess={...old,plans,enrollment:plans,banner(){return state.role==='admin'?'<aside class="paid-banner" aria-label="Acceso de administradora"><span class="paid-dot" aria-hidden="true"></span><p><strong>Administradora: todos los retos disponibles.</strong> Sin suscripci&oacute;n ni cobros.</p><a href="'+(state.canManage===true?'#gestion':'#casos')+'">'+(state.canManage===true?'Abrir gestión':'Explorar retos')+'</a></aside>':(state.canPlay||state.seasonAccess?.availableCases?.length)?'':old.banner();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){state=value||{canPlay:false};},account(){
  if(state.role==='admin') return adminCard();
  const access=state.seasonAccess;
  const current=access?.seasons?.filter(s=>s.paidBlocks.length).at(-1);

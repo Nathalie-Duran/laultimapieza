@@ -45,7 +45,9 @@
 .colecciones-card[data-board=expedicion]::before {background:linear-gradient(90deg,#1c130d 0%,#1c130df5 26%,#1c130d75 52%,transparent 77%);}
 .colecciones-card[data-board=expedicion]>span {width:54%;}
 .colecciones-card[data-board=umbravia] {background:#0b1117;border-color:#49565e;}
-.colecciones-card[data-board=umbravia]::before {background:linear-gradient(75deg,#090f16f5 0%,#101821df 24%,#1018207a 53%,transparent 86%);}
+.colecciones-card[data-board=umbravia] img {left:auto;width:68%;object-position:50% 88%;}
+.colecciones-card[data-board=umbravia]::before {background:linear-gradient(90deg,#0b1117 29%,#0b1117de 38%,#0b11173b 58%,transparent 72%);}
+.colecciones-card[data-board=umbravia]>span {width:59%;}
 @media(max-width:900px) and (min-width:641px),(max-width:440px){
   .colecciones-card[data-board=expedicion]>span {width:65%;}
   .colecciones-card[data-board=expedicion] img {width:69%;}

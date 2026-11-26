@@ -34,7 +34,11 @@
     if(!user){bridge.render();return;}
     if(!user.emailVerified){bridge.render();verification();return;}
     bridge.loading(true);
-    try{await bridge.load();if(run!==sequence)return;bridge.loading(false);bridge.close();bridge.render();bridge.continueSetup();}
+    try{
+      await bridge.load();if(run!==sequence)return;
+      bridge.loading(false);bridge.close();bridge.render();bridge.continueSetup();
+      if(/^#planes\?revisar=[1-4]$/.test(location.hash))document.getElementById('pass-review-title')?.focus();
+    }
     catch(e){if(run!==sequence)return;bridge.loading(false);bridge.render();bridge.toast(e.message);}
   }
   async function logout(){

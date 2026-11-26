@@ -34,7 +34,7 @@ function invitationPath(s){return '/caso/'+encodeURIComponent(s.id)+'/';}
 
 function shareBox(s,path){if(!s)return '';const url='https://www.laultimapieza.es'+(path||invitationPath(s))+'?via=invitacion';const message='¿Resolvemos «'+s.title+'» juntos? '+url;return `<details class="case-share"><summary>¿Con quién lo resolverías?</summary><div><a href="https://wa.me/?text=${encodeURIComponent(message)}" target="_blank" rel="noopener noreferrer">Proponerlo por WhatsApp ↗</a><button type="button" data-copy-invite="${esc(url)}">Copiar enlace</button></div><p role="status" aria-live="polite"></p></details>`;}
 
-function invitation(s,m){if(!s)return home(m);const i=s.episode-1;const month=s.season===1?Math.ceil(s.episode/4):0;const hook=s.season===1&&openingQuestions[i];return `<article class="invite-page"><div class="invite-content"><a class="text-link" href="${month?'#archivo-clasico?mes='+month:'#archivo-clasico'}">${month?'Ver el mes '+month+' del archivo clásico':'Ver el archivo clásico'}</a><p class="ui-kicker">${month?'ARCHIVO CLÁSICO · MES '+month:'CASO ADICIONAL'} · ${s.id==='cartas-medianoche'?'≈60':month?'30–45':'15–25'} MIN · 1–2 PERSONAS</p><h1>${esc(s.title)}</h1>${hook?`<p class="invite-question">${esc(hook)}</p>`:''}<p class="invite-description">${esc(s.description)}</p>${m.canPlay?callToPlay(s,m):`<button class="button primary" data-action="preview-open">Jugar a Clínica Vallejo gratis</button><p class="action-note">Abre la caja 87-V de la Clínica Vallejo. Sin cuenta ni tarjeta.</p><a class="text-link" href="#planes">Ver la temporada · 29,95 €/mes</a>`}${shareBox(s)}${m.referred?`<details class="invite-privacy"><summary>Privacidad de esta visita</summary><label><input type="checkbox" data-invite-counts ${root.InvitationCounts?.enabled?'checked':''}> Permitir contadores anónimos de la visita, el inicio de la demo y la solicitud de aviso. Opcional.</label></details>`:''}</div><figure class="invite-poster"><img src="${sceneImage(s)||invitationPath(s)+'portada.png'}" width="1200" height="630" alt="" fetchpriority="high"></figure></article>`;}
+function invitation(s,m){if(!s||s.id==='habitacion-309')return catalog(m);const i=s.episode-1;const month=s.season===1?Math.ceil(s.episode/4):0;const hook=s.season===1&&openingQuestions[i];return `<article class="invite-page"><div class="invite-content"><a class="text-link" href="${month?'#archivo-clasico?mes='+month:'#archivo-clasico'}">${month?'Ver el mes '+month+' del archivo clásico':'Ver el archivo clásico'}</a><p class="ui-kicker">${month?'ARCHIVO CLÁSICO · MES '+month:'CASO ADICIONAL'} · ${s.id==='cartas-medianoche'?'≈60':month?'30–45':'15–25'} MIN · 1–2 PERSONAS</p><h1>${esc(s.title)}</h1>${hook?`<p class="invite-question">${esc(hook)}</p>`:''}<p class="invite-description">${esc(s.description)}</p>${m.canPlay?callToPlay(s,m):`<button class="button primary" data-action="preview-open">Jugar a Clínica Vallejo gratis</button><p class="action-note">Abre la caja 87-V de la Clínica Vallejo. Sin cuenta ni tarjeta.</p><a class="text-link" href="#planes">Ver la temporada · 29,95 €/mes</a>`}${shareBox(s)}${m.referred?`<details class="invite-privacy"><summary>Privacidad de esta visita</summary><label><input type="checkbox" data-invite-counts ${root.InvitationCounts?.enabled?'checked':''}> Permitir contadores anónimos de la visita, el inicio de la demo y la solicitud de aviso. Opcional.</label></details>`:''}</div><figure class="invite-poster"><img src="${sceneImage(s)||invitationPath(s)+'portada.png'}" width="1200" height="630" alt="" fetchpriority="high"></figure></article>`;}
 const sceneCovers = new Set(["cartas-medianoche","ultima-funcion","archivo-ausencias","marea-quieta","habitacion-309","frecuencia-17","jardin-invierno","retrato-prestado","mesa-13","tren-detenido","ciudad-invisible","ultimo-coro","ultima-invitacion"]);
 function sceneImage(s){return s && sceneCovers.has(s.id) ? '/' + s.id + '.jpg' : '';}
 
@@ -51,10 +51,11 @@ function coverStory(m) {
      <h1 id="vh-title">¿Qué ocurrió en la <em>Sala 7?</em></h1>
      <p class="vh-lead">En 1987 desapareció el doctor Vallejo. Sus seis pacientes sobrevivieron, pero ninguno recuerda aquella noche. Esta madrugada, el Archivo te ha enviado la primera ficha de la caja 87-V.</p>
      <div class="vh-actions">
-       <button type="button" class="button primary" data-action="preview-open">Jugar la demo gratis</button>
+       <button type="button" class="button primary" data-action="preview-open" data-home-demo>${demoAction()}</button>
        ${m.canPlay?'<a class="vh-secondary" href="#casos">Ir a mis casos</a>':'<button type="button" class="vh-secondary" data-action="page-section" data-target="shelf-title">Ver los casos del primer mes</button>'}
      </div>
-     <p class="vh-meta">A solas o en pareja · Sin cuenta ni tarjeta</p>
+     <p class="vh-meta">Demo sin cuenta ni tarjeta.</p>
+     <p class="vh-pass-line">El pase incluye <strong>cuatro misterios al mes de unos 60 minutos cada uno</strong>, para jugar a solas o en pareja compartiendo pantalla. <a href="#planes">${root.ClubAccess?.checkoutAvailable===true?'29,95 €/mes, IVA incluido':'Precio previsto de 29,95 €/mes'}</a>.</p>
    </div>
    <figure class="v87-cover-art">
      <img src="/vallejo-mesa-87v.webp" width="1536" height="1024" alt="Una casete, un plano y la fotografía de un pasillo en la mesa del archivo." fetchpriority="high">
@@ -65,6 +66,14 @@ function coverStory(m) {
    </div>
  </section>`;
 }
+
+function demoAction(){
+ return root.CasePreview?.hasProgress?.()?'Continuar la demo':'Jugar la demo gratis';
+}
+root.addEventListener?.('case-preview-progress',()=>{
+ const button=root.document?.querySelector('[data-home-demo]');
+ if(button)button.textContent=demoAction();
+});
 
 function homeSeasonOffer(m) {
  const held=m.membership?.seasonAccess?.seasons?.filter(s=>s.paidBlocks.length).at(-1);
@@ -83,11 +92,78 @@ function homeSeasonOffer(m) {
  </section>`;
 }
 
+function activityTime(value){
+ const stamp=typeof value==='number'?value:Date.parse(value);
+ return Number.isFinite(stamp)?stamp:0;
+}
+function classicReturn(m){
+ if(!m.canPlay)return null;
+ let recent=null;
+ for(const game of m.sessions||[]){
+   if(game.caseId==='habitacion-309'||game.status==='finished'||!game.members?.some(p=>p.userId===m.userId))continue;
+   const story=m.stories?.find(s=>s.id===game.caseId);
+   if(!story)continue;
+   const invited=game.ownerId&&game.ownerId!==m.userId&&Array.isArray(m.membership?.guestOwners);
+   if(invited&&!m.membership.guestOwners.includes(game.ownerId))continue;
+   if(!invited&&root.MonthlyAccess&&!root.MonthlyAccess.allowed(story,m))continue;
+   const time=activityTime(game.updatedAt)||activityTime(game.history?.at(-1)?.createdAt)||activityTime(game.createdAt);
+   if(recent&&recent.time>=time)continue;
+   const moves=game.history?.length||0;
+   recent={time,title:story.title,image:sceneImage(story),sessionId:game.id,
+     detail:'Archivo clásico · '+(game.mode==='duo'?'En pareja':'En solitario')+' · '+moves+(moves===1?' decisión completada':' decisiones completadas')};
+ }
+ return recent;
+}
+function seasonReturn(games){
+ const eligible=games.filter(g=>g.available&&!g.finished&&Number.isInteger(g.id)&&g.id>=1&&g.id<=48)
+   .sort((a,b)=>activityTime(b.updatedAt)-activityTime(a.updatedAt)||b.current-a.current||a.id-b.id);
+ for(const game of eligible){
+   const first=game.id<=12;
+   const story=first?root.ValdemarCatalog?.get(game.id):root.Mundos?.story(game.id);
+   if(!story)continue;
+   const stage=game.current>=game.total?'Desenlace pendiente':'Etapa '+(game.current+1)+' de '+game.total;
+   const detail=[first?'Valdemar':root.Mundos.nameOf(story.world),stage,
+     game.mode==='duo'?'En pareja':game.mode==='solo'?'En solitario':''].filter(Boolean).join(' · ');
+   return {time:activityTime(game.updatedAt),title:story.title,detail,image:first?story.image:'/mundo-'+game.id+'.webp',
+     href:'#'+(first?'valdemar-jugar':'mundos-jugar')+'?id='+game.id};
+ }
+ return null;
+}
+function returnCard(game){
+ if(!game)return '<section class="return-strip"><div><h2>Tus tableros de temporada</h2><p>Cada juego que terminas recupera una pieza de su sello.</p></div><a class="button" href="#tableros">Explorar mis tableros</a></section>';
+ const label='Continuar '+game.title;
+ const action=game.href?`<a class="button primary" href="${esc(game.href)}" aria-label="${esc(label)}">Continuar mi partida</a>`:
+   `<button class="button primary" data-action="resume" data-id="${esc(game.sessionId)}" aria-label="${esc(label)}">Continuar mi partida</button>`;
+ return `<section class="return-strip vh-resume-card">${game.image?`<img src="${esc(game.image)}" alt="" width="160" height="100" decoding="async">`:''}<div><span class="ui-kicker">Tu partida en curso</span><h2>${esc(game.title)}</h2><p>${esc(game.detail)}</p></div>${action}</section>`;
+}
+if(root.customElements&&!root.customElements.get('home-resume')){
+ root.customElements.define('home-resume',class extends HTMLElement{
+   async connectedCallback(){
+     const bridge=root.GameAccountBridge;
+     if(!bridge?.isSignedIn())return;
+     const load=this.loadToken=Symbol();
+     const current=()=>this.isConnected&&this.loadToken===load&&bridge.isSignedIn();
+     try{
+       const {games}=await bridge.request('/api/valdemar/partidas');
+       if(!current())return;
+       const next=seasonReturn(games);
+       if(!next||next.time<Number(this.dataset.classicTime))return;
+       const focused=this.contains(document.activeElement);
+       this.innerHTML=returnCard(next);
+       if(focused)this.querySelector('.button')?.focus({preventScroll:true});
+     }catch{
+       if(!current()||this.querySelector('[data-action="resume"]'))return;
+       const status=this.querySelector('p'), link=this.querySelector('a');
+       if(status)status.textContent='Puedes consultar tus partidas guardadas en el archivo.';
+       if(link){link.href='#archivo';link.textContent='Ver mis partidas';}
+     }
+   }
+   disconnectedCallback(){this.loadToken=null;}
+ });
+}
 function home(m){
- const cases=season(m);
- const latest=(m.sessions||[]).find(s=>s.status!=='finished'&&s.members.some(p=>p.userId===m.userId));
- const resumed=latest&&(m.stories||[]).find(s=>s.id===latest.caseId);
- const returning=m.userId?`<section class="return-strip"><div><span class="ui-kicker">Tu investigación</span><h2>${resumed?esc(resumed.title):'Tus tableros de temporada'}</h2><p>${resumed?latest.history.length+' decisiones completadas':'Cada juego que terminas recupera una pieza del sello de su tablero.'}</p></div>${resumed&&m.canPlay?`<button class="button primary" data-action="resume" data-id="${esc(latest.id)}">Continuar mi partida</button>`:'<a class="button" href="#tableros">Explorar mis tableros</a>'}</section>`:'';
+ const latest=m.userId?classicReturn(m):null;
+ const returning=m.userId?`<home-resume data-classic-time="${latest?.time||0}">${returnCard(latest)}</home-resume>`:'';
  return `${returning}${coverStory(m)}
  <div class="cover-tail vh-tail">${shareBox({title:'Clínica Vallejo'},'/vallejo.html')}</div>
  ${root.ValdemarCatalog ? root.ValdemarCatalog.home({canPlay:m.canPlay,admin:m.membership?.role==='admin'}) : ''}
@@ -105,8 +181,7 @@ function card(s,m){
 
 function catalog(m){
  const cases=season(m),month=[1,2,3].includes(m.catalogMonth)?m.catalogMonth:1;
- const bonus=(m.stories||[]).find(s=>s.id==='habitacion-309');
- return `<section class="season-catalog"><header><p class="cover-caption">Archivo clásico · Doce noches</p><h1>Las primeras historias de Valdemar.</h1><p>Cada mes se abren cuatro misterios. Elige en qué orden investigarlos.</p><a class="text-link" href="/#mapa-clasico">Ver el plano de las doce piezas</a></header><section class="season-strip vh-catalog" aria-labelledby="catalog-demo"><div><p class="cover-caption">Caso de prueba gratuito</p><h2 id="catalog-demo">Clínica Vallejo</h2><p>Abre la caja 87-V e investiga la desaparición del doctor Vallejo.</p></div><button type="button" class="button primary" data-action="preview-open">Jugar la demo</button></section><nav class="month-nav" aria-label="Casos por mes">${[1,2,3].map(n=>`<a href="#archivo-clasico?mes=${n}" ${n===month?'aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><div class="shelf-grid" aria-label="Cuatro casos del mes ${month}">${cases.slice((month-1)*4,month*4).map(s=>card(s,m)).join('')}</div>${bonus?`<div class="season-strip bonus-line"><div><p class="cover-caption">Caso adicional · 15–25 min</p><h2>${esc(bonus.title)}</h2><p>Una joya desaparece la última noche del Bellamar.</p></div>${m.userId?detailsButton(bonus,'Ver el caso','shelf-link'):`<a class="shelf-link" href="${invitationPath(bonus)}">Ver el caso adicional</a>`}</div>`:''}</section>`;
+ return `<section class="season-catalog"><header><p class="cover-caption">Archivo clásico · Doce noches</p><h1>Las primeras historias de Valdemar.</h1><p>Cada mes se abren cuatro misterios. Elige en qué orden investigarlos.</p><a class="text-link" href="/#mapa-clasico">Ver el plano de las doce piezas</a></header><section class="season-strip vh-catalog" aria-labelledby="catalog-demo"><div><p class="cover-caption">Caso de prueba gratuito</p><h2 id="catalog-demo">Clínica Vallejo</h2><p>Abre la caja 87-V e investiga la desaparición del doctor Vallejo.</p></div><button type="button" class="button primary" data-action="preview-open">Jugar la demo</button></section><nav class="month-nav" aria-label="Casos por mes">${[1,2,3].map(n=>`<a href="#archivo-clasico?mes=${n}" ${n===month?'aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><div class="shelf-grid" aria-label="Cuatro casos del mes ${month}">${cases.slice((month-1)*4,month*4).map(s=>card(s,m)).join('')}</div></section>`;
 }
 
 function classicStation(s,m){
@@ -143,10 +218,10 @@ function map(m){
   <div class="cipher-box"><div class="classic-plate-head"><span>Tu sello</span><strong>${done} de 12 piezas</strong></div><ol class="cipher-grid" aria-label="Sello de tres filas y cuatro columnas">${classicPlate(stories,m)}</ol>
   ${m.journey?.solvedAt?'<div class="cipher-success" role="status">✓ Clave resuelta. Tu epílogo está abierto.</div>':`<form id="season-key-form"><label class="field" for="season-key">Clave del epílogo<input id="season-key" name="key" autocomplete="off" spellcheck="false" maxlength="40" placeholder="Escribe las 12 letras" required ${canSolve?'':'disabled'} aria-describedby="season-key-help"></label><p id="season-key-help">${guidance}</p><button class="button primary wide" type="submit" ${canSolve?'':'disabled'}>Abrir el epílogo secreto <span aria-hidden="true">→</span></button><p id="season-key-error" class="auth-error" role="alert"></p></form>`}</div><div class="classic-cipher-copy classic-cipher-notes"><div class="classic-seal-instructions">
   <p>Las piezas se colocan por número, de izquierda a derecha. Para descifrar la clave, lee <strong>cada columna de arriba abajo</strong>, empezando por la izquierda.</p><p class="cipher-rule">Orden de lectura: 01 → 05 → 09 · 02 → 06 → 10 · 03 → 07 → 11 · 04 → 08 → 12.</p></div>
-  <p class="classic-seal-fine">Cada historia del archivo aporta una pieza. La escena gratuita y La habitación 309 quedan fuera de la colección.</p>
+  <p class="classic-seal-fine">Cada una de las doce historias del archivo aporta una pieza al sello clásico.</p>
   ${!canSolve?'<button type="button" class="classic-next" data-action="page-section" data-target="city-map">'+(done?'Volver a los casos del archivo':'Elegir mi primer caso')+' <span aria-hidden="true">↗</span></button>':''}</div></section>
  ${m.journey?.solvedAt?`<section class="secret-epilogue" aria-labelledby="epilogue-title"><span class="ui-kicker">EPÍLOGO SECRETO · COLECCIÓN COMPLETA</span><h2 id="epilogue-title">Al otro lado del umbral.</h2><p>La cerradura cede sin ruido. Dentro no hay una decimotercera prueba, sino una mesa con doce huecos. Dejáis una carta, una entrada, una ficha, un cuaderno… y, por primera vez, veis el conjunto.</p><p>Cada lugar os pidió algo distinto: escuchar antes de decidir, comprobar antes de acusar, preguntar antes de contar una historia ajena. Las piezas nunca estuvieron perdidas. Esperaban a alguien capaz de mirar dos veces.</p><p>En el reverso del plano hay una última frase: <strong>«La pieza que faltaba era vuestra manera de mirar».</strong></p><span class="epilogue-seal">12 EXPERIENCIAS · UNA MIRADA NUEVA</span><a class="button" href="#archivo">Volver a mis desenlaces →</a></section>`:''}</div>`;}
-function detail(s,m){const p=stop(m,s.id);return `<div class="case-detail"><span class="ui-kicker">${s.season===1?'EXPERIENCIA '+String(s.episode).padStart(2,'0')+' / TEMPORADA 01':'EXPERIENCIA ADICIONAL'}</span>${sceneImage(s)?`<img class="case-detail-photo" src="${sceneImage(s)}" alt="" width="506" height="335">`:''}<h2 id="modal-title">${esc(s.title)}</h2><p>${esc(s.description)}</p><div class="detail-facts"><span><b>${s.id==='cartas-medianoche'?'≈60':s.season===1?'30–45':'15–25'} min</b>duración orientativa</span><span><b>1–2 personas</b>solo o con un cómplice</span><span><b>${s.decisionCount||4} decisiones</b>4 finales posibles</span></div><h3>Así avanzarás</h3><p>Lee la escena, consulta las pistas disponibles y elige un camino. La ruta te indica en todo momento cuántas decisiones te faltan.</p>${s.season===1?`<div class="detail-reward">${icon(s.episode-1)}<p>${p?.completed?'Pieza '+String(s.episode).padStart(2,'0')+' recuperada: <strong>'+esc(p.letter)+'</strong>.':'Al completar este caso revelarás la <strong>pieza '+String(s.episode).padStart(2,'0')+'</strong> del plano secreto.'}</p></div>`:''}${shareBox(s)}<div class="actions">${callToPlay(s,m)}<button class="text-link" data-action="open-map">Ver el plano completo →</button></div>${!m.canPlay&&!p?.completed? `<p class="detail-payment">${root.ClubAccess?.checkoutAvailable ? 'Los casos completos se abren con una suscripción activa.' : 'La suscripción abrirá próximamente. Puedes pedir un aviso en la página de suscripción.'}</p>`:''}</div>`;}
+function detail(s,m){if(s.id==='habitacion-309')return catalog(m);const p=stop(m,s.id);return `<div class="case-detail"><span class="ui-kicker">${s.season===1?'EXPERIENCIA '+String(s.episode).padStart(2,'0')+' / TEMPORADA 01':'EXPERIENCIA ADICIONAL'}</span>${sceneImage(s)?`<img class="case-detail-photo" src="${sceneImage(s)}" alt="" width="506" height="335">`:''}<h2 id="modal-title">${esc(s.title)}</h2><p>${esc(s.description)}</p><div class="detail-facts"><span><b>${s.id==='cartas-medianoche'?'≈60':s.season===1?'30–45':'15–25'} min</b>duración orientativa</span><span><b>1–2 personas</b>solo o con un cómplice</span><span><b>${s.decisionCount||4} decisiones</b>4 finales posibles</span></div><h3>Así avanzarás</h3><p>Lee la escena, consulta las pistas disponibles y elige un camino. La ruta te indica en todo momento cuántas decisiones te faltan.</p>${s.season===1?`<div class="detail-reward">${icon(s.episode-1)}<p>${p?.completed?'Pieza '+String(s.episode).padStart(2,'0')+' recuperada: <strong>'+esc(p.letter)+'</strong>.':'Al completar este caso revelarás la <strong>pieza '+String(s.episode).padStart(2,'0')+'</strong> del plano secreto.'}</p></div>`:''}${shareBox(s)}<div class="actions">${callToPlay(s,m)}<button class="text-link" data-action="open-map">Ver el plano completo →</button></div>${!m.canPlay&&!p?.completed? `<p class="detail-payment">${root.ClubAccess?.checkoutAvailable ? 'Los casos completos se abren con una suscripción activa.' : 'La suscripción abrirá próximamente. Puedes pedir un aviso en la página de suscripción.'}</p>`:''}</div>`;}
 function roadmap(s,c,selected=s.history?.length||0){
  const total=c.decisionCount||4,done=Math.min(s.history?.length||0,total),finished=s.status==='finished',remaining=Math.max(0,total-done),labels=total===5?['Entrar','Investigar','Contrastar','Valorar','Decidir']:Array.from({length:total},(_,i)=>'Decisión '+(i+1));
  return `<section class="case-roadmap" aria-label="Avance de la experiencia"><div class="roadmap-summary"><div><span class="ui-kicker">TU RUTA EN ESTE CASO</span><strong>${finished?'Experiencia completada':s.status==='waiting'?'Esperando a tu cómplice':'Estás en la decisión '+Math.min(done+1,total)+' de '+total}</strong></div><span class="roadmap-counter">${done}<small> / ${total}</small></span></div><progress max="${total}" value="${done}" aria-label="Decisiones completadas">${done} de ${total}</progress><ol class="roadmap-stops">${labels.map((label,i)=>`<li class="${i<done?'done':i===done&&!finished?'current':''}" ${i===done&&!finished?'aria-current="step"':''}><button data-action="scene-view" data-index="${i}" ${i>done?'disabled':''} ${i===selected?'aria-current="step"':''}><b>${i<done?'✓':i+1}</b><span>${label}</span></button></li>`).join('')}<li class="${finished?'done':''}"><button data-action="scene-view" data-index="${done}" ${finished?'':'disabled'}><b>${finished?'✓':'◇'}</b><span>Tu final</span></button></li></ol><p>${finished?'Tu desenlace y tu progreso están guardados.':remaining+' '+(remaining===1?'decisión pendiente':'decisiones pendientes')+' para descubrir tu final.'} ${!finished&&s.mode==='duo'?'Un voto pendiente no hace avanzar la ruta.':''}</p></section>`;
