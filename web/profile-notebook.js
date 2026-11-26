@@ -65,7 +65,7 @@
         : story?.season === 1 && !solved ? '¡Has llegado al desenlace! Revisa el enigma final para recuperar la pieza de este caso.'
         : '¡Has llegado al desenlace! Esta investigación ya forma parte de tu archivo.';
       actions = control('resume', session.id, 'Ver mi desenlace', true, context) +
-        (pieces === 12 ? '<a class="button" href="#mapa">Ver mi plano</a>' : browse('Explorar los casos', false));
+        (pieces === 12 ? '<a class="button" href="#mapa-clasico">Ver mis doce piezas</a>' : browse('Explorar los casos', false));
     } else {
       kicker = sessionState(session);
       heading = title(session, stories);
@@ -97,7 +97,7 @@
       countLabel + '</span></div>' + (partial && !pieces ? '' : '<progress class="pn-meter" aria-label="Piezas de la temporada confirmadas" max="12" value="' +
       pieces + '">' + pieces + ' de 12</progress>') + (partial ? '<p>Falta confirmar la resolución de alguna partida guardada.</p>' : '') +
       '<p>Resolver un caso distinto de la temporada aporta una pieza. Los casos adicionales se guardan en tu archivo sin sumar piezas.</p>' +
-      '<ol class="pn-milestones" aria-label="Hitos de la temporada">' + labels + '</ol><a class="text-link" href="#mapa">Consultar mi plano</a></section>';
+      '<ol class="pn-milestones" aria-label="Hitos de la temporada">' + labels + '</ol><a class="text-link" href="#mapa-clasico">Consultar el plano clásico</a></section>';
   }
 
   function creationTime(session) {

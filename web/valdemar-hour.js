@@ -184,8 +184,10 @@
     node.dataset.kind=item.kind;
     const summary=el('summary');
     const name=el('span',null,'vhour-material-name');
-    name.append(el('small',kinds[item.kind]||'Prueba'),el('strong',item.label));
-    summary.append(name,el('span',roleNames[item.role]||'Ambos papeles','vhour-role'));
+    const thumbnail=el('span',null,'vhour-format-photo');
+    thumbnail.setAttribute('aria-hidden','true');
+    name.append(el('small',kinds[item.kind]||'Prueba'),el('strong',item.label),el('span',roleNames[item.role]||'Ambos papeles','vhour-role'));
+    summary.append(thumbnail,name);
     let content;
     if(item.kind==='web')content=records(item);
     else if(item.kind==='audio'||item.kind==='testimony')content=voiceCard(item.body,state);
@@ -198,6 +200,8 @@
   }
   function proofShelf(items,state) {
     const shelf=el('div',null,'vhour-shelf');
+    const tools=el('div',null,'vhour-shelf-tools');
+    tools.append(el('h4',items.length===1?'Una prueba':items.length+' pruebas','vhour-shelf-title'));
     const records=items.map(item=>({item,card:material(item,state)}));
     const filters=el('div',null,'vhour-filter');
     filters.setAttribute('aria-label','Filtrar las pruebas por papel');
@@ -213,8 +217,9 @@
       for (const [role,label] of [['','Todas las pruebas'],['A','Papel 1'],['B','Papel 2']]){
         const b=control(label,()=>select(role));buttons.push({role,button:b});filters.append(b);
       }
-      shelf.append(filters);
+      tools.append(filters);
     }
+    shelf.append(tools);
     const stack=el('div',null,'vhour-stack');
     stack.append(...records.map(r=>r.card));shelf.append(stack);
     select('');
@@ -264,7 +269,7 @@
       }
       field.append(list);submit.disabled=true;
     }
-    form.append(field,submit,status);
+    form.append(el('h4','Tu hipótesis','vhour-decision-title'),field,submit,status);
     form.addEventListener('submit',async event=>{
       event.preventDefault();if(sending||!selected.length)return;
       sending=true;submit.disabled=true;field.disabled=true;status.textContent='Contrastando la respuesta…';
@@ -379,8 +384,10 @@
         const heading=head('h3',stage.title);
         main.append(heading,el('p',stage.brief,'vhour-lead'));
         if(hotel && controller.visitHotel)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
-        main.append(proofShelf(stage.materials||[],state),decision(stage,index,controller,(next,note)=>{controller.change(next);render(next,note,true);}));
-        if(focus)heading.focus({preventScroll:true});
+        const workbench=el('div',null,'vhour-workbench');
+        workbench.append(proofShelf(stage.materials||[],state),decision(stage,index,controller,(next,note)=>{controller.change(next);render(next,note,true);}));
+        main.append(workbench);
+        if(focus){heading.focus({preventScroll:true});heading.scrollIntoView?.({block:'start',behavior:'instant'});}
       } else {
         const heading=head('h3','Investigación completada');
         main.append(heading,control('Ir a la resolución',controller.finish,'vd-primary'));

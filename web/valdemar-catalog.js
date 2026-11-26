@@ -36,11 +36,11 @@
     ).join('')+'</div>';
   }
   function home() {
-    return `<section class="vd-section vd-home" aria-labelledby="shelf-title"><header class="vd-head"><div><p class="vd-label">Valdemar · Primer mes</p><h2 id="shelf-title" tabindex="-1">Cuatro historias para tu próxima noche.</h2></div><a class="vd-textlink" href="/#casos">Ver las 12 historias</a></header>${cards(1)}</section>`;
+    return `<section class="vd-section vd-home" aria-labelledby="shelf-title"><header class="vd-head"><div><p class="vd-label">Valdemar · Primer mes</p><h2 id="shelf-title" tabindex="-1">Cuatro historias para tu próxima noche.</h2></div><nav class="vd-route-links" aria-label="Explorar Valdemar"><a class="vd-textlink" href="/#casos">Ver las 12 historias</a><a class="vd-textlink" href="/#mapa">Plano secreto</a></nav></header>${cards(1)}</section>`;
   }
   function list(opts={}) {
     const month=[1,2,3].includes(Number(opts.month))?Number(opts.month):1;
-    return `<section class="vd-section vd-list"><header class="vd-head"><div><p class="vd-label">Valdemar · Temporada 1</p><h1>Las doce historias</h1><p class="vd-intro">Cuatro misterios cada mes para jugar a solas o compartir pantalla. ¿Por dónde empiezas?</p></div></header><nav class="vd-months" aria-label="Mes de la temporada">${[1,2,3].map(n=>`<a href="/#casos?mes=${n}"${month===n?' aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><h2 class="vd-group" tabindex="-1">Las historias del mes ${month}</h2>${cards(month)}<p class="vd-foot"><a href="/#archivo-clasico">Visitar el archivo de casos anteriores</a></p></section>`;
+    return `<section class="vd-section vd-list"><header class="vd-head"><div><p class="vd-label">Valdemar · Temporada 1</p><h1>Las doce historias</h1><p class="vd-intro">Cuatro misterios cada mes para jugar a solas o compartir pantalla. ¿Por dónde empiezas?</p></div><a class="vd-textlink" href="/#mapa?mes=${month}">Explorar el mes en el plano</a></header><nav class="vd-months" aria-label="Mes de la temporada">${[1,2,3].map(n=>`<a href="/#casos?mes=${n}"${month===n?' aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><h2 class="vd-group" tabindex="-1">Las historias del mes ${month}</h2>${cards(month)}<p class="vd-foot"><a href="/#archivo-clasico">Visitar el archivo de casos anteriores</a></p></section>`;
   }
   function entry(item,opts,unlocked) {
     const href=unlocked?'/#valdemar-jugar?id='+item.id:'/#planes';
@@ -63,7 +63,7 @@
     const cta=entry(item,opts,unlocked);
     const sample=item.id===2?`<button type="button" data-vd-start class="${unlocked?'vd-ghost':'vd-cta'}">Atender la llamada</button>`:'';
     const actions=item.id===2?(unlocked?cta+sample:sample+cta.replace('class="vd-cta"','class="vd-ghost"')):cta+(unlocked?'':'<button type="button" data-action="preview-open" class="vd-ghost">Probar Clínica Vallejo gratis</button>');
-    return `<article class="vd-detail"><a class="vd-back" href="/#casos?mes=${item.month}">Volver al mes ${item.month}</a>
+    return `<article class="vd-detail"><nav class="vd-route-links" aria-label="Explorar Valdemar"><a class="vd-back" href="/#casos?mes=${item.month}">Volver al mes ${item.month}</a><a class="vd-back" href="/#mapa?mes=${item.month}&amp;lugar=${item.id}">Situar en el plano</a></nav>
       <header class="vd-feature"><figure><img src="${item.image}" width="1080" height="720" alt="" fetchpriority="high"><figcaption>${esc(item.place)}</figcaption></figure>
       <div class="vd-description"><p class="vd-label">Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}</div><p class="vd-availability">${message}</p></div></header>
       ${item.id===2?hotelCall(cta):''}
