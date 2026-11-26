@@ -4,9 +4,16 @@ function outline({title,place,minutes}) {
   return {title,place,minutes};
 }
 
+function visibleMaterial({id,label,kind,body,role,clip}) {
+  const material={id,label,kind,body,role};
+  if (kind==='audio' && typeof clip==='string' && clip.length<=1500000 &&
+      /^data:audio\/wav;base64,UklGR[A-Za-z0-9+/]+={0,2}$/.test(clip)) material.clip=clip;
+  return material;
+}
+
 function reading(stage) {
   const {brief,task,materials} = stage;
-  return {...outline(stage),brief,task,materials:materials.map(({id,label,kind,body,role}) => ({id,label,kind,body,role}))};
+  return {...outline(stage),brief,task,materials:materials.map(visibleMaterial)};
 }
 
 function savedCount(record,total) {

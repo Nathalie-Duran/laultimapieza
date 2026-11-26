@@ -104,7 +104,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           if(profile.newProfile||memberData.welcomePending===false)await store.saveMemberData(uid,memberData);
         }
         delete profile.newProfile;
-        if(path==='/api/billing/checkout'&&method==='POST'&&billing){if(isAdministrator(user))fail(409,'Tu cuenta de administradora ya tiene acceso completo sin pago.');return billing.checkout(store,user);}
+        if(path==='/api/billing/checkout'&&method==='POST'&&billing){if(isAdministrator(user))fail(409,'Tu cuenta de administradora ya tiene acceso completo sin pago.');return billing.checkout(store,user,input);}
         if(path==='/api/billing/portal'&&method==='POST'&&billing)return billing.portal(store,uid);
         if(path==='/api/waitlist'&&method==='PUT'){
           if(typeof input.enabled!=='boolean')fail(400,'Elige si quieres recibir el aviso.');

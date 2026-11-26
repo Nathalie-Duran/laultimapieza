@@ -39,9 +39,26 @@ export function checkPuzzle(session,story,input,uid){
 export const CASE_ORDER=['cartas-medianoche','ultima-funcion','archivo-ausencias','marea-quieta','frecuencia-17','jardin-invierno','retrato-prestado','mesa-13','tren-detenido','ciudad-invisible','ultimo-coro','ultima-invitacion'];
 // Each verified payment assigns the next fixed block immediately. Revocations keep
 // their ordinal so refunding month one never renumbers month two's cases.
+export function orderedCycles(cycles){
+  return [...new Map(cycles.filter(c=>Number(c.start)<Number(c.end)).map(c=>[c.id,c])).values()].sort((a,b)=>a.start-b.start);
+}
+// Historic subscriptions were sold for Valdemar alone. Later checkouts name the
+// exact blocks purchased, including a replacement for a refunded block.
+export function seasonBlocks(cycles,now=Date.now()){
+  const byBlock = new Map();
+  let legacyBlock = 0;
+  const rank = cycle => cycle.start <= now ? (cycle.revoked ? 1 : 3) : 2;
+  for(const cycle of orderedCycles(cycles)){
+    const explicit = Object.hasOwn(cycle,'worldBlock');
+    const number = explicit ? cycle.worldBlock : ++legacyBlock;
+    if(!Number.isInteger(number) || number<1 || number>(explicit?9:3)) continue;
+    const old = byBlock.get(number);
+    if(!old || rank(cycle)>=rank(old)) byBlock.set(number,{...cycle,number});
+  }
+  return [...byBlock.values()].sort((a,b)=>a.number-b.number);
+}
 export function releaseCalendar(cycles,claims=[],now=Date.now()){
-  const unique=[...new Map(cycles.filter(c=>Number(c.start)<Number(c.end)).map(c=>[c.id,c])).values()].sort((a,b)=>a.start-b.start).slice(0,3);
-  const blocks=unique.map((c,i)=>({id:c.id,number:i+1,start:Number(c.start),end:Number(c.end),revoked:!!c.revoked,caseIds:CASE_ORDER.slice(i*4,i*4+4)}));
+  const blocks=seasonBlocks(cycles,now).filter(c=>c.number<=3).map(c=>({id:c.id,number:c.number,start:Number(c.start),end:Number(c.end),revoked:!!c.revoked,caseIds:CASE_ORDER.slice((c.number-1)*4,c.number*4)}));
   const paid=blocks.filter(c=>!c.revoked&&c.start<=now),unlockedCaseIds=paid.flatMap(c=>c.caseIds);
   const current=paid.filter(c=>c.end>now).at(-1)||null;
   const claimed=[...new Set(claims)].filter(id=>unlockedCaseIds.includes(id));

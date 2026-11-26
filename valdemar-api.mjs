@@ -1,7 +1,7 @@
 import {readFile} from 'node:fs/promises';
 import {ApiError} from './auth-provider.mjs';
 import {CASE_ORDER} from './progression.mjs';
-import {valdemarWallet, withValdemarTransaction} from './valdemar-wallet.mjs';
+import {worldSeasonAccess, valdemarWallet, withValdemarTransaction, WORLD_CASE_COUNT} from './valdemar-wallet.mjs';
 import {readValdemarRelease} from './valdemar-release.mjs';
 import {evaluateHourStage,readHour,requireHourComplete} from './valdemar-hour.mjs';
 
@@ -16,8 +16,8 @@ function asset(name) {
 }
 
 function visibleStory(story) {
-  const {id,title,question,roles,solo,intro,challengePrompt,evidenceCards,choices,hypotheses} = story;
-  return {id,title,question,roles,solo,intro,challengePrompt,evidenceCards,choices,hypotheses};
+  const {id,title,place,question,roles,solo,intro,challengePrompt,evidenceCards,choices,hypotheses} = story;
+  return {id,title,place,question,roles,solo,intro,challengePrompt,evidenceCards,choices,hypotheses};
 }
 
 function visibleProgress(record,story) {
@@ -43,15 +43,19 @@ function visibleSample(sample) {
     noteTitle,note,siteTitle,rows,answers};
 }
 
-async function releasedCases(store,uid,editorial,billing) {
-  if (editorial) return CASE_ORDER.map((_,index) => index+1);
-  const membership = await billing?.membership(store,uid);
-  if (membership?.canPlay !== true) {
-    throw new ApiError(402,'Necesitas una suscripción activa para jugar a la temporada.','SUBSCRIPTION_REQUIRED');
-  }
-  // Preserve refund holes; a count of eight cannot distinguish months 1+2 from 2+3.
-  const unlocked = membership.calendar?.unlockedCaseIds || [];
-  return CASE_ORDER.flatMap((slug,index) => unlocked.includes(slug) ? [index+1] : []);
+function visibleSide(side) {
+  const {title,brief,task,mode} = side;
+  return {title,brief,task,mode,
+    options:side.options.map(({id,label}) => ({id,label})),
+    materials:side.materials.map(({id,label,kind,body,role}) => ({id,label,kind,body,role})),
+    ...(mode === 'order' ? {requiredCount:side.answer.length} : {})};
+}
+
+function matchesSide(side,choice) {
+  if (!Array.isArray(choice) || choice.length !== side.answer.length || new Set(choice).size !== choice.length) return false;
+  return side.mode === 'multi'
+    ? side.answer.every(id=>choice.includes(id))
+    : side.answer.every((id,index)=>choice[index]===id);
 }
 
 async function progressAction(store,uid,scope,story,action,input) {
@@ -91,28 +95,39 @@ async function progressAction(store,uid,scope,story,action,input) {
 
 export async function valdemarRequest({path,method,input,uid,editorial,withStore,billing,loadRelease=readValdemarRelease}) {
   const walletRoute = path === '/api/valdemar/wallet';
-  const match = /^\/api\/valdemar\/cases\/([1-9]|1[0-2])(?:\/(reward|open|second|sample|deduce|ending|stage))?$/.exec(path);
-  if (!walletRoute && !match) throw new ApiError(404,'Esta historia no está disponible.');
+  const seasonsRoute = path === '/api/valdemar/seasons';
+  const match = /^\/api\/valdemar\/cases\/([1-9]\d?)(?:\/(reward|open|second|sample|deduce|ending|stage))?$/.exec(path);
   const id = match ? Number(match[1]) : null;
+  if ((!walletRoute && !seasonsRoute && !match) || id>WORLD_CASE_COUNT) throw new ApiError(404,'Esta historia no está disponible.');
+  const newWorld = id > CASE_ORDER.length;
   const action = match?.[2] || 'read';
   if (method !== (action==='read' ? 'GET' : 'POST')) throw new ApiError(405,'Método no permitido.');
   return withValdemarTransaction(withStore, async store => {
-    const availableCases = await releasedCases(store,uid,editorial,billing);
-    if (id && !availableCases.includes(id)) {
+    const membership = editorial ? null : await billing?.membership(store,uid);
+    const data = await store.getMemberData(uid);
+    const access = !editorial && membership?.seasonAccess || worldSeasonAccess(data,{editorial,active:!editorial && membership?.canPlay===true});
+    if (!editorial && !seasonsRoute && membership?.canPlay!==true && !access.availableCases.length) {
+      throw new ApiError(402,'Necesitas un pase de temporada para jugar.','SUBSCRIPTION_REQUIRED');
+    }
+    if (id && !access.availableCases.includes(id)) {
+      if (newWorld && !access.seasons[Math.floor((id-1)/12)].previousReady) {
+        throw new ApiError(409,'Completa los doce desenlaces de la temporada anterior.','PREVIOUS_SEASON_REQUIRED');
+      }
       throw new ApiError(409,'Esta historia se abre con el bloque de su mes.','CASE_NOT_RELEASED');
     }
     const scope = editorial ? 'editorial' : 'paid';
-    if (walletRoute) {
-      const wallet = await valdemarWallet(store,uid,{editorial});
-      const data = await store.getMemberData(uid);
-      const completed = availableCases.filter(caseId => data.valdemarCaseProgress?.[scope]?.[caseId]?.choice);
+    if (walletRoute || seasonsRoute) {
+      const wallet = await valdemarWallet(store,uid,{editorial,seasonAccess:access,summaryOnly:seasonsRoute});
+      if (seasonsRoute) return {...access,wallet,released:access.availableCases.length};
+      const availableCases = access.availableCases.filter(caseId=>caseId<=CASE_ORDER.length);
+      const completed = availableCases.filter(caseId=>access.completed.includes(caseId));
       return {wallet,released:availableCases.length,availableCases,completed};
     }
     const release = await loadRelease(store);
-    const story = release.stories.find(item => item.id === id);
+    const story = (newWorld ? release.nuevos : release.stories)?.find(item => item.id === id);
     if (!story) throw new ApiError(503,'El expediente está temporalmente fuera de servicio.');
     if (action === 'deduce' || action === 'ending' || action === 'stage') return progressAction(store,uid,scope,story,action,input);
-    const sample = release.samples.find(item => item.id === id);
+    const sample = newWorld ? null : release.samples.find(item => item.id === id);
     if (action === 'sample') {
       if (!sample || !Number.isInteger(input.answer) || input.answer < 0 || input.answer >= sample.answers.length) {
         throw new ApiError(400,'Elige una hipótesis de la mesa de pistas.');
@@ -121,21 +136,22 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       return {correct,explanation:correct ? sample.explain : null};
     }
     if (action === 'reward') {
-      const {verifyValdemarVictory} = await import('./valdemar-replay.mjs');
-      if (!verifyValdemarVictory(id,input.proof?.moves)) {
-        throw new ApiError(422,'El recorrido del reto todavía no acredita la victoria.','VICTORY_NOT_VERIFIED');
+      if (newWorld) {
+        if (!matchesSide(story.side,input?.proof?.choice)) throw new ApiError(422,story.side.retry,'VICTORY_NOT_VERIFIED');
+      } else {
+        const {verifyValdemarVictory} = await import('./valdemar-replay.mjs');
+        if (!verifyValdemarVictory(id,input?.proof?.moves)) {
+          throw new ApiError(422,'El recorrido del reto todavía no acredita la victoria.','VICTORY_NOT_VERIFIED');
+        }
       }
     }
-    const wallet = await valdemarWallet(store,uid,{editorial},action,id);
+    const wallet = await valdemarWallet(store,uid,{editorial,seasonAccess:access},action,id);
     const hints = visibleHints(story,wallet);
-    if (action !== 'read') return {wallet,hints};
-    const [gameScript,data] = await Promise.all([
-      asset('valdemar-challenges-'+Math.ceil(id/4)+'.js'),
-      store.getMemberData(uid)
-    ]);
+    if (action !== 'read') return {wallet,hints,...(newWorld && action==='reward' ? {feedback:story.side.success} : {})};
     const record = data.valdemarCaseProgress?.[scope]?.[id];
-    return {story:visibleStory(story),sample:visibleSample(sample),gameScript,hour:readHour(story,record),
-      stationScript:id===1 ? release.stationScript : null,
-      wallet,hints,progress:visibleProgress(record,story)};
+    const dossier = {story:visibleStory(story),hour:readHour(story,record),wallet,hints,progress:visibleProgress(record,story)};
+    if (newWorld) return {...dossier,side:visibleSide(story.side)};
+    const gameScript = await asset('valdemar-challenges-'+Math.ceil(id/4)+'.js');
+    return {...dossier,sample:visibleSample(sample),gameScript,stationScript:id===1 ? release.stationScript : null};
   });
 }

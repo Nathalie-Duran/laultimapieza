@@ -1,5 +1,8 @@
 import { ApiError } from './auth-provider.mjs';
-import { releaseCalendar } from './progression.mjs';
+import { seasonBlocks } from './progression.mjs';
+
+export const WORLD_CASE_COUNT = 36;
+const CASES_PER_BLOCK = 4;
 
 function createWallet() {
   return { welcomes: [], won: [], opened: [], second: [] };
@@ -18,6 +21,33 @@ function currentPaidSubscription(data, now) {
     cycle.start <= now && now < cycle.end
   );
   return paidPeriod ? data.subscription : null;
+}
+
+export function worldSeasonAccess(data,{editorial=false,now=Date.now(),active=Boolean(currentPaidSubscription(data,now)),purchaseHeld=false}={}) {
+  const paid = seasonBlocks(data.cycles || [],now).filter(c=>!c.revoked && c.start<=now);
+  const records = data.valdemarCaseProgress?.[editorial?'editorial':'paid'] || {};
+  const completed = [], availableCases = [], seasons = [];
+  let previousReady = true, nextPurchase = null;
+  for(let number=1;number<=3;number++){
+    const base = (number-1)*12;
+    const ids = Array.from({length:12},(_,i)=>base+i+1);
+    const finished = ids.filter(id=>records[id]?.choice);
+    const cycles = paid.filter(c=>Math.ceil(c.number/3)===number);
+    const paidBlocks = cycles.map(c=>c.number-(number-1)*3);
+    const finishAccess = !editorial && !active && previousReady && cycles.length===3 && cycles.every(c=>c.end<=now);
+    const available = editorial ? ids : previousReady && (active || finishAccess)
+      ? ids.filter(id=>paidBlocks.includes(Math.ceil((id-base)/CASES_PER_BLOCK))) : [];
+    if(!editorial && !active && !purchaseHeld && previousReady && !nextPurchase && paidBlocks.length<3){
+      const blocks = [1,2,3].filter(n=>!paidBlocks.includes(n));
+      nextPurchase = {number,blocks,remainingCycles:blocks.length};
+    }
+    seasons.push({number,previousCompleted:number===1?12:seasons.at(-1).completed,previousReady,
+      completed:finished.length,paidBlocks,availableCases:available,finishAccess});
+    availableCases.push(...available);
+    completed.push(...finished);
+    previousReady = previousReady && finished.length===12;
+  }
+  return {availableCases,completed,seasons,nextPurchase};
 }
 
 // Called in the same locked member transaction as the verified Stripe update.
@@ -45,24 +75,22 @@ function snapshot(wallet) {
 // Caller supplies the authenticated owner and server-verified editorial role,
 // checks access, and verifies the challenge before allowing "reward".
 // getMemberData SELECTs FOR UPDATE and saveMemberData uses the same connection.
-export async function valdemarWallet(store, ownerUid, { editorial = false }, op = 'read', caseId) {
+export async function valdemarWallet(store, ownerUid, { editorial = false, seasonAccess, summaryOnly = false }, op = 'read', caseId) {
   if (!['read', 'reward', 'open', 'second'].includes(op) ||
-      (op !== 'read' && (!Number.isInteger(caseId) || caseId < 1 || caseId > 12))) {
+      (op !== 'read' && (!Number.isInteger(caseId) || caseId < 1 || caseId > WORLD_CASE_COUNT))) {
     throw new ApiError(400, 'Elige una acción y una historia de la temporada.');
   }
   const data = await store.getMemberData(ownerUid);
   const now = Date.now();
   let changed = false;
   if (!editorial) {
-    if (!currentPaidSubscription(data, now)) {
+    const access = seasonAccess || worldSeasonAccess(data,{now});
+    const active = currentPaidSubscription(data, now);
+    if (!active && !access.availableCases.length && !(summaryOnly && op==='read')) {
       throw new ApiError(402, 'Necesitas una suscripción activa para usar el llavero.', 'SUBSCRIPTION_REQUIRED');
     }
-    if (op !== 'read') {
-      const month = Math.ceil(caseId / 4);
-      const released = releaseCalendar(data.cycles || [], [], now).blocks.some(block =>
-        block.number === month && !block.revoked && block.start <= now
-      );
-      if (!released) throw new ApiError(409, 'Esta historia se abrirá con su bloque mensual.', 'CASE_NOT_RELEASED');
+    if (op !== 'read' && !access.availableCases.includes(caseId)) {
+      throw new ApiError(409, 'Esta historia se abrirá con su bloque mensual.', 'CASE_NOT_RELEASED');
     }
     changed = creditValdemarWelcome(data, now);
   }
