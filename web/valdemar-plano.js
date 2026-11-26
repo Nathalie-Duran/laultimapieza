@@ -1,11 +1,11 @@
 (() => {
   'use strict';
 
-  // Positions use the original, uncropped 3:2 town illustration.
+  // Landmarks are measured on the full chart and stay aligned when the map is enlarged.
   const positions = [
-    [16, 24], [45, 36], [26, 59], [74, 11],
-    [94, 42], [35, 23], [76, 66], [13, 72],
-    [20, 45], [60, 80], [42, 57], [64, 42]
+    [14.2, 24.4], [62.5, 27.4], [32.9, 52.8], [80.3, 12.0],
+    [91.3, 36.8], [39.0, 18.2], [77.9, 66.4], [13.6, 80.4],
+    [14.6, 46.3], [58.1, 74.9], [37.9, 79.6], [61.1, 51.4]
   ];
   const num = n => String(n).padStart(2, '0');
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c =>
@@ -33,14 +33,18 @@
     return '#mapa' + (query ? '?' + query : '');
   }
 
+  function sealRoute(month, id) {
+    return route(month,id) + '&amp;seccion=sello';
+  }
+
   function filterLink(month, current, place) {
     const stay = !month || place.month === month ? place.id : null;
     return `<a class="vdp-chip" href="${route(month,stay)}" data-vdp-focus="month-${month}"${current===month?' aria-current="true"':''}>${month?'Mes '+month:'Todos'}</a>`;
   }
 
-  function pin(item, current, month) {
+  function pin(item, current, month, recovered) {
     const [x,y] = positions[item.id - 1];
-    return `<a href="${route(month,item.id)}" class="vdp-pin${x>75?' is-east':''}" style="--x:${x}%;--y:${y}%" data-vdp-focus="pin-${item.id}" data-vdp-id="${item.id}" aria-label="${esc(item.place)}. ${esc(item.title)}. Ver lugar" aria-controls="vdp-place"${current===item.id?' aria-current="location"':''}><span class="vdp-pin-number" aria-hidden="true">${num(item.id)}</span><span class="vdp-pin-label" aria-hidden="true">${esc(item.place)}</span></a>`;
+    return `<a href="${route(month,item.id)}" class="vdp-pin" style="--x:${x}%;--y:${y}%" data-edge="${x<25?'oeste':x>75?'este':'centro'}" data-top="${y<22}" data-vdp-focus="pin-${item.id}" data-vdp-id="${item.id}"${recovered?' data-recovered':''} aria-label="${esc(item.place)}. ${esc(item.title)}.${recovered?' Pieza recuperada.':''} Ver lugar" aria-controls="vdp-place"${current===item.id?' aria-current="location"':''}><span class="vdp-pin-number" aria-hidden="true">${num(item.id)}</span><span class="vdp-pin-label" aria-hidden="true">${esc(item.place)}</span></a>`;
   }
 
   function indexRow(item, current, month) {
@@ -54,7 +58,7 @@
     return `<a class="vdp-neighbor" href="${route(month,neighbor.id)}" data-vdp-focus="near-${direction}" data-vdp-id="${neighbor.id}" aria-controls="vdp-place" aria-label="Lugar ${direction}. ${esc(neighbor.place)}" title="Lugar ${direction}"><span aria-hidden="true">${step < 0 ? '←' : '→'}</span></a>`;
   }
 
-  function detail(item, options, catalog, places, month) {
+  function detail(item, options, catalog, places, month, recovered) {
     const allowed = catalog.access(item,options);
     const editorial = options.admin === true || options.role === 'admin';
     const availability = editorial ? 'Disponible con tu acceso editorial.' :
@@ -65,7 +69,7 @@
       `<a class="vdp-primary" href="${path}">Ver la historia</a><a class="vdp-secondary" href="/#planes">Ver el pase</a>`;
     return `<aside class="vdp-place" id="vdp-place" aria-labelledby="vdp-title">
       <header class="vdp-still"><img class="vdp-cover" src="${esc(item.image)}" alt="${esc(item.coverAlt)}" width="764" height="508" decoding="async">
-        <div class="vdp-still-top"><span class="vdp-plate">Caso ${num(item.id)}</span><nav class="vdp-neighbors" aria-label="Recorrer los lugares del plano">${nearby(places,item,month,-1)}${nearby(places,item,month,1)}</nav></div>
+        <div class="vdp-still-top"><span class="vdp-plate">Caso ${num(item.id)}${recovered?' · Pieza recuperada':''}</span><nav class="vdp-neighbors" aria-label="Recorrer los lugares del plano">${nearby(places,item,month,-1)}${nearby(places,item,month,1)}</nav></div>
         <div class="vdp-caption"><p class="vdp-location">${esc(item.place)}</p><h2 class="vdp-title" id="vdp-title" data-vdp-focus="detail" tabindex="-1">${esc(item.title)}</h2></div>
       </header>
       <div class="vdp-place-copy"><p class="vdp-question">${esc(item.question)}</p><ul class="vdp-format" aria-label="Formato del caso"><li>Mes ${item.month}</li><li>≈ 60 min</li><li>1–2 personas</li></ul><p class="vdp-access">${availability}</p><div class="vdp-actions">${primary}</div><button type="button" class="vdp-back-map" data-vdp-focus="return">Volver al plano</button></div></aside>`;
@@ -92,14 +96,15 @@
     remember();
     const catalog = window.ValdemarCatalog;
     const {month,places,selected} = selection(catalog.items);
+    const recovered = new Set(options.completed || []);
     const enlarged = !!previous?.enlarged;
     return `<section class="vdp" aria-labelledby="vdp-heading" data-place="${selected.id}">
-      <header class="vdp-head"><div class="vdp-mast-copy"><p class="vdp-eyebrow">Temporada 01</p><h1 id="vdp-heading">Plano secreto de <em>Valdemar</em></h1><p class="vdp-intro">Elige un lugar y descubre el misterio que guarda.</p></div></header>
+      <header class="vdp-head"><div class="vdp-mast-copy"><p class="vdp-eyebrow">Temporada 01 · Misterio</p><h1 id="vdp-heading">Plano secreto de <em>Valdemar</em></h1></div><p class="vdp-intro">¿Qué une la estación, el hotel y la isla del faro? Sigue la costa y elige un lugar para abrir su expediente.</p></header>
       <div class="vdp-layout"><div class="vdp-map-column"><nav class="vdp-toolbar" aria-label="Filtrar lugares por mes"><div class="vdp-filter">${[0,1,2,3].map(n=>filterLink(n,month,selected)).join('')}</div><span class="vdp-count">${places.length} lugares</span></nav>
-        <div class="vdp-inset"><div class="vdp-viewport" id="vdp-viewport" tabindex="0" data-vdp-focus="viewport" data-enlarged="${enlarged}" role="region" aria-label="Plano ilustrado de Valdemar"><div class="vdp-map" role="group" aria-label="Elegir un lugar"><img class="vdp-base" src="/valdemar-plano.webp" alt="" width="1536" height="1024" fetchpriority="high" decoding="async">${places.map(item=>pin(item,selected.id,month)).join('')}</div></div></div>
-        <div class="vdp-map-foot"><span class="vdp-legend"><i aria-hidden="true"></i>Lugar seleccionado</span><span class="vdp-drag-hint">Arrastra para explorar</span><button type="button" class="vdp-zoom" data-vdp-focus="zoom" aria-controls="vdp-viewport" aria-pressed="${enlarged}"><i aria-hidden="true"></i><span>${enlarged ? 'Ver plano completo' : 'Ampliar plano'}</span></button></div></div>
-        ${detail(selected,options,catalog,places,month)}</div>
-      <div class="vdp-references"><details class="vdp-index"${previous?.index?' open':''}><summary data-vdp-focus="index"><span class="vdp-index-glyph" aria-hidden="true"></span>Índice de lugares</summary><ol class="vdp-index-list">${places.map(item=>indexRow(item,selected.id,month)).join('')}</ol></details><footer class="vdp-footer"><a href="#mapa?seccion=sello">Mi sello de Valdemar <span aria-hidden="true">→</span></a><a href="#mapa-clasico">Plano del archivo clásico <span aria-hidden="true">↗</span></a><a href="#mapa-clasico?seccion=sello">Ver el sello clásico <span aria-hidden="true">↗</span></a></footer></div></section>`;
+        <div class="vdp-inset"><div class="vdp-viewport" id="vdp-viewport" tabindex="0" data-vdp-focus="viewport" data-enlarged="${enlarged}" role="region" aria-label="Plano ilustrado de Valdemar"><div class="vdp-map" role="group" aria-label="Elegir un lugar"><img class="vdp-base" src="/valdemar-cartografia.webp" alt="Carta ilustrada del puerto de Valdemar con calles, vías de tren y una isla frente a la costa." width="1536" height="1024" fetchpriority="high" decoding="async">${places.map(item=>pin(item,selected.id,month,recovered.has(item.id))).join('')}<a class="vdp-chart-rose" href="${sealRoute(month,selected.id)}" aria-label="Abrir el sello de la Rosa de los Doce Rumbos"><span aria-hidden="true">Ver mi sello</span></a></div></div></div>
+        <div class="vdp-map-foot"><a class="vdp-seal-link" href="${sealRoute(month,selected.id)}"><i aria-hidden="true"></i>Ver la Rosa de los Doce Rumbos</a><span class="vdp-drag-hint">Arrastra para explorar</span><button type="button" class="vdp-zoom" data-vdp-focus="zoom" aria-controls="vdp-viewport" aria-pressed="${enlarged}"><i aria-hidden="true"></i><span>${enlarged ? 'Ver plano completo' : 'Ampliar plano'}</span></button></div></div>
+        ${detail(selected,options,catalog,places,month,recovered.has(selected.id))}</div>
+      <div class="vdp-references"><details class="vdp-index"${previous?.index?' open':''}><summary data-vdp-focus="index"><span class="vdp-index-glyph" aria-hidden="true"></span>Índice de lugares</summary><ol class="vdp-index-list">${places.map(item=>indexRow(item,selected.id,month)).join('')}</ol></details><footer class="vdp-footer"><a href="#mapa-clasico">Plano del archivo clásico</a><a href="#mapa-clasico?seccion=sello">Ver el sello clásico</a></footer></div></section>`;
   }
 
   function centerWhenHidden(root, pin) {

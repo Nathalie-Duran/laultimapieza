@@ -27,6 +27,19 @@
 .colecciones-resumen a {color:#f1d397;text-underline-offset:.2em;}
 .colecciones-resumen small {display:block;color:#d5d3c6;}
 .colecciones-card:hover b {text-decoration:underline;text-underline-offset:.2em;}
+.colecciones-card[data-board=mapa] {background:#172c32;border-color:#627a75;}
+.colecciones-card[data-board=mapa] img {object-position:65% 57%;}
+.colecciones-card[data-board=mapa]::before {background:linear-gradient(72deg,#0d272df5 0%,#0d272dc4 30%,#0d272d32 62%,transparent 83%);}
+.colecciones-card[data-board=necropolis] {background:#291c1a;border-color:#876746;}
+.colecciones-card[data-board=necropolis] img {left:auto;width:69%;object-fit:contain;object-position:right center;}
+.colecciones-card[data-board=necropolis]::before {background:linear-gradient(90deg,#24191b 0%,#24191bf7 24%,#24191b8c 50%,transparent 74%);}
+.colecciones-card[data-board=necropolis]>span {width:59%;}
+.colecciones-card[data-board=necropolis] strong {font-size:clamp(1.75rem,2.8vw,3.05rem);text-wrap:balance;}
+@media(max-width:540px){
+  .colecciones-card[data-board=necropolis]>span {width:91%;}
+  .colecciones-card[data-board=necropolis] img {width:100%;object-fit:cover;object-position:62% 52%;}
+  .colecciones-card[data-board=necropolis]::before {background:linear-gradient(72deg,#20171bef 0%,#20171bdf 26%,#20171b8c 57%,#20171b15 90%);}
+}
 .colecciones-card[data-board=expedicion] {background:#21150b;border-color:#786046;}
 .colecciones-card[data-board=expedicion] img {left:auto;width:72%;object-fit:contain;object-position:right center;}
 .colecciones-card[data-board=expedicion]::before {background:linear-gradient(90deg,#1c130d 0%,#1c130df5 26%,#1c130d75 52%,transparent 77%);}

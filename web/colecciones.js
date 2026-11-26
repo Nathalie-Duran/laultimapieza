@@ -1,10 +1,10 @@
 (() => {
   'use strict';
   const seasons = [
-    {name:'Valdemar', genre:'Misterio', route:'casos', board:'mapa', art:'valdemar-plano.webp', seal:'Rosa de los Doce Rumbos', action:'Desplegar el plano'},
+    {name:'Valdemar', genre:'Misterio', route:'casos', board:'mapa', art:'valdemar-cartografia.webp', seal:'Rosa de los Doce Rumbos', action:'Desplegar el plano'},
     {name:'El Tablero de Ámbar', genre:'Aventura', route:'expedicion', board:'expedicion', art:'ambar-tallado.webp', seal:'Medallón de Ámbar', action:'Abrir el tablero'},
     {name:'Umbravía', genre:'Terror psicológico', route:'umbravia', board:'umbravia', art:'umbravia-abandonada.webp', seal:'Farol de Umbravía', action:'Explorar el pueblo abandonado'},
-    {name:'La Necrópolis del Sol Velado', genre:'Antiguo Egipto', route:'necropolis', board:'necropolis', art:'necropolis-egipto.webp', seal:'Disco del Sol Velado', action:'Explorar las cámaras'}
+    {name:'La Necrópolis del Sol Velado', genre:'Antiguo Egipto', route:'necropolis', board:'necropolis', art:'necropolis-descenso.webp', seal:'Disco del Sol Velado', action:'Descender a las cámaras'}
   ];
   function menu(route) {
     return '<nav class="colecciones-nav" aria-label="Elegir temporada">'+seasons.map((s,i)=>

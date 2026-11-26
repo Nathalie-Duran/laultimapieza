@@ -26,13 +26,14 @@
     },
     necropolis: {
       number:4,offset:36,title:'La Necrópolis del Sol Velado',short:'La Necrópolis',
-      genre:'Aventuras en el antiguo Egipto',station:'Cámara',count:'cámaras',progress:'sellos iluminados',done:'Cámara resuelta, sello iluminado.',notebook:'Cuaderno de excavación',
+      genre:'Aventuras en el antiguo Egipto',station:'Cámara',count:'cámaras',progress:'cámaras resueltas',done:'Cámara resuelta, pieza del disco recuperada.',notebook:'Cuaderno de excavación',
       previous:{from:'de Umbravía',back:'Volver a Umbravía',href:'#umbravia'},
-      image:'/necropolis-egipto.webp',imageAlt:'Sección de una necrópolis egipcia con doce cámaras distribuidas en tres niveles.',
-      intro:'Bajo la arena se abren doce cámaras. Elige un umbral para examinar sus vestigios. Cada misterio resuelto ilumina un sello.',
-      boardLabel:'Sección de la Necrópolis del Sol Velado',index:'Directorio de las cámaras',
+      image:'/necropolis-descenso.webp',imageAlt:'Corte de la necrópolis de Neryt. Bajo el disco solar, las escaleras comunican tres niveles de cámaras pintadas.',
+      intro:'Del embarcadero a la tumba de Neryt, doce cámaras descienden bajo la arena. Elige un cartucho para explorar su cámara.',
+      seal:'Disco del Sol Velado',sealCenter:[50,0],
+      boardLabel:'Las doce cámaras de la Necrópolis del Sol Velado',index:'Directorio de las cámaras',
       selectLabel:'Explorar',launch:'Entrar en la cámara',returnLabel:'Volver a la necrópolis',
-      positions:[[13,20],[37,20],[62,20],[85,20],[13,50],[37,50],[62,50],[85,50],[13,78],[37,78],[62,78],[85,78]]
+      positions:[[14,38.8],[37.5,38.8],[62,38.8],[87.6,38.8],[13.5,63.5],[37.8,63.5],[63.9,63.5],[87.3,63.5],[12.5,93.5],[37.5,93.5],[61.8,93.5],[86.7,93.5]]
     }
   };
   const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -62,9 +63,16 @@
   }
   function sealLink(edition,world,local,onBoard=false) {
     if(!edition.seal)return '';
-    const label='Ver el '+edition.seal;
+    const label=world==='necropolis'&&!onBoard?'Ver las piezas del disco':'Ver el '+edition.seal;
     const position=onBoard?` style="--x:${edition.sealCenter[0]}%;--y:${edition.sealCenter[1]}%"`:'';
     return `<a class="${onBoard?'md-gem-link':'md-seal-link'}" href="#${world}?lugar=${local}&amp;seccion=sello"${position}>${onBoard?'<span>'+esc(label)+'</span>':esc(label)}</a>`;
+  }
+  const levels=['I','II','III'];
+  function chamberLevels(edition,world,level) {
+    return '<nav class="md-strata" aria-label="Niveles de la necrópolis">'+levels.map((numeral,index)=>{
+      const start=1+index*4, id=edition.offset+start;
+      return `<a href="${route(world,id)}" data-md-way="level" data-md-id="${id}" aria-label="Nivel ${numeral}, cámaras ${start} a ${start+3}"${index===level?' aria-current="true"':''}><span>Nivel ${numeral}</span><small>${number(start)}–${number(start+3)}</small></a>`;
+    }).join('')+'</nav>';
   }
   function accessMarkup(edition,item,allowed,completed,status) {
     if(allowed)return `<a class="md-cta" href="#mundos-jugar?id=${item.id}">${completed?'Ver mi desenlace':edition.launch} <span aria-hidden="true">→</span></a>`;
@@ -81,15 +89,16 @@
     const enlarged=old?.querySelector('.md-map-window')?.dataset.zoom==='true';
     const open=old?.querySelector('.md-directory')?.open;
     const allowed=options.admin===true || options.role==='admin' || options.membership?.role==='admin';
-    const placeType=edition.station;
+    const egypt=world==='necropolis', level=Math.floor((local-1)/4);
+    const figureCaption=(egypt?'Nivel '+levels[level]+' · ':'')+edition.station+' '+number(local);
     return `<section class="md-world" data-md-world="${world}" data-md-selected="${item.id}" data-md-editor="${allowed}" aria-labelledby="md-world-title">
-      <header class="md-mast"><div><p class="md-caption">Temporada ${number(edition.number)} · ${esc(edition.genre)}</p><h1 id="md-world-title">${esc(edition.title)}</h1></div><div class="md-mast-end"><p>${esc(edition.intro)}</p>${world==='umbravia'?sealLink(edition,world,local):''}</div></header>
+      <header class="md-mast"><div><p class="md-caption">Temporada ${number(edition.number)} · ${esc(edition.genre)}</p><h1 id="md-world-title">${esc(edition.title)}</h1></div><div class="md-mast-end"><p>${esc(edition.intro)}</p>${world==='umbravia'||egypt?sealLink(edition,world,local):''}</div></header>
       <div class="md-atlas"><div class="md-board">
         <div class="md-map-window" data-zoom="${!!enlarged}" role="region" tabindex="0" aria-label="${esc(edition.boardLabel)}"><div class="md-surface">
           <img class="md-map-art" src="${edition.image}" width="1536" height="1024" alt="${esc(edition.imageAlt)}" fetchpriority="high">
           <div class="md-pins">${candidates.map(v=>pin(edition,world,v,item.id)).join('')}${edition.sealCenter?sealLink(edition,world,local,true):''}</div></div></div>
-        <div class="md-board-tools"><span class="md-board-status" data-md-progress>12 ${esc(edition.count)}</span>${world==='expedicion'?'<button type="button" class="md-roll" aria-describedby="md-roll-note" disabled>Mover el peón</button>':''}<button type="button" class="md-zoom" aria-pressed="${!!enlarged}">${enlarged?'Ver completo':'Ampliar'}</button></div>${world==='expedicion'?'<p id="md-roll-note" class="md-board-note" aria-live="polite"></p>':''}</div>
-        <article class="md-file" id="md-file" aria-labelledby="md-case-title"><figure><img src="/mundo-${item.id}.webp" width="768" height="512" alt="" decoding="async"><figcaption>${esc(placeType)} ${number(local)}</figcaption></figure><div class="md-file-copy">
+        ${egypt?chamberLevels(edition,world,level):''}<div class="md-board-tools"><span class="md-board-status" data-md-progress>12 ${esc(edition.count)}</span>${world==='expedicion'?'<button type="button" class="md-roll" aria-describedby="md-roll-note" disabled>Mover el peón</button>':''}<button type="button" class="md-zoom" aria-pressed="${!!enlarged}">${enlarged?'Ver completo':'Ampliar'}</button></div>${world==='expedicion'?'<p id="md-roll-note" class="md-board-note" aria-live="polite"></p>':''}</div>
+        <article class="md-file" id="md-file" aria-labelledby="md-case-title"><figure><img src="/mundo-${item.id}.webp" width="768" height="512" alt="" decoding="async"><figcaption>${esc(figureCaption)}</figcaption></figure><div class="md-file-copy">
           <p class="md-caption">${esc(item.place)}</p><h2 id="md-case-title" tabindex="-1">${esc(item.title)}</h2><p class="md-question">${esc(item.question)}</p>
           <p class="md-facts"><span>≈ 60 min</span><span>1–2 personas</span><span>Bloque ${Math.ceil(local/4)} de 3</span></p>
           <div class="md-access">${accessMarkup(edition,item,allowed,false)}</div><button type="button" class="md-back-pin">${esc(edition.returnLabel)}</button>
@@ -108,11 +117,17 @@
     const r=title.getBoundingClientRect();
     if(r.top<88 || r.bottom>window.innerHeight-58) node.querySelector('.md-file').scrollIntoView({block:'start',behavior:'instant'});
   }
+  function focusPin(pane,pin) {
+    center(pane,pin);
+    pin.focus({preventScroll:true});
+    pin.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
+  }
   function keyboard(event) {
     const pin=event.target.closest('.md-pin'),key=event.key;
     if (!pin || event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return;
     const pins=[...event.currentTarget.querySelectorAll('.md-pin')],at=pins.indexOf(pin);
-    const move={ArrowRight:1,ArrowDown:1,ArrowLeft:-1,ArrowUp:-1};
+    const vertical=event.currentTarget.dataset.mdWorld==='necropolis'?4:1;
+    const move={ArrowRight:1,ArrowDown:vertical,ArrowLeft:-1,ArrowUp:-vertical};
     let target;
     if (key in move) target=pins[(at+move[key]+pins.length)%pins.length];
     else if(key==='Home')target=pins[0]; else if(key==='End')target=pins.at(-1); else return;
@@ -158,17 +173,18 @@
       }
       const link=event.target.closest('a[data-md-id]');
       if(!link)return;
-      if(link.hash===location.hash){event.preventDefault();focusFile(node);}
-      else intent={hash:link.hash};
+      const level=link.dataset.mdWay==='level';
+      if(link.hash===location.hash){event.preventDefault();if(level)focusPin(pane,selected);else focusFile(node);}
+      else intent={hash:link.hash,level};
     });
     center(pane,selected);
-    if(intent?.hash===location.hash) {intent=null;focusFile(node);}
-    else intent=null;
+    if(intent?.hash===location.hash) {if(intent.level)focusPin(pane,selected);else focusFile(node);}
+    intent=null;
     if(!bridge?.isSignedIn?.())return;
     (access||bridge.request('/api/valdemar/seasons')).then(data=>{
       if(board!==local || !node.isConnected || !bridge.isSignedIn())return;
       const done=new Set(data.completed || []);
-      for(const link of node.querySelectorAll('[data-md-id]')){
+      for(const link of node.querySelectorAll('[data-md-way="pin"],[data-md-way="index"],[data-md-way="step"]')){
         if(done.has(Number(link.dataset.mdId))){
           link.dataset.mdComplete='true';
           if(link.dataset.mdWay==='pin')link.setAttribute('aria-label',link.getAttribute('aria-label')+'. '+edition.done);

@@ -12,30 +12,8 @@
   --md-bg:#102538;--md-surface:#193648;--md-line:#86734f;--md-light:#fff0cc;--md-dim:#e0d4bd;
   --md-accent:#f3c66d;--md-deep:#132b3a;--md-ink:#f6ead6;
 }
-.md-world[data-md-world=necropolis] .md-atlas {
-  border:1px solid #b59b60;border-radius:.2rem;box-shadow:0 .55rem 1.6rem #0005;
-}
-.md-world[data-md-world=necropolis] .md-file,.md-game[data-md-world=necropolis] .md-game-intro {
+.md-game[data-md-world=necropolis] .md-game-intro {
   background:linear-gradient(160deg,#22455a,#122b3b 70%);
-}
-.md-world[data-md-world=necropolis] .md-file figure {
-  border-bottom:3px double #bfa46b;
-}
-.md-world[data-md-world=necropolis] .md-pin-face {
-  width:76%;height:88%;border-radius:47% 47% .24rem .24rem;border:1px solid #f0d092;color:#fbe8b3;
-  background:linear-gradient(110deg,#304e61,#102836 65%);
-  box-shadow:inset 0 0 0 2px #263e49,inset 0 0 0 3px #ab8f59,0 2px 5px #160f0bcc;
-}
-.md-world[data-md-world=necropolis] .md-pin[aria-current=location] .md-pin-face {
-  color:#24271e;border-color:#fff0a8;background:linear-gradient(135deg,#ffe5a1 10%,#e0b269 85%);
-  box-shadow:inset 0 0 0 2px #8d6e3e,0 0 0 2px #24353c;
-  outline:2px solid #253646;outline-offset:1px;
-}
-.md-world[data-md-world=necropolis] .md-pin[data-md-complete=true]::before {
-  content:"";position:absolute;left:50%;bottom:79%;width:.86rem;height:.86rem;
-  transform:translateX(-50%);border-radius:50%;border:1px solid #fff0b7;
-  background:radial-gradient(circle at 40% 35%,#fff9c8,#ffcf62 50%,#b87524);
-  box-shadow:0 0 .55rem .12rem #f8ad59,0 0 1rem .2rem #e7b55a80;z-index:2;
 }
 .md-game.vd-player[data-md-world=necropolis] .vhour {--work-line:#7a775b;--work-paper:#f2e6c9;--work-ink:#213540;--work-teal:#305366;}
 .md-world *,.md-game *,.md-world *::before,.md-world *::after { box-sizing:border-box; }
@@ -256,7 +234,7 @@
   .md-pin[aria-current=location] .md-pin-face,.md-game .md-tab[aria-pressed=true] {outline:3px double Highlight;}
 }
 
-/* The numbered stops sit on the photographed board and at the doors of the village. */
+/* The interactive stops are positioned on the season artwork. */
 .md-world[data-md-world=expedicion] {
   --md-bg:#241b15;--md-surface:#34271c;--md-deep:#231a14;--md-line:#7d674b;
   --md-accent:#ecc081;--md-light:#fcf2d9;--md-dim:#ded0b7;
@@ -265,7 +243,7 @@
   --md-bg:#10171b;--md-surface:#161e22;--md-deep:#10161b;--md-line:#58686a;
   --md-light:#efeee5;--md-dim:#c0cbcb;--md-accent:#b5d4c3;
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-mast {
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-mast {
   align-items:center;padding-block:.35rem clamp(1rem,2.1vw,2rem);
 }
 .md-world[data-md-world=expedicion] .md-mast h1 {
@@ -285,11 +263,11 @@
   border-block-width:3px;border-radius:30% 30% 20% 20%;background:#d9e4b4;
   box-shadow:0 0 .55rem #9cbe9066;
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-atlas {
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-atlas {
   grid-template-columns:minmax(0,2.65fr) minmax(16rem,1fr);gap:clamp(.7rem,1.3vw,1.35rem);
   background:transparent;border:0;border-radius:0;box-shadow:none;overflow:visible;align-items:start;
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-board {
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-board {
   border:1px solid var(--md-line);justify-content:flex-start;min-width:0;overflow:hidden;
 }
 .md-world[data-md-world=expedicion] .md-board {
@@ -300,11 +278,11 @@
 .md-world[data-md-world=umbravia] .md-board {
   border-color:#495759;border-radius:.12rem;box-shadow:0 .8rem 2rem #0005;
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-surface {container-type:inline-size;}
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-surface::after {
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-surface {container-type:inline-size;}
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-surface::after {
   box-shadow:inset 0 0 0 1px #ded2ad21;
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-board-tools {
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-board-tools {
   padding:.42rem clamp(.5rem,1vw,1rem);flex-wrap:wrap;gap:.3rem .7rem;
 }
 .md-world[data-md-world=expedicion] .md-board-tools {background:#251d16;border-top:1px solid #a7865e;}
@@ -313,7 +291,74 @@
 .md-world[data-md-world=umbravia] .md-board-tools {
   border-color:#556266;background:linear-gradient(100deg,#1e292c,#121a1f);
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-file {
+.md-world[data-md-world=necropolis] {
+  --md-bg:#142730;--md-deep:#14272e;--md-surface:#20343c;--md-accent:#efca83;
+  --md-light:#f6ebd4;--md-dim:#d2c9b9;--md-line:#71654e;
+}
+.md-world[data-md-world=necropolis] .md-mast h1 {
+  font-size:clamp(2.5rem,5.1vw,5rem);line-height:1.01;letter-spacing:-.037em;text-wrap:balance;
+}
+.md-world[data-md-world=necropolis] .md-mast-end {max-width:31rem;}
+.md-world[data-md-world=necropolis] .md-seal-link::before {
+  width:.8rem;height:.8rem;border:1px solid #aa864b;border-radius:50%;
+  background:radial-gradient(circle at 36% 32%,#fff2c1,#d3a753 65%,#9d763b);
+  box-shadow:0 0 0 1px #332d24;
+}
+.md-world[data-md-world=necropolis] .md-board {
+  border-radius:2px;background:#15252a;border-color:#9b784d;box-shadow:0 .7rem 2rem #0006;
+}
+.md-world[data-md-world=necropolis] .md-board-tools {border:0;background:#132329;}
+.md-strata {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:#10242b;border-block:1px solid #8d7957;}
+.md-strata a {
+  display:flex;justify-content:center;align-items:baseline;gap:.55rem;position:relative;
+  min-height:2.75rem;padding:.73rem .24rem;color:#ecdfc3;
+  text-decoration:none;font:600 .92rem/1.3 var(--md-sans);
+}
+.md-strata a+a {border-inline-start:1px solid #746a57;}
+.md-strata a small {color:inherit;font-size:.75rem;letter-spacing:.04em;font-variant-numeric:tabular-nums;}
+.md-strata a[aria-current] {background:#ddc395;color:#282119;}
+.md-strata a:hover {text-decoration:underline;text-underline-offset:.19em;}
+.md-strata a:focus-visible {outline-offset:-3px!important;}
+.md-world[data-md-world=necropolis] .md-file {
+  border-radius:0;background:linear-gradient(135deg,#223e45,#162a32 90%);
+}
+.md-world[data-md-world=necropolis] .md-file figure {border-bottom:3px double #c5a16b;}
+.md-world[data-md-world=necropolis] .md-file figcaption {
+  left:0;bottom:.7rem;padding:.37rem .75rem .37rem .9rem;letter-spacing:.09em;border:0;
+  background:#14282ceb;color:#ffdf99;
+}
+.md-world[data-md-world=necropolis] .md-file-copy .md-caption {color:#edcd91;}
+.md-world[data-md-world=necropolis] .md-file-copy h2 {font-family:var(--md-serif);font-weight:540;}
+.md-world[data-md-world=necropolis] .md-pin-face {
+  width:87%;height:61%;border-radius:999px;border:1px solid #f8d394;
+  color:#ffedca;background:linear-gradient(125deg,#234752,#18353c);
+  font:720 clamp(.76rem,1.4cqw,1.05rem)/1 var(--md-serif);font-variant-numeric:lining-nums tabular-nums;
+  box-shadow:inset 0 0 0 1.5px #223b3b,inset 0 0 0 2.5px #b79762,0 2px 5px #261405d4;
+}
+.md-world[data-md-world=necropolis] .md-pin-face::before {
+  content:"";position:absolute;right:-2px;top:17%;bottom:17%;width:2px;background:#e6c48a;
+}
+.md-world[data-md-world=necropolis] .md-pin[aria-current=location] .md-pin-face {
+  color:#2b2216;border-color:#fff2c6;background:linear-gradient(130deg,#ffe6a0,#e7b366);
+  box-shadow:inset 0 0 0 2px #a77e45,0 0 0 2px #3e3527,0 0 0 3px #f3d48d;
+}
+.md-world[data-md-world=necropolis] .md-pin[data-md-complete=true] .md-pin-face::after {
+  content:"✓";width:.9rem;height:.9rem;padding:0;border-color:#d9ba78;
+  background:#1c4e46;color:white;font:700 .7rem/.82rem var(--md-sans);text-align:center;
+}
+.md-world[data-md-world=necropolis] .md-gem-link {
+  width:max(2.75rem,13%);height:max(2.15rem,8%);aspect-ratio:auto;
+  transform:translateX(-50%);border-radius:0 0 50% 50%;outline-offset:-2px;
+}
+.md-world[data-md-world=necropolis] .md-gem-link span {
+  bottom:auto;top:100%;background:#162e35;color:#fae8c1;border-color:#bca068;
+}
+@media(max-width:540px){
+  .md-world[data-md-world=necropolis] .md-pin-face {width:max(1.47rem,4.3cqw);height:max(.99rem,3cqw);}
+  .md-world[data-md-world=necropolis] .md-map-window[data-zoom=false] .md-pin:nth-of-type(n+9) {transform:translate(-50%,-71%);}
+  .md-strata a {flex-direction:column;align-items:center;gap:.12rem;padding:.42rem .18rem;}
+}
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-file {
   border:1px solid var(--md-line);overflow:hidden;box-shadow:0 .6rem 1.4rem #0005;
 }
 .md-world[data-md-world=expedicion] .md-file {
@@ -331,16 +376,16 @@
 .md-world[data-md-world=umbravia] .md-file figcaption {
   border-left:2px solid #b9cfc1;background:#10181ce8;color:#dbe6da;
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-file-copy {
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-file-copy {
   padding:clamp(.95rem,1.7vw,1.6rem);
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-file-copy h2 {
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-file-copy h2 {
   font-size:clamp(1.65rem,2.65vw,2.9rem);
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-locked-note {font-size:.91rem;}
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-locked-note {font-size:.91rem;}
 .md-world[data-md-world=expedicion] .md-stepper {border-top:1px dashed #a9936e;}
 .md-world[data-md-world=umbravia] .md-stepper {border-color:#415057;}
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-pin {
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-pin {
   width:clamp(2.15rem,5.1cqw,3.1rem);height:clamp(2.15rem,5.1cqw,3.1rem);
 }
 .md-world[data-md-world=expedicion] .md-pin-face {
@@ -370,12 +415,12 @@
   color:#1d211b;border-color:#f2e5bb;background:linear-gradient(#f0ead1,#bbcca9);
   box-shadow:0 0 0 2px #263838,0 0 .75rem .1rem #c9e7b766;
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-pin:is(:hover,:focus-visible) .md-pin-face {outline:2px solid #fff3ca;outline-offset:2px;}
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-pin-tooltip {
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-pin:is(:hover,:focus-visible) .md-pin-face {outline:2px solid #fff3ca;outline-offset:2px;}
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-pin-tooltip {
   max-width:14rem;font-size:.82rem;background:#18221d;color:#fbf3dd;
 }
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-pin[data-md-edge=left] .md-pin-tooltip {left:0;transform:none;}
-.md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-pin[data-md-edge=right] .md-pin-tooltip {left:auto;right:0;transform:none;}
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-pin[data-md-edge=left] .md-pin-tooltip {left:0;transform:none;}
+.md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-pin[data-md-edge=right] .md-pin-tooltip {left:auto;right:0;transform:none;}
 .md-gem-link {
   display:grid;place-items:center;position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);
   width:max(2.15rem,8%);aspect-ratio:1/1;border-radius:50%;pointer-events:auto;
@@ -388,26 +433,26 @@
 .md-gem-link:is(:hover,:focus-visible) {outline:2px solid #ffe0a0;outline-offset:2px;z-index:4;}
 .md-gem-link:is(:hover,:focus-visible) span {opacity:1;}
 @media(max-width:850px){
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-atlas {grid-template-columns:minmax(0,1fr);}
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-file {
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-atlas {grid-template-columns:minmax(0,1fr);}
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-file {
     display:grid;grid-template-columns:minmax(9rem,.8fr) minmax(0,1.7fr);
   }
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-file figure {
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-file figure {
     width:100%;height:100%;max-height:none;aspect-ratio:auto;grid-row:1/3;border:0;
   }
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-stepper {grid-column:2;}
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-back-pin {display:inline-flex;}
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-stepper {grid-column:2;}
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-back-pin {display:inline-flex;}
 }
 @media(max-width:540px){
   .md-world[data-md-world=expedicion] .md-pin-face {width:max(1.16rem,3.67cqw);height:max(1.16rem,3.52cqw);}
   .md-world[data-md-world=umbravia] .md-pin-face {width:max(1.28rem,3.77cqw);height:max(1rem,2.96cqw);}
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-file {display:flex;}
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-file figure {aspect-ratio:2.8;max-height:10rem;height:auto;}
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-map-window[data-zoom=true] .md-surface {width:210%;}
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-board-tools {gap:.2rem .45rem;}
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-roll {padding-inline:.5rem;}
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-file {display:flex;}
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-file figure {aspect-ratio:2.8;max-height:10rem;height:auto;}
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-map-window[data-zoom=true] .md-surface {width:210%;}
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-board-tools {gap:.2rem .45rem;}
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-roll {padding-inline:.5rem;}
 }
 @media(forced-colors:active){
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-pin-face,.md-world .md-gem-link {border:1px solid LinkText;}
-  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia]) .md-pin[aria-current] .md-pin-face {outline:3px double Highlight;}
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-pin-face,.md-world .md-gem-link {border:1px solid LinkText;}
+  .md-world:is([data-md-world=expedicion],[data-md-world=umbravia],[data-md-world=necropolis]) .md-pin[aria-current] .md-pin-face {outline:3px double Highlight;}
 }
