@@ -40,6 +40,14 @@ export function createApp({api,authProxy=firebaseAuthProxy} = {}) {
     if (!['GET', 'HEAD'].includes(req.method)) { res.setHeader('Allow','GET, HEAD'); return reply(405, 'Método no permitido'); }
     let route;
     try { route = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); } catch { return reply(400, 'Ruta no válida'); }
+    if (/^\/caso\/habitacion-309(?:\/(?:index\.html)?)?$/.test(route)) {
+      res.writeHead(301, {Location: '/#casos'});
+      return res.end();
+    }
+    if (route === '/caso/habitacion-309/portada.png') return reply(410, 'Portada retirada');
+    if (/^\/bellamar(?:\/|$)/.test(route) || /^\/evidence\/habitacion-309\.(?:html|svg)$/.test(route)) {
+      res.setHeader('X-Robots-Tag', 'noindex');
+    }
     if (route === '/health') return reply(200, 'ok');
     if (route.includes('\0') || route.includes('\\') || route.split('/').some(p => p.startsWith('.'))) return reply(404, 'No encontrado');
     let file = resolve(root, '.' + route);

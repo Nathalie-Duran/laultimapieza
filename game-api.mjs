@@ -160,6 +160,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           if(input.requestId)checkRetiredSession(await store.getMemberData(uid),id);
           const existing=await store.getSession(id);
           if(existing){const session=member(existing,uid);await requireSubscription(store,session.ownerId,user,session.caseId);return {session};}
+          if(input.caseId==='habitacion-309')fail(410,'Este caso solo está disponible en partidas anteriores.','CASE_RETIRED');
           await requireSubscription(store,uid,user);
           if(billing&&!isAdministrator(user))await billing.claim(store,uid,input.caseId);
           if((await store.listSessions(uid)).length>=200)fail(409,'Has alcanzado el límite de 200 partidas.');
@@ -180,6 +181,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           const id=[hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20)].join('-');
           checkRetiredSession(await store.getMemberData(uid),id);
           const existing=await store.getSession(id);if(existing)return {session:member(existing,uid),alreadyImported:true};
+          if(input.caseId==='habitacion-309'&&!input.history.length)fail(410,'Para recuperar este caso necesitas una partida anterior con decisiones guardadas.','CASE_RETIRED');
           if((await store.listSessions(uid)).length>=200)fail(409,'Has alcanzado el límite de 200 partidas.');
           let session=engine.makeSession(input.caseId,[memberProfile(profile)],'solo');session.id=id;
           const story=stories.find(s=>s.id===input.caseId);

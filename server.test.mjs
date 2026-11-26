@@ -33,3 +33,20 @@ test('El servidor entrega la API con el token recibido y limita el cuerpo de la 
   const oversized=await request(server,'/api/profile',{method:'PUT',body:'a'.repeat(20000)});assert.equal(oversized.status,413);
   server.close();
 });
+
+test('Las antiguas invitaciones a la 309 redirigen al catálogo actual',async()=>{
+  const server=createApp();
+  assert.equal((await request(server,'/caso/habitacion-309/portada.png')).status,410);
+  for(const evidence of ['/bellamar/','/evidence/habitacion-309.html']){
+    const oldClue=await request(server,evidence,{method:'HEAD'});
+    assert.equal(oldClue.status,200);
+    assert.equal(oldClue.headers.get('x-robots-tag'),'noindex');
+  }
+  for(const path of ['/caso/habitacion-309','/caso/habitacion-309/?via=invitacion','/caso/habitacion-309/index.html']){
+    for(const method of ['GET','HEAD']){
+      const response=await request(server,path,{method});
+      assert.equal(response.status,301);
+      assert.equal(response.headers.get('location'),'/#casos');
+    }
+  }
+});
