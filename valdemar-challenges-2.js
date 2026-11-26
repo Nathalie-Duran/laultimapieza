@@ -293,9 +293,9 @@
   }
 
   Object.assign(window.Retos, {
-    5:{title:'La pasarela de la marea',pitch:'Un farol, cuatro viajeros y quince minutos de marea. Decide quién cruza con quién y quién trae el farol de vuelta.',mount:tidalBridge},
-    6:{title:'Tres vitrinas, diez fichas',pitch:'Puja a sobre cerrado, lee a tus rivales y consigue tres piezas distintas antes del último golpe de martillo.',mount:lostAuction},
-    7:{title:'El paseo de las seis placas',pitch:'Voltea las panorámicas y monta en la mesa de revelado un paseo continuo por Valdemar.',mount:contactSheet},
-    8:{title:'Los canales del vivero',pitch:'Reconstruye dos sistemas de riego girando las acequias para que el agua alcance todos los bancales.',mount:paperGarden}
+    5:{title:'La pasarela de la marea',pitch:'El consejo ensaya el acceso al embarcadero para la próxima llegada del ferry. Cuatro viajeros tienen quince minutos y un solo farol para cruzar la pasarela. Decide quién lo lleva y quién vuelve a buscar al resto.',mount:tidalBridge},
+    6:{title:'Tres vitrinas, diez fichas',pitch:'La sala organiza otra puja para montar una exposición. La caja de la exposición tiene diez fichas propias. Las tres que te confió Amalia quedan reservadas para su encargo. Consigue una pieza para cada vitrina.',mount:lostAuction},
+    7:{title:'El paseo de las seis placas',pitch:'El fotoclub conserva, además de los negativos del rescate, una serie panorámica del paseo. Las seis placas han llegado sueltas al laboratorio. Usa los lugares de sus extremos para reconstruir el recorrido.',mount:contactSheet},
+    8:{title:'Los canales del vivero',pitch:'En el vivero del jardín hay dos circuitos de riego por recomponer. Gira los tramos de acequia y sigue el agua hasta los tres bancales de cada circuito.',mount:paperGarden}
   });
 })();

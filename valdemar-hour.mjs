@@ -22,6 +22,14 @@ export function readHour(story,record) {
   const active = stages[current];
   const stage = active ? {...reading(active),mode:active.mode,options:active.options.map(({id,label}) => ({id,label}))} : null;
   if (stage?.mode === 'order') stage.requiredCount = active.answer.length;
+  if (active?.instrument) stage.instrument = active.instrument;
+  if (active?.corroboration) {
+    stage.corroboration = {
+      prompt: active.corroboration.prompt,
+      count: active.corroboration.answer.length,
+      options: active.materials.map(({id,label}) => ({id,label}))
+    };
+  }
   const journal = stages.slice(0,count).map((value,index) => ({index,...reading(value),success:value.success}));
   return {stages:stages.map(outline),current,stage,journal,...(hotel ? {hotel} : {})};
 }
@@ -50,9 +58,25 @@ export function evaluateHourStage(story,record,input) {
     throw new ApiError(400,'Elige las opciones del expediente que quieres contrastar.');
   }
   const {answer} = stage;
-  const correct = choice.length === answer.length && (stage.mode === 'multi'
+  const hypothesisMatches = choice.length === answer.length && (stage.mode === 'multi'
     ? answer.every(id => choice.includes(id)) : answer.every((id,i) => choice[i] === id));
+  const corroboration = stage.corroboration;
+  let sourcesMatch = true;
+  if (corroboration && index === count) {
+    const sources = input.sources;
+    if (sources === undefined) {
+      return {advanced:false,correct:false,feedback:'Esta etapa incluye un contraste de fuentes. Actualiza la página para ver la mesa completa. Tu avance está guardado.'};
+    }
+    const evidenceIds = new Set(stage.materials.map(material => material.id));
+    if (!Array.isArray(sources) || sources.length !== corroboration.answer.length ||
+        new Set(sources).size !== sources.length || !sources.every(id => evidenceIds.has(id))) {
+      throw new ApiError(400,'Selecciona las fuentes que pide la etapa.');
+    }
+    sourcesMatch = corroboration.answer.every(id => sources.includes(id));
+  }
+  const correct = hypothesisMatches && sourcesMatch;
   const advanced = index === count && correct;
   if (advanced) record.hourStep = count + 1;
-  return {advanced,correct,feedback:correct ? stage.success : stage.retry};
+  const retry = sourcesMatch ? stage.retry : 'Vuelve a comprobar la deducción y qué observación aporta cada fuente que has elegido.';
+  return {advanced,correct,feedback:correct ? stage.success : retry};
 }

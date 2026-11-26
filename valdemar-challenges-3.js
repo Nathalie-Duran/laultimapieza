@@ -312,9 +312,9 @@
   }
 
   Object.assign(window.Retos, {
-    9: { title: 'El plano giratorio', pitch: 'Gira las habitaciones hasta poder atravesar un pequeño refugio. Prueba la ruta puerta a puerta.', mount: planos },
-    10: { title: 'El brindis imposible', pitch: 'Intercambia los asientos del ensayo y escucha qué acuerdos siguen pendientes.', mount: sobremesa },
-    11: { title: 'El duelo de los faroles', pitch: 'Reta al farolero a dos rondas. ¿Puedes obligarle a dejarte la última ficha?', mount: faroles },
-    12: { title: 'Turno de las dos tintas', pitch: 'Una prensa, dos tintas y cinco encargos. Organiza la cola antes de que parta el tranvía.', mount: sellos }
+    9: { title: 'El plano giratorio', pitch: 'Antes de comparar los dibujos de las hermanas, puedes practicar con la maqueta de un refugio. Gira sus nueve estancias hasta encontrar un recorrido que pase por el taller y la galería.', mount: planos },
+    10: { title: 'El brindis imposible', pitch: 'El jefe de sala ha guardado el plano de mesa del ensayo. Seis invitados pactaron dónde sentarse para el brindis. Intercambia sus sitios hasta cumplir los cuatro acuerdos.', mount: sobremesa },
+    11: { title: 'El duelo de los faroles', pitch: 'En la mesa de prácticas del club, el farolero propone otro juego mientras se revisa la final. Juega dos rondas con las fichas de las dos filas. Gana quien retire la última.', mount: faroles },
+    12: { title: 'Turno de las dos tintas', pitch: 'En la ventanilla del archivo esperan cinco encargos para la valija del tranvía. La prensa comienza con tinta roja. Organiza los sellos de ambos colores para entregar los documentos a tiempo.', mount: sellos }
   });
 })();
