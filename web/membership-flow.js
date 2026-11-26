@@ -32,35 +32,36 @@ if(typeof document!=='undefined')document.addEventListener('submit',async event=
    const next=document.querySelector('.waiting-interest h3');if(next){next.tabIndex=-1;next.focus();}
  }catch(error){status.textContent=error.message||'No hay conexión. Vuelve a intentarlo.';button.disabled=false;}
 });
-function adminCard(){return '<section class="account-card"><span class="club-kicker">ADMINISTRADORA</span><h2>Acceso completo, sin suscripción.</h2><p>Los doce retos y La habitación 309 están disponibles desde ahora. Puedes repetirlos y guardar tu avance, sin esperar desbloqueos ni realizar pagos.</p><a class="button primary" href="#casos">Explorar todos los retos</a><a class="button" href="#mapa">Ver mi plano</a></section>';}
+function adminCard(){return '<section class="account-card"><span class="club-kicker">ADMINISTRADORA</span><h2>Acceso completo, sin suscripción.</h2><p>Tienes acceso editorial a las doce historias de Valdemar y al archivo clásico. Puedes repetirlos y guardar tu avance, sin esperar desbloqueos ni realizar pagos.</p><a class="button primary" href="#casos">Explorar todos los retos</a><a class="button" href="#mapa">Ver mi plano</a></section>';}
 function plans(){
  if(state.role==='admin')return adminCard();
  const action=config.checkoutAvailable?`<button class="button primary wide" data-action="${state.hasCustomer&&state.ownAccess?'billing-portal':'billing-checkout'}">${state.ownAccess?'Gestionar mi suscripción':'Empezar el primer mes por 29,95 €'}</button><p><a href="${esc(config.termsUrl)}" rel="noopener" target="_blank">Condiciones</a> · <a href="${esc(config.privacyUrl)}" rel="noopener" target="_blank">Privacidad</a></p>`:interest();
- const firstMonth=(root.STORIES||[]).filter(s=>s.season===1&&s.episode>=1&&s.episode<=4).sort((a,b)=>a.episode-b.episode);
+ const firstMonth=root.ValdemarCatalog.items.filter(s=>s.month===1);
  return `<section class="club-plans season-offer">
    <header>
      <p class="cover-caption">Temporada 01 · Valdemar</p>
      <h1>Cuatro misterios al mes.</h1>
-     <p class="season-intro">Una carta escondida, un ensayo que sale mal, un recuerdo borrado y un faro en silencio. ¿Por dónde empezarías?</p>
+     <p class="season-intro">Explora una estación en dos épocas, atiende el turno de medianoche de un hotel o contesta una llamada de radio imposible.</p>
    </header>
    <div class="club-plan-grid">
      <article class="club-plan season-pass">
        <h2>El pase de Valdemar</h2>
        <p class="club-price"><strong>29,95 €</strong><span>/ mes</span></p>
        <p class="club-small offer-availability">${config.checkoutAvailable?'IVA incluido.':'Precio previsto, IVA incluido. La suscripción abrirá próximamente.'}</p>
-       <p class="pass-benefit"><strong>4 casos con cada pago mensual.</strong> Elige el orden y juega a solas o con una persona invitada por partida.</p>
+       <p class="pass-benefit"><strong>Cuatro historias con cada pago mensual.</strong> Comparte la pantalla o juega a solas. Investiga audios, imágenes, documentos y archivos web, con un reto paralelo en cada historia.</p>
        <p class="postal-terms">Temporada completa de 12 casos por 89,85 € en tres pagos. Puedes cancelar antes de la próxima renovación.</p>
+       <p>Una llave de bienvenida al contratar. Cada reto superado por primera vez da otra llave. Una llave abre un sobre con dos ayudas.</p>
        ${action}
      </article>
      <div class="club-plan-aside">
        <article class="plan-cases">
          <h2>Tu primer mes en Valdemar</h2>
-         <ul>${firstMonth.map(s=>`<li><a href="/caso/${encodeURIComponent(s.id)}/"><img src="/${encodeURIComponent(s.id)}.jpg" width="74" height="50" loading="lazy" alt=""><span>${esc(s.title)}</span></a></li>`).join('')}</ul>
+         <ul>${firstMonth.map(s=>`<li><a href="/valdemar/${String(s.id).padStart(2,'0')}/"><img src="${esc(s.image)}" width="74" height="50" loading="lazy" alt=""><span>${esc(s.title)}</span></a></li>`).join('')}</ul>
          <a class="text-link" href="#casos">Explorar los 12 casos</a>
        </article>
        <div class="plan-faq">
-         <details><summary>¿Cómo se abren los casos?</summary><p>Con cada pago se abren cuatro casos de golpe. Los anteriores siguen disponibles mientras tengas acceso activo. La temporada termina tras el tercer pago. Al reunir las doce piezas descubrirás el epílogo.</p></details>
-         <details><summary>¿Qué pasa con mis partidas si cancelo?</summary><p>Puedes jugar hasta el final del periodo pagado. Guardamos tus partidas y las piezas que hayas reunido. Para continuar un caso completo necesitas acceso activo.</p></details>
+         <details><summary>¿Cómo se abren los casos?</summary><p>Con cada pago se abren cuatro casos de golpe. Los anteriores siguen disponibles mientras tengas acceso activo. La temporada termina tras el tercer pago. Las llaves ganadas se pueden usar en cualquiera de las historias disponibles.</p></details>
+         <details><summary>¿Qué pasa con mis partidas si cancelo?</summary><p>Puedes jugar hasta el final del periodo pagado. Tu cuenta conserva los sobres abiertos y las llaves ganadas. Para continuar un caso completo necesitas acceso activo.</p></details>
        </div>
        <button class="button plan-demo" data-action="preview-open">Jugar gratis a Clínica Vallejo</button>
      </div>

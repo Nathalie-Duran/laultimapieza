@@ -2,7 +2,29 @@
 'use strict';
 function experienceModel(){return {stories:window.STORIES,sessions:data.sessions,userId:me()?.userId,journey:journeyState,canPlay:window.ClubAccess.canPlay,membership:window.ClubAccess.state};}
 function homeWithPlans(){return window.ExperienceUI.home(experienceModel());}
-function experienceCatalog(){return window.ExperienceUI.catalog({...experienceModel(),catalogMonth:Number(new URLSearchParams(location.hash.split('?')[1]||'').get('mes'))});}
+function valdemarState(membership={}) {
+  const admin = membership.role === 'admin';
+  const released = new Set(membership.calendar?.unlockedCaseIds || []);
+  const blocks = membership.calendar?.blocks || [];
+  const openedMonths = admin ? [1,2,3] : membership.ownAccess ? blocks.filter(b => b.caseIds?.some(id => released.has(id))).map(b => Number(b.number)) : [];
+  return {admin, canPlay:admin || membership.ownAccess === true, openedMonths};
+}
+function seasonMonth() {
+  const value=Number(new URLSearchParams(location.hash.split('?')[1]||'').get('mes'));
+  return [1,2,3].includes(value) ? value : 1;
+}
+function seasonId() {
+  const params=new URLSearchParams(location.hash.split('?')[1] || '');
+  return Number(params.has('id') ? params.get('id') : document.body.dataset.valdemarCase);
+}
+function experienceCatalog(){return window.ValdemarCatalog.list({...valdemarState(window.ClubAccess.state),month:seasonMonth()});}
+function classicCatalog(){return window.ExperienceUI.catalog({...experienceModel(),catalogMonth:seasonMonth()});}
+function valdemarDetail(membership){return window.ValdemarCatalog.detail(seasonId(),valdemarState(membership));}
+function valdemarGame(){
+  if(!window.ValdemarCatalog.get(seasonId()))return valdemarDetail({});
+  if(!online||!valdemarState(window.ClubAccess.state).canPlay)return valdemarDetail(window.ClubAccess.state);
+  return '<section id="valdemar-player" aria-label="Mesa de juego de Valdemar" aria-busy="true"><p role="status">Abriendo el expediente…</p></section>';
+}
 function experienceMap(){return window.ExperienceUI.map(experienceModel());}
 function profileWithSubscription(){return profile();}
 function plans(){return window.ClubAccess.plans();}
@@ -199,20 +221,24 @@ function downloadMemory(id){const file=window.NightArchive.exportSession(archive
 function renderPendingAccount(route) {
   const publicModel = { stories: window.STORIES || [], canPlay: false, sessions: [] };
   if (route === 'inicio') return window.ExperienceUI.home(publicModel);
+  if (route === 'valdemar') return valdemarDetail({});
+  if (route === 'casos') return window.ValdemarCatalog.list({month:seasonMonth(),canPlay:false,openedMonths:[]});
   if (route === 'invitacion' && document.body.dataset.featuredCase) {
     return window.ExperienceUI.invitation(story(document.body.dataset.featuredCase), publicModel);
   }
   return '<div class="auth-loading" role="status">Cargando tu cuenta…</div>';
 }
-function render(){window.CartasWorkspace?.capture();const route=(location.hash.slice(1)||(document.body.dataset.featuredCase?'invitacion':'inicio')).split('?')[0];const management=!accountLoading&&online&&window.ClubAccess.state?.canManage===true;document.body.classList.toggle('management-owner',management);document.querySelector('.management-nav').hidden=!management;if(route!=='gestion'||!management)window.ManagementUI?.clear();$('#membership-dock').hidden=true;document.querySelectorAll('[data-nav]').forEach(a=>{const active=a.dataset.nav===route||(route==='suscripcion'&&a.dataset.nav==='perfil')||(route==='alta-club'&&a.dataset.nav==='planes');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});$('#breadcrumb').textContent=({inicio:'VUESTRO ESPACIO',casos:'LAS EXPERIENCIAS',mapa:'TU PLANO SECRETO',equipo:'TU EQUIPO',perfil:'MI CUADERNO',gestion:'GESTIÓN DE LA WEB',partida:'DENTRO DE LA HISTORIA',planes:'SUSCRIPCIÓN AL CLUB','alta-club':'SUSCRIBIRME AL CLUB',archivo:'VUESTRO ARCHIVO',suscripcion:'MI SUSCRIPCIÓN'})[route]||'VUESTRO ESPACIO';if(accountLoading){
-  document.body.classList.toggle('postal-visitor',['inicio','invitacion','casos','mapa','planes','alta-club'].includes(route));
+function render(){window.CartasWorkspace?.capture();const route=(location.hash.slice(1)||(document.body.dataset.valdemarCase?'valdemar':document.body.dataset.featuredCase?'invitacion':'inicio')).split('?')[0];if(route!=='valdemar-jugar')window.ValdemarPlayer?.clear();const management=!accountLoading&&online&&window.ClubAccess.state?.canManage===true;document.body.classList.toggle('management-owner',management);document.querySelector('.management-nav').hidden=!management;if(route!=='gestion'||!management)window.ManagementUI?.clear();$('#membership-dock').hidden=true;document.querySelectorAll('[data-nav]').forEach(a=>{const active=a.dataset.nav===route||(['valdemar','valdemar-jugar','archivo-clasico'].includes(route)&&a.dataset.nav==='casos')||(route==='suscripcion'&&a.dataset.nav==='perfil')||(route==='alta-club'&&a.dataset.nav==='planes');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});$('#breadcrumb').textContent=({inicio:'VUESTRO ESPACIO',casos:'LAS EXPERIENCIAS',mapa:'TU PLANO SECRETO',equipo:'TU EQUIPO',perfil:'MI CUADERNO',gestion:'GESTIÓN DE LA WEB',partida:'DENTRO DE LA HISTORIA',planes:'SUSCRIPCIÓN AL CLUB','alta-club':'SUSCRIBIRME AL CLUB',valdemar:'EXPEDIENTES DE VALDEMAR','valdemar-jugar':'MESA DE JUEGO','archivo-clasico':'ARCHIVO CLÁSICO','edicion-valdemar':'EDICIÓN DE VALDEMAR',archivo:'VUESTRO ARCHIVO',suscripcion:'MI SUSCRIPCIÓN'})[route]||'VUESTRO ESPACIO';if(accountLoading){
+  document.body.classList.toggle('postal-visitor',['inicio','invitacion','valdemar','valdemar-jugar','archivo-clasico','casos','mapa','planes','alta-club'].includes(route));
   for(const id of ['sidebar-profile','account-shortcut','mode-note']) document.getElementById(id).replaceChildren();
   $('#profile-button').textContent='+';
   $('#connection-status').textContent='Cargando cuenta…';
   $('#main').innerHTML=renderPendingAccount(route);
   return;
 }
-const p=me();document.body.classList.toggle('postal-visitor', !p && !online && ['inicio','invitacion','casos','mapa','planes','alta-club'].includes(route));$('#sidebar-profile').innerHTML=p?`<a class="profile-mini" href="#perfil">${avatar(p)}<span><b>${esc(p.name)}</b><small>${online?'Tu cuenta':'Perfil local'}</small></span></a>`:(cloudMode?window.AccountUI.header():button('Crear mi perfil','new-profile'));$('#profile-button').innerHTML=p?portraitContent(p):'+';$('#connection-status').textContent=cloudMode?(accountLoading?'Cargando cuenta…':online?'Guardado':'Sin iniciar sesión'):'En este dispositivo';if(cloudMode&&online)showSaveState(saveState);$('#account-shortcut').innerHTML=cloudMode?window.AccountUI.header():'';$('#mode-note').innerHTML=window.ClubAccess.banner();$('#main').innerHTML=({inicio:homeWithPlans,invitacion:()=>window.ExperienceUI.invitation(story(document.body.dataset.featuredCase),{...experienceModel(),referred:new URLSearchParams(location.search).get('via')==='invitacion'}),casos:experienceCatalog,mapa:experienceMap,equipo:team,perfil:profileWithSubscription,gestion:()=>management?window.ManagementUI.view():'<section class="account-card"><h1>Gestión de la web</h1><p>Esta sección está reservada a la cuenta propietaria.</p><a class="button" href="#perfil">Mi cuenta</a></section>',partida:game,planes:plans,'alta-club':enrollment,archivo:archivePage,suscripcion:subscription}[route]||homeWithPlans)();if(route==='gestion'&&management)window.ManagementUI.mount();if(route==='partida')window.CartasWorkspace?.mount(current(),story(current()?.caseId),sceneViews.get(current()?.id)??current()?.history.length,p?.userId);}
+const p=me();document.body.classList.toggle('postal-visitor', !p && !online && ['inicio','invitacion','valdemar','valdemar-jugar','archivo-clasico','casos','mapa','planes','alta-club'].includes(route));$('#sidebar-profile').innerHTML=p?`<a class="profile-mini" href="#perfil">${avatar(p)}<span><b>${esc(p.name)}</b><small>${online?'Tu cuenta':'Perfil local'}</small></span></a>`:(cloudMode?window.AccountUI.header():button('Crear mi perfil','new-profile'));$('#profile-button').innerHTML=p?portraitContent(p):'+';$('#connection-status').textContent=cloudMode?(accountLoading?'Cargando cuenta…':online?'Guardado':'Sin iniciar sesión'):'En este dispositivo';if(cloudMode&&online)showSaveState(saveState);$('#account-shortcut').innerHTML=cloudMode?window.AccountUI.header():'';$('#mode-note').innerHTML=window.ClubAccess.banner();$('#main').innerHTML=({inicio:homeWithPlans,invitacion:()=>window.ExperienceUI.invitation(story(document.body.dataset.featuredCase),{...experienceModel(),referred:new URLSearchParams(location.search).get('via')==='invitacion'}),casos:experienceCatalog,'archivo-clasico':classicCatalog,valdemar:()=>valdemarDetail(window.ClubAccess.state),'valdemar-jugar':valdemarGame,'edicion-valdemar':()=>management?window.ValdemarEdicion.view():'<p>Acceso reservado a la propietaria.</p>',mapa:experienceMap,equipo:team,perfil:profileWithSubscription,gestion:()=>management?window.ManagementUI.view():'<section class="account-card"><h1>Gestión de la web</h1><p>Esta sección está reservada a la cuenta propietaria.</p><a class="button" href="#perfil">Mi cuenta</a></section>',partida:game,planes:plans,'alta-club':enrollment,archivo:archivePage,suscripcion:subscription}[route]||homeWithPlans)();if(route==='gestion'&&management){window.ManagementUI.mount();const manageLink=document.createElement('a');manageLink.className='button';manageLink.href='#edicion-valdemar';manageLink.textContent='Edición de Valdemar';$('#main').prepend(manageLink);}
+if(route==='edicion-valdemar'&&management)window.ValdemarEdicion.mount(window.GameAccountBridge);
+if(route==='valdemar-jugar' && document.getElementById('valdemar-player')){const id=seasonId();window.ValdemarPlayer.render(id, window.GameAccountBridge,{catalogHref:'#casos?mes='+Math.ceil(id/4)});}if(route==='partida')window.CartasWorkspace?.mount(current(),story(current()?.caseId),sceneViews.get(current()?.id)??current()?.history.length,p?.userId);}
 function profileModal(edit=false){if(cloudMode&&!online)return window.AccountUI.open();const p=edit?me():null;modal(`<span class="eyebrow sage">TU IDENTIDAD EN LA HISTORIA</span><h2 id="modal-title">${edit?'Editar mi perfil':'¿Cómo te llamamos?'}</h2><p>${online?'Tu perfil se vincula a tu sesión de acceso.':'Un nombre o alias para jugar en este dispositivo. No es necesario introducir correo ni contraseña.'}</p><form id="profile-form" data-edit="${!!edit}"><label class="field">Nombre o alias<input name="name" maxlength="32" minlength="2" required autocomplete="nickname" value="${esc(p?.name||'')}" placeholder="Tu nombre de investigador"></label>${window.ProfilePortraitPreview?.markup()||''}${avatarPicker(p)}<fieldset style="border:0;padding:0;margin:18px 0"><legend style="font-size:11px">Tu color</legend><div class="color-options">${COLORS.map((color,i)=>`<label class="color-option"><input type="radio" name="color" value="${color}" ${(p?.color||COLORS[0])===color?'checked':''}><span class="color-dot" style="background:${color}"></span><span class="sr-only">${['Terracota','Salvia','Rosa','Azul'][i]}</span></label>`).join('')}</div></fieldset><div id="form-error"></div><button class="button primary wide" type="submit">${edit?'Guardar cambios':'Crear mi perfil'} ↗</button></form>`);window.ProfilePortraitPreview?.mount(document.getElementById('profile-form'));}
 function setup(partner,caseId){
   if(!window.ClubAccess.canPlay){pendingSetup=null;location.hash="planes";render();return;}
@@ -269,7 +295,7 @@ window.addEventListener('hashchange',event=>{if($('#modal').open)close();render(
 window.GameAccountBridge={
   cloud(value){cloudMode=value;if(value)this.reset();},isCloud(){return cloudMode;},
   loading(value){accountLoading=value;render();},
-  reset(){window.ManagementUI?.clear();window.ClubAccess.set(null);journeyState=null;accountGeneration++;accountAbort.abort();accountAbort=new AbortController();accountLoading=false;online=false;saveState='saved';data={profiles:[],activeId:null,sessions:[]};activeSessionId=null;theoryChecks.clear();puzzleHintCounts.clear();sceneViews.clear();},
+  reset(){window.ValdemarPlayer?.clear();window.ManagementUI?.clear();window.ClubAccess.set(null);journeyState=null;accountGeneration++;accountAbort.abort();accountAbort=new AbortController();accountLoading=false;online=false;saveState='saved';data={profiles:[],activeId:null,sessions:[]};activeSessionId=null;theoryChecks.clear();puzzleHintCounts.clear();sceneViews.clear();},
   cancelSetup(){pendingSetup=null;},
   async load(){const state=await api('/api/bootstrap');window.ClubAccess.set(state.membership);journeyState=state.journey||null;data={profiles:[state.profile],activeId:state.profile.userId,sessions:state.sessions};activeSessionId=state.sessions.some(s=>s.id===state.activeSessionId)?state.activeSessionId:null;online=true;},
   continueSetup(){if(pendingSetup){const request=pendingSetup;setup(request.partner,request.caseId);}},
