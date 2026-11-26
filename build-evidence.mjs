@@ -56,6 +56,18 @@ export async function buildInvitations(){const {Resvg}=await import('@resvg/resv
 const head=(title,desc,url,image)=>`<link rel="canonical" href="${escape(url)}"><meta property="og:type" content="website"><meta property="og:locale" content="es_ES"><meta property="og:site_name" content="La última pieza"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(desc)}"><meta property="og:url" content="${escape(url)}"><meta property="og:image" content="${escape(image)}"><meta property="og:image:type" content="${image.endsWith('.jpg')?'image/jpeg':'image/png'}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="${escape(title)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escape(title)}"><meta name="twitter:description" content="${escape(desc)}"><meta name="twitter:image" content="${escape(image)}">`;
 for(const s of stories){if(!/^[a-z0-9-]+$/.test(s.id))throw Error('Identificador de caso no válido');const path='/caso/'+s.id+'/';const dir=new URL('.'+path,publicDir);await mkdir(dir,{recursive:true});const png=new Resvg(posterSvg(s,ctx.ExperienceUI.artworkPath(s)),{font:{loadSystemFonts:false,fontFiles,defaultFontFamily:'DejaVu Sans',serifFamily:'DejaVu Serif',sansSerifFamily:'DejaVu Sans'}}).render().asPng();await writeFile(new URL('portada.png',dir),png);const title=s.title+' · La última pieza';const image=base+path+'portada.png';const desc=s.description||'Un misterio para resolver a solas o con tu cómplice.';const html=source.replace(/<title>.*?<\/title>/,()=>'<title>'+escape(title)+'</title>').replace(/<meta name="description"[^>]*>/,()=>'<meta name="description" content="'+escape(desc)+'">').replace('</head>',()=>head(title,desc,base+path,image)+'</head>').replace('<body ',()=>'<body data-featured-case="'+s.id+'" ').replace('<main id="main" tabindex="-1"></main>',()=>'<main id="main" tabindex="-1">'+ctx.ExperienceUI.invitation(s,{stories,canPlay:false})+'</main>');await writeFile(new URL('index.html',dir),html);}
 const main='<main id="main" tabindex="-1">';
-const landing=source.replace('</head>',()=>head('Clínica Vallejo · Demo gratuita de La Última Pieza','Abre la caja 87-V e investiga la desaparición del doctor Vallejo. Un misterio gratuito para una o dos personas, sin cuenta ni tarjeta.',base+'/',base+'/vallejo-caja-87v.jpg')+'</head>').replace(main+'</main>',()=>main+ctx.ExperienceUI.home({stories,canPlay:false,sessions:[]})+'</main>');
+const landingTitle = source.match(/<title>([^<]+)<\/title>/)?.[1];
+const landingDescription = source.match(/<meta name="description" content="([^"]+)"/)?.[1];
+if (!landingTitle || !landingDescription) throw Error('Faltan el título o la descripción de la portada');
+const landing = source
+  .replace('</head>', () => head(landingTitle, landingDescription, base+'/', base+'/vallejo-caja-87v.jpg')+'</head>')
+  .replace(main+'</main>', () => main+ctx.ExperienceUI.home({stories,canPlay:false,sessions:[]})+'</main>');
 await writeFile(new URL('index.html',publicDir),landing);
+const publicPaths = ['/', '/vallejo.html', ...stories.map(s => '/caso/'+s.id+'/')];
+const sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n'
+  + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+  + publicPaths.map(path => '  <url><loc>'+escape(base+path)+'</loc></url>').join('\n')
+  + '\n</urlset>\n';
+await writeFile(new URL('sitemap.xml', publicDir), sitemap);
+await writeFile(new URL('robots.txt', publicDir), 'User-agent: *\nDisallow: /api/\nDisallow: /__/\nSitemap: '+base+'/sitemap.xml\n');
 if(stories.length<12)throw Error('Faltan invitaciones para la temporada');console.log('Invitaciones generadas: '+stories.length);}
