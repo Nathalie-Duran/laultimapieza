@@ -180,7 +180,7 @@
     const ongoing = owned.filter(session => !finished(session)), complete = owned.filter(finished);
     const groups = group(ongoing, 'En curso', model, true, true) + group(complete, 'Terminadas', model, !ongoing.length, true);
     const firstCase = canPlay ? browse('Elegir un caso') : '<button type="button" class="button primary" data-action="preview-open">Jugar a Clínica Vallejo</button>';
-    const join = input.online && input.userId ? '<a class="button" href="/#perfil?seccion=pareja">Mis invitaciones</a>' : '';
+    const join = input.online && input.userId ? '<a class="button" href="/#perfil?seccion=pareja">Mis partidas en pareja</a>' : '';
     const seasons = input.online && input.userId && window.customElements?.get('season-archive');
     const seasonList = seasons ? '<season-archive'+(owned.length?' data-with-classic':'')+'></season-archive>' : '';
     const classic = owned.length ? (seasons?'<h2 class="pn-classic-heading">Archivo clásico</h2>':'')+groups :

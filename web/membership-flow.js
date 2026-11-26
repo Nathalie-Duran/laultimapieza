@@ -54,14 +54,23 @@ const valdemarHooks=[
  'El pasajero de enfrente reconoce la letra de su padre en la carta que te dio tu madre. El tren sigue en marcha.',
  'Un padre y su hija llaman a la emisora desde años distintos. Escucha sus voces antes de decidir a quién devolver la llamada.'
 ];
-function adminCard(){return '<section class="account-card"><span class="club-kicker">Acceso editorial</span><h2>Tienes los 48 juegos abiertos</h2><p>Puedes abrir cualquiera de los cuatro tableros sin contratar un pase. Desde tu perfil puedes elegir a otra persona para cada juego.</p><a class="button" href="/#perfil?seccion=pareja">Elegir con quién jugar</a>'+root.Colecciones.menu('')+'</section>';}
+function adminCard(){return '<section class="account-card"><span class="club-kicker">Acceso editorial</span><h2>Tienes los 48 juegos abiertos</h2><p>Guarda a tu compañero en Mi cuenta. Para jugar juntos, entrad en el mismo caso y pulsad «En pareja» desde vuestras cuentas. Tu acceso editorial incluye los cuatro tableros sin compra.</p><a class="button" href="/#perfil">Ver mi compañero de juego</a>'+root.Colecciones.menu('')+'</section>';}
+function partnerTerms(){
+ return config.partnerOffer?.percentOff===50 && config.partnerOffer?.regularAmountCents===2995 && config.partnerOffer?.currency==='eur' ? config.partnerOffer : null;
+}
+function partnerOfferCard(signed,qualified){
+ const heading=qualified?'Tu próxima renovación tiene un 50 % de descuento':'Un 50 % en las renovaciones de ambos';
+ const message=qualified?'El descuento se mantiene en las siguientes renovaciones mientras sigáis elegidos mutuamente y los dos tengáis una suscripción personal activa.':'Para activarlo, guarda en tu perfil el correo de tu compañero y pídele que guarde el tuyo. Con las dos suscripciones personales activas, cada uno recibe el descuento desde su próxima renovación.';
+ return `<section class="pase-pareja"><h3>${heading}</h3><p>${message}</p><a href="/#perfil">${signed?'Ver mi compañero de juego':'Ir a mi perfil'}</a></section>`;
+}
 function questions(standalone=false){
  const heading=standalone?'h1':'h2';
  return `<section class="pase-preguntas" aria-labelledby="pase-faq"><p class="pase-supra">Antes de jugar</p><${heading} id="pase-faq" tabindex="-1">Preguntas frecuentes</${heading}>
    <details><summary>¿Puedo probar una historia antes de suscribirme?</summary><p>En Clínica Vallejo recibes una caja de archivo. Escucha la cinta, examina la ficha y cruza las pistas con el registro. Puedes probarla sin cuenta. <a href="/vallejo.html">Abrir la demo</a></p></details>
-   <details><summary>¿Crear una cuenta es gratis?</summary><p>Sí. Puedes registrarte sin tarjeta, elegir tu nombre de juego y consultar las invitaciones que lleguen a tu correo. <a href="/#perfil">Abrir mi perfil</a></p></details>
-   <details><summary>¿Cómo invito a alguien a un juego?</summary><p>Guarda el correo de tu compañero en Mi cuenta. Después elige un juego, pulsa «En pareja» y envía la invitación. Puedes usar el correo guardado o poner otro para ese caso. La otra persona acepta desde su perfil con ese mismo correo verificado. Ambos necesitáis vuestro propio pase activo con el juego desbloqueado. <a href="/#perfil?seccion=pareja">Ver mis invitaciones</a></p></details>
-   <details><summary>¿Cómo se reparten los papeles? ¿Puedo jugar a solas?</summary><p>Cuando se acepta la invitación, quien ha invitado recibe el papel 1 y quien acepta recibe el papel 2. Cada uno ve sus pistas y podéis contaros lo que descubrís. Si eliges «En solitario», podrás consultar los dos expedientes. Puedes cambiar de modalidad y conservar la etapa alcanzada.</p></details>
+   <details><summary>¿Crear una cuenta es gratis?</summary><p>Sí. Puedes registrarte sin tarjeta, elegir tu nombre de juego y guardar el correo de tu compañero. La demo de Clínica Vallejo también está abierta sin registro. <a href="/#perfil">Abrir mi perfil</a></p></details>
+   <details><summary>¿Cómo jugamos juntos?</summary><p>En Mi cuenta, guarda el correo verificado de tu compañero y pídele que guarde el tuyo. Cada cuenta puede tener un solo compañero a la vez. Cuando tengáis acceso al mismo caso, abridlo desde vuestras cuentas y pulsad «En pareja» dentro del juego. <a href="/#perfil">Elegir a mi compañero</a></p></details>
+   <details><summary>¿Cómo se reparten los papeles? ¿Puedo jugar a solas?</summary><p>El primero que pulsa «En pareja» en ese caso lleva el papel 1. Cuando su compañero pulsa «En pareja», recibe el papel 2. Cada uno ve las pistas de su carpeta y las pruebas comunes. Comparad lo que habéis encontrado para decidir juntos. En solitario puedes ver ambos expedientes. Si cambias de modalidad, conservas el avance.</p></details>
+   <details><summary>¿Cuándo empieza y cuándo termina el descuento de pareja?</summary><p>Al contratar o retomar un pase, la primera cuota personal es de 29,95 € con IVA. Cuando los dos os habéis elegido en el perfil y ambos tenéis una suscripción personal activa, cada uno obtiene un 50 % de descuento en su próxima renovación y en las siguientes. Si cambiáis de compañero o uno deja de tener la suscripción activa, las próximas cuotas vuelven a la tarifa general. Las facturas ya emitidas conservan su importe. <a href="/#perfil">Gestionar mi compañero</a></p></details>
    <details><summary>¿Cuántos juegos se abren y cuánto dura cada uno?</summary><p>Cada cuota mensual abre cuatro juegos de la temporada para la persona que la paga. Calcula unos 60 minutos por caso. Si haces una pausa, retoma la etapa guardada en Mis partidas.</p></details>
    <details><summary>¿Para qué sirven las llaves?</summary><p>Recibes una llave de bienvenida una sola vez al contratar. En cada caso puedes ganar otra la primera vez que superes su reto paralelo. Una llave abre un sobre con dos ayudas.</p></details>
    <details><summary>¿Cómo paso al siguiente tablero?</summary><p>Cada desenlace aporta una pieza al sello del tablero. Con los doce desenlaces guardados podrás leer su epílogo y contratar la temporada siguiente. El recorrido empieza en Valdemar y continúa en el Tablero de Ámbar, Umbravía y la Necrópolis del Sol Velado.</p></details>
@@ -95,6 +104,9 @@ function plans(){
  const route=seasonRoutes[number-1],name=seasonNames[number-1];
  const requested=typeof location!=='undefined'&&new URLSearchParams(location.hash.split('?')[1]).get('revisar');
  const reviewing=!!(requested && root.GameAccountBridge?.isSignedIn() && config.checkoutAvailable && offer?.number===Number(requested) && !state.ownAccess);
+ const signed=root.GameAccountBridge?.isSignedIn?.()===true;
+ const termsForPartner=partnerTerms();
+ const qualified=Boolean(signed && state.ownAccess && current && !current.finishAccess && termsForPartner && state.partnerOffer?.eligible===true && state.partnerOffer?.status==='eligible');
  const checkout=state.ownAccess
    ? '<button class="button primary wide" data-action="billing-portal">Gestionar mi suscripción</button>'
    : (!access||offer)
@@ -102,14 +114,12 @@ function plans(){
      : `<a class="button primary wide" href="#${route}">Volver a ${name}</a>`;
  const terms=[['Condiciones',config.termsUrl],['Política de privacidad',config.privacyUrl]].filter(([,url])=>typeof url==='string'&&/^https:\/\//i.test(url)).map(([label,url])=>`<a href="${esc(url)}" rel="noopener" target="_blank">${label}</a>`).join(' · ');
  const portal=state.ownAccess && state.hasCustomer;
- const signed=root.GameAccountBridge?.isSignedIn?.()===true;
  const freeAccount=signed?'':'<p><button type="button" class="button" data-action="auth-register">Crear cuenta gratis</button></p>';
  const action=config.checkoutAvailable||portal?checkout+(terms?'<p>'+terms+'</p>':''):held?.finishAccess?'<a class="button primary wide" href="#'+route+'">Volver a '+name+'</a>':interest();
  const cycles=offer?.number===number ? offer.remainingCycles : held ? 3-held.paidBlocks.length : 3;
  const costText=cycles===0 ? 'Has abonado los tres bloques de esta temporada.' :
-   cycles===3 ? 'Temporada completa de 12 juegos por 89,85 € en tres pagos.' :
-   cycles===1 ? 'Queda un bloque de 29,95 € para completar esta temporada.' :
-   'Quedan dos bloques de 29,95 €, 59,90 € en total, para completar esta temporada.';
+   cycles===3 ? 'El pase termina tras tres cuotas. A tarifa general, el máximo por los doce juegos es de 89,85 €.' :
+   cycles===1 ? 'Queda una cuota para completar esta temporada.' : 'Quedan dos cuotas para completar esta temporada.';
  const firstMonth=number===1?root.ValdemarCatalog.items.slice(0,4):(root.MundosCatalogo||[]).filter(s=>s.world===route).slice(0,4);
  const destination=s=>number===1?'/valdemar/'+String(s.id).padStart(2,'0')+'/':'/#'+route+'?lugar='+((s.id-1)%12+1);
  const opening=openings[number-1],first=firstMonth[0];
@@ -120,7 +130,7 @@ function plans(){
  const mainLabel=openingLink?.label||(state.ownAccess?'Ver mi suscripción':'Ver el pase de '+name);
  const past=current?.finishAccess && current.completed===12 && number>current.number;
  return `<section class="pase-temporada" data-season="${number}">
-   ${params.get('checkout')==='complete'?`<aside class="pase-ficha" role="status"><h2>${state.ownAccess?'Tu pase está activo':'Estamos comprobando tu pase'}</h2><p>${state.ownAccess?'Ya puedes elegir uno de tus juegos abiertos e invitar a alguien desde tu perfil.':'Tus juegos aparecerán en el perfil cuando se confirme el pago.'}</p><a class="button" href="/#perfil?seccion=pareja">Ir a mis juegos e invitaciones</a></aside>`:''}
+   ${params.get('checkout')==='complete'?`<aside class="pase-ficha" role="status"><h2>${state.ownAccess?'Tu pase está activo':'Estamos comprobando tu pase'}</h2><p>${state.ownAccess?'Ya puedes abrir un caso. Si vais a investigar juntos, elegíos en vuestros perfiles y pulsad «En pareja» dentro del mismo juego.':'Tus juegos aparecerán en el perfil cuando se confirme el pago.'}</p><a class="button" href="/#perfil">Abrir mi perfil</a></aside>`:''}
    <header class="pase-escena">
      <img class="pase-fondo" src="${heroImage}" alt="" width="1536" height="1024" fetchpriority="high">
      <div class="pase-apertura"><p class="pase-supra">Pase de temporada · ${name}</p>
@@ -141,12 +151,13 @@ function plans(){
    <div class="pase-detalle" id="pase-detalle"><article class="pase-ficha">
      <p class="pase-supra">Pase personal · Suscripción mensual</p>
      <h2 id="pass-review-title" tabindex="-1">${reviewing?'Revisa tu pase de '+name:'El pase de '+name}</h2>
-     <p class="pase-incluye">Cada mes se abren cuatro investigaciones de unos 60 minutos en tu cuenta. Puedes jugarlas a solas o invitar desde tu perfil a alguien distinto para cada caso. Para jugar en pareja, ambos necesitáis tener ese misterio abierto con vuestro propio pase.</p>
-     <p class="pase-precio"><strong>29,95 €</strong> / persona al mes</p>
-     <p class="pase-estado">${config.checkoutAvailable||held?'IVA incluido.':'Precio previsto, IVA incluido. La suscripción abrirá próximamente.'}</p>
+     <p class="pase-incluye">Cada cuota abre cuatro investigaciones de unos 60 minutos. Juega a solas o comparte el caso con tu compañero. Cada uno sigue las pistas de su papel desde su propia cuenta.</p>
+     <p class="pase-precio"><strong>29,95 €</strong> ${state.ownAccess?'por persona al mes · tarifa general':'primera cuota por persona'}</p>
+     <p class="pase-estado">${config.checkoutAvailable||held?'IVA incluido.':'Precio previsto, IVA incluido. La suscripción abrirá próximamente.'}${state.ownAccess?'':' La renovación mensual a tarifa general es de 29,95 €.'}</p>
      <p class="pase-importe">${costText} ${cycles?'Puedes cancelar antes de la próxima renovación.':held?.finishAccess?'Los doce juegos siguen disponibles en tu cuenta.':''}</p>
+     ${partnerOfferCard(signed,qualified)}
      ${past?`<p>Has completado ${seasonNames[current.number-1]}. <a href="/#${seasonRoutes[current.number-1]}">Volver a esa temporada</a></p>`:''}
-     <div class="pase-decision">${action}${freeAccount}${signed && (state.ownAccess||held?.finishAccess)?'<p><a href="/#perfil?seccion=pareja">Elegir un juego e invitar a mi pareja</a></p>':''}</div>
+     <div class="pase-decision">${action}${freeAccount}${signed && (state.ownAccess||held?.finishAccess)?'<p><a href="/#perfil">Ver mi compañero de juego</a></p>':''}</div>
    </article>${questions()}</div>
  </section>`;
 }

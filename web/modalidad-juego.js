@@ -18,8 +18,8 @@
     const editorial=data.editorialPreview===true && !partner;
     let mode=partner?'duo':editorial&&initial==='duo'?'duo':initial?'solo':null;
     let paper=partner?.role==='B'?'B':'A';
-    let disposed=false,pending=false,loading=false,waiting=false,timer;
-    let pickerVersion=0;
+    let disposed=false,pending=false,loading=false,waiting=Boolean(data.waitingForPartner && !partner),timer;
+    
     const views=[];
     const entry=element('section','gm-entry'),change=element('section','gm-change');
     const panel=element('div','gm-panel'),roles=element('div','gm-roles'),tools=element('div','gm-tools');
@@ -27,13 +27,14 @@
     panel.append(roles,tools,status);
     const partnerName=partner?.name||'Tu pareja';
     function display(message='') {
-      frame.dataset.playMode=mode||'pending';frame.dataset.playPaper=mode==='duo'?paper:'all';
+      frame.dataset.playMode=waiting?'pending':mode||'pending';frame.dataset.playPaper=waiting?'':mode==='duo'?paper:'all';
+      frame.dataset.pairWaiting=String(waiting);
       for(const {solo,duo,preview,roleLine} of views){
-        solo.setAttribute('aria-pressed',String(mode==='solo'));
-        duo.setAttribute('aria-pressed',String(Boolean(partner)));
+        solo.setAttribute('aria-pressed',String(mode==='solo'&&!waiting));
+        duo.setAttribute('aria-pressed',String(Boolean(partner)||waiting));
         solo.disabled=duo.disabled=pending;
         if(preview){preview.setAttribute('aria-pressed',String(mode==='duo'));preview.disabled=pending;}
-        if(roleLine)roleLine.textContent=mode==='duo'
+        if(roleLine)roleLine.textContent=waiting?'Esperando a tu compañero':mode==='duo'
           ?(editorial?'Vista editorial · Papel ':'Tu papel ')+(paper==='A'?'1':'2')+(partner?' · '+partnerName+' lleva el papel '+(paper==='A'?'2':'1'):'')
           :'';
       }
@@ -41,7 +42,7 @@
     }
     function tasks() {
       roles.replaceChildren();
-      if(!mode)return;
+      if(!mode||waiting)return;
       for(const [index,text] of (story.roles||[]).entries()){
         const own=(index===0?'A':'B')===paper,number=index+1;
         const card=element('div',own&&mode==='duo'?'gm-task gm-own':'gm-task');
@@ -55,7 +56,6 @@
     }
     function movePanel(box) {
       if(panel.parentElement!==box)box.append(panel);
-      pickerVersion++;
       tools.replaceChildren();status.textContent='';
     }
     function showPairTools() {
@@ -87,7 +87,7 @@
         if(disposed)return;
         if(result?.mode!==next)throw Error('No se ha podido cambiar la modalidad. Vuelve a intentarlo.');
         if(partner){reopen();return;}
-        mode=next;tools.replaceChildren();tasks();applyPapers();showPairTools();
+        waiting=false;setPolling();mode=next;tools.replaceChildren();tasks();applyPapers();showPairTools();
         display(next==='solo'?'Estás jugando en solitario.':'Has abierto la revisión de los dos papeles en esta pantalla.');
       }catch(error){if(!disposed)display(error.message||'No se ha podido guardar la modalidad.');}
       finally{if(!disposed){pending=false;display();}}
@@ -96,7 +96,7 @@
       if(pending||disposed)return;
       movePanel(box);
       if(!partner){
-        if(mode!=='solo')return setMode('solo');
+        if(waiting||mode!=='solo')return setMode('solo');
         else{tasks();display('Puedes consultar las pistas de ambos papeles.');}
         return;
       }
@@ -109,78 +109,64 @@
       actions.append(confirm,back);
       tools.append(element('p','gm-description','Si dejas la partida en pareja, cada persona conservará lo que ya habéis resuelto.'),actions);confirm.focus();
     }
-    function inviteForm(result,version) {
-      const invitations=result.invitations.filter(row=>row.caseId===caseId);
-      const accepted=invitations.find(row=>row.status==='accepted');
-      if(accepted){
-        tools.append(element('p','gm-description','Este caso ya tiene pareja. Para jugar juntos, ambos necesitáis acceso al caso desde vuestra cuenta.'));
-        const check=button('Comprobar acceso',async()=>{
-          check.disabled=true;
-          try{const state=await readState();if(disposed||version!==pickerVersion)return;
-            if(state.partner)reopen();else display('La partida compartida aún no está disponible.');
-          }catch(error){if(!disposed)display(error.message);}finally{check.disabled=false;}
-        });tools.append(check);return;
-      }
-      if(!result.availableCases.includes(caseId)){
-        const a=element('a','gm-option','Ver mi pase');a.href='/#planes';
-        tools.append(element('p','gm-description','Necesitas tener este caso abierto en tu pase antes de invitar o aceptar.'),a);return;
-      }
-      const incoming=invitations.filter(row=>row.direction==='received' && row.status==='pending');
+    function profileLink(label) {
+      const link=element('a','gm-profile',label);
+      link.href='/#perfil';return link;
+    }
+    function showWaiting() {
+      tools.replaceChildren(element('p','gm-description','Ya has elegido «En pareja». Tu compañero debe abrir este juego y elegir también «En pareja». Entonces veréis vuestros papeles.'));
+      roles.replaceChildren();display('Esperando a tu compañero.');setPolling();
+    }
+    async function choosePair(input) {
+      const result=await partners('/api/partners/play',input);
+      if(disposed)return;
+      if(result.status==='accepted'){reopen();return;}
+      if(result.status!=='pending')throw Error('No se ha podido confirmar la modalidad de este caso.');
+      waiting=true;showWaiting();
+    }
+    function showReceived(incoming) {
+      tools.replaceChildren(element('p','gm-description','Todavía no has guardado un compañero. Si eliges a alguien de esta lista, quedará como la única persona en tu perfil y se abrirá vuestra partida.'));
       for(const row of incoming){
-        const name=row.partnerName||row.partnerEmail||'La otra persona';
-        const accept=button('Aceptar y jugar',async()=>{
-          accept.disabled=true;
-          try{
-            await partners('/api/partners/'+encodeURIComponent(row.id)+'/accept',{});
-            if(!disposed)reopen();
-          }catch(error){if(!disposed)display(error.message||'No se ha podido aceptar la invitación.');}
-          finally{accept.disabled=false;}
-        });
-        tools.append(element('p','gm-description',name+' te ha invitado a este caso.'),accept);
+        const name=row.partnerName||row.partnerEmail||'tu compañero';
+        const identify=[row.partnerName,row.partnerEmail].filter(Boolean).join(' · ');
+        if(identify)tools.append(element('p','gm-description',identify));
+        tools.append(button('Guardar y jugar en pareja con '+name,async()=>{
+          if(pending||disposed)return;
+          pending=true;display('Guardando tu elección…');
+          try { await choosePair({caseId,invitationId:row.id,saveIfEmpty:true}); }
+          catch(error){if(!disposed)display(error.message||'No se ha podido abrir vuestra partida.');}
+          finally {if(!disposed){pending=false;display();}}
+        }));
       }
-      const outgoing=invitations.find(row=>row.direction==='sent'&&row.status==='pending');
-      if(outgoing){
-        waiting=true;setPolling();
-        tools.append(element('p','gm-description','Has invitado a '+(outgoing.partnerEmail||outgoing.partnerName||'tu pareja')+'. La partida compartida se abrirá aquí cuando acepte.'));
-      }else if(!incoming.length){
-        const form=element('form','gm-form'),label=element('label',null,'Correo de tu compañero de juego');
-        const input=element('input');input.type='email';input.name='partnerEmail';input.required=true;input.maxLength=254;
-        input.autocomplete='off';input.spellcheck=false;input.setAttribute('autocapitalize','none');
-        input.placeholder='nombre@ejemplo.es';input.value=result.preferredEmail||'';label.append(input);
-        const send=element('button','gm-option','Invitar a mi compañero');send.type='submit';
-        form.append(label,send);
-        form.addEventListener('submit',async event=>{
-          event.preventDefault();if(send.disabled||!form.reportValidity())return;
-          send.disabled=true;const email=input.value.trim();
-          try{
-            await partners('/api/partners',{caseId,email});
-            if(disposed)return;
-            waiting=true;setPolling();
-            if(version!==pickerVersion)return;
-            tools.replaceChildren(element('p','gm-description','Invitación guardada para '+email+'. Cuando la acepte, se abrirá aquí vuestra partida.'));
-            display('Esperando a tu compañero.');
-          }catch(error){if(!disposed && version===pickerVersion)display(error.message||'No se ha podido enviar la invitación.');}
-          finally{send.disabled=false;}
-        });
-        tools.append(element('p','gm-description','Tu compañero recibirá la invitación en su cuenta. Podéis jugar desde dispositivos distintos cuando ambos tengáis acceso al caso.'),form);
-      }
-      const manage=element('a','gm-profile','Gestionar invitaciones en mi perfil');
-      manage.href='/#perfil?seccion=pareja&juego='+caseId;tools.append(manage);
+      tools.append(profileLink('Elegir mi compañero desde el perfil'));
     }
     async function duoChoice(box) {
       if(pending||disposed)return;
       movePanel(box);
       if(partner){tasks();showPairTools();display();return;}
-      roles.replaceChildren();
-      const version=pickerVersion;display('Consultando tu pareja y tus invitaciones…');
-      try{
+      pending=true;roles.replaceChildren();display('Comprobando este juego…');
+      try {
         const result=await partners('/api/partners');
-        if(disposed||version!==pickerVersion)return;
-        status.textContent='';inviteForm(result,version);
-      }catch(error){if(!disposed && version===pickerVersion)display(error.message||'No se han podido cargar tus invitaciones.');}
+        if(disposed)return;
+        if(!result.availableCases.includes(caseId)){
+          const pass=element('a','gm-option','Ver mi pase');pass.href='/#planes';
+          tools.append(element('p','gm-description','Necesitas acceso a este caso para jugar en pareja.'),pass);
+          status.textContent='';return;
+        }
+        if(!result.preferredEmail){
+          const incoming=result.invitations.filter(row=>row.caseId===caseId && row.direction==='received' && row.status==='pending');
+          if(incoming.length)showReceived(incoming);
+          else tools.append(element('p','gm-description','Guarda a tu compañero en Mi cuenta y volved a este juego. Cada persona debe elegir «En pareja» desde su cuenta.'),profileLink('Añadir mi compañero en Mi cuenta'));
+          status.textContent='';return;
+        }
+        await choosePair({caseId});
+      }catch(error){
+        if(!disposed){display(error.message||'No se ha podido guardar tu elección.');tools.append(profileLink('Ver mi compañero'));}
+      }finally{if(!disposed){pending=false;display();}}
     }
     function previewChoice(box) {
       if(!editorial||partner||pending||disposed)return;
+      if(waiting){display('Para revisar los papeles, retira primero tu elección pasando a solitario.');return;}
       movePanel(box);
       if(mode!=='duo')return setMode('duo');
       tasks();showPairTools();display();
@@ -197,7 +183,7 @@
       views.push({box,solo,duo,preview,roleLine});
     }
     choices(entry,'Cómo quieres jugar');choices(change,'Modalidad de la partida');
-    entry.append(panel);tasks();showPairTools();display();
+    entry.append(panel);tasks();if(waiting)showWaiting();else showPairTools();display();
     const observer=new MutationObserver(records=>{
       for(const record of records)for(const node of record.addedNodes) {
         if(node.nodeType===1 && (node.matches('.vhour-shelf')||node.querySelector('.vhour-shelf'))){
@@ -212,6 +198,7 @@
         const state=await readState();
         if(disposed||pending)return;
         if((state.partner?.id||null)!==(partner?.id||null)){reopen();return;}
+        if(waiting&&state.waitingForPartner===false){reopen();return;}
         if(!partner||!progressChanged(data,state))return;
         const latest=await readDossier();
         if(disposed||pending)return;

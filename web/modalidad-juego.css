@@ -37,9 +37,9 @@
 }
 .vd-player .gm-tools:not(:empty) {margin-top:.55rem;}
 .vd-player .gm-tools .gm-options {margin:.4rem 0;}
-.vd-player .gm-form {display:flex;flex-wrap:wrap;align-items:flex-end;gap:.55rem;margin:.55rem 0;}
-.vd-player .gm-form label {display:grid;gap:.25rem;min-width:0;flex:1 1 13rem;font:600 .85rem/1.35 var(--sans,system-ui,sans-serif);}
-.vd-player .gm-form input {min-width:0;width:100%;box-sizing:border-box;min-height:44px;padding:.5rem .65rem;border:1px solid var(--gm-line);border-radius:.3rem;background:#11211d;color:#fff;font:inherit;}
+.vd-player[data-pair-waiting="true"] > :is(.vd-tabs,.vd-pair,.vd-panel,.md-game-tabs,.md-game-panel) {
+  display:none;
+}
 .vd-player .gm-profile {display:inline-flex;align-items:center;min-height:42px;color:var(--gm-accent);text-underline-offset:.18em;}
 .vd-player .gm-status:not(:empty) {color:var(--gm-accent);}
 .vd-player .gm-status:empty {display:none;}
@@ -48,5 +48,4 @@
 .vd-player[data-play-mode] .vhour-filter,.vd-player[data-play-mode] .vd-folders .vd-controls {display:none;}
 @media(max-width:420px) {
   .vd-player :is(.gm-entry,.gm-change) .gm-label {display:block;margin:0 0 .4rem;}
-  .vd-player .gm-form .gm-option {width:100%;}
 }
