@@ -132,6 +132,17 @@ export function createDatabase(env=process.env) {
           return this.withAvatars(sessions);
         },
         async getSession(id) { const record=state((await query('SELECT * FROM lup_sessions WHERE id=? FOR UPDATE',[id]))[0]);if(record)await this.withAvatars([record.session]);return record; },
+        async lockSessionIdsForReset(uid) {
+          const rows=await query('SELECT session_id FROM lup_members WHERE user_id=? ORDER BY session_id FOR UPDATE',[uid]);
+          return rows.map(row=>row.session_id);
+        },
+        async deleteSoloSession(id,uid) {
+          const removed=await query(`DELETE FROM lup_sessions WHERE id=?
+            AND EXISTS (SELECT 1 FROM lup_members WHERE session_id=? AND user_id=?)
+            AND NOT EXISTS (SELECT 1 FROM lup_members WHERE session_id=? AND user_id<>?)`,[id,id,uid,id,uid]);
+          if(removed.affectedRows!==1)throw new ApiError(409,'El equipo ha cambiado. Revisa tus partidas antes de confirmar.');
+        },
+        async clearSeasonReward(uid) { await query('DELETE FROM lup_season_rewards WHERE user_id=? AND season=1',[uid]); },
         async findInvite(hash) { return state((await query('SELECT * FROM lup_sessions WHERE invite_hash=? FOR UPDATE',[hash]))[0]); },
         async insertSession(session) {
           session.reportCreatedAt=new Date().toISOString();
@@ -139,6 +150,10 @@ export function createDatabase(env=process.env) {
           for(const member of session.members) await this.addMember(session.id,member.userId);
         },
         async addMember(id,uid) { await query('INSERT IGNORE INTO lup_members (session_id,user_id) VALUES (?,?)',[id,uid]); },
+        async removeMember(id,uid) {
+          await query('DELETE FROM lup_members WHERE session_id=? AND user_id=?',[id,uid]);
+          await query('UPDATE lup_profiles SET active_session_id=NULL WHERE user_id=? AND active_session_id=?',[uid,id]);
+        },
         async saveSession(session) { await query('UPDATE lup_sessions SET state_json=?,updated_at=? WHERE id=?',[JSON.stringify(session),new Date().toISOString(),session.id]); },
         async setInvite(id,hash,until) { await query('UPDATE lup_sessions SET invite_hash=?,invite_until=? WHERE id=?',[hash,until,id]); }
       };

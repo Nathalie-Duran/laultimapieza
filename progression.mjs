@@ -37,6 +37,7 @@ export function checkPuzzle(session,story,input,uid){
   return {correct,hints:p.hints.slice(0,progress.hints),message:correct?p.explanation:'Todavía hay una contradicción. Revisa las pruebas o abre una ayuda; puedes volver a intentarlo.'};
 }
 export const CASE_ORDER=['cartas-medianoche','ultima-funcion','archivo-ausencias','marea-quieta','frecuencia-17','jardin-invierno','retrato-prestado','mesa-13','tren-detenido','ciudad-invisible','ultimo-coro','ultima-invitacion'];
+export const SEASON_NAMES=Object.freeze(['Valdemar','El Tablero de Ámbar','Umbravía','La Necrópolis del Sol Velado']);
 // Each verified payment assigns the next fixed block immediately. Revocations keep
 // their ordinal so refunding month one never renumbers month two's cases.
 export function orderedCycles(cycles){
@@ -51,7 +52,7 @@ export function seasonBlocks(cycles,now=Date.now()){
   for(const cycle of orderedCycles(cycles)){
     const explicit = Object.hasOwn(cycle,'worldBlock');
     const number = explicit ? cycle.worldBlock : ++legacyBlock;
-    if(!Number.isInteger(number) || number<1 || number>(explicit?9:3)) continue;
+    if(!Number.isInteger(number) || number<1 || number>(explicit?SEASON_NAMES.length*3:3)) continue;
     const old = byBlock.get(number);
     if(!old || rank(cycle)>=rank(old)) byBlock.set(number,{...cycle,number});
   }

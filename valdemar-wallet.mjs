@@ -1,7 +1,7 @@
 import { ApiError } from './auth-provider.mjs';
-import { seasonBlocks } from './progression.mjs';
+import { seasonBlocks, SEASON_NAMES } from './progression.mjs';
 
-export const WORLD_CASE_COUNT = 36;
+export const WORLD_CASE_COUNT = SEASON_NAMES.length*12;
 const CASES_PER_BLOCK = 4;
 
 function createWallet() {
@@ -12,6 +12,20 @@ function walletRecord(data, editorial) {
   data.valdemarSeasonOne ||= {};
   const scope = editorial ? 'editorial' : 'paid';
   return data.valdemarSeasonOne[scope] ||= createWallet();
+}
+
+// The caller owns the locked member record and commits the classic and Valdemar reset together.
+export function resetValdemarProgress(data,{editorial=false,now=Date.now()}={}) {
+  const subscriptions = (data.cycles || [])
+    .filter(c=>!c.revoked && c.start<=now && c.end>c.start && typeof c.subscription==='string' && c.subscription)
+    .map(c=>c.subscription);
+  for(const scope of editorial ? ['paid','editorial'] : ['paid']){
+    if(data.valdemarCaseProgress)delete data.valdemarCaseProgress[scope];
+    const wallet=walletRecord(data,scope==='editorial');
+    const welcomes=[...new Set([...wallet.welcomes,...(scope==='paid'?subscriptions:['editorial'])])];
+    // Retain the identities of previously granted welcomes across repeated resets and billing sync.
+    data.valdemarSeasonOne[scope]={...createWallet(),welcomes,clearedWelcomes:welcomes.length};
+  }
 }
 
 function currentPaidSubscription(data, now) {
@@ -28,7 +42,7 @@ export function worldSeasonAccess(data,{editorial=false,now=Date.now(),active=Bo
   const records = data.valdemarCaseProgress?.[editorial?'editorial':'paid'] || {};
   const completed = [], availableCases = [], seasons = [];
   let previousReady = true, nextPurchase = null;
-  for(let number=1;number<=3;number++){
+  for(let number=1;number<=SEASON_NAMES.length;number++){
     const base = (number-1)*12;
     const ids = Array.from({length:12},(_,i)=>base+i+1);
     const finished = ids.filter(id=>records[id]?.choice);
@@ -42,7 +56,8 @@ export function worldSeasonAccess(data,{editorial=false,now=Date.now(),active=Bo
       nextPurchase = {number,blocks,remainingCycles:blocks.length};
     }
     seasons.push({number,previousCompleted:number===1?12:seasons.at(-1).completed,previousReady,
-      completed:finished.length,paidBlocks,availableCases:available,finishAccess});
+      completed:finished.length,paidBlocks,availableCases:available,finishAccess,
+      seal:{earned:finished.map(id=>id-base),complete:finished.length===12}});
     availableCases.push(...available);
     completed.push(...finished);
     previousReady = previousReady && finished.length===12;
@@ -62,7 +77,7 @@ export function creditValdemarWelcome(data, now = Date.now()) {
 }
 
 function snapshot(wallet) {
-  const gift = wallet.welcomes.length;
+  const gift = Math.max(0,wallet.welcomes.length-(wallet.clearedWelcomes||0));
   return {
     gift,
     balance: gift + wallet.won.length - wallet.opened.length,

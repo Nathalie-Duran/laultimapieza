@@ -4,6 +4,7 @@ import { readJourney, solveJourney } from './season-journey.mjs';
 import { checkPuzzle } from './progression.mjs';
 import { adminMembership, canManageSite } from './admin-access.mjs';
 import { mailKey } from './mail-service.mjs';
+import {checkRetiredSession, resetPersonalProgress} from './progress-reset.mjs';
 
 const COLORS=['#b1846b','#a7b6a0','#dca6a1','#a2b2c9'];
 const hash=code=>createHash('sha256').update(code).digest('hex');
@@ -14,6 +15,19 @@ const json=(value,status=200)=>new Response(JSON.stringify(value),{status,header
 function member(record,uid) {
   if(!record?.session.members.some(m=>m.userId===uid)) fail(404,'Esta partida no está disponible.');
   return record.session;
+}
+function visibleSession(session){
+  const visible=structuredClone(session);
+  const members=new Set(visible.members.map(member=>member.userId));
+  for(const entry of visible.history){
+    for(const field of ['preferences','preferenceEffects']){
+      if(entry[field])entry[field]=Object.fromEntries(Object.entries(entry[field]).filter(([uid])=>members.has(uid)));
+    }
+  }
+  for(const finding of [visible.investigation,...Object.values(visible.investigation?.stages||{})]){
+    if(finding?.solvedBy&&!members.has(finding.solvedBy))delete finding.solvedBy;
+  }
+  return visible;
 }
 async function body(request) {
   if(!(request.headers.get('content-type')||'').startsWith('application/json')) fail(415,'La petición debe contener JSON.');
@@ -112,6 +126,8 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           const data=await store.getMemberData(uid);data.waitlist=input.enabled;data.waitlistEmail=input.enabled?user.email:null;data.waitlistAt=input.enabled?new Date().toISOString():null;
           await store.saveMemberData(uid,data);return {waitlist:data.waitlist};
         }
+        if(path==='/api/me/progress/reset'&&method==='POST')
+          return resetPersonalProgress(store,uid,input,isAdministrator(user));
         if(path==='/api/bootstrap'&&method==='GET'){
           if(isAdministrator(user)&&store.markEditorial)await store.markEditorial(uid);
           const sessions=await store.listSessions(uid);
@@ -137,7 +153,9 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         if(path==='/api/sessions'&&method==='POST'){
           if(!stories.some(s=>s.id===input.caseId)||!['solo','duo'].includes(input.mode))fail(400,'Elige un caso y un modo disponibles.');
           if(input.requestId&&!/^[0-9a-f-]{36}$/.test(input.requestId))fail(400,'La petición no es válida.');
-          const id=input.requestId||randomUUID(),existing=await store.getSession(id);
+          const id=input.requestId||randomUUID();
+          if(input.requestId)checkRetiredSession(await store.getMemberData(uid),id);
+          const existing=await store.getSession(id);
           if(existing){const session=member(existing,uid);await requireSubscription(store,session.ownerId,user,session.caseId);return {session};}
           await requireSubscription(store,uid,user);
           if(billing&&!isAdministrator(user))await billing.claim(store,uid,input.caseId);
@@ -157,6 +175,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
               !stories.some(s=>s.id===input.caseId)||!Array.isArray(input.history)||input.history.length>25)fail(400,'La partida local no es válida.');
           const hex=hash('local-import:'+uid+':'+input.localSessionId).slice(0,32);
           const id=[hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20)].join('-');
+          checkRetiredSession(await store.getMemberData(uid),id);
           const existing=await store.getSession(id);if(existing)return {session:member(existing,uid),alreadyImported:true};
           if((await store.listSessions(uid)).length>=200)fail(409,'Has alcanzado el límite de 200 partidas.');
           let session=engine.makeSession(input.caseId,[memberProfile(profile)],'solo');session.id=id;
@@ -182,18 +201,37 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           const record=await store.findInvite(hash(input.code));
           if(!record||record.inviteUntil<Date.now())fail(400,'La invitación no es válida o ha caducado.');
           const session=record.session;
+          const memberData=await store.getMemberData(uid);
+          checkRetiredSession(memberData,session.id);
+          if(memberData.progressReset?.at && (session.history||[]).some(entry=>
+            (!entry.createdAt||entry.createdAt<=memberData.progressReset.at) &&
+            (Object.hasOwn(entry.preferences||{},uid)||Object.hasOwn(entry.preferenceEffects||{},uid))))
+            fail(410,'Esta partida pertenece a un progreso que ya reiniciaste.','PROGRESS_RESET');
           await requireSubscription(store,session.ownerId,user,session.caseId);
           if(session.members.some(m=>m.userId===uid))return {session};
           if(session.status!=='waiting'||session.members.length!==1)fail(409,'Esta partida ya tiene su equipo.');
-          session.members.push({...memberProfile(profile),role:'B',scores:engine.zero()});session.status='active';session.inviteActive=false;
-          await store.addMember(session.id,uid);await store.saveSession(session);await store.setInvite(session.id,null,null);await store.setActive(uid,session.id);
-          return {session};
+          const joined=engine.joinTeam(session,memberProfile(profile));
+          await store.addMember(joined.id,uid);await store.saveSession(joined);await store.setInvite(joined.id,null,null);await store.setActive(uid,joined.id);
+          return {session:joined};
         }
-        const match=/^\/api\/sessions\/([0-9a-f-]{36})(?:\/(choose|invite|puzzle|revise))?$/.exec(path);
+        const match=/^\/api\/sessions\/([0-9a-f-]{36})(?:\/(choose|invite|puzzle|revise|mode))?$/.exec(path);
         if(match){
           const session=member(await store.getSession(match[1]),uid);
           await requireSubscription(store,session.ownerId,user,session.caseId);
           if(!match[2]&&method==='GET')return {session,journey:await readJourney(store,stories,uid)};
+          if(match[2]==='mode'&&method==='PUT'){
+            if(session.ownerId!==uid)fail(403,'Solo quien creó la partida puede cambiar su modalidad.');
+            if(!['solo','duo'].includes(input.mode)||!Number.isInteger(input.version))fail(400,'El cambio de modalidad no es válido.');
+            let next;
+            try{next=engine.changePlayMode(session,uid,input.mode,input.version);}catch(error){fail(409,error.message,'STATE_CHANGED');}
+            if(next===session)return {session};
+            for(const previous of session.members){
+              if(previous.userId!==uid)await store.removeMember(session.id,previous.userId);
+            }
+            await store.setInvite(session.id,null,null);
+            await store.saveSession(next);
+            return {session:next};
+          }
           if(match[2]==='revise'&&method==='POST'){
             if(session.ownerId!==uid)fail(403,'Solo quien creó la partida puede cambiar el recorrido compartido.');
             if(!Number.isInteger(input.index)||!Number.isInteger(input.version)||typeof input.choiceId!=='string')fail(400,'La revisión no es válida.');
@@ -221,6 +259,8 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         }
         fail(404,'No encontrado.');
       });
+      if(result.session)result.session=visibleSession(result.session);
+      if(result.sessions)result.sessions=result.sessions.map(visibleSession);
       return json(result);
     } catch(error) {
       if(error instanceof ApiError)return json({error:error.message,code:error.code},error.status);

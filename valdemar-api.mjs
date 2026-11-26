@@ -35,6 +35,25 @@ function visibleHints(story,wallet) {
   return story.hints.slice(0,wallet.second.includes(story.id) ? 2 : 1);
 }
 
+const playModes = new Set(['solo','duo']);
+
+function personalGames(data,scope,access) {
+  const records=data.valdemarCaseProgress?.[scope] || {};
+  const wallet=data.valdemarSeasonOne?.[scope] || {};
+  const sideProgress=new Set([...(wallet.won || []),...(wallet.opened || []),...(wallet.second || [])]);
+  const games=[];
+  for(let id=1;id<=WORLD_CASE_COUNT;id++){
+    const record=records[id] || {};
+    const mode=playModes.has(record.mode)?record.mode:null;
+    const finished=Boolean(record.choice);
+    const current=finished?5:Math.max(0,Math.min(5,Number.isInteger(record.hourStep)?record.hourStep:0));
+    if(mode || current || record.deduced || sideProgress.has(id)){
+      games.push({id,mode,current,total:5,finished,available:access.availableCases.includes(id)});
+    }
+  }
+  return {games};
+}
+
 function visibleSample(sample) {
   if (!sample) return null;
   const {id,task,soundTitle,sound,transcript,pictureTitle,panels,pictureAlt,
@@ -96,9 +115,11 @@ async function progressAction(store,uid,scope,story,action,input) {
 export async function valdemarRequest({path,method,input,uid,editorial,withStore,billing,loadRelease=readValdemarRelease}) {
   const walletRoute = path === '/api/valdemar/wallet';
   const seasonsRoute = path === '/api/valdemar/seasons';
-  const match = /^\/api\/valdemar\/cases\/([1-9]\d?)(?:\/(reward|open|second|sample|deduce|ending|stage))?$/.exec(path);
+  const gamesRoute = path === '/api/valdemar/partidas';
+  const sealRoute = /^\/api\/valdemar\/seals\/([1-9]\d?)$/.exec(path);
+  const match = /^\/api\/valdemar\/cases\/([1-9]\d?)(?:\/(reward|open|second|sample|deduce|ending|stage|mode))?$/.exec(path);
   const id = match ? Number(match[1]) : null;
-  if ((!walletRoute && !seasonsRoute && !match) || id>WORLD_CASE_COUNT) throw new ApiError(404,'Esta historia no está disponible.');
+  if ((!walletRoute && !seasonsRoute && !gamesRoute && !sealRoute && !match) || id>WORLD_CASE_COUNT) throw new ApiError(404,'Esta historia no está disponible.');
   const newWorld = id > CASE_ORDER.length;
   const action = match?.[2] || 'read';
   if (method !== (action==='read' ? 'GET' : 'POST')) throw new ApiError(405,'Método no permitido.');
@@ -106,6 +127,18 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const membership = editorial ? null : await billing?.membership(store,uid);
     const data = await store.getMemberData(uid);
     const access = !editorial && membership?.seasonAccess || worldSeasonAccess(data,{editorial,active:!editorial && membership?.canPlay===true});
+    const scope = editorial ? 'editorial' : 'paid';
+    if (gamesRoute) return personalGames(data,scope,access);
+    if (sealRoute) {
+      const number=Number(sealRoute[1]),season=access.seasons[number-1];
+      if(!season)throw new ApiError(404,'Este sello no está disponible.');
+      if(!editorial && !season.previousReady)throw new ApiError(409,'Completa antes las temporadas anteriores.','PREVIOUS_SEASON_REQUIRED');
+      if(!season.seal.complete)throw new ApiError(409,'Guarda los doce desenlaces de este tablero para abrir su sello.','SEAL_INCOMPLETE');
+      const release=await loadRelease(store);
+      const seal=release.sellos?.find(s=>s.number===number);
+      if(!seal || typeof seal.title!=='string' || typeof seal.epilogue!=='string' || !seal.epilogue.trim())throw new ApiError(503,'El epílogo está temporalmente fuera de servicio.','VALDEMAR_RELEASE_PENDING');
+      return {number,title:seal.title,epilogue:seal.epilogue};
+    }
     if (!editorial && !seasonsRoute && membership?.canPlay!==true && !access.availableCases.length) {
       throw new ApiError(402,'Necesitas un pase de temporada para jugar.','SUBSCRIPTION_REQUIRED');
     }
@@ -115,13 +148,25 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       }
       throw new ApiError(409,'Esta historia se abre con el bloque de su mes.','CASE_NOT_RELEASED');
     }
-    const scope = editorial ? 'editorial' : 'paid';
     if (walletRoute || seasonsRoute) {
       const wallet = await valdemarWallet(store,uid,{editorial,seasonAccess:access,summaryOnly:seasonsRoute});
       if (seasonsRoute) return {...access,wallet,released:access.availableCases.length};
       const availableCases = access.availableCases.filter(caseId=>caseId<=CASE_ORDER.length);
       const completed = availableCases.filter(caseId=>access.completed.includes(caseId));
       return {wallet,released:availableCases.length,availableCases,completed};
+    }
+    const record = data.valdemarCaseProgress?.[scope]?.[id];
+    if (action==='mode') {
+      const mode=input?.mode;
+      if (!playModes.has(mode)) throw new ApiError(400,'Elige jugar en solitario o en pareja.','INVALID_PLAY_MODE');
+      if (record?.mode!==mode) {
+        data.valdemarCaseProgress ||= {};
+        const cases=data.valdemarCaseProgress[scope] ||= {};
+        const saved=cases[id] ||= {};
+        saved.mode=mode;
+        await store.saveMemberData(uid,data);
+      }
+      return {mode};
     }
     const release = await loadRelease(store);
     const story = (newWorld ? release.nuevos : release.stories)?.find(item => item.id === id);
@@ -148,8 +193,8 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const wallet = await valdemarWallet(store,uid,{editorial,seasonAccess:access},action,id);
     const hints = visibleHints(story,wallet);
     if (action !== 'read') return {wallet,hints,...(newWorld && action==='reward' ? {feedback:story.side.success} : {})};
-    const record = data.valdemarCaseProgress?.[scope]?.[id];
-    const dossier = {story:visibleStory(story),hour:readHour(story,record),wallet,hints,progress:visibleProgress(record,story)};
+    const dossier = {story:visibleStory(story),hour:readHour(story,record),wallet,hints,progress:visibleProgress(record,story),
+      mode:playModes.has(record?.mode)?record.mode:null};
     if (newWorld) return {...dossier,side:visibleSide(story.side)};
     const gameScript = await asset('valdemar-challenges-'+Math.ceil(id/4)+'.js');
     return {...dossier,sample:visibleSample(sample),gameScript,stationScript:id===1 ? release.stationScript : null};

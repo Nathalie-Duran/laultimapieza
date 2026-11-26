@@ -1,6 +1,6 @@
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {ApiError} from './auth-provider.mjs';
-import {orderedCycles,releaseCalendar} from './progression.mjs';
+import {orderedCycles,releaseCalendar,SEASON_NAMES} from './progression.mjs';
 import {mailKey} from './mail-service.mjs';
 import {creditValdemarWelcome,worldSeasonAccess} from './valdemar-wallet.mjs';
 
@@ -9,7 +9,7 @@ function purchasedBlocks(subscription) {
   if (raw === undefined) return null; // Finite twelve-case legacy pass.
   const numbers = String(raw).split(',').map(Number);
   const season = Number(subscription.metadata?.lup_season);
-  if (![1,2,3].includes(season) || !numbers.length || numbers.length>3 ||
+  if (!Number.isInteger(season) || season<1 || season>SEASON_NAMES.length || !numbers.length || numbers.length>3 ||
       numbers.some((block,i)=>!Number.isInteger(block) || block<1 || Math.ceil(block/3)!==season ||
         (i>0 && block<=numbers[i-1]))) {
     throw new ApiError(503,'No podemos comprobar los bloques contratados.','BILLING_UNAVAILABLE');
@@ -131,7 +131,7 @@ export function createBilling(env=process.env,fetcher=fetch){
       if(price.unit_amount!==2995||price.currency!=='eur'||price.recurring?.interval!=='month'||price.recurring?.interval_count!==1||price.tax_behavior!=='inclusive')throw new ApiError(503,'El precio está pendiente de configuración.','BILLING_UNAVAILABLE');
       if(!data.customer){const customer=await stripe('customers',{email:user.email,'metadata[lup_uid]':user.userId},'lup-customer-'+user.userId);data.customer=customer.id;await store.saveMemberData(user.userId,data);}
       const minute=Math.floor(Date.now()/1800000);
-      const seasonName=['Valdemar','El Tablero de Ámbar','Umbravía'][purchase.number-1];
+      const seasonName=SEASON_NAMES[purchase.number-1];
       const description=seasonName+'. Cuatro casos por cuota de 29,95 € al mes (IVA incluido). Este pase finaliza después de '+purchase.remainingCycles+(purchase.remainingCycles===1?' cuota.':' cuotas.')+' Puedes cancelar antes de renovar. La siguiente temporada se contrata por separado.';
       const result=await stripe('checkout/sessions',{mode:'subscription',customer:data.customer,'line_items[0][price]':env.STRIPE_PRICE_ID,'line_items[0][quantity]':'1','subscription_data[metadata][lup_uid]':user.userId,'subscription_data[metadata][lup_season]':String(purchase.number),'subscription_data[metadata][lup_blocks]':ordinals,client_reference_id:user.userId,success_url:origin+'/#planes?checkout=complete',cancel_url:origin+'/#planes',locale:'es','custom_text[submit][message]':description},'lup-checkout-'+user.userId+'-'+ordinals+'-'+minute);
       if(result.id && result.expires_at){
