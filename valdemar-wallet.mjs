@@ -1,5 +1,6 @@
 import { ApiError } from './auth-provider.mjs';
 import { seasonBlocks, SEASON_NAMES } from './progression.mjs';
+import { hasCaseActivity,recordCaseActivity } from './season-activity.mjs';
 
 export const WORLD_CASE_COUNT = SEASON_NAMES.length*12;
 const CASES_PER_BLOCK = 4;
@@ -110,12 +111,15 @@ export async function valdemarWallet(store, ownerUid, { editorial = false, seaso
     changed = creditValdemarWelcome(data, now);
   }
   const wallet = walletRecord(data, editorial);
+  const scope = editorial ? 'editorial' : 'paid';
+  const alreadyStarted = op !== 'read' && hasCaseActivity(data,scope,caseId);
   if (editorial && !wallet.welcomes.length) {
     wallet.welcomes.push('editorial');
     changed = true;
   }
   if (op === 'reward' && !wallet.won.includes(caseId)) {
     wallet.won.push(caseId);
+    recordCaseActivity(data,scope,caseId,alreadyStarted,'reward',now);
     changed = true;
   }
   if (op === 'open' && !wallet.opened.includes(caseId)) {
@@ -123,6 +127,7 @@ export async function valdemarWallet(store, ownerUid, { editorial = false, seaso
       throw new ApiError(409, 'Gana una llave en un reto paralelo para abrir este sobre.', 'NOT_ENOUGH_KEYS');
     }
     wallet.opened.push(caseId);
+    recordCaseActivity(data,scope,caseId,alreadyStarted,'open',now);
     changed = true;
   }
   if (op === 'second' && !wallet.second.includes(caseId)) {
@@ -130,6 +135,7 @@ export async function valdemarWallet(store, ownerUid, { editorial = false, seaso
       throw new ApiError(409, 'Abre primero el sobre de esta historia.', 'ENVELOPE_CLOSED');
     }
     wallet.second.push(caseId);
+    recordCaseActivity(data,scope,caseId,alreadyStarted,'second',now);
     changed = true;
   }
   if (changed) await store.saveMemberData(ownerUid, data);

@@ -1,7 +1,8 @@
 // Administrative reports contain aggregates only. The caller must authorize the verified
 // owner before invoking this function and supply a consistent transaction snapshot.
+import {summarizeSeasonActivity} from './season-activity.mjs';
 const DAY = 86400000;
-const OPTIONAL = ['demo_start', 'demo_complete', 'demo_hint', 'plans_view', 'ref_visit', 'ref_demo', 'ref_notice'];
+const OPTIONAL = ['demo_start', 'demo_receipt', 'demo_solved', 'demo_complete', 'demo_hint', 'plans_view', 'ref_visit', 'ref_demo', 'ref_notice'];
 const FINANCIAL = ['subscriptionStarts', 'subscriptionEnds', 'paidCents'];
 const dayOf = time => new Date(time).toISOString().slice(0, 10);
 
@@ -342,6 +343,19 @@ export async function readAnalytics(query, {days, billingEnabled, stories}) {
     if (event_key === 'notice_remove' && bucket.noticeRemoves !== null) bucket.noticeRemoves += Number(total);
   }
   const games = await readProgress(query, start, after, stories, selectedDays);
+  const [seasonCoverage] = await query('SELECT started_at FROM lup_reporting_since WHERE id=2');
+  const seasonRows = await query(`SELECT JSON_EXTRACT(m.data_json,'$.valdemarCaseProgress.paid') AS progress,
+    JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid.won') AS won,
+    JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid.opened') AS opened,
+    JSON_UNQUOTE(JSON_EXTRACT(m.data_json,'$.progressReset.at')) AS reset_at,
+    JSON_EXTRACT(m.data_json,'$.cycles') AS cycles
+    FROM lup_member_data m WHERE (JSON_EXTRACT(m.data_json,'$.valdemarCaseProgress.paid') IS NOT NULL
+      OR JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid') IS NOT NULL)
+      AND NOT EXISTS (SELECT 1 FROM lup_editorial_users e WHERE e.user_id=m.user_id)`);
+  const seasonActivity = summarizeSeasonActivity(seasonRows.map(row => ({
+    progress:jsonValue(row.progress,{}), resetAt:timestamp(row.reset_at),
+    cycles:jsonValue(row.cycles,[]), sideIds:new Set([...jsonValue(row.won,[]),...jsonValue(row.opened,[])])
+  })),{now,first,days,since:timestamp(seasonCoverage?.started_at)});
   const billing = await readBilling(query, billingEnabled, byDay, selectedDays, now);
   const daily = [...selectedDays.values()];
   const totals = {};
@@ -361,7 +375,7 @@ export async function readAnalytics(query, {days, billingEnabled, stories}) {
     billingEnabled: !!billingEnabled, noticeSince,
     stock: {accounts, notices, activeSubscriptions: billing.activeSubscriptions,
       scheduledCancellations: billing.scheduledCancellations},
-    totals, daily, cases: games.cases, optional, retention: billing.retention, comparison, month, activation,
+    totals, daily, cases: games.cases, seasonActivity, optional, retention: billing.retention, comparison, month, activation,
     coverage: {noticePartial: began === null || began > first, billingPartial: billing.partial,
       undatedSessions: games.undatedSessions}
   };

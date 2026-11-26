@@ -59,7 +59,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       if(!['GET','POST','PUT'].includes(method)) fail(405,'Método no permitido.');
       if(path==='/api/metrics'&&method==='POST'){
         const metric=await body(request);
-        if(!['demo_start','demo_solved','demo_complete','demo_hint','plans_view','ref_visit','ref_demo'].includes(metric.event))fail(400,'Evento no válido.');
+        if(!['demo_start','demo_receipt','demo_solved','demo_complete','demo_hint','plans_view','ref_visit','ref_demo'].includes(metric.event))fail(400,'Evento no válido.');
         // Explicit opt-in in the demo. Only aggregate counters: no email, IP or answer stored.
         if(metric.consent!==true)return json({recorded:false});
         await withStore(store=>store.metric(metric.event));return json({recorded:true});

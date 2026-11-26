@@ -52,7 +52,11 @@ export function createDatabase(env=process.env) {
       ...(env.DB_SSL_CA ? {ssl:{ca:env.DB_SSL_CA,rejectUnauthorized:true}} : {})});
     const query = async (sql, values=[]) => (await connection.execute(sql,values))[0];
     try {
-      if (!initialized) initialized = (async()=>{for(const sql of schema) await connection.query(sql);await query('INSERT IGNORE INTO lup_reporting_since(id,started_at) VALUES(1,?)',[new Date().toISOString()]);})().catch(error=>{initialized=null;throw error;});
+      if (!initialized) initialized = (async()=>{
+        for(const sql of schema) await connection.query(sql);
+        const began=new Date().toISOString();
+        await query('INSERT IGNORE INTO lup_reporting_since(id,started_at) VALUES(1,?),(2,?)',[began,began]);
+      })().catch(error=>{initialized=null;throw error;});
       await initialized;
       await connection.beginTransaction();
       const store = {

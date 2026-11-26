@@ -13,7 +13,7 @@
     accounts: { label: 'Cuentas', series: [['accounts', 'Altas de cuenta']] },
     subscriptions: { label: 'Suscripciones', series: [['subscriptionStarts', 'Altas de pago'], ['subscriptionEnds', 'Bajas efectivas']] },
     notices: { label: 'Avisos de apertura', series: [['noticeAdds', 'Solicitudes'], ['noticeRemoves', 'Retiradas']] },
-    games: { label: 'Partidas', series: [['sessionsStarted', 'Iniciadas'], ['cohortCompleted', 'De esas, resueltas']] },
+    games: { label: 'Archivo clásico', series: [['sessionsStarted', 'Iniciadas'], ['cohortCompleted', 'De esas, resueltas']] },
     payments: { label: 'Cobros', series: [['paidCents', 'Cobros brutos']], money: true }
   };
   let days = 30;
@@ -175,7 +175,7 @@
       if (cohort.accounts === 0) return '0 de 0';
       return ratio(count, cohort.accounts) + ' · ' + format(count) + ' de ' + format(cohort.accounts);
     }
-    return `<section class="mg-panel"><h2>Primeros 30 días de una cuenta</h2><p class="mg-note">${escape(windowLabel)} Cada cuenta ha tenido 30 días completos de seguimiento.</p><dl class="mg-rows">${metricRow('Cuentas del grupo', valid(cohort?.accounts) ? format(cohort.accounts) : 'N/D')}${metricRow('Guardaron su primera partida propia', cohortFraction(cohort?.played))}${metricRow('Hicieron su primer pago', cohortFraction(cohort?.paid))}</dl><p class="mg-note">Las partidas recuperadas cuentan el día en que se guardaron en la web.</p></section>`;
+    return `<section class="mg-panel"><h2>Primeros 30 días de una cuenta</h2><p class="mg-note">${escape(windowLabel)} Cada cuenta ha tenido 30 días completos de seguimiento.</p><dl class="mg-rows">${metricRow('Cuentas del grupo', valid(cohort?.accounts) ? format(cohort.accounts) : 'N/D')}${metricRow('Guardaron una partida propia en el archivo clásico', cohortFraction(cohort?.played))}${metricRow('Hicieron su primer pago', cohortFraction(cohort?.paid))}</dl><p class="mg-note">Las partidas recuperadas cuentan el día en que se guardaron en la web.</p></section>`;
   }
   function lineSegments(daily, key, x, y) {
     const pieces = [];
@@ -225,8 +225,8 @@
       ['subscriptionStarts', 'Altas de suscripción de pago'],
       ['subscriptionEnds', 'Bajas efectivas de suscripción'],
       ['paidCents', 'Cobros brutos antes de reembolsos (EUR)'],
-      ['sessionsStarted', 'Partidas iniciadas'],
-      ['cohortCompleted', 'Partidas iniciadas ese día y ya resueltas']
+      ['sessionsStarted', 'Archivo clásico: partidas iniciadas'],
+      ['cohortCompleted', 'Archivo clásico: partidas iniciadas ese día y ya resueltas']
     ];
     const lines = [['Fecha (UTC)', ...columns.map(([, label]) => label)].join(';')];
     for (const day of dashboard.daily) {
@@ -269,7 +269,7 @@
   }
   function activity(data) {
     const t = data.totals, rows = [...data.cases].sort((a, b) => b.started - a.started || b.completed - a.completed || String(a.title).localeCompare(String(b.title), 'es'));
-    return `<section class="mg-panel mg-block"><div class="mg-section-heading"><h2>Progreso por caso</h2><span>Partidas iniciadas en el periodo</span></div>
+    return `<section class="mg-panel mg-block"><div class="mg-section-heading"><h2>Archivo clásico por caso</h2><span>Partidas iniciadas en el periodo</span></div>
       <dl class="mg-activity">
         ${tile('Partidas iniciadas', format(t.sessionsStarted), 'Una partida compartida cuenta una vez')}
         ${tile('De esas, resueltas', format(t.cohortCompleted), 'Completadas hasta hoy')}
@@ -292,6 +292,30 @@
       return metricRow(label, group.eligible > 0 ? ratio(group.renewed, group.eligible) + ' · ' + fraction : fraction);
     }).join('')}</dl><p class="mg-note">${note}</p></section>`;
   }
+  function boardReport(data) {
+    const board = data.seasonActivity;
+    if (!board) return '';
+    const {cohort,seasons} = board;
+    const names = [...(root.ValdemarCatalog?.items || []), ...(root.MundosCatalogo || [])];
+    const measurable = valid(board.since) && cohort.until > board.since;
+    const retention = !measurable ? 'Pendiente de 14 días completos' :
+      cohort.eligible ? ratio(cohort.second,cohort.eligible) + ' · ' + format(cohort.second) + ' de ' + format(cohort.eligible) : 'Sin primeras partidas en este grupo';
+    const group = measurable ? 'Primeras partidas del '+dateText(Math.max(cohort.from,board.since))+' al '+dateText(cohort.until-1)+' (UTC). ' : '';
+    const coverage = valid(board.since) ? 'Los inicios se fechan desde el '+dateText(board.since)+'. ' : 'La fecha de inicio de medición aún no está disponible. ';
+    const transitions = board.transitions.map(t => metricRow(
+      escape(seasons[t.from-1].name)+' a '+escape(seasons[t.from].name),
+      t.eligible ? ratio(t.bought,t.eligible)+' · '+format(t.bought)+' de '+format(t.eligible) : 'Sin titulares elegibles'
+    )).join('');
+    return `<section class="mg-panel mg-block"><div class="mg-section-heading"><h2>Juego de pago en los cuatro tableros</h2><span>48 casos</span></div>
+      <p class="mg-note">${coverage}En cada temporada se muestran las partidas guardadas que empezaron durante el periodo elegido y cuántas de ellas ya tienen desenlace.</p>
+      <dl class="mg-rows">${metricRow('Titulares que empezaron su primer caso en el periodo',format(board.firstPlayers))}${seasons.map(s => metricRow(escape(s.name), format(s.started)+' iniciadas · '+format(s.completed)+' resueltas')).join('')}</dl>
+      <details class="mg-details"><summary>Ver los 48 casos</summary><div class="mg-table-wrap" tabindex="0" role="region" aria-label="Casos de temporada"><table><thead><tr><th scope="col">Caso</th><th scope="col">Iniciadas</th><th scope="col">Resueltas</th></tr></thead><tbody>${seasons.map(s=>s.cases.map(c=>{
+        const id=(s.number-1)*12+c.number, name=names.find(item=>item.id===id)?.title;
+        return `<tr><th scope="row">T${s.number} · ${String(c.number).padStart(2,'0')}${name?' · '+escape(name):''}</th><td>${format(c.started)}</td><td>${format(c.completed)}</td></tr>`;
+      }).join('')).join('')}</tbody></table></div></details>
+      <div class="mg-columns"><div><h3>Segundo caso en 14 días</h3><p><strong>${retention}</strong></p><p class="mg-note">${group}Porcentaje de titulares que resolvieron al menos una etapa de otro caso en las 336 horas posteriores a empezar el primero. Se excluyen los historiales reiniciados o con inicios anteriores sin fecha.</p></div>
+      <div><h3>Compra de la siguiente temporada</h3><dl class="mg-rows">${transitions}</dl><p class="mg-note">Acumulado a día de hoy. De quienes conservan el sello completo y han agotado las tres cuotas de esa temporada, cuántos tienen un pago vigente o pasado para la siguiente. Se excluyen bloques revocados.</p></div></div></section>`;
+  }
   function details(data) {
     const t = data.totals, o = data.optional, since = data.noticeSince ? dateText(data.noticeSince) : '';
     const notes = [];
@@ -300,7 +324,7 @@
     if (data.coverage?.undatedSessions > 0) notes.push('Partidas sin fecha de inicio, excluidas del análisis del periodo: ' + format(data.coverage.undatedSessions) + '.');
     return `<div class="mg-columns mg-block"><section class="mg-panel"><h2>Avisos de apertura</h2><dl class="mg-rows">${metricRow('Solicitudes recibidas', format(t.noticeAdds))}${metricRow('Solicitudes retiradas', format(t.noticeRemoves))}</dl><p class="mg-note">Estos movimientos proceden del formulario público. El total de avisos vigentes incluye también las solicitudes de cuentas verificadas y cuenta cada correo una vez.</p></section>
       <section class="mg-panel"><h2>Motivos de baja</h2><dl class="mg-rows">${metricRow('Cancelación voluntaria', format(t.voluntaryEnds))}${metricRow('Fin de temporada', format(t.seasonEnds))}${metricRow('Otro motivo o sin clasificar', format(t.otherEnds))}</dl></section></div>
-      <section class="mg-panel mg-block"><h2>Demo e invitaciones</h2><p class="mg-note">Recuentos de eventos con permiso para el análisis. Una persona puede generar varios eventos. El total de visitantes únicos de la web se desconoce.</p><div class="mg-columns"><dl class="mg-rows">${metricRow('Inicios de demo', format(o.demo_start))}${metricRow('Demos completadas', format(o.demo_complete))}${metricRow('Pistas consultadas en la demo', format(o.demo_hint))}</dl><dl class="mg-rows">${metricRow('Llegadas por invitación', format(o.ref_visit))}${metricRow('Inicios de demo por invitación', format(o.ref_demo))}${metricRow('Avisos solicitados por invitación', format(o.ref_notice))}</dl></div></section>
+      <section class="mg-panel mg-block"><h2>Demo e invitaciones</h2><p class="mg-note">Recuentos de eventos con permiso para el análisis. Una persona puede generar varios eventos. El total de visitantes únicos de la web se desconoce.</p><div class="mg-columns"><dl class="mg-rows">${metricRow('Inicios de demo', format(o.demo_start))}${metricRow('Copias identificadas en recepción', format(o.demo_receipt))}${metricRow('Primer expediente abierto', format(o.demo_solved))}${metricRow('Aperturas del pase desde la demo', format(o.plans_view))}${metricRow('Demos completadas', format(o.demo_complete))}${metricRow('Pistas consultadas en la demo', format(o.demo_hint))}</dl><dl class="mg-rows">${metricRow('Llegadas por invitación', format(o.ref_visit))}${metricRow('Inicios de demo por invitación', format(o.ref_demo))}${metricRow('Avisos solicitados por invitación', format(o.ref_notice))}</dl></div></section>
       <aside class="mg-method"><h2>Cómo leer los datos</h2><p>La evolución se agrupa en días UTC. La actividad editorial identificada se excluye de los perfiles y las partidas. Una raya indica que el dato no está disponible o que falta una base para calcular el porcentaje.</p>${notes.map(note => `<p>${escape(note)}</p>`).join('')}</aside>`;
   }
   function show(data) {
@@ -309,7 +333,7 @@
     const content = el.querySelector('.mg-content');
     saveGoalField(el);
     content.innerHTML = summary(data) + monthlyGoal(data) + comparison(data) + chart(data)
-      + '<div class="mg-columns mg-block">' + activation(data) + renewals(data) + '</div>' + activity(data) + details(data);
+      + boardReport(data) + '<div class="mg-columns mg-block">' + activation(data) + renewals(data) + '</div>' + activity(data) + details(data);
     const goal = el.querySelector('[data-mg-target]');
     goal.dataset.lastHandled = goal.value;
     const onGoalInput = () => {

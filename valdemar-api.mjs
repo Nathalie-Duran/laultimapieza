@@ -4,6 +4,7 @@ import {CASE_ORDER} from './progression.mjs';
 import {worldSeasonAccess, valdemarWallet, withValdemarTransaction, WORLD_CASE_COUNT} from './valdemar-wallet.mjs';
 import {readValdemarRelease} from './valdemar-release.mjs';
 import {evaluateHourStage,readHour,requireHourComplete} from './valdemar-hour.mjs';
+import {hasCaseActivity,recordCaseActivity} from './season-activity.mjs';
 
 const files = new Map();
 // Only versioned, server-owned files are passed here. No path comes from the request.
@@ -48,7 +49,8 @@ function personalGames(data,scope,access) {
     const finished=Boolean(record.choice);
     const current=finished?5:Math.max(0,Math.min(5,Number.isInteger(record.hourStep)?record.hourStep:0));
     if(mode || current || record.deduced || sideProgress.has(id)){
-      games.push({id,mode,current,total:5,finished,available:access.availableCases.includes(id)});
+      games.push({id,mode,current,total:5,finished,available:access.availableCases.includes(id),
+        ...(Number.isFinite(record.updatedAt)?{updatedAt:record.updatedAt}:{})});
     }
   }
   return {games};
@@ -79,12 +81,16 @@ function matchesSide(side,choice) {
 
 async function progressAction(store,uid,scope,story,action,input) {
   const data = await store.getMemberData(uid);
+  const alreadyStarted = hasCaseActivity(data,scope,story.id);
   data.valdemarCaseProgress ||= {};
   const cases = data.valdemarCaseProgress[scope] ||= {};
   const record = cases[story.id] ||= {};
   if (action === 'stage') {
     const {advanced,correct,feedback} = evaluateHourStage(story,record,input);
-    if (advanced) await store.saveMemberData(uid,data);
+    if (advanced) {
+      recordCaseActivity(data,scope,story.id,alreadyStarted,'advance');
+      await store.saveMemberData(uid,data);
+    }
     return {correct,feedback,hour:readHour(story,record)};
   }
   if (action === 'deduce') {
@@ -95,6 +101,7 @@ async function progressAction(store,uid,scope,story,action,input) {
     const correct = input.hypothesis === story.correctHypothesis;
     if (correct && !record.deduced) {
       record.deduced = true;
+      recordCaseActivity(data,scope,story.id,alreadyStarted,'deduce');
       await store.saveMemberData(uid,data);
     }
     return {correct,progress:visibleProgress(record,story)};
@@ -107,6 +114,7 @@ async function progressAction(store,uid,scope,story,action,input) {
   }
   if (!record.choice) {
     record.choice = input.choice;
+    recordCaseActivity(data,scope,story.id,alreadyStarted,'end');
     await store.saveMemberData(uid,data);
   }
   return {progress:visibleProgress(record,story)};
@@ -160,10 +168,12 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       const mode=input?.mode;
       if (!playModes.has(mode)) throw new ApiError(400,'Elige jugar en solitario o en pareja.','INVALID_PLAY_MODE');
       if (record?.mode!==mode) {
+        const alreadyStarted = hasCaseActivity(data,scope,id);
         data.valdemarCaseProgress ||= {};
         const cases=data.valdemarCaseProgress[scope] ||= {};
         const saved=cases[id] ||= {};
         saved.mode=mode;
+        recordCaseActivity(data,scope,id,alreadyStarted,'mode');
         await store.saveMemberData(uid,data);
       }
       return {mode};
