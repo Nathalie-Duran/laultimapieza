@@ -3,6 +3,7 @@ import { ApiError, isConfigured } from './auth-provider.mjs';
 import { readJourney, solveJourney } from './season-journey.mjs';
 import { checkPuzzle } from './progression.mjs';
 import { adminMembership, canManageSite } from './admin-access.mjs';
+import { worldSeasonAccess } from './valdemar-wallet.mjs';
 import { mailKey } from './mail-service.mjs';
 import {checkRetiredSession, resetPersonalProgress} from './progress-reset.mjs';
 
@@ -131,7 +132,9 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         if(path==='/api/bootstrap'&&method==='GET'){
           if(isAdministrator(user)&&store.markEditorial)await store.markEditorial(uid);
           const sessions=await store.listSessions(uid);
-          const membership=isAdministrator(user)?adminMembership():billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
+          const membership=isAdministrator(user)
+            ? {...adminMembership(),seasonAccess:worldSeasonAccess(await store.getMemberData(uid),{editorial:true})}
+            : billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
           const guestOwners=[...new Set(sessions.filter(s=>s.ownerId!==uid).map(s=>s.ownerId))];
           const guestAccess=[];for(const owner of guestOwners)if(await authorizePlay({store,uid:owner})===true)guestAccess.push(owner);
           membership.canManage=canManageSite(user);membership.ownAccess=membership.canPlay;membership.guestOwners=guestAccess;membership.canPlay ||= guestAccess.length>0;
