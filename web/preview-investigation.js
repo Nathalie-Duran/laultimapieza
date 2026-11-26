@@ -50,7 +50,7 @@
     if (document.querySelector('link[data-vallejo-style],link[href*="vallejo-demo.css"]')) return;
     const link = node('link');
     link.rel = 'stylesheet';
-    link.href = '/vallejo-demo.css?v=archivo-87v-1';
+    link.href = '/vallejo-demo.css?v=fin-87v-2';
     link.dataset.vallejoStyle = '1';
     document.head.append(link);
   }
@@ -64,10 +64,24 @@
   function note(message) {
     if (state) state.status.textContent = message;
   }
-  function navigateCommercial() {
-    close();
-    if (document.body.dataset.vallejoStandalone === 'true') root.location.assign('/#casos');
-    else root.location.hash = root.ClubAccess?.canPlay ? 'casos' : 'planes';
+  function seasonLink(route, label, primary) {
+    const onHome = root.location.pathname === '/';
+    const link = node('a', 'vp-season-link' + (primary ? ' vp-season-primary' : ''), label);
+    link.href = (onHome ? '' : '/') + '#' + route;
+    link.addEventListener('click', event => {
+      if (event.button !== 0 || event.altKey) return;
+      if (route === 'planes') count('plans_view');
+      if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+      event.preventDefault();
+      close();
+      if (!onHome || root.location.hash !== '#' + route) {
+        root.location.assign(link.href);
+      } else {
+        document.getElementById('main')?.focus({ preventScroll: true });
+        root.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    });
+    return link;
   }
   function hintFor(st) {
     const session = st.sessions[st.section];
@@ -329,21 +343,23 @@
       <header class="vp-header"><div><p class="vp-eyebrow" data-vp-caption></p><h2 id="scene-title">Clínica Vallejo</h2></div><button type="button" class="vp-close" data-action="scene-close" aria-label="Cerrar la demo">Cerrar</button></header>
       <div class="vp-work"><aside class="vp-side" id="vp-documentos" aria-label="Documentos del expediente"><div class="vp-side-head"><h3>Documentos</h3><button type="button" class="vp-side-close" aria-label="Cerrar la lista de documentos">Cerrar</button></div><div class="vp-sessions"></div><ol class="vp-doc-list"></ol></aside>
       <section class="vp-desk" aria-label="Lector de documentos"><div class="vp-document-head"><button type="button" class="vp-shelf-toggle" aria-controls="vp-documentos" aria-expanded="false">Documentos</button><h3 class="vp-doc-title" tabindex="-1"></h3><button type="button" class="vp-zoom" hidden>Ampliar imagen</button><button type="button" class="vp-adjust" hidden>Invertir</button><button type="button" class="vp-brighten" hidden>Subir brillo</button><button type="button" class="vp-mirror" hidden>Espejo</button><a class="vp-open-original vp-separate" target="_blank" rel="noopener" hidden>Abrir aparte</a></div><div class="vp-reader"></div>
-      <div class="vp-help"><details class="vp-pair" hidden><summary>Consultar los dos documentos</summary><p><span></span> <a target="_blank" rel="noopener"></a></p></details>
+      <div class="vp-help"><section class="vp-finale" hidden aria-labelledby="vp-finale-title"><h3 id="vp-finale-title">¿Dónde se esconde la última carta de Valdemar?</h3><p>Has abierto el expediente de Tomás. Tu próxima investigación puede ser «Cartas a medianoche», uno de los cuatro casos del primer mes.</p><div class="vp-season-actions"></div><div class="case-share vp-share-demo"><button type="button" data-copy-invite="https://www.laultimapieza.es/vallejo.html?via=invitacion">Copiar enlace a la demo</button><p role="status" aria-live="polite"></p></div></section>
+      <details class="vp-pair" hidden><summary>Consultar los dos documentos</summary><p><span></span> <a target="_blank" rel="noopener"></a></p></details>
       <details class="vp-hints" hidden><summary>Pistas de esta prueba</summary><div class="vp-hints-body"><ol class="vp-hint-list"></ol><button type="button" class="vp-hint-table" hidden>Ver la tabla de Vigenère</button><button type="button" class="vp-hint-more">Revelar la primera pista</button><small class="vp-hint-status"></small></div></details></div></section></div>
-      <footer class="vp-footer"><details class="vp-privacy"><summary>Opciones</summary><div class="vp-options"><label><input type="checkbox" data-vp-consent> Permitir contadores anónimos de uso de la demo y, si llegué por invitación, de la visita y la solicitud de aviso. Opcional.</label><details class="vp-restart"><summary>Empezar de nuevo</summary><p>Se borrarán tus respuestas y pistas de esta partida.</p><button type="button" class="vp-reset">Reiniciar la demo</button></details></div></details>
-      <div class="vp-footer-actions"><button class="vp-prev" type="button">Anterior</button><button class="vp-next" type="button">Siguiente</button><button class="vp-proceed vp-next-session" type="button" hidden>Abrir la siguiente sesión</button><button class="vp-proceed vp-offer" type="button" hidden></button></div></footer><p class="vp-live" role="status" aria-live="polite"></p></div>`;
+      <footer class="vp-footer"><details class="vp-privacy"><summary>Opciones</summary><div class="vp-options"><label><input type="checkbox" data-vp-consent> Permitir contadores anónimos de uso de la demo, incluida la apertura del pase al terminar. Si llegué por invitación, también se contarán mi visita y mi solicitud de aviso. Opcional.</label><details class="vp-restart"><summary>Empezar de nuevo</summary><p>Se borrarán tus respuestas y pistas de esta partida.</p><button type="button" class="vp-reset">Reiniciar la demo</button></details></div></details>
+      <div class="vp-footer-actions"><button class="vp-prev" type="button">Anterior</button><button class="vp-next" type="button">Siguiente</button><button class="vp-proceed vp-next-session" type="button" hidden>Abrir la siguiente sesión</button></div></footer><p class="vp-live" role="status" aria-live="polite"></p></div>`;
     const q = selector => host.querySelector(selector);
-    Object.assign(st, { shell: q('.vp-shell'), sessionCaption: q('[data-vp-caption]'), side: q('.vp-side'), shelfToggle: q('.vp-shelf-toggle'), sideList: q('.vp-doc-list'), sessionList: q('.vp-sessions'), heading: q('.vp-doc-title'), reader: q('.vp-reader'), zoom: q('.vp-zoom'), status: q('.vp-live'), previous: q('.vp-prev'), next: q('.vp-next'), nextSession: q('.vp-next-session'), offer: q('.vp-offer') });
+    Object.assign(st, { shell: q('.vp-shell'), sessionCaption: q('[data-vp-caption]'), side: q('.vp-side'), shelfToggle: q('.vp-shelf-toggle'), sideList: q('.vp-doc-list'), sessionList: q('.vp-sessions'), heading: q('.vp-doc-title'), reader: q('.vp-reader'), zoom: q('.vp-zoom'), status: q('.vp-live'), previous: q('.vp-prev'), next: q('.vp-next'), nextSession: q('.vp-next-session'), offer: q('.vp-finale') });
     Object.assign(st, { adjust: q('.vp-adjust'), bright: q('.vp-brighten'), mirror: q('.vp-mirror'), separate: q('.vp-separate'), pairInfo: q('.vp-pair'), pairText: q('.vp-pair span'), pairLink: q('.vp-pair a'), hintBox: q('.vp-hints'), hintList: q('.vp-hint-list'), hintStatus: q('.vp-hint-status'), hintMore: q('.vp-hint-more'), hintTable: q('.vp-hint-table') });
     st.shelfToggle.addEventListener('click', () => shelf(!st.shell.classList.contains('vp-shelf-open'), true));
     q('.vp-side-close').addEventListener('click', () => { shelf(false); st.shelfToggle.focus(); });
     st.previous.addEventListener('click', () => select(st.section, st.index - 1));
     st.next.addEventListener('click', () => select(st.section, st.index + 1));
     st.nextSession.addEventListener('click', () => continueSession(st));
-    st.offer.textContent = root.ClubAccess?.canPlay ? 'Elegir mi siguiente caso' : (root.ClubAccess?.checkoutAvailable ? 'Ver la temporada' : 'Ver el aviso de apertura');
-    if (document.body.dataset.vallejoStandalone === 'true') st.offer.textContent = 'Explorar los casos de la temporada';
-    st.offer.addEventListener('click', navigateCommercial);
+    const member = !!root.ClubAccess?.canPlay;
+    const plans = seasonLink('planes', 'Ver el pase mensual', !member);
+    const cases = seasonLink('casos', member ? 'Elegir mi siguiente caso' : 'Explorar los casos', member);
+    q('.vp-season-actions').append(...(member ? [cases, plans] : [plans, cases]));
     q('.vp-close').addEventListener('click', event => { event.stopPropagation(); suspend(); });
     q('.vp-reset').addEventListener('click', () => {
       close();

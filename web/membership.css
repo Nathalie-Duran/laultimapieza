@@ -10,3 +10,58 @@ body.cinematic-edition .hero-pay{margin:18px 0;padding:13px 18px}
 body.cinematic-edition .club-hero .actions{margin-top:16px}
 body.cinematic-edition .club-hero-art{min-height:490px}
 @media(max-width:650px){body.cinematic-edition .club-hero h1{font-size:48px;letter-spacing:-1.5px}body.cinematic-edition .club-hero-art{min-height:300px}body.cinematic-edition .club-plans h1,body.cinematic-edition .club-gate h1{font-size:44px}}
+
+.season-offer .season-intro {
+  max-width: 58ch;
+  margin: .8rem 0 0;
+  font-size: clamp(1rem, 1.4vw, 1.16rem);
+}
+.season-offer .season-pass {
+  background: linear-gradient(145deg, #26332f 0%, #19221f 56%, #151d1b 100%);
+  border-radius: 1rem;
+}
+.season-offer .season-pass h2,
+.season-offer .plan-cases h2 { margin: 0 0 1rem; }
+.season-offer .season-pass .club-price { margin: .5rem 0 .15rem; }
+.season-offer .offer-availability {
+  margin: 0;
+  color: #d9cfbc;
+  font-size: .875rem;
+}
+.season-offer .pass-benefit {
+  margin: 1.5rem 0 .65rem;
+  color: #f0eadf;
+  line-height: 1.55;
+}
+.season-offer .season-pass .postal-terms { margin: 0 0 1.35rem; color: #cfcec5; }
+.season-offer .season-pass .waiting-interest {
+  padding-top: 1.15rem;
+  border-top: 1px solid #58605a;
+}
+.season-offer .waiting-interest h3 { margin: 0 0 1rem; font-size: 1.2rem; }
+.season-offer .postal-list-form { gap: .85rem; }
+.season-offer .postal-list-form input[type="email"] {
+  box-sizing: border-box;
+  margin-top: .35rem;
+  background: #101815;
+  border-color: #8c978e;
+}
+.season-offer .postal-list-form .notice-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: .55rem;
+  line-height: 1.45;
+}
+.season-offer .notice-consent input { flex: none; margin: .23em 0 0; }
+.season-offer .postal-list-form p.micro { margin: 0; color: #c9cdc5; font-size: .875rem; }
+.season-offer .club-plan-aside { padding: .6rem 0; }
+.season-offer .plan-faq { margin-top: 1.75rem; }
+.season-offer .plan-demo { margin-top: .5rem; }
+.season-offer :is(button, a, input, summary):focus-visible {
+  outline: 3px solid #f2cb8b;
+  outline-offset: 3px;
+}
+@media(max-width:650px) {
+  .season-offer .postal-list-form .button { width: 100%; }
+  .season-offer .club-plan-aside { padding: 0; }
+}

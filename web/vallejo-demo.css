@@ -93,6 +93,15 @@
 .vp-shell .vp-open-original { justify-self: start; }
 .vp-guide { font-size: .88rem; color: var(--vp-dim); }
 .vp-help { max-height: 33vh; overflow: auto; overscroll-behavior: contain; }
+.vp-finale { padding: 12px 16px; background: #22352c; border-top: 1px solid var(--vp-line); }
+.vp-shell .vp-finale h3 { margin: 0 0 4px; color: var(--vp-ink); font: 500 clamp(1.1rem, 2.2vw, 1.55rem)/1.16 Georgia, serif; }
+.vp-shell .vp-finale p { max-width: 68ch; color: var(--vp-dim); font-size: .88rem; }
+.vp-season-actions, .vp-shell .vp-share-demo { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 5px 12px; margin: 8px 12px 0 0; }
+.vp-shell .vp-season-link, .vp-shell .vp-share-demo button { display: inline-flex; align-items: center; min-height: 42px; border: 0; padding: 5px 2px; color: var(--vp-ink); background: transparent; font: 600 .88rem/1.22 "Segoe UI", sans-serif; text-decoration: underline; text-underline-offset: .22em; }
+.vp-shell .vp-season-primary { padding: 7px 13px; border-radius: 5px; background: var(--vp-gold); color: #20261b; text-decoration: none; }
+.vp-shell .vp-season-primary:hover { background: #f8dea6; color: #18201a; }
+.vp-shell .vp-share-demo p:empty { display: none; }
+.vp-shell .vp-share-demo input { max-width: 100%; }
 .vp-pair, .vp-hints { position: relative; background: #24342b; border-top: 1px solid var(--vp-line); }
 .vp-shell .vp-pair summary { min-height: 36px; padding: 5px 12px; border: 0; }
 .vp-shell .vp-pair p { margin: 0; padding: 0 12px 8px; color: var(--vp-dim); font-size: .87rem; }
