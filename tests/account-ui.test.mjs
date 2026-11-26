@@ -7,10 +7,10 @@ const source=await readFile(new URL('../public/app.js',import.meta.url),'utf8');
 async function appHarness(){
   const elements=new Map();
   const element=selector=>{if(!elements.has(selector))elements.set(selector,{innerHTML:'',textContent:'',dataset:{},open:false,hidden:false,
-    classList:{add(){},remove(){},toggle(){}},addEventListener(){},setAttribute(){},close(){this.open=false;},showModal(){this.open=true;}});return elements.get(selector);};
+    classList:{add(){},remove(){},toggle(){}},addEventListener(){},setAttribute(){},replaceChildren(){this.innerHTML='';},close(){this.open=false;},showModal(){this.open=true;}});return elements.get(selector);};
   let fetcher=async()=>Response.json({}),bridge;
-  const context=createContext({crypto:globalThis.crypto,structuredClone,AbortController,Response,console,
-    document:{querySelector:element,querySelectorAll:()=>[],addEventListener(){}},
+  const context=createContext({crypto:globalThis.crypto,structuredClone,AbortController,Response,URLSearchParams,console,
+    document:{body:element('body'),getElementById:id=>element('#'+id),querySelector:element,querySelectorAll:()=>[],addEventListener(){}},
     location:{hash:'#perfil'},localStorage:{getItem:()=>null,setItem(){}},
     setTimeout:()=>0,clearTimeout(){},setInterval(){},FormData,
     fetch:(...args)=>fetcher(...args),
@@ -18,7 +18,7 @@ async function appHarness(){
     AccountUI:{start:async value=>{bridge=value;},signInPanel:()=>'<h1>Iniciar sesión</h1>',header:()=>'',accountCard:()=>'',open(){}},
     addEventListener(){},scrollTo(){}});
   context.window=context;
-  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js','monthly-access.js','experience-ui.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
+  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js','monthly-access.js','experience-ui.js','profile-notebook.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
   runInContext(source,context);bridge.cloud(true);bridge.loading(false);
   return {bridge,element,membership:context.ClubAccess,setFetch(value){fetcher=value;}};
 }
