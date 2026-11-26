@@ -182,6 +182,7 @@
   function material(item,state) {
     const node=el('details',null,'vhour-material');
     node.dataset.kind=item.kind;
+    node.dataset.material=item.id;
     const summary=el('summary');
     const name=el('span',null,'vhour-material-name');
     const thumbnail=el('span',null,'vhour-format-photo');
@@ -201,17 +202,23 @@
   function proofShelf(items,state) {
     const shelf=el('div',null,'vhour-shelf');
     const tools=el('div',null,'vhour-shelf-tools');
-    tools.append(el('h4',items.length===1?'Una prueba':items.length+' pruebas','vhour-shelf-title'));
+    const heading=el('h4',null,'vhour-shelf-title');
+    tools.append(heading);
     const records=items.map(item=>({item,card:material(item,state)}));
     const filters=el('div',null,'vhour-filter');
     filters.setAttribute('aria-label','Filtrar las pruebas por papel');
     const buttons=[];
     function select(role) {
       for(const entry of buttons)pressed(entry.button,entry.role===role);
+      let visible=0;
       for(const {item,card} of records){
         card.hidden=!!role && (item.role==='A'||item.role==='B') && item.role!==role;
+        if(!card.hidden)visible++;
         if(card.hidden && state.voice && card.contains(state.voice.button))stopVoice(state);
       }
+      shelf.dataset.roleFilter=role||'all';
+      shelf.dataset.visibleCount=stack.dataset.visibleCount=String(visible);
+      heading.textContent=visible===1?'Una prueba':visible+' pruebas';
     }
     if(items.some(m=>m.role==='A'||m.role==='B')) {
       for (const [role,label] of [['','Todas las pruebas'],['A','Papel 1'],['B','Papel 2']]){
@@ -227,6 +234,7 @@
   }
   function decision(stage,index,controller,refresh) {
     const form=el('form',null,'vhour-task');
+    form.dataset.mode=stage.mode;
     const field=el('fieldset'), legend=el('legend',stage.task);
     field.append(legend);
     const selected=[];
@@ -235,22 +243,72 @@
     const submit=el('button','Contrastar respuesta','vd-primary');submit.type='submit';
     const options=stage.options||[];
     const ordering=stage.mode==='order';
+    const required = Number.isInteger(stage.requiredCount) && stage.requiredCount>0 && stage.requiredCount<=options.length
+      ? stage.requiredCount : null;
+    const ready=()=>required?selected.length===required:selected.length>0;
     let sending=false;
     if(ordering) {
-      const undo=control('Deshacer el último paso',()=>{selected.pop();sync();});
+      const summary=el('div',null,'vhour-order-summary'), count=el('span',null,'vhour-order-count');
+      count.setAttribute('role','status');
+      summary.append(el('h5','Tu secuencia'),count);
+      const undo=control('Deshacer el último paso',()=>{
+        const id=selected.pop();
+        status.textContent='';
+        sync();
+        if(!selected.length)picks.find(p=>p.opt.id===id)?.b.focus();
+      },'vhour-order-undo');
       const picks=options.map(opt=>{
         const b=control(opt.label,()=>{
-          if(!selected.includes(opt.id)){selected.push(opt.id);sync();}
-        });
+          if(selected.includes(opt.id)||(required && selected.length>=required))return;
+          selected.push(opt.id);
+          status.textContent='';
+          sync();
+        },'vhour-order-pick');
         list.append(b);return {opt,b};
       });
       function sync(){
-        for(const {opt,b} of picks){b.disabled=selected.includes(opt.id);pressed(b,b.disabled);}
-        order.replaceChildren(...selected.map(id=>el('li',options.find(o=>o.id===id).label)));
-        undo.disabled=!selected.length;submit.disabled=!selected.length;
+        for(const {opt,b} of picks){
+          const position=selected.indexOf(opt.id);
+          const chosen=position!==-1;
+          pressed(b,chosen);
+          // The action can be inspected by keyboard after being placed in the sequence.
+          if(chosen){
+            b.dataset.position=String(position+1);
+            b.setAttribute('aria-label',opt.label+(/[.!?…]$/.test(opt.label.trim())?' ':'. ')+'Paso '+(position+1)+' de tu secuencia.');
+          }else{
+            delete b.dataset.position;
+            b.setAttribute('aria-label',opt.label);
+          }
+          b.setAttribute('aria-disabled',String(chosen||Boolean(required && selected.length>=required)));
+        }
+        const steps=selected.map((id,i)=>{
+          const step=el('li',options.find(opt=>opt.id===id).label,'vhour-order-step');
+          step.dataset.position=String(i+1);
+          return step;
+        });
+        if(required && selected.length<required){
+          for(let i=selected.length;i<required;i++){
+            const step=el('li',i===selected.length?'Elige el siguiente paso':'Pendiente','vhour-order-next');
+            step.dataset.position=String(i+1);
+            steps.push(step);
+          }
+        }else if(!required && selected.length<options.length){
+          steps.push(el('li',selected.length?'Puedes añadir otro paso.':'Elige la primera acción.','vhour-order-next'));
+        }
+        order.replaceChildren(...steps);
+        const amount=selected.length;
+        count.textContent=required?amount+' de '+required+' pasos':amount+(amount===1?' paso elegido':' pasos elegidos');
+        undo.disabled=!amount;submit.disabled=!ready();
       }
       order.setAttribute('aria-label','Secuencia elegida');
-      field.append(el('p','Pulsa las opciones en el orden que quieres proponer.','vhour-muted'),list,order,undo);
+      const workspace=el('div',null,'vhour-order-workspace');
+      const candidates=el('div',null,'vhour-order-candidates');
+      const draft=el('div',null,'vhour-order-draft');
+      candidates.append(el('h5','Acciones disponibles','vhour-order-list-label'),list);
+      draft.append(summary,order,undo);
+      workspace.append(candidates,draft);
+      field.append(el('p','Añade las acciones en el orden que propones. Puedes deshacer la última antes de contrastar.','vhour-muted'),
+        workspace);
       sync();
     } else {
       const multi=stage.mode==='multi';
@@ -259,11 +317,12 @@
         const label=el('label',null,'vhour-option'),input=el('input');
         input.type=multi?'checkbox':'radio';input.name='vhour-choice';input.value=opt.id;
         input.addEventListener('change',()=>{
+          status.textContent='';
           if(!multi)selected.length=0;
           const at=selected.indexOf(opt.id);
           if(input.checked && at<0)selected.push(opt.id);
           if(!input.checked && at>=0)selected.splice(at,1);
-          submit.disabled=!selected.length;
+          submit.disabled=!ready();
         });
         label.append(input,el('span',opt.label));list.append(label);
       }
@@ -271,7 +330,7 @@
     }
     form.append(el('h4','Tu hipótesis','vhour-decision-title'),field,submit,status);
     form.addEventListener('submit',async event=>{
-      event.preventDefault();if(sending||!selected.length)return;
+      event.preventDefault();if(sending||!ready())return;
       sending=true;submit.disabled=true;field.disabled=true;status.textContent='Contrastando la respuesta…';
       try {
         const reply=await controller.submit(index,selected.slice());
@@ -286,7 +345,7 @@
           }catch { /* La próxima respuesta puede reintentarse. */ }
         }
         status.textContent=e.message||'No se ha podido guardar. Vuelve a intentarlo.';
-      } finally {sending=false;submit.disabled=!selected.length;field.disabled=false;}
+      } finally {sending=false;submit.disabled=!ready();field.disabled=false;}
     });
     return form;
   }
@@ -370,7 +429,10 @@
       hour=data;
       main.replaceChildren();
       const stages=hour.stages||[],index=hour.current,stage=hour.stage;
+      if(stage)main.dataset.stage=String(index+1);
+      else delete main.dataset.stage;
       const nav=el('ol',null,'vhour-timeline');nav.setAttribute('aria-label','Recorrido de la investigación');
+      nav.tabIndex=0;
       for(const [i,step] of stages.entries()){
         const entry=el('li',null,i<index?'is-done':i===index?'is-current':'');
         if(i===index)entry.setAttribute('aria-current','step');
@@ -385,6 +447,7 @@
         main.append(heading,el('p',stage.brief,'vhour-lead'));
         if(hotel && controller.visitHotel)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
         const workbench=el('div',null,'vhour-workbench');
+        workbench.dataset.stage=String(index+1);
         workbench.append(proofShelf(stage.materials||[],state),decision(stage,index,controller,(next,note)=>{controller.change(next);render(next,note,true);}));
         main.append(workbench);
         if(focus){heading.focus({preventScroll:true});heading.scrollIntoView?.({block:'start',behavior:'instant'});}

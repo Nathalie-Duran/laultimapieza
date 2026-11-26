@@ -2,22 +2,22 @@
   'use strict';
 
   const cases = [
-    ['Mundos cruzados', 'La estación', '¿Dónde esconderías una cinta en 1996 para que alguien la encuentre en 2026?', 'Explora la estación antes de las obras.', 'Sigue en 2026 el rastro de los objetos que sobrevivieron.'],
-    ['Hotel Medianoche', 'El hotel', 'Tres huéspedes traen la misma llave. ¿A quién espera realmente la mujer de la habitación 14?', 'Desde recepción, escucha a los huéspedes y revisa las reservas.', 'En el turno de noche, atiende la centralita y consulta los planos.'],
-    ['Cita en otra vida', 'El último tren', 'Dos desconocidos reconocen una carta en el último tren. ¿Qué ocurrió la noche en que sus caminos debieron cruzarse?', 'Llevas una carta que tu madre te pidió entregar.', 'Reconoces la letra de tu padre y conservas un billete sin usar.'],
-    ['Frecuencia 23:17', 'La emisora', 'Un padre y su hija llaman a una emisora desde años distintos. ¿A quién devolverías la llamada?', 'Escucha las dos emisiones desde la mesa de sonido.', 'Contrasta lo que oyes con las antiguas parrillas de programación.'],
-    ['El Consejo de la Isla', 'La isla', 'Dos pueblos reclaman haber guiado el último ferry. ¿Qué se veía realmente desde el puente?', 'Investiga el funcionamiento del faro desde Puerto Norte.', 'Reconstruye la travesía con el cuaderno del ferry de Cala Sur.'],
-    ['La subasta de los objetos perdidos', 'La casa de subastas', 'Solo tienes tres fichas. ¿Qué objeto guarda el recuerdo que Amalia ha venido a recuperar?', 'Examina los lotes y busca los detalles que faltan en el catálogo.', 'Escucha a sus antiguos dueños y prepara las pujas.'],
-    ['El negativo número 13', 'El paseo marítimo', 'Una fotografía convirtió a un bañista en héroe. ¿Qué ocurrió justo antes del disparo?', 'Ordena los negativos en el laboratorio fotográfico.', 'Desde la playa, comprueba qué podía ver cada testigo.'],
-    ['El jardín de las promesas', 'El jardín', 'Dos desconocidos esperan con la misma flor en bancos distintos. ¿En qué lugar les prometieron encontrarse?', 'Busca traslados y nuevas plantaciones en el archivo del jardín.', 'Recorre el parque actual a través de sus fotografías.'],
-    ['La casa de las dos herencias', 'La casa familiar', 'Dos hermanas recuerdan casas diferentes detrás de una misma puerta. ¿Qué estancia falta en sus planos?', 'Reconstruye la distribución de la casa a partir de recuerdos.', 'Dibuja los recorridos diarios y comprueba dónde dejan de encajar.'],
-    ['El banquete de las sillas vacías', 'El salón de bodas', 'Dos abuelos distanciados llegan a la misma boda con cartas firmadas por el otro. ¿Quién hizo llegar los sobres?', 'Escucha lo que recuerda una de las familias.', 'Revisa la distribución de las mesas con la otra familia.'],
-    ['La partida que nadie ganó', 'El club de juegos', 'Los dos finalistas intentaron perder. ¿Qué mensaje dejaron en el tablero al entregar sus piezas?', 'Reproduce la secuencia que Alba dejó en su cuaderno.', 'Reconstruye las respuestas anotadas por León.'],
-    ['La oficina de los finales pendientes', 'El archivo municipal', 'Tres testigos quieren corregir la misma tarde del archivo. ¿Qué pasó en los once minutos que el reloj no contó?', 'Contrasta las horas en la sala del reloj.', 'Reconstruye el mismo intervalo con los testimonios del archivo.']
+    ['Mundos cruzados', 'La estación', '¿Dónde esconderías una cinta en 1996 para que alguien la encuentre en 2026?', 'Explora la estación antes de las obras.', 'Sigue en 2026 el rastro de los objetos que sobrevivieron.', 'Una cinta de casete sobre el banco verde de una estación bajo la lluvia.'],
+    ['Hotel Medianoche', 'El hotel', 'Tres huéspedes traen la misma llave. ¿A quién espera realmente la mujer de la habitación 14?', 'Desde recepción, escucha a los huéspedes y revisa las reservas.', 'En el turno de noche, atiende la centralita y consulta los planos.', 'Tres llaves y un timbre de latón sobre el mostrador del hotel.'],
+    ['Cita en otra vida', 'El último tren', 'Dos desconocidos reconocen una carta en el último tren. ¿Qué ocurrió la noche en que sus caminos debieron cruzarse?', 'Llevas una carta que tu madre te pidió entregar.', 'Reconoces la letra de tu padre y conservas un billete sin usar.', 'Dos pasajeros frente a frente en el tren, con una carta entre ambos.'],
+    ['Frecuencia 23:17', 'La emisora', 'Un padre y su hija llaman a una emisora desde años distintos. ¿A quién devolverías la llamada?', 'Escucha las dos emisiones desde la mesa de sonido.', 'Contrasta lo que oyes con las antiguas parrillas de programación.', 'Un micrófono junto a la mesa de sonido, con una onda amarilla en el monitor.'],
+    ['El Consejo de la Isla', 'La isla', 'Dos pueblos reclaman haber guiado el último ferry. ¿Qué se veía realmente desde el puente?', 'Investiga el funcionamiento del faro desde Puerto Norte.', 'Reconstruye la travesía con el cuaderno del ferry de Cala Sur.', 'Un ferry navega entre dos luces costeras al anochecer.'],
+    ['La subasta de los objetos perdidos', 'La casa de subastas', 'Solo tienes tres fichas. ¿Qué objeto guarda el recuerdo que Amalia ha venido a recuperar?', 'Examina los lotes y busca los detalles que faltan en el catálogo.', 'Escucha a sus antiguos dueños y prepara las pujas.', 'Una caja de esmalte azul y tres fichas sobre terciopelo, junto al mazo de subastas.'],
+    ['El negativo número 13', 'El paseo marítimo', 'Una fotografía convirtió a un bañista en héroe. ¿Qué ocurrió justo antes del disparo?', 'Ordena los negativos en el laboratorio fotográfico.', 'Desde la playa, comprueba qué podía ver cada testigo.', 'Unas manos sostienen una tira de negativos bajo la luz roja del laboratorio.'],
+    ['El jardín de las promesas', 'El jardín', 'Dos desconocidos esperan con la misma flor en bancos distintos. ¿En qué lugar les prometieron encontrarse?', 'Busca traslados y nuevas plantaciones en el archivo del jardín.', 'Recorre el parque actual a través de sus fotografías.', 'Una flor naranja sobre un banco de madera junto al invernadero.'],
+    ['La casa de las dos herencias', 'La casa familiar', 'Dos hermanas recuerdan casas diferentes detrás de una misma puerta. ¿Qué estancia falta en sus planos?', 'Reconstruye la distribución de la casa a partir de recuerdos.', 'Dibuja los recorridos diarios y comprueba dónde dejan de encajar.', 'Dos planos sobre un caballete junto a una puerta tapiada.'],
+    ['El banquete de las sillas vacías', 'El salón de bodas', 'Dos abuelos distanciados llegan a la misma boda con cartas firmadas por el otro. ¿Quién hizo llegar los sobres?', 'Escucha lo que recuerda una de las familias.', 'Revisa la distribución de las mesas con la otra familia.', 'Dos sillas vacías en una mesa de boda con dos sobres entre las copas.'],
+    ['La partida que nadie ganó', 'El club de juegos', 'Los dos finalistas intentaron perder. ¿Qué mensaje dejaron en el tablero al entregar sus piezas?', 'Reproduce la secuencia que Alba dejó en su cuaderno.', 'Reconstruye las respuestas anotadas por León.', 'Dos manos levantan piezas sobre el tablero de ajedrez.'],
+    ['La oficina de los finales pendientes', 'El archivo municipal', 'Tres testigos quieren corregir la misma tarde del archivo. ¿Qué pasó en los once minutos que el reloj no contó?', 'Contrasta las horas en la sala del reloj.', 'Reconstruye el mismo intervalo con los testimonios del archivo.', 'Un reloj de pared sobre las estanterías del archivo, con una lámpara encendida.']
   ];
   const number = n => String(n).padStart(2,'0');
-  const items = cases.map(([title,place,question,roleA,roleB],i)=>Object.freeze({
-    id:i+1, title, place, question, month:1+Math.floor(i/4), image:'/valdemar-art-'+number(i+1)+'.webp', roleA, roleB
+  const items = cases.map(([title,place,question,roleA,roleB,coverAlt],i)=>Object.freeze({
+    id:i+1, title, place, question, month:1+Math.floor(i/4), image:'/valdemar-art-'+number(i+1)+'.webp', roleA, roleB, coverAlt
   }));
   const esc = value => String(value ?? '').replace(/[&<>"']/g, x => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
   const get = id => items.find(item=>item.id===Number(id));
@@ -30,8 +30,8 @@
   function cards(month) {
     return '<div class="vd-cards">'+items.filter(item=>item.month===month).map(item=>
       `<article class="vd-card"><a href="${path(item.id)}" aria-label="Ver ${esc(item.title)}">
-        <div class="vd-photo"><img src="${item.image}" alt="" width="840" height="560" loading="lazy" decoding="async"><span class="vd-location">${esc(item.place)}</span></div>
-        <div class="vd-card-copy"><h3>${esc(item.title)}</h3><p>${esc(item.question)}</p><div class="vd-card-foot"><span>≈ 60 min · 1–2 personas</span><span class="vd-open" aria-hidden="true">↗</span></div></div>
+        <div class="vd-photo"><img src="${item.image}" alt="" width="764" height="508" loading="lazy" decoding="async"><span class="vd-location">${esc(item.place)}</span></div>
+        <div class="vd-card-copy"><h3>${esc(item.title)}</h3><p>${esc(item.question)}</p><div class="vd-card-foot"><span>≈ 60 min · 1–2 personas</span><span class="vd-open" aria-hidden="true">→</span></div></div>
       </a></article>`
     ).join('')+'</div>';
   }
@@ -64,7 +64,7 @@
     const sample=item.id===2?`<button type="button" data-vd-start class="${unlocked?'vd-ghost':'vd-cta'}">Atender la llamada</button>`:'';
     const actions=item.id===2?(unlocked?cta+sample:sample+cta.replace('class="vd-cta"','class="vd-ghost"')):cta+(unlocked?'':'<button type="button" data-action="preview-open" class="vd-ghost">Probar Clínica Vallejo gratis</button>');
     return `<article class="vd-detail"><nav class="vd-route-links" aria-label="Explorar Valdemar"><a class="vd-back" href="/#casos?mes=${item.month}">Volver al mes ${item.month}</a><a class="vd-back" href="/#mapa?mes=${item.month}&amp;lugar=${item.id}">Situar en el plano</a></nav>
-      <header class="vd-feature"><figure><img src="${item.image}" width="1080" height="720" alt="" fetchpriority="high"><figcaption>${esc(item.place)}</figcaption></figure>
+      <header class="vd-feature"><figure><img src="${item.image}" width="764" height="508" alt="${esc(item.coverAlt)}" fetchpriority="high"><figcaption>${esc(item.place)}</figcaption></figure>
       <div class="vd-description"><p class="vd-label">Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}</div><p class="vd-availability">${message}</p></div></header>
       ${item.id===2?hotelCall(cta):''}
       <section class="vd-brief"><div><h2>Dos miradas al caso</h2><p>Repartid los papeles o investiga con las dos carpetas en solitario.</p></div><ol><li><strong>Papel 1</strong>${esc(item.roleA)}</li><li><strong>Papel 2</strong>${esc(item.roleB)}</li></ol></section>

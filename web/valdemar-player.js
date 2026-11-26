@@ -3,6 +3,20 @@
   let active;
   const views = [['desk','Expediente'],['game','Reto paralelo'],['dual','Mesa doble'],['help','Sobre de ayuda'],['ending','Resolver el caso']];
   const covers = ['tren-detenido','habitacion-309','ultima-invitacion','frecuencia-17','marea-quieta','retrato-prestado','archivo-ausencias','jardin-invierno','ciudad-invisible','mesa-13','cartas-medianoche','cuaderno-investigacion'];
+  const coverDescriptions = [
+    'Una cinta de casete descansa en el banco de un andén bajo la lluvia.',
+    'Tres llaves de latón rodean el timbre de una recepción de hotel.',
+    'Dos viajeros se miran frente a una carta en el último tren.',
+    'Una onda de sonido ilumina la consola y el micrófono de una emisora.',
+    'Un ferry navega entre dos faros al anochecer.',
+    'Una caja de esmalte azul, tres fichas y un martillo de subasta.',
+    'Una tira de negativos fotográficos bajo la luz roja del cuarto de revelado.',
+    'Una flor naranja sobre un banco del invernadero.',
+    'Planos superpuestos ante una puerta tapiada en una casa antigua.',
+    'Dos sillas vacías y dos sobres en una mesa de boda.',
+    'Dos manos dejan sus piezas de madera sobre el tablero de un club.',
+    'Archivadores, un reloj de pared y un libro abierto en una oficina al atardecer.'
+  ];
 
   function element(tag, text, className) {
     const node = document.createElement(tag);
@@ -171,7 +185,7 @@
     const {wallet,hints=[]}=c.data;
     const open=wallet.opened.includes(c.id);
     const help=c.help;
-    const body=element('div'),status=announcement();
+    const body=element('div',null,'vd-letter-body'),status=announcement();
     if(!open) {
       body.append(element('p','Una llave abre las dos orientaciones de este caso. Podrás leerlas por separado y volver a consultarlas.'));
       if(wallet.balance>0) {
@@ -195,7 +209,10 @@
         body.append(second);
       }
     }
-    help.replaceChildren(element('h2',c.id===2?'Sobre de la gobernanta':'Sobre de ayuda'),body,status);
+    const envelope=element('div',null,'vd-letter');
+    envelope.dataset.open=String(open);
+    envelope.append(element('h2',c.id===2?'Sobre de la gobernanta':'Sobre de ayuda'),body,status);
+    help.replaceChildren(envelope);
   }
   function trackGame(c,board,session) {
     const record = (event,select) => {
@@ -246,8 +263,9 @@
     c.rewardStatus=announcement();
     c.retryReward=button('Volver a comprobar la victoria',()=>earn(c,c.play));c.retryReward.hidden=true;
     c.restart=button('Reiniciar el reto',()=>mountGame(c));c.restart.hidden=true;
-    c.gamePanel.append(element('p','Reto paralelo','vd-eyebrow'),element('h2',c.game.title),
-      element('p',c.game.pitch,'vd-note'),c.board,c.rewardStatus,c.retryReward,c.restart,
+    const heading=element('header',null,'vd-game-heading');
+    heading.append(element('p','Reto paralelo','vd-eyebrow'),element('h2',c.game.title),element('p',c.game.pitch,'vd-note'));
+    c.gamePanel.append(heading,c.board,c.rewardStatus,c.retryReward,c.restart,
       button('Consultar mi sobre',()=>selectView(c,'help',true),'vd-link'));
   }
   function decisionButtons(items,legend,submitLabel,submit,primary=true) {
@@ -293,7 +311,9 @@
     }
     if(progress.choice) {
       const choice=story.choices.find(o=>o.id===progress.choice);
-      section.append(element('h3','Tu desenlace'),element('p',choice?.label||'Decisión guardada','vd-eyebrow'),element('p',progress.outcome||'Tu decisión ha quedado guardada para esta historia.'),link('Regresar al catálogo',c.catalog,'vd-link'));
+      const outcome=element('article',null,'vd-outcome');
+      outcome.append(element('h3','Tu desenlace'),element('p',choice?.label||'Decisión guardada','vd-eyebrow'),element('p',progress.outcome||'Tu decisión ha quedado guardada para esta historia.'));
+      section.append(outcome,link('Regresar al catálogo',c.catalog,'vd-link'));
       return;
     }
     section.append(decisionButtons(story.choices,'¿Cómo termina vuestra historia? La decisión quedará guardada.','Guardar mi desenlace',(choice,send,status)=>run(c,'ending',async()=>{
@@ -304,20 +324,29 @@
   }
   function build(c) {
     const {story}=c.data;
+    const number=String(c.id).padStart(2,'0');
+    const catalogItem=window.ValdemarCatalog?.get(c.id);
+    c.frame.dataset.vdCase=number;
     const head=element('header',null,'vd-intro');
     const cover=element('img',null,'vd-cover');
-    cover.addEventListener('error',()=>{cover.src='/'+covers[c.id-1]+'.jpg';},{once:true});
-    cover.src='/valdemar-art-'+String(c.id).padStart(2,'0')+'.webp';cover.alt='';head.append(cover);
+    cover.addEventListener('error',()=>{cover.alt='';cover.src='/'+covers[c.id-1]+'.jpg';},{once:true});
+    cover.src='/valdemar-art-'+number+'.webp';cover.alt=coverDescriptions[c.id-1];
+    cover.width=764;cover.height=508;cover.decoding='async';
+    const still=element('figure',null,'vd-still');
+    still.append(cover);
+    if(catalogItem?.place)still.append(element('figcaption',catalogItem.place));
     const headlinks=element('div',null,'vd-headlinks');c.balance=element('span','','vd-balance');
     c.balance.setAttribute('aria-live','polite');
     headlinks.append(link('Todas las historias',c.catalog,'vd-link'),c.balance);
-    head.append(headlinks,element('p','Valdemar · Historia '+String(c.id).padStart(2,'0'),'vd-eyebrow'),element('h1',story.title),element('p',story.question,'vd-question'));
-    if(story.intro)head.append(element('p',story.intro,'vd-narrative'));
+    const description=element('div',null,'vd-intro-copy');
+    description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title),element('p',story.question,'vd-question'));
+    if(story.intro)description.append(element('p',story.intro,'vd-narrative'));
+    head.append(description,still);
     const nav=element('nav',null,'vd-tabs');nav.setAttribute('aria-label','Mesa de juego');
     c.viewButtons=new Map();
     const availableViews=c.data.hour?.hotel&&window.ValdemarHour?[views[0],['hotel','Recepción del hotel'],...views.slice(1)]:views;
-    for(const [id,label] of availableViews){const b=button(label,()=>selectView(c,id));c.viewButtons.set(id,b);nav.append(b);}
-    c.pair=element('div',null,'vd-pair');c.help=element('section',null,'vd-panel');c.ending=element('section',null,'vd-panel');
+    for(const [id,label] of availableViews){const b=button(label,()=>selectView(c,id));b.dataset.view=id;c.viewButtons.set(id,b);nav.append(b);}
+    c.pair=element('div',null,'vd-pair');c.help=element('section',null,'vd-panel vd-help');c.ending=element('section',null,'vd-panel vd-ending');
     c.help.tabIndex=-1;c.ending.tabIndex=-1;c.dualTools=element('div',null,'vd-dual-tools');c.dualTools.tabIndex=-1;
     if(c.data.hour?.hotel && window.ValdemarHour){c.hotel=element('section',null,'vd-panel vhour vhour-hotel-panel');c.hotel.tabIndex=-1;}
     c.dualTools.append(element('p','Una persona contrasta las pruebas y la otra intenta ganar la llave. Si juegas a solas, cambia de mesa cuando quieras.'),

@@ -1,0 +1,101 @@
+/* Fotografías de los objetos que se examinan al abrir cada expediente. */
+
+.vd-player[data-vd-case="01"],
+.vd-player[data-vd-case="02"],
+.vd-player[data-vd-case="03"],
+.vd-player[data-vd-case="04"] { --vd-contact-sheet: url("/valdemar-pruebas-01.webp"); }
+
+.vd-player[data-vd-case="05"],
+.vd-player[data-vd-case="06"],
+.vd-player[data-vd-case="07"],
+.vd-player[data-vd-case="08"] { --vd-contact-sheet: url("/valdemar-pruebas-02.webp"); }
+
+.vd-player[data-vd-case="09"],
+.vd-player[data-vd-case="10"],
+.vd-player[data-vd-case="11"],
+.vd-player[data-vd-case="12"] { --vd-contact-sheet: url("/valdemar-pruebas-03.webp"); }
+
+.vd-player[data-vd-case="01"],
+.vd-player[data-vd-case="05"],
+.vd-player[data-vd-case="09"] { --vd-photo-column: 0%; }
+
+.vd-player[data-vd-case="02"],
+.vd-player[data-vd-case="06"],
+.vd-player[data-vd-case="10"] { --vd-photo-column: 33.333333%; }
+
+.vd-player[data-vd-case="03"],
+.vd-player[data-vd-case="07"],
+.vd-player[data-vd-case="11"] { --vd-photo-column: 66.666667%; }
+
+.vd-player[data-vd-case="04"],
+.vd-player[data-vd-case="08"],
+.vd-player[data-vd-case="12"] { --vd-photo-column: 100%; }
+
+.vd-player[data-vd-case="01"] .vhour-workbench[data-stage="1"] [data-material="llamada"],
+.vd-player[data-vd-case="02"] .vhour-workbench[data-stage="1"] [data-material="voz"],
+.vd-player[data-vd-case="03"] .vhour-workbench[data-stage="1"] [data-material="voz"],
+.vd-player[data-vd-case="04"] .vhour-workbench[data-stage="1"] [data-material="tomas"],
+.vd-player[data-vd-case="05"] .vhour-workbench[data-stage="1"] [data-material="radio"],
+.vd-player[data-vd-case="06"] .vhour-workbench[data-stage="1"] [data-material="cajas"],
+.vd-player[data-vd-case="07"] .vhour-workbench[data-stage="1"] [data-material="prestamos"],
+.vd-player[data-vd-case="08"] .vhour-workbench[data-stage="1"] [data-material="biblioteca"],
+.vd-player[data-vd-case="09"] .vhour-workbench[data-stage="1"] [data-material="sol"],
+.vd-player[data-vd-case="10"] .vhour-workbench[data-stage="1"] [data-material="motivos"],
+.vd-player[data-vd-case="11"] .vhour-workbench[data-stage="1"] [data-material="mesa"],
+.vd-player[data-vd-case="12"] .vhour-workbench[data-stage="1"] [data-material="senal"] {
+  --vd-photo-content: "";
+  --vd-photo-row: 0%;
+}
+
+.vd-player[data-vd-case="01"] .vhour-workbench[data-stage="1"] [data-material="cuadro"],
+.vd-player[data-vd-case="02"] .vhour-workbench[data-stage="1"] [data-material="protocolo"],
+.vd-player[data-vd-case="03"] .vhour-workbench[data-stage="1"] [data-material="kiosco"],
+.vd-player[data-vd-case="04"] .vhour-workbench[data-stage="1"] [data-material="manual"],
+.vd-player[data-vd-case="05"] .vhour-workbench[data-stage="1"] [data-material="guardia"],
+.vd-player[data-vd-case="06"] .vhour-workbench[data-stage="1"] [data-material="pases"],
+.vd-player[data-vd-case="07"] .vhour-workbench[data-stage="1"] [data-material="vuelta"],
+.vd-player[data-vd-case="08"] .vhour-workbench[data-stage="1"] [data-material="encargo"],
+.vd-player[data-vd-case="09"] .vhour-workbench[data-stage="1"] [data-material="muesca"],
+.vd-player[data-vd-case="10"] .vhour-workbench[data-stage="1"] [data-material="camaras"],
+.vd-player[data-vd-case="11"] .vhour-workbench[data-stage="1"] [data-material="neg"],
+.vd-player[data-vd-case="12"] .vhour-workbench[data-stage="1"] [data-material="pasajeros"] {
+  --vd-photo-content: "";
+  --vd-photo-row: 50%;
+}
+
+.vd-player[data-vd-case="01"] .vhour-workbench[data-stage="1"] [data-material="partes"],
+.vd-player[data-vd-case="02"] .vhour-workbench[data-stage="1"] [data-material="ronda"],
+.vd-player[data-vd-case="03"] .vhour-workbench[data-stage="1"] [data-material="billetes"],
+.vd-player[data-vd-case="04"] .vhour-workbench[data-stage="1"] [data-material="ensayos"],
+.vd-player[data-vd-case="05"] .vhour-workbench[data-stage="1"] [data-material="cabina"],
+.vd-player[data-vd-case="06"] .vhour-workbench[data-stage="1"] [data-material="pedido"],
+.vd-player[data-vd-case="07"] .vhour-workbench[data-stage="1"] [data-material="clave"],
+.vd-player[data-vd-case="08"] .vhour-workbench[data-stage="1"] [data-material="fechas"],
+.vd-player[data-vd-case="09"] .vhour-workbench[data-stage="1"] [data-material="voz"],
+.vd-player[data-vd-case="10"] .vhour-workbench[data-stage="1"] [data-material="hora"],
+.vd-player[data-vd-case="11"] .vhour-workbench[data-stage="1"] [data-material="peon"],
+.vd-player[data-vd-case="12"] .vhour-workbench[data-stage="1"] [data-material="matriz"] {
+  --vd-photo-content: "";
+  --vd-photo-row: 100%;
+}
+
+.vd-player .vhour-workbench[data-stage="1"] .vhour-format-photo {
+  position: relative;
+  overflow: hidden;
+  container-type: size;
+}
+.vd-player .vhour-workbench[data-stage="1"] .vhour-format-photo::before {
+  content: var(--vd-photo-content, none);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100cqw, 112.5cqh);
+  aspect-ratio: 9 / 8;
+  transform: translate(-50%, -50%);
+  background-image: var(--vd-contact-sheet);
+  background-repeat: no-repeat;
+  background-position: var(--vd-photo-column) var(--vd-photo-row);
+  background-size: 400% 300%;
+  pointer-events: none;
+}
+
