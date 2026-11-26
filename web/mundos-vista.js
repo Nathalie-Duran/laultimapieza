@@ -6,21 +6,23 @@
       number:2, offset:12, title:'El Tablero de Ámbar', short:'Tablero de Ámbar',
       genre:'Aventuras',station:'Casilla',count:'expediciones',progress:'expediciones completadas',done:'Expedición completada.',notebook:'Cuaderno de campo',
       previous:{from:'de Valdemar',back:'Volver a Valdemar',href:'#casos'},
-      image:'/expedicion-tablero.webp', imageAlt:'Tablero de expedición tallado en madera, con un recorrido entre doce destinos.',
-      intro:'Una barquera ha perdido su valija. En la montaña, un observatorio ha perdido el norte. Coloca el peón donde quieras empezar.',
+      image:'/ambar-tallado.webp', imageAlt:'Tablero de madera abierto, con animales tallados, dados y caminos de losas que rodean una gema de ámbar.',
+      intro:'Coloca tu peón en una de las doce casillas. Toca el ámbar del centro para ver las piezas que has recuperado.',
+      seal:'Medallón de Ámbar', sealCenter:[52,46.7],
       boardLabel:'Tablero de las doce expediciones', index:'Índice de expediciones',
       selectLabel:'Mover el peón a', launch:'Iniciar expedición', returnLabel:'Volver al tablero',
-      positions:[[12,76],[17,49],[12,22],[37,18],[45,39],[34,63],[44,83],[64,72],[72,46],[64,19],[86,24],[89,64]]
+      positions:[[19.2,89],[49.8,89],[78,72.7],[80.9,37],[51.1,17.8],[24.7,37.5],[28.3,66],[44.4,75.5],[36.2,50.9],[50.6,31.1],[68.1,48.3],[53.9,61.5]]
     },
     umbravia: {
       number:3, offset:24, title:'Umbravía', short:'Umbravía',
       genre:'Terror psicológico',station:'Lugar',count:'lugares',progress:'faroles encendidos',done:'Caso resuelto, farol encendido.',notebook:'Archivo del pueblo',
       previous:{from:'del Tablero de Ámbar',back:'Volver al Tablero de Ámbar',href:'#expedicion'},
-      image:'/umbravia-pueblo.webp', imageAlt:'Vista ilustrada de Umbravía al anochecer, con doce lugares que se pueden investigar.',
-      intro:'En el cine, una silueta aparece sobre una pantalla desconectada. Elige un edificio para investigar. Cada caso resuelto enciende un farol.',
-      boardLabel:'Plano del pueblo encantado de Umbravía', index:'Directorio del pueblo',
+      image:'/umbravia-abandonada.webp', imageAlt:'Pueblo abandonado a la luz de la luna. Bajo la niebla, un carrusel inmóvil, un cine tapiado y un campanario dominan las calles desiertas.',
+      intro:'Las calles están vacías. En el cine, una silueta cruza la pantalla desconectada. Elige qué puerta abrir.',
+      seal:'Farol de Umbravía',
+      boardLabel:'Calles del pueblo abandonado de Umbravía', index:'Directorio del pueblo',
       selectLabel:'Localizar', launch:'Entrar en el caso', returnLabel:'Volver al pueblo',
-      positions:[[14,26],[37,19],[58,23],[84,25],[14,49],[34,41],[59,46],[85,45],[13,74],[36,67],[60,70],[84,68]]
+      positions:[[17,27],[36,28],[63,28],[80,30],[13,46],[36,44],[60,49],[84,45],[17,77],[36,70],[61,73],[87,76]]
     },
     necropolis: {
       number:4,offset:36,title:'La Necrópolis del Sol Velado',short:'La Necrópolis',
@@ -52,23 +54,17 @@
   function pin(edition,world,item,current) {
     const local=item.id-edition.offset;
     const [x,y]=edition.positions[local-1];
-    return `<a class="md-pin" href="${route(world,item.id)}" style="--x:${x}%;--y:${y}%" data-md-id="${item.id}" data-md-way="pin" aria-label="${esc(edition.selectLabel+' '+item.place+'. '+item.title)}" aria-controls="md-file"${item.id===current?' aria-current="location"':''}><span class="md-pin-face">${number(local)}</span><span class="md-pin-tooltip" aria-hidden="true">${esc(item.place)}</span></a>`;
+    return `<a class="md-pin" href="${route(world,item.id)}" style="--x:${x}%;--y:${y}%" data-md-edge="${x<24?'left':x>76?'right':'center'}" data-md-id="${item.id}" data-md-way="pin" aria-label="${esc(edition.selectLabel+' '+item.place+'. '+item.title)}" aria-controls="md-file"${item.id===current?' aria-current="location"':''}><span class="md-pin-face">${number(local)}</span><span class="md-pin-tooltip" aria-hidden="true">${esc(item.place)}</span></a>`;
   }
   function indexEntry(edition,world,item,current) {
     const local=item.id-edition.offset;
     return `<li><a href="${route(world,item.id)}" data-md-id="${item.id}" data-md-way="index" aria-controls="md-file"${item.id===current?' aria-current="location"':''}><span>${number(local)}</span><strong>${esc(item.place)}</strong><small>${esc(item.title)}</small></a></li>`;
   }
-  function trail(points) {
-    const joins=points.map(([x,y])=>x+','+y).join(' ');
-    const blocks=[];
-    for(let i=1;i<points.length;i++){
-      const [x,y]=points[i-1],[tx,ty]=points[i];
-      for(const fraction of [.33,.67]){
-        const left=x+(tx-x)*fraction,top=y+(ty-y)*fraction;
-        blocks.push(`<rect x="${left-.55}" y="${top-.8}" width="1.1" height="1.6" rx=".25"/>`);
-      }
-    }
-    return `<svg viewBox="0 0 100 100" preserveAspectRatio="none" class="md-trail" aria-hidden="true" focusable="false"><polyline class="md-trail-bed" points="${joins}"/><polyline class="md-trail-rail" points="${joins}"/><g>${blocks.join('')}</g></svg>`;
+  function sealLink(edition,world,local,onBoard=false) {
+    if(!edition.seal)return '';
+    const label='Ver el '+edition.seal;
+    const position=onBoard?` style="--x:${edition.sealCenter[0]}%;--y:${edition.sealCenter[1]}%"`:'';
+    return `<a class="${onBoard?'md-gem-link':'md-seal-link'}" href="#${world}?lugar=${local}&amp;seccion=sello"${position}>${onBoard?'<span>'+esc(label)+'</span>':esc(label)}</a>`;
   }
   function accessMarkup(edition,item,allowed,completed,status) {
     if(allowed)return `<a class="md-cta" href="#mundos-jugar?id=${item.id}">${completed?'Ver mi desenlace':edition.launch} <span aria-hidden="true">→</span></a>`;
@@ -87,11 +83,11 @@
     const allowed=options.admin===true || options.role==='admin' || options.membership?.role==='admin';
     const placeType=edition.station;
     return `<section class="md-world" data-md-world="${world}" data-md-selected="${item.id}" data-md-editor="${allowed}" aria-labelledby="md-world-title">
-      <header class="md-mast"><div><p class="md-caption">Temporada ${number(edition.number)} · ${esc(edition.genre)}</p><h1 id="md-world-title">${esc(edition.title)}</h1></div><div class="md-mast-end"><p>${esc(edition.intro)}</p></div></header>
+      <header class="md-mast"><div><p class="md-caption">Temporada ${number(edition.number)} · ${esc(edition.genre)}</p><h1 id="md-world-title">${esc(edition.title)}</h1></div><div class="md-mast-end"><p>${esc(edition.intro)}</p>${world==='umbravia'?sealLink(edition,world,local):''}</div></header>
       <div class="md-atlas"><div class="md-board">
         <div class="md-map-window" data-zoom="${!!enlarged}" role="region" tabindex="0" aria-label="${esc(edition.boardLabel)}"><div class="md-surface">
           <img class="md-map-art" src="${edition.image}" width="1536" height="1024" alt="${esc(edition.imageAlt)}" fetchpriority="high">
-          ${world==='expedicion'?trail(edition.positions):''}<div class="md-pins">${candidates.map(v=>pin(edition,world,v,item.id)).join('')}</div></div></div>
+          <div class="md-pins">${candidates.map(v=>pin(edition,world,v,item.id)).join('')}${edition.sealCenter?sealLink(edition,world,local,true):''}</div></div></div>
         <div class="md-board-tools"><span class="md-board-status" data-md-progress>12 ${esc(edition.count)}</span>${world==='expedicion'?'<button type="button" class="md-roll" aria-describedby="md-roll-note" disabled>Mover el peón</button>':''}<button type="button" class="md-zoom" aria-pressed="${!!enlarged}">${enlarged?'Ver completo':'Ampliar'}</button></div>${world==='expedicion'?'<p id="md-roll-note" class="md-board-note" aria-live="polite"></p>':''}</div>
         <article class="md-file" id="md-file" aria-labelledby="md-case-title"><figure><img src="/mundo-${item.id}.webp" width="768" height="512" alt="" decoding="async"><figcaption>${esc(placeType)} ${number(local)}</figcaption></figure><div class="md-file-copy">
           <p class="md-caption">${esc(item.place)}</p><h2 id="md-case-title" tabindex="-1">${esc(item.title)}</h2><p class="md-question">${esc(item.question)}</p>
