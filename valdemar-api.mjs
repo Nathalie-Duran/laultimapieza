@@ -3,7 +3,7 @@ import {ApiError} from './auth-provider.mjs';
 import {CASE_ORDER} from './progression.mjs';
 import {worldSeasonAccess, valdemarWallet, withValdemarTransaction, WORLD_CASE_COUNT} from './valdemar-wallet.mjs';
 import {readValdemarRelease} from './valdemar-release.mjs';
-import {evaluateHourStage,readHour,requireHourComplete} from './valdemar-hour.mjs';
+import {evaluateHourStage,readHour,requireHourComplete,roleMaterials} from './valdemar-hour.mjs';
 import {hasCaseActivity,recordCaseActivity} from './season-activity.mjs';
 import {endPair,partnerCases,partnerInfo,syncPairProgress} from './partner-api.mjs';
 
@@ -17,9 +17,24 @@ function asset(name) {
   return files.get(name);
 }
 
-function visibleStory(story) {
-  const {id,title,place,question,roles,solo,intro,challengePrompt,evidenceCards,choices,hypotheses} = story;
-  return {id,title,place,question,roles,solo,intro,challengePrompt,evidenceCards,choices,hypotheses};
+const formatNames={text:'el documento',testimony:'el testimonio',ledger:'el registro',visual:'la lámina',audio:'el audio',web:'el archivo web'};
+const formatList=new Intl.ListFormat('es',{type:'conjunction'});
+function visibleRoles(story,role,record){
+  if(!role || !Array.isArray(story.roles))return story.roles;
+  const ownIndex=role==='A'?0:1,otherRole=role==='A'?'B':'A';
+  const stage=story.hour?.stages?.[record?.hourStep||0];
+  const formats=[...new Set((stage?.materials || []).filter(item=>item.role===otherRole)
+    .map(item=>formatNames[item.kind]).filter(Boolean))];
+  const task=formats.length
+    ? 'Examina '+formatList.format(formats)+' de su carpeta y comparte lo que encuentre.'
+    : 'Contrasta sus pruebas con las tuyas para decidir cómo resolver el caso.';
+  return story.roles.map((description,index)=>index===ownIndex?description:task);
+}
+
+function visibleStory(story,role,record) {
+  const {id,title,place,question,solo,intro,challengePrompt,evidenceCards,choices,hypotheses} = story;
+  return {id,title,place,question,roles:visibleRoles(story,role,record),solo,intro,challengePrompt,
+    evidenceCards:evidenceCards && roleMaterials(evidenceCards,role),choices,hypotheses};
 }
 
 function visibleProgress(record,story) {
@@ -88,11 +103,11 @@ function visibleSample(sample) {
     noteTitle,note,siteTitle,rows,answers};
 }
 
-function visibleSide(side) {
+function visibleSide(side,role) {
   const {title,brief,task,mode} = side;
   return {title,brief,task,mode,
     options:side.options.map(({id,label}) => ({id,label})),
-    materials:side.materials.map(({id,label,kind,body,role}) => ({id,label,kind,body,role})),
+    materials:roleMaterials(side.materials,role).map(({id,label,kind,body,role}) => ({id,label,kind,body,role})),
     ...(mode === 'order' ? {requiredCount:side.answer.length} : {})};
 }
 
@@ -119,7 +134,7 @@ async function progressAction(store,uid,scope,story,action,input,pair) {
     if (advanced) {
       await save('advance');
     }
-    return {correct,feedback,hour:readHour(story,record)};
+    return {correct,feedback,hour:readHour(story,record,partnerInfo(pair,uid)?.role)};
   }
   if (action === 'deduce') {
     if (!record.deduced) requireHourComplete(story,record);
@@ -255,9 +270,10 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const wallet = await valdemarWallet(store,uid,{editorial,seasonAccess:access},action,id);
     const hints = visibleHints(story,wallet);
     if (action !== 'read') return {wallet,hints,...(newWorld && action==='reward' ? {feedback:story.side.success} : {})};
-    const dossier = {story:visibleStory(story),hour:readHour(story,record),wallet,hints,progress:visibleProgress(record,story),
-      mode,partner};
-    if (newWorld) return {...dossier,side:visibleSide(story.side)};
+    const role=partner?.role;
+    const dossier = {story:visibleStory(story,role,record),hour:readHour(story,record,role),wallet,hints,progress:visibleProgress(record,story),
+      mode,partner,editorialPreview:editorial===true};
+    if (newWorld) return {...dossier,side:visibleSide(story.side,role)};
     const gameScript = await asset('valdemar-challenges-'+Math.ceil(id/4)+'.js');
     return {...dossier,sample:visibleSample(sample),gameScript,stationScript:id===1 ? release.stationScript : null};
   });

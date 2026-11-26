@@ -97,13 +97,29 @@ export async function partnerRequest({path,method,input,user,withStore,billing})
   const uid=user.userId,email=emailAddress(user.email);
   if(user.emailVerified!==true||!emailValid(email))throw new ApiError(403,'Verifica tu correo para gestionar tus invitaciones.','EMAIL_NOT_VERIFIED');
   const match=/^\/api\/partners\/([a-f\d]{8}-[a-f\d]{4}-4[a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12})\/(accept|decline|revoke)$/.exec(path);
-  if(!match && path!=='/api/partners')throw unavailable();
+  const preference=path==='/api/partners/preferred';
+  if(!match && !preference && path!=='/api/partners')throw unavailable();
   return withValdemarTransaction(withStore,async store=>{
     const now=Date.now();
-    if(!match){
+    if(preference){
+      if(method==='GET')return {preferredEmail:(await store.getMemberData(uid,{readOnly:true})).preferredPartnerEmail || null};
+      if(method==='POST'){
+        const preferredEmail=input?.email===null?null:emailAddress(input?.email);
+        if(preferredEmail!==null && (!emailValid(preferredEmail) || preferredEmail===email))
+          throw new ApiError(400,'Escribe un correo válido distinto del tuyo.','INVALID_PARTNER_EMAIL');
+        const data=await store.getMemberData(uid);
+        if((data.preferredPartnerEmail || null)!==preferredEmail){
+          if(preferredEmail===null)delete data.preferredPartnerEmail;
+          else data.preferredPartnerEmail=preferredEmail;
+          await store.saveMemberData(uid,data);
+        }
+        return {preferredEmail};
+      }
+    }else if(!match){
       if(method==='GET'){
         const rows=await store.listPartners(uid,email,now);
-        return {invitations:rows.map(row=>visible(row,uid)),availableCases:await partnerCases(store,billing,uid)};
+        const preferredEmail=(await store.getMemberData(uid,{readOnly:true})).preferredPartnerEmail || null;
+        return {invitations:rows.map(row=>visible(row,uid)),availableCases:await partnerCases(store,billing,uid),preferredEmail};
       }
       if(method==='POST')return sendInvitation(store,billing,user,input,now);
     }else if(method==='POST'){

@@ -11,23 +11,29 @@ function visibleMaterial({id,label,kind,body,role,clip}) {
   return material;
 }
 
-function reading(stage) {
+export function roleMaterials(items,role) {
+  if(role!=='A' && role!=='B')return items;
+  const number=role==='A'?1:2;
+  return items.filter(item=>item.role==null || item.role==='AB' || item.role===role || item.role===number);
+}
+
+function reading(stage,role) {
   const {brief,task,materials} = stage;
-  return {...outline(stage),brief,task,materials:materials.map(visibleMaterial)};
+  return {...outline(stage),brief,task,materials:roleMaterials(materials,role).map(visibleMaterial)};
 }
 
 function savedCount(record,total) {
   return Number.isInteger(record?.hourStep) ? Math.max(0,Math.min(total,record.hourStep)) : 0;
 }
 
-export function readHour(story,record) {
+export function readHour(story,record,role=null) {
   if (!story.hour) return null;
   const {stages,hotel} = story.hour;
   const count = savedCount(record,stages.length);
   // An existing permanent ending remains accessible across this content revision.
   const current = record?.choice ? stages.length : count;
   const active = stages[current];
-  const stage = active ? {...reading(active),mode:active.mode,options:active.options.map(({id,label}) => ({id,label}))} : null;
+  const stage = active ? {...reading(active,role),mode:active.mode,options:active.options.map(({id,label}) => ({id,label}))} : null;
   if (stage?.mode === 'order') stage.requiredCount = active.answer.length;
   if (active?.instrument) stage.instrument = active.instrument;
   if (active?.corroboration) {
@@ -37,7 +43,7 @@ export function readHour(story,record) {
       options: active.materials.map(({id,label}) => ({id,label}))
     };
   }
-  const journal = stages.slice(0,count).map((value,index) => ({index,...reading(value),success:value.success}));
+  const journal = stages.slice(0,count).map((value,index) => ({index,...reading(value,role),success:value.success}));
   return {stages:stages.map(outline),current,stage,journal,...(hotel ? {hotel} : {})};
 }
 
