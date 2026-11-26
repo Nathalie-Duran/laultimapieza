@@ -5,6 +5,7 @@ import {worldSeasonAccess, valdemarWallet, withValdemarTransaction, WORLD_CASE_C
 import {readValdemarRelease} from './valdemar-release.mjs';
 import {evaluateHourStage,readHour,requireHourComplete} from './valdemar-hour.mjs';
 import {hasCaseActivity,recordCaseActivity} from './season-activity.mjs';
+import {endPair,partnerCases,partnerInfo,syncPairProgress} from './partner-api.mjs';
 
 const files = new Map();
 // Only versioned, server-owned files are passed here. No path comes from the request.
@@ -102,17 +103,21 @@ function matchesSide(side,choice) {
     : side.answer.every((id,index)=>choice[index]===id);
 }
 
-async function progressAction(store,uid,scope,story,action,input) {
+async function progressAction(store,uid,scope,story,action,input,pair) {
   const data = await store.getMemberData(uid);
   const alreadyStarted = hasCaseActivity(data,scope,story.id);
   data.valdemarCaseProgress ||= {};
   const cases = data.valdemarCaseProgress[scope] ||= {};
-  const record = cases[story.id] ||= {};
+  const record = pair ? pair.progress : cases[story.id] ||= {};
+  async function save(event){
+    if(pair)return syncPairProgress(store,pair,event);
+    recordCaseActivity(data,scope,story.id,alreadyStarted,event);
+    await store.saveMemberData(uid,data);
+  }
   if (action === 'stage') {
     const {advanced,correct,feedback} = evaluateHourStage(story,record,input);
     if (advanced) {
-      recordCaseActivity(data,scope,story.id,alreadyStarted,'advance');
-      await store.saveMemberData(uid,data);
+      await save('advance');
     }
     return {correct,feedback,hour:readHour(story,record)};
   }
@@ -124,8 +129,7 @@ async function progressAction(store,uid,scope,story,action,input) {
     const correct = input.hypothesis === story.correctHypothesis;
     if (correct && !record.deduced) {
       record.deduced = true;
-      recordCaseActivity(data,scope,story.id,alreadyStarted,'deduce');
-      await store.saveMemberData(uid,data);
+      await save('deduce');
     }
     return {correct,progress:visibleProgress(record,story)};
   }
@@ -137,8 +141,7 @@ async function progressAction(store,uid,scope,story,action,input) {
   }
   if (!record.choice) {
     record.choice = input.choice;
-    recordCaseActivity(data,scope,story.id,alreadyStarted,'end');
-    await store.saveMemberData(uid,data);
+    await save('end');
   }
   return {progress:visibleProgress(record,story)};
 }
@@ -148,14 +151,16 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
   const seasonsRoute = path === '/api/valdemar/seasons';
   const gamesRoute = path === '/api/valdemar/partidas';
   const sealRoute = /^\/api\/valdemar\/seals\/([1-9]\d?)$/.exec(path);
-  const match = /^\/api\/valdemar\/cases\/([1-9]\d?)(?:\/(reward|open|second|sample|deduce|ending|stage|mode))?$/.exec(path);
+  const match = /^\/api\/valdemar\/cases\/([1-9]\d?)(?:\/(reward|open|second|sample|deduce|ending|stage|mode|pair-state))?$/.exec(path);
   const id = match ? Number(match[1]) : null;
   if ((!walletRoute && !seasonsRoute && !gamesRoute && !sealRoute && !match) || id>WORLD_CASE_COUNT) throw new ApiError(404,'Esta historia no está disponible.');
   const newWorld = id > CASE_ORDER.length;
   const action = match?.[2] || 'read';
-  if (method !== (action==='read' ? 'GET' : 'POST')) throw new ApiError(405,'Método no permitido.');
+  if (method !== (action==='read' || action==='pair-state' ? 'GET' : 'POST')) throw new ApiError(405,'Método no permitido.');
   return withValdemarTransaction(withStore, async store => {
-    const membership = editorial ? null : await billing?.membership(store,uid,{readOnly:gamesRoute});
+    const reservation=id && !editorial && store.getCasePartner ? await store.getCasePartner(uid,id,Date.now()) : null;
+    const poll=action==='pair-state';
+    const membership = editorial ? null : poll && billing?.pollMembership ? await billing.pollMembership(store,uid) : await billing?.membership(store,uid,{readOnly:gamesRoute});
     const data = await store.getMemberData(uid,{readOnly:gamesRoute});
     const access = !editorial && membership?.seasonAccess || worldSeasonAccess(data,{editorial,active:!editorial && membership?.canPlay===true});
     const scope = editorial ? 'editorial' : 'paid';
@@ -186,10 +191,30 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       const completed = availableCases.filter(caseId=>access.completed.includes(caseId));
       return {wallet,released:availableCases.length,availableCases,completed};
     }
-    const record = data.valdemarCaseProgress?.[scope]?.[id];
+    const personal = data.valdemarCaseProgress?.[scope]?.[id];
+    const accepted=reservation?.status==='accepted'?reservation:null;
+    let pair=null;
+    if(accepted && membership?.canPlay===true){
+      const other=accepted.ownerId===uid?accepted.guestId:accepted.ownerId;
+      if((await partnerCases(store,billing,other,{poll})).includes(id))pair=accepted;
+    }
+    if(method==='POST' && (input?.partnerId??null)!==(pair?.id??null)){
+      throw new ApiError(409,'La pareja de esta partida ha cambiado. Vuelve a abrir el juego.','PAIR_CHANGED');
+    }
+    const partner=partnerInfo(pair,uid);
+    const record=pair?pair.progress:personal;
+    const mode=pair?'duo':accepted?'solo':playModes.has(personal?.mode)?personal.mode:null;
+    if(poll)return pair
+      ? {partner,mode,hour:{current:record.choice?5:record.hourStep||0},progress:{deduced:record.deduced===true,choice:record.choice||null}}
+      : {partner:null,mode};
     if (action==='mode') {
       const mode=input?.mode;
       if (!playModes.has(mode)) throw new ApiError(400,'Elige jugar en solitario o en pareja.','INVALID_PLAY_MODE');
+      if(accepted && mode==='solo'){
+        await endPair(store,accepted);
+        return {mode,partner:null};
+      }
+      if(pair)return {mode:'duo',partner};
       if (record?.mode!==mode) {
         const alreadyStarted = hasCaseActivity(data,scope,id);
         data.valdemarCaseProgress ||= {};
@@ -204,7 +229,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const release = await loadRelease(store);
     const story = releasedStory(release,id);
     if (!story) throw new ApiError(503,'El expediente está temporalmente fuera de servicio.');
-    if (action === 'deduce' || action === 'ending' || action === 'stage') return progressAction(store,uid,scope,story,action,input);
+    if (action === 'deduce' || action === 'ending' || action === 'stage') return progressAction(store,uid,scope,story,action,input,pair);
     const sample = newWorld ? null : release.samples.find(item => item.id === id);
     if (action === 'sample') {
       if (!sample || !Number.isInteger(input.answer) || input.answer < 0 || input.answer >= sample.answers.length) {
@@ -227,7 +252,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const hints = visibleHints(story,wallet);
     if (action !== 'read') return {wallet,hints,...(newWorld && action==='reward' ? {feedback:story.side.success} : {})};
     const dossier = {story:visibleStory(story),hour:readHour(story,record),wallet,hints,progress:visibleProgress(record,story),
-      mode:playModes.has(record?.mode)?record.mode:null};
+      mode,partner};
     if (newWorld) return {...dossier,side:visibleSide(story.side)};
     const gameScript = await asset('valdemar-challenges-'+Math.ceil(id/4)+'.js');
     return {...dossier,sample:visibleSample(sample),gameScript,stationScript:id===1 ? release.stationScript : null};

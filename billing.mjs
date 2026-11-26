@@ -103,6 +103,7 @@ export function createBilling(env=process.env,fetcher=fetch){
     const active=['active','canceled'].includes(sub.status)&&periodEnd>now&&!sub.pause_collection;
     data.periodEnd=periodEnd;data.active=active;
     if(readOnly)return {data,active,purchaseHeld};
+    data.billingVerifiedAt=now;
     creditValdemarWelcome(data);
     if(active&&store.enqueueMail){
       for(const invoice of invoices.data||[]){
@@ -117,6 +118,15 @@ export function createBilling(env=process.env,fetcher=fetch){
     configured,
     publicConfig(){return {checkoutAvailable:configured,termsUrl:publicDocumentUrl(env.BILLING_TERMS_URL),privacyUrl:publicDocumentUrl(env.BILLING_PRIVACY_URL)};},
     async membership(store,uid,options){const {data,active,purchaseHeld}=await sync(store,uid,options);return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess:worldSeasonAccess(data,{active,purchaseHeld}),periodEnd:data.periodEnd||null,waitlist:!!data.waitlist,hasCustomer:!!data.customer};},
+    async pollMembership(store,uid){
+      const data=await store.getMemberData(uid,{readOnly:true});
+      const now=Date.now();
+      if(!configured || !data.customer)return {canPlay:false,seasonAccess:worldSeasonAccess(data,{active:false})};
+      if(!data.billingVerifiedAt || data.billingVerifiedAt>now || now-data.billingVerifiedAt>=60000)return this.membership(store,uid);
+      const active=data.active===true && data.periodEnd>now && (data.cycles||[]).some(c=>
+        c.subscription===data.subscription && !c.revoked && c.start<=now && now<c.end);
+      return {canPlay:active,seasonAccess:worldSeasonAccess(data,{active,now})};
+    },
     async canPlay({store,uid,caseId}){const {data,active}=await sync(store,uid);if(active&&caseId&&caseId!=='habitacion-309'&&!releaseCalendar(data.cycles||[],data.claims||[]).unlockedCaseIds.includes(caseId))throw new ApiError(409,'Este caso está bloqueado. Cada pago mensual confirmado desbloquea los cuatro casos del siguiente bloque.','CASE_NOT_RELEASED');return active;},
     async claim(store,uid,caseId){
       const {data,active}=await sync(store,uid);

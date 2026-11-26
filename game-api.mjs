@@ -6,6 +6,7 @@ import { adminMembership, canManageSite } from './admin-access.mjs';
 import { worldSeasonAccess } from './valdemar-wallet.mjs';
 import { mailKey } from './mail-service.mjs';
 import {checkRetiredSession, resetPersonalProgress} from './progress-reset.mjs';
+import {partnerRequest} from './partner-api.mjs';
 
 const COLORS=['#b1846b','#a7b6a0','#dca6a1','#a2b2c9'];
 const hash=code=>createHash('sha256').update(code).digest('hex');
@@ -90,6 +91,9 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       if(rate&&rate.until>now){if(++rate.count>180)fail(429,'Espera unos segundos antes de continuar.');}
       else {if(rates.size>10000)rates.clear();rates.set(uid,{count:1,until:now+60000});}
       const input=method==='GET'?null:await body(request);
+      if(path==='/api/partners'||path.startsWith('/api/partners/')){
+        return json(await partnerRequest({path,method,input,user,withStore,billing}));
+      }
       if(path==='/api/admin/valdemar-release'){
         if(method!=='POST')fail(405,'Método no permitido.');
         if(!origin||!origins.includes(origin)||!canManageSite(user))fail(403,'Esta operación está reservada a la propietaria.');
@@ -128,16 +132,14 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           await store.saveMemberData(uid,data);return {waitlist:data.waitlist};
         }
         if(path==='/api/me/progress/reset'&&method==='POST')
-          return resetPersonalProgress(store,uid,input,isAdministrator(user));
+          return resetPersonalProgress(store,uid,input,isAdministrator(user),user.emailVerified===true?user.email:'');
         if(path==='/api/bootstrap'&&method==='GET'){
           if(isAdministrator(user)&&store.markEditorial)await store.markEditorial(uid);
           const sessions=await store.listSessions(uid);
           const membership=isAdministrator(user)
             ? {...adminMembership(),seasonAccess:worldSeasonAccess(await store.getMemberData(uid),{editorial:true})}
             : billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
-          const guestOwners=[...new Set(sessions.filter(s=>s.ownerId!==uid).map(s=>s.ownerId))];
-          const guestAccess=[];for(const owner of guestOwners)if(await authorizePlay({store,uid:owner})===true)guestAccess.push(owner);
-          membership.canManage=canManageSite(user);membership.ownAccess=membership.canPlay;membership.guestOwners=guestAccess;membership.canPlay ||= guestAccess.length>0;
+          membership.canManage=canManageSite(user);membership.ownAccess=membership.canPlay;membership.guestOwners=[];
           return {profile,sessions,journey:await readJourney(store,stories,uid,sessions),activeSessionId:profile.activeSessionId||null,membership};
         }
         if(path==='/api/season'&&method==='GET')return {journey:await readJourney(store,stories,uid)};
@@ -159,7 +161,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           const id=input.requestId||randomUUID();
           if(input.requestId)checkRetiredSession(await store.getMemberData(uid),id);
           const existing=await store.getSession(id);
-          if(existing){const session=member(existing,uid);await requireSubscription(store,session.ownerId,user,session.caseId);return {session};}
+          if(existing){const session=member(existing,uid);await requireSubscription(store,uid,user,session.caseId);return {session};}
           if(input.caseId==='habitacion-309')fail(410,'Este caso solo está disponible en partidas anteriores.','CASE_RETIRED');
           await requireSubscription(store,uid,user);
           if(billing&&!isAdministrator(user))await billing.claim(store,uid,input.caseId);
@@ -198,7 +200,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         }
         if(path==='/api/active-session'&&method==='PUT'){
           const session=member(await store.getSession(String(input.sessionId||'')),uid);
-          await requireSubscription(store,session.ownerId,user,session.caseId);
+          await requireSubscription(store,uid,user,session.caseId);
           await store.setActive(uid,session.id);return {saved:true};
         }
         if(path==='/api/join'&&method==='POST'){
@@ -212,7 +214,8 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
             (!entry.createdAt||entry.createdAt<=memberData.progressReset.at) &&
             (Object.hasOwn(entry.preferences||{},uid)||Object.hasOwn(entry.preferenceEffects||{},uid))))
             fail(410,'Esta partida pertenece a un progreso que ya reiniciaste.','PROGRESS_RESET');
-          await requireSubscription(store,session.ownerId,user,session.caseId);
+          await requireSubscription(store,uid,user,session.caseId);
+          if(session.ownerId!==uid)await requireSubscription(store,session.ownerId,user,session.caseId);
           if(session.members.some(m=>m.userId===uid))return {session};
           if(session.status!=='waiting'||session.members.length!==1)fail(409,'Esta partida ya tiene su equipo.');
           const joined=engine.joinTeam(session,memberProfile(profile));
@@ -222,7 +225,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         const match=/^\/api\/sessions\/([0-9a-f-]{36})(?:\/(choose|invite|puzzle|revise|mode))?$/.exec(path);
         if(match){
           const session=member(await store.getSession(match[1]),uid);
-          await requireSubscription(store,session.ownerId,user,session.caseId);
+          await requireSubscription(store,uid,user,session.caseId);
           if(!match[2]&&method==='GET')return {session,journey:await readJourney(store,stories,uid)};
           if(match[2]==='mode'&&method==='PUT'){
             if(session.ownerId!==uid)fail(403,'Solo quien creó la partida puede cambiar su modalidad.');

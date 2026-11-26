@@ -1,10 +1,12 @@
 import {ApiError} from './auth-provider.mjs';
 import {resetValdemarProgress} from './valdemar-wallet.mjs';
+import {endPair} from './partner-api.mjs';
 
 function survivingSession(session, uid) {
   session.members=session.members.filter(member=>member.userId!==uid);
   if(!session.members.length)return null;
-  // Keep the original billing sponsor so an invited player keeps the same access.
+  // The remaining investigator can manage the session with their own pass.
+  if(session.ownerId===uid)session.ownerId=session.members[0].userId;
   session.mode='solo';
   if(session.status==='waiting')session.status='active';
   session.inviteActive=false;
@@ -29,13 +31,21 @@ export function checkRetiredSession(data, id) {
     throw new ApiError(410,'Esta partida pertenece a un progreso que ya reiniciaste.','PROGRESS_RESET');
 }
 
-export async function resetPersonalProgress(store, uid, input, editorial) {
+export async function resetPersonalProgress(store, uid, input, editorial, email='') {
   if(input.confirmation!=='REINICIAR' || typeof input.requestId!=='string' ||
     !/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i.test(input.requestId))
     throw new ApiError(400,'Confirma el reinicio desde tu cuenta.');
   const data=await store.getMemberData(uid);
   const receipt=data.progressReset||{requests:[],retiredSessions:[]};
   if(receipt.requests.includes(input.requestId))return {reset:true};
+  if(store.listPartners){
+    const teams=await store.listPartners(uid,email.trim().toLowerCase(),Date.now());
+    for(const team of teams){
+      const current=await store.getPartner(team.id);
+      if(current && (current.ownerId===uid || current.guestId===uid || current.status==='pending' && current.email===email.trim().toLowerCase()))
+        await endPair(store,current);
+    }
+  }
   const ids=await store.lockSessionIdsForReset(uid);
   for(const id of ids){
     const record=await store.getSession(id);

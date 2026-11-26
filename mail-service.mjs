@@ -1,7 +1,27 @@
 import {createHash} from 'node:crypto';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const mailKey=(type,id)=>createHash('sha256').update(type+':'+id).digest('hex');
+function invitationMessage({caseId, inviterName, caseTitle}) {
+  const seasonNames = ['Valdemar', 'El Tablero de Ámbar', 'Umbravía', 'La Necrópolis del Sol Velado'];
+  const id = Number(caseId);
+  const season = Number.isInteger(id) && id >= 1 && id <= 48 ? seasonNames[Math.floor((id-1)/12)] : '';
+  const game = caseTitle || (season ? `el caso ${String((id-1)%12+1).padStart(2,'0')} de ${season}` : 'un caso de La Última Pieza');
+  const subject = 'Tienes una invitación para jugar a La Última Pieza';
+  const paragraphs = [
+    `${inviterName || 'Otra persona'} te invita a investigar ${game} en pareja.`,
+    'Abre Mi cuenta con esta dirección de correo y entra en Jugar en pareja para ver la invitación. Si es tu primera visita, puedes crear tu cuenta gratis.',
+    'Para jugar juntos, cada persona necesita su propia suscripción activa y tener ese juego desbloqueado. Tú decides si aceptas la invitación.'
+  ];
+  const url = 'https://www.laultimapieza.es/#perfil?seccion=pareja';
+  const action = 'Ver mi invitación';
+  return {
+    subject,
+    text: [subject, ...paragraphs, action + '\n' + url].join('\n\n'),
+    html: `<!doctype html><html lang="es"><body style="font:16px/1.6 Arial,sans-serif;color:#172c29"><main style="max-width:36rem;margin:auto;padding:24px"><h1 style="font-size:24px">${subject}</h1>${paragraphs.map(p=>'<p>'+esc(p)+'</p>').join('')}<p><a style="color:#134e49;font-weight:bold" href="${url}">${action}</a></p></main></body></html>`
+  };
+}
 export function messageTemplate(type,data){
+  if (type === 'case_invitation') return invitationMessage(data);
   const welcome=type==='welcome',date=data.periodEnd?new Date(data.periodEnd).toLocaleDateString('es-ES',{timeZone:'Europe/Madrid'}):'';
   const subject=welcome?'Tu cuenta de La última pieza está lista':data.renewal?'Tu nuevo ciclo de La última pieza está confirmado':'Tu suscripción a La última pieza está activa';
   const lines=welcome?[

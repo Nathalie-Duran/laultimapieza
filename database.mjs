@@ -1,7 +1,21 @@
 import { ApiError } from './auth-provider.mjs';
 import { readAnalytics } from './analytics.mjs';
+import {mailKey} from './mail-service.mjs';
 
 const schema = [
+  `CREATE TABLE IF NOT EXISTS lup_case_partners (
+    id CHAR(36) CHARACTER SET ascii PRIMARY KEY, case_id TINYINT UNSIGNED NOT NULL,
+    owner_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL, owner_name VARCHAR(64) NOT NULL,
+    email VARCHAR(254) COLLATE utf8mb4_bin NOT NULL, guest_id VARCHAR(128) COLLATE utf8mb4_bin NULL,
+    guest_name VARCHAR(64) NULL, status VARCHAR(10) NOT NULL, expires_at BIGINT NOT NULL,
+    progress_json TEXT NOT NULL, INDEX lup_partner_sender(owner_id), INDEX lup_partner_guest(guest_id),
+    INDEX lup_partner_email(email,status), INDEX lup_partner_expiry(status,expires_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS lup_case_partner_slots (
+    user_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL, case_id TINYINT UNSIGNED NOT NULL,
+    invitation_id CHAR(36) CHARACTER SET ascii NOT NULL,
+    PRIMARY KEY(user_id,case_id), FOREIGN KEY(invitation_id) REFERENCES lup_case_partners(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS lup_valdemar_release_keys (
     release_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
     activation_key BINARY(32) NOT NULL, installed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -41,6 +55,11 @@ function profile(row) {
 function state(row) {
   return row ? { session: JSON.parse(row.state_json), inviteHash:row.invite_hash, inviteUntil:Number(row.invite_until || 0) } : null;
 }
+function partner(row){
+  return row?{id:row.id,caseId:row.case_id,ownerId:row.owner_id,ownerName:row.owner_name,
+    email:row.email,guestId:row.guest_id,guestName:row.guest_name,status:row.status,
+    expiresAt:Number(row.expires_at),progress:JSON.parse(row.progress_json)}:null;
+}
 export function databaseConfigured(env=process.env) { return !!(env.DB_HOST && env.DB_NAME && env.DB_USER && env.DB_PASSWORD); }
 export function createDatabase(env=process.env) {
   let initialized;
@@ -60,6 +79,41 @@ export function createDatabase(env=process.env) {
       await initialized;
       await connection.beginTransaction();
       const store = {
+        async getPartner(id){
+          return partner((await query('SELECT * FROM lup_case_partners WHERE id=? FOR UPDATE',[id]))[0]);
+        },
+        async getCasePartner(uid,caseId,now){
+          const rows=await query(`SELECT p.* FROM lup_case_partner_slots s JOIN lup_case_partners p ON p.id=s.invitation_id
+            WHERE s.user_id=? AND s.case_id=? FOR UPDATE`,[uid,caseId]);
+          const row=partner(rows[0]);
+          if(row?.status==='pending' && row.expiresAt<=now){await this.closePartner(row);return null;}
+          return row;
+        },
+        async listPartners(uid,email,now){
+          const expired=await query("SELECT id FROM lup_case_partners WHERE status='pending' AND expires_at<=? LIMIT 32 FOR UPDATE SKIP LOCKED",[now]);
+          for(const row of expired)await this.closePartner(row);
+          const rows=await query(`SELECT * FROM lup_case_partners WHERE
+            (status='accepted' AND (owner_id=? OR guest_id=?)) OR
+            (status='pending' AND expires_at>? AND (owner_id=? OR email=?))
+            ORDER BY case_id,expires_at DESC`,[uid,uid,now,uid,email]);
+          return rows.map(partner);
+        },
+        async createPartner(row){
+          await query(`INSERT INTO lup_case_partners(id,case_id,owner_id,owner_name,email,status,expires_at,progress_json)
+            VALUES(?,?,?,?,?,?,?,?)`,[row.id,row.caseId,row.ownerId,row.ownerName,row.email,row.status,row.expiresAt,JSON.stringify(row.progress)]);
+        },
+        async reservePartner(uid,caseId,id){
+          const result=await query('INSERT IGNORE INTO lup_case_partner_slots(user_id,case_id,invitation_id) VALUES(?,?,?)',[uid,caseId,id]);
+          return result.affectedRows===1;
+        },
+        async savePartner(row){
+          await query('UPDATE lup_case_partners SET guest_id=?,guest_name=?,status=?,progress_json=? WHERE id=?',
+            [row.guestId,row.guestName,row.status,JSON.stringify(row.progress),row.id]);
+        },
+        async closePartner(row){
+          await query('DELETE FROM lup_case_partners WHERE id=?',[row.id]);
+          await query("DELETE FROM lup_mail_outbox WHERE id=? AND status='pending'",[mailKey('case_invitation',row.id)]);
+        },
         async getValdemarKey(releaseId) {
           const rows = await query('SELECT activation_key FROM lup_valdemar_release_keys WHERE release_id=?', [releaseId]);
           return rows[0]?.activation_key || null;
@@ -159,7 +213,7 @@ export function createDatabase(env=process.env) {
           await query('DELETE FROM lup_members WHERE session_id=? AND user_id=?',[id,uid]);
           await query('UPDATE lup_profiles SET active_session_id=NULL WHERE user_id=? AND active_session_id=?',[uid,id]);
         },
-        async saveSession(session) { await query('UPDATE lup_sessions SET state_json=?,updated_at=? WHERE id=?',[JSON.stringify(session),new Date().toISOString(),session.id]); },
+        async saveSession(session) { await query('UPDATE lup_sessions SET owner_id=?,state_json=?,updated_at=? WHERE id=?',[session.ownerId,JSON.stringify(session),new Date().toISOString(),session.id]); },
         async setInvite(id,hash,until) { await query('UPDATE lup_sessions SET invite_hash=?,invite_until=? WHERE id=?',[hash,until,id]); }
       };
       const result=await callback(store);
