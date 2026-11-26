@@ -6,26 +6,26 @@ import {createContext, runInContext} from 'node:vm';
 const scripts=await Promise.all(['membership-flow','experience-actions'].map(file=>
   readFile(new URL('../web/'+file+'.js',import.meta.url),'utf8')));
 
-async function storefront(salesOpen=true){
+async function storefront(salesOpen=true,partnerOffer){
   let signedIn=false, opened=0;
   const clickHandlers=[], requests=[];
   const location={hash:'#planes',search:'',assign(url){this.destination=url;}};
   const bridge={
     isSignedIn:()=>signedIn, render(){}, toast(){},
-    async request(path,payload){requests.push({path,season:payload.season});return {url:'https://checkout.stripe.com/pay/test'};}
+    async request(path,payload){requests.push({path,...payload});return {url:'https://checkout.stripe.com/pay/test'};}
   };
   const page=createContext({location,URL,URLSearchParams,GameAccountBridge:bridge,
     history:{replaceState(_state,_title,url){location.hash=url;}},
     document:{body:{dataset:{}},addEventListener(type,handler){if(type==='click')clickHandlers.push(handler);}},
     AccountUI:{open(){opened++;}},ValdemarCatalog:{items:[]},addEventListener(){},
-    fetch:async()=>({ok:true,json:async()=>({checkoutAvailable:salesOpen})})});
+    fetch:async()=>({ok:true,json:async()=>({checkoutAvailable:salesOpen,partnerOffer})})});
   for(const script of scripts)runInContext(script,page);
   await new Promise(resolve=>setImmediate(resolve));
   return {
     page,location,requests,opened:()=>opened,
-    login(nextSeason){
+    login(nextSeason,personalOffer){
       signedIn=true;
-      page.ClubAccess.set({seasonAccess:{seasons:[],nextPurchase:{number:nextSeason,remainingCycles:3}}});
+      page.ClubAccess.set({partnerOffer:personalOffer,seasonAccess:{seasons:[],nextPurchase:{number:nextSeason,remainingCycles:3}}});
     },
     async click(season){
       const button={dataset:{action:'billing-checkout',season:String(season)},disabled:false};
@@ -79,15 +79,53 @@ test('La ayuda y la retirada del aviso están disponibles sin contratar',async()
   }
 });
 
-test('La vuelta de Stripe lleva a las invitaciones y espera confirmación individual antes de anunciar el acceso',async()=>{
+test('El primer cobro y la recontratación siempre muestran el precio íntegro',async()=>{
+  const policy={percentOff:50,regularAmountCents:2995,amountCents:null,currency:'eur'};
+  const shop=await storefront(true,policy);
+  assert.match(shop.page.ClubAccess.plans(),/primera cuota por persona/);
+  for(const status of ['no_partner','saved','eligible']){
+    shop.login(1,{...policy,status,eligible:status==='eligible'});
+    const quote=shop.page.ClubAccess.plans();
+    assert.match(quote,/29,95 €<\/strong> primera cuota por persona/);
+    assert.match(quote,/próxima renovación/);
+    assert.doesNotMatch(quote,/data-partner-offer|Tu próxima renovación tiene|14,9[78]/);
+    await shop.click(1);
+    assert.deepEqual(shop.requests.at(-1),{path:'/api/billing/checkout',season:1});
+  }
+  shop.page.ClubAccess.set({ownAccess:true,hasCustomer:true,partnerOffer:{...policy,status:'eligible',eligible:true},
+    seasonAccess:{seasons:[{number:1,paidBlocks:[1],completed:2,finishAccess:false}],nextPurchase:null}});
+  const quote=shop.page.ClubAccess.plans();
+  assert.match(quote,/Tu próxima renovación tiene un 50 %/);
+  assert.match(quote,/suscripción personal activa/);
+  assert.doesNotMatch(quote,/data-action="billing-checkout"|14,9[78]/);
+  const waiting=await storefront(false,policy);
+  waiting.login(1,{...policy,status:'eligible',eligible:true});
+  assert.match(waiting.page.ClubAccess.plans(),/abrirá próximamente/);
+  assert.doesNotMatch(waiting.page.ClubAccess.plans(),/data-action="billing-checkout"/);
+});
+
+test('La vuelta de Stripe lleva al perfil y espera confirmación individual antes de anunciar el acceso',async()=>{
   const shop=await storefront();
   shop.login(1);
   shop.location.hash='#planes?checkout=complete';
   const pending=shop.page.ClubAccess.plans();
   assert.match(pending,/Estamos comprobando tu pase/);
-  assert.match(pending,/href="\/#perfil\?seccion=pareja"/);
+  assert.match(pending,/href="\/#perfil"/);
   assert.doesNotMatch(pending,/Tu pase está activo/);
   shop.page.ClubAccess.set({ownAccess:true,canPlay:true});
   assert.match(shop.page.ClubAccess.plans(),/Tu pase está activo/);
   assert.deepEqual(shop.requests,[]);
+});
+
+test('La ayuda separa la elección mutua del papel y de la renovación',async()=>{
+  const shop=await storefront(false);
+  shop.location.hash='#planes?seccion=preguntas';
+  const html=shop.page.ClubAccess.plans();
+  assert.match(html,/un solo compañero a la vez/);
+  assert.match(html,/primero que pulsa «En pareja» en ese caso lleva el papel 1/);
+  assert.match(html,/pulsa «En pareja», recibe el papel 2/);
+  assert.match(html,/primera cuota personal es de 29,95/);
+  assert.match(html,/ambos tenéis una suscripción personal activa/);
+  assert.match(html,/facturas ya emitidas conservan su importe/);
+  assert.doesNotMatch(html,/correo.*otro para ese caso|elegir una pareja distinta|acepta desde su perfil/);
 });

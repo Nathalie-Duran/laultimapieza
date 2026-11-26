@@ -47,6 +47,7 @@ function harness(){
           return profile;
         },
         async getProfile(uid){return structuredClone(working.profiles.get(uid));},
+        async lockCasePair(){},
         async listSessions(){return [];},
         async getSeasonSolved(){return null;},
         async getMemberData(uid){return structuredClone(working.members.get(uid)||{});},
@@ -99,11 +100,11 @@ function harness(){
   async function call(uid,path,input){
     const response=await api(new Request(origin+path,{method:input?'POST':'GET',
       headers:{authorization:uid||'',origin,'content-type':'application/json'},...(input?{body:JSON.stringify(input)}:{})}));
-    return {status:response.status,...await response.json()};
+    return {status:response.status,...await response.json(),httpStatus:response.status};
   }
   async function ok(uid,path,input){
     const result=await call(uid,path,input);
-    assert.equal(result.status,200,JSON.stringify(result));
+    assert.equal(result.httpStatus,200,JSON.stringify(result));
     return result;
   }
   return {
@@ -137,9 +138,27 @@ function harness(){
       });
     },
     async list(uid){return (await ok(uid,'/api/partners')).invitations;},
-    async invite(uid,caseId,to){
-      await ok(uid,'/api/partners',{caseId,email:to});
-      return (await this.list(uid)).find(row=>row.caseId===caseId&&row.direction==='sent');
+    async prefer(uid,other){return ok(uid,'/api/partners/preferred',{email:other?email(other):null});},
+    async choose(uid,caseId){return ok(uid,'/api/partners/play',{caseId});},
+    async seedLegacyPair(owner,guest){
+      await withStore(async store=>{
+        const id=crypto.randomUUID();
+        const row={id,caseId:1,ownerId:owner,ownerName:owner,guestId:guest,guestName:guest,email:email(guest),
+          status:'accepted',expiresAt:Date.now()+86400000,progress:{ownerScope:'paid',guestScope:'paid',hourStep:1}};
+        await store.createPartner(row);
+        for(const uid of [owner,guest]){
+          await store.reservePartner(uid,1,id);
+          const member=await store.getMemberData(uid);
+          member.valdemarCaseProgress={paid:{1:{mode:'duo',hourStep:1}}};
+          await store.saveMemberData(uid,member);
+        }
+      });
+    },
+    async startPair(owner,caseId,guest){
+      await this.prefer(owner,guest);await this.prefer(guest,owner);
+      const started=await this.choose(owner,caseId);
+      assert.equal(started.status,'pending');assert.equal(started.partner,null);
+      return (await this.list(owner)).find(row=>row.caseId===caseId&&row.direction==='sent');
     },
     async game(uid,route='',input,caseId=1){
       return valdemarRequest({path:'/api/valdemar/cases/'+caseId+route,method:input?'POST':'GET',input,uid,
@@ -183,48 +202,69 @@ test('La cuenta gratuita se abre en preapertura y solo el destinatario verificad
   assert.equal((await h.ok('alice','/api/bootstrap')).profile.userId,'alice');
   assert.deepEqual((await h.ok('alice','/api/partners')).availableCases,[]);
   assert.equal((await h.call('', '/api/partners')).status,401);
-  assert.equal((await h.call('alice','/api/partners',{caseId:1,email:email('bob'),paid:true})).status,402);
+  await h.prefer('alice','bob');
+  assert.equal((await h.call('alice','/api/partners/play',{caseId:1,paid:true})).httpStatus,402);
   await h.fund('alice',2);
-  const first=await h.invite('alice',1,' BOB@EXAMPLE.TEST ');
+  const first=await h.startPair('alice',1,'bob');
   assert.equal(first.status,'pending');
-  await h.ok('alice','/api/partners',{caseId:1,email:email('bob')});
+  await h.choose('alice',1);
   assert.deepEqual((await h.list('alice')).map(row=>row.id),[first.id]);
+  assert.equal((await h.game('alice')).partner,null);
   assert.equal((await h.ok('bob','/api/bootstrap')).membership.canPlay,false);
   assert.deepEqual((await h.list('bob')).map(row=>[row.id,row.direction]),[[first.id,'received']]);
   assert.deepEqual(await h.list('eve'),[]);
-  const accept='/api/partners/'+first.id+'/accept';
-  assert.ok([403,404].includes((await h.call('eve',accept,{email:email('bob'),guestId:'bob'})).status));
-  assert.equal((await h.call('bob',accept,{})).status,402);
-  await h.fund('bob');
-  await h.ok('bob',accept,{});
-  await h.ok('bob',accept,{});
+  assert.equal((await h.call('bob','/api/partners/'+first.id+'/accept',{})).code,'CHOOSE_IN_GAME');
+  assert.equal((await h.call('alice','/api/partners',{caseId:1,email:email('bob')})).code,'CHOOSE_IN_GAME');
+  assert.equal((await h.call('bob','/api/partners/play',{caseId:1})).httpStatus,402);
+  await h.fund('bob');await h.fund('eve');
+  await h.prefer('eve','alice');
+  const third=await h.call('eve','/api/partners/play',{caseId:1,invitationId:first.id,saveIfEmpty:true});
+  assert(third.httpStatus>=400);
+  assert.equal((await h.game('eve')).partner,null);
+  assert.equal((await h.choose('bob',1)).partner.role,'B');
+  assert.equal((await h.choose('bob',1)).partner.id,first.id);
   assert.equal((await h.list('alice'))[0].status,'accepted');
-  const fifth=await h.invite('alice',5,email('bob'));
-  assert.ok([402,409].includes((await h.call('bob','/api/partners/'+fifth.id+'/accept',{})).status));
+  await h.choose('alice',5);
+  assert.ok([402,409].includes((await h.call('bob','/api/partners/play',{caseId:5})).httpStatus));
   assert.deepEqual((await h.ok('bob','/api/partners')).availableCases,[1,2,3,4]);
   await h.fund('alice',4);await h.finishFirstSeason('alice');
   await h.fund('bob',4);
-  const amber=await h.invite('alice',13,email('bob'));
-  assert.ok([402,409].includes((await h.call('bob','/api/partners/'+amber.id+'/accept',{})).status));
+  await h.choose('alice',13);
+  assert.ok([402,409].includes((await h.call('bob','/api/partners/play',{caseId:13})).httpStatus));
   await h.finishFirstSeason('bob');
-  await h.ok('bob','/api/partners/'+amber.id+'/accept',{});
+  assert.equal((await h.choose('bob',13)).status,'accepted');
 });
 
-test('Las parejas se eligen por juego y una retirada o un rechazo libera el sitio sin afectar al otro juego',async()=>{
-  const h=harness();
+test('Cada caso necesita dos elecciones; la salida conserva el avance y cancela solo la partida elegida',async()=>{
+  const h=harness(),route='/api/partners/play';
   for(const uid of ['alice','bob','eve'])await h.fund(uid);
-  const first=await h.invite('alice',1,email('bob'));
-  const second=await h.invite('alice',2,email('eve'));
-  await h.ok('eve','/api/partners/'+second.id+'/accept',{});
-  assert.deepEqual((await h.list('bob')).map(row=>row.caseId),[1]);
-  assert.deepEqual((await h.list('eve')).map(row=>row.caseId),[2]);
-  await h.ok('alice','/api/partners/'+first.id+'/revoke',{});
-  assert.deepEqual(await h.list('bob'),[]);
-  assert.ok((await h.call('bob','/api/partners/'+first.id+'/accept',{})).status>=400);
-  const replacement=await h.invite('alice',1,email('eve'));
-  await h.ok('eve','/api/partners/'+replacement.id+'/decline',{});
-  assert.deepEqual((await h.list('alice')).map(row=>[row.caseId,row.status]),[[2,'accepted']]);
-  assert.equal((await h.invite('alice',1,email('bob'))).status,'pending');
+  assert.equal((await h.call('alice',route,{caseId:1})).code,'PARTNER_REQUIRED');
+  await h.prefer('alice','bob');await h.prefer('bob','alice');
+  assert.equal((await h.call('alice',route,{caseId:1,email:email('eve')})).httpStatus,400);
+  const both=await Promise.all([h.choose('alice',1),h.choose('bob',1)]);
+  assert.deepEqual(both.map(result=>result.status).sort(),['accepted','pending']);
+  const [a,b]=await Promise.all([h.game('alice'),h.game('bob')]);
+  assert.equal(a.partner.id,b.partner.id);
+  assert.deepEqual([a.partner.role,b.partner.role].sort(),['A','B']);
+  await h.game('alice','/stage',{index:0,choice:['b'],partnerId:a.partner.id});
+  assert.equal((await h.choose('bob',2)).status,'pending');
+  assert.equal((await h.list('alice')).find(row=>row.caseId===2).status,'pending');
+  await h.game('bob','/mode',{mode:'solo',partnerId:null},2);
+  assert.deepEqual((await h.list('alice')).map(row=>row.caseId),[1]);
+  assert.equal((await h.game('alice')).partner.id,a.partner.id);
+  await h.prefer('alice','eve');
+  for(const uid of ['alice','bob']){
+    const solo=await h.game(uid);
+    assert.equal(solo.partner,null);assert.equal(solo.hour.current,1);
+    assert.deepEqual(await h.list(uid),[]);
+  }
+  const request=await h.choose('alice',1);
+  assert.equal(request.status,'pending');
+  const remaining=(await h.list('alice'))[0];
+  await h.ok('eve',route,{caseId:1,invitationId:remaining.id,saveIfEmpty:true});
+  assert.equal((await h.ok('eve','/api/partners/preferred')).preferredEmail,email('alice'));
+  assert.equal((await h.game('eve')).partner.id,remaining.id);
+  assert.equal((await h.game('bob')).partner,null);
 });
 
 test('La persona habitual es una preferencia privada, disponible gratis y en edición, sin correos ni asignaciones automáticas',async()=>{
@@ -246,24 +286,24 @@ test('La persona habitual es una preferencia privada, disponible gratis y en edi
   assert.deepEqual(h.queuedMail,[]);
   assert.deepEqual(await h.list('bob'),[]);
   await h.fund('alice');
-  const invite=await h.invite('alice',1,email('bob'));
+  await h.choose('alice',1);
   await h.ok('alice',path,{email:email('eve')});
   assert.equal((await h.ok('alice','/api/partners')).preferredEmail,email('eve'));
   await h.ok('alice',path,{email:null});
   assert.equal((await h.ok('alice',path)).preferredEmail,null);
   assert.equal((await h.ok('editor',path)).preferredEmail,email('bob'));
-  assert.deepEqual((await h.list('bob')).map(row=>[row.id,row.status]),[[invite.id,'pending']]);
+  assert.deepEqual(await h.list('bob'),[]);
   assert.deepEqual(await h.list('eve'),[]);
-  assert.deepEqual(h.queuedMail.map(message=>[message.type,message.address]),[['case_invitation',email('bob')]]);
+  assert(h.queuedMail.every(message=>message.type==='case_invitation'&&message.address===email('bob')));
 });
 
 test('Dos cuentas comparten los pasos y el desenlace, conservan sus llaves y rechazan cambios de una pareja anterior',async()=>{
   const h=harness();
   for(const uid of ['alice','bob','eve'])await h.fund(uid);
   await assert.rejects(h.game('alice','/mode',{mode:'duo'}),{status:409,code:'PAIR_REQUIRED'});
-  const {id}=await h.invite('alice',1,email('bob'));
+  const {id}=await h.startPair('alice',1,'bob');
   await assert.rejects(h.game('alice','/mode',{mode:'duo'}),{status:409,code:'PAIR_REQUIRED'});
-  await h.ok('bob','/api/partners/'+id+'/accept',{});
+  await h.choose('bob',1);
   const alice=await h.game('alice'),bob=await h.game('bob');
   assert.equal(alice.partner.id,id);assert.equal(bob.partner.id,id);
   assert.deepEqual([alice.partner.role,bob.partner.role],['A','B']);
@@ -300,8 +340,8 @@ test('Los cuerpos privados de cada papel permanecen separados al abrir, avanzar,
   const h=harness();
   for(const uid of ['alice','bob']){await h.fund(uid,4);await h.finishFirstSeason(uid);}
   const game=(uid,route,input)=>h.game(uid,route,input,13);
-  const {id}=await h.invite('alice',13,email('bob'));
-  await h.ok('bob','/api/partners/'+id+'/accept',{});
+  const {id}=await h.startPair('alice',13,'bob');
+  await h.choose('bob',13);
   function check(message,role){
     const other=role==='A'?'B':'A';
     assert(!JSON.stringify(message).includes('contenido-'+other+'-'));
@@ -332,6 +372,22 @@ test('Los cuerpos privados de cada papel permanecen separados al abrir, avanzar,
   }
 });
 
+test('Una pareja guardada con la edición anterior conserva su avance y debe volver a elegir el modo en ambas cuentas',async()=>{
+  const h=harness();
+  await h.fund('alice');await h.fund('bob');
+  await h.prefer('alice','bob');await h.prefer('bob','alice');
+  await h.seedLegacyPair('alice','bob');
+  for(const uid of ['alice','bob']){
+    const personal=await h.game(uid);
+    assert.equal(personal.partner,null);assert.equal(personal.hour.current,1);
+    assert.deepEqual(await h.list(uid),[]);
+  }
+  assert.equal((await h.choose('bob',1)).status,'pending');
+  assert.equal((await h.game('alice')).partner,null);
+  assert.equal((await h.choose('alice',1)).status,'accepted');
+  assert.equal((await h.game('alice')).hour.current,1);
+});
+
 test('Dos cuentas editoriales o una editorial y otra de pago pueden emparejarse en ambos sentidos con álbumes separados',async()=>{
   for(const [owner,guest] of [['editor','curator'],['curator','editor'],['curator','bob'],['bob','curator']]){
     const h=harness();
@@ -345,8 +401,8 @@ test('Dos cuentas editoriales o una editorial y otra de pago pueden emparejarse 
     }
     const caseId=owner==='bob'||guest==='bob'?1:13;
     const game=(uid,route,input)=>h.game(uid,route,input,caseId);
-    const {id}=await h.invite(owner,caseId,email(guest));
-    await h.ok(guest,'/api/partners/'+id+'/accept',{});
+    const {id}=await h.startPair(owner,caseId,guest);
+    await h.choose(guest,caseId);
     const pair=await Promise.all([game(owner),game(guest)]);
     assert.deepEqual(pair.map(dossier=>dossier.partner?.role),['A','B'],owner+' + '+guest);
     if(caseId===13)for(const [index,dossier] of pair.entries()){
@@ -373,14 +429,15 @@ test('La exención de juego procede de la identidad comprobada y no concede la g
   const h=harness();
   const flags={userId:'curator',name:'editor',role:'admin',isGameEditor:true,editorial:true,ownerScope:'editorial',guestScope:'editorial'};
   assert.equal((await h.call('curator','/api/admin/analytics')).status,403);
-  assert.equal((await h.call('lookalike','/api/partners',{caseId:1,email:email('bob'),...flags})).status,402);
+  await h.prefer('lookalike','bob');
+  assert.equal((await h.call('lookalike','/api/partners/play',{caseId:1,...flags})).httpStatus,402);
   for(const uid of ['bob','lookalike']){
-    const invitation=await h.invite('editor',1,email(uid));
-    assert.equal((await h.call(uid,'/api/partners/'+invitation.id+'/accept',flags)).status,402);
+    const invitation=await h.startPair('editor',1,uid);
+    assert.equal((await h.call(uid,'/api/partners/play',{caseId:1,...flags})).status,402);
     assert.deepEqual((await h.ok(uid,'/api/partners')).availableCases,[]);
     await h.ok('editor','/api/partners/'+invitation.id+'/revoke',{});
   }
   await h.fund('bob');
-  const unopened=await h.invite('curator',5,email('bob'));
-  assert.ok([402,409].includes((await h.call('bob','/api/partners/'+unopened.id+'/accept',flags)).status));
+  await h.startPair('curator',5,'bob');
+  assert.ok([402,409].includes((await h.call('bob','/api/partners/play',{caseId:5,...flags})).status));
 });

@@ -63,7 +63,9 @@ test('Los enlaces legales públicos son independientes entre sí y de las ventas
   const cannotPay=()=>{throw Error('No utilizar el proveedor de pago');};
   for(const [termsUrl,privacyUrl] of [[null,null],[terms,null],[null,privacy],[terms,privacy]]){
     const billing=createBilling({BILLING_TERMS_URL:termsUrl,BILLING_PRIVACY_URL:privacyUrl},cannotPay);
-    assert.deepEqual(billing.publicConfig(),{checkoutAvailable:false,termsUrl,privacyUrl});
+    const config=billing.publicConfig();
+    assert.equal(config.checkoutAvailable,false);
+    assert.equal(config.termsUrl,termsUrl);assert.equal(config.privacyUrl,privacyUrl);
     await assert.rejects(billing.checkout({},{}),{code:'BILLING_UNAVAILABLE'});
   }
   const invalid=['https://','/solo-interna','//dominio.es','javascript:alert(1)','http://dominio.es',
