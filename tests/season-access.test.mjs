@@ -61,10 +61,10 @@ test('season activity dates genuine actions only, preserves unknown legacy start
   const api=service(memberAt(1));
   await api.call('cases/1');
   assert(!api.data.valdemarCaseProgress?.paid?.[1]);
-  await api.call('cases/1/mode',{mode:'duo'});
+  await api.call('cases/1/mode',{mode:'solo'});
   const start=api.data.valdemarCaseProgress.paid[1].startedAt;
   assert(Number.isFinite(start));
-  await api.call('cases/1/mode',{mode:'duo'});
+  await api.call('cases/1/mode',{mode:'solo'});
   assert.equal(api.data.valdemarCaseProgress.paid[1].updatedAt,start);
   const first={index:0,choice:['x','z']};
   await api.call('cases/2/stage',{index:0,choice:['z','x']});
@@ -78,10 +78,11 @@ test('season activity dates genuine actions only, preserves unknown legacy start
   assert.equal(api.data.valdemarCaseProgress.paid[3],undefined);
   assert.equal((await api.call('partidas')).games[1].updatedAt,stage.updatedAt);
   const old=memberAt(1);
-  old.valdemarCaseProgress={paid:{1:{mode:'solo',hourStep:2}}};
+  old.valdemarCaseProgress={paid:{1:{mode:'duo',hourStep:2}}};
   old.valdemarSeasonOne={paid:{welcomes:[],won:[2],opened:[],second:[]}};
   const legacy=service(old);
-  await legacy.call('cases/1/mode',{mode:'duo'});
+  assert.equal((await legacy.call('cases/1')).mode,'solo');
+  await legacy.call('cases/1/mode',{mode:'solo'});
   await legacy.call('cases/2/mode',{mode:'solo'});
   for(const id of [1,2]){assert(Number.isFinite(legacy.data.valdemarCaseProgress.paid[id].updatedAt));assert.equal(legacy.data.valdemarCaseProgress.paid[id].startedAt,undefined);}
 });
@@ -178,7 +179,7 @@ test('all twelve prior paid endings are required for every new operation, across
     assert((await api.call('seasons',undefined,true)).availableCases.includes(target));
   }
 });
-test('the 48 personal cases share a reversible per-case play mode; every legacy ending, stage and key remains intact',async()=>{
+test('all 48 paid games require a real partner for duo and preserve personal checkpoints, endings and keys',async()=>{
   const user=complete(memberAt(12),numbers(1,36));
   const api=service(user);
   for(const id of numbers(1,48)){
@@ -186,11 +187,11 @@ test('the 48 personal cases share a reversible per-case play mode; every legacy 
     const initial=await api.call(base);
     assert.equal(initial.mode,null);
     for(const invalid of [null,'',true,'admin',['duo']])await assert.rejects(change(invalid),{code:'INVALID_PLAY_MODE'});
-    for(const mode of ['duo','solo','duo']){
-      const [first,retry]=await Promise.all([change(mode),change(mode)]);assert.deepEqual(first,{mode});assert.deepEqual(retry,first);
-      const reloaded=await api.call(base);assert.equal(reloaded.mode,mode);
-      assert.deepEqual(reloaded.hour,initial.hour);assert.deepEqual(reloaded.progress,initial.progress);assert.deepEqual(reloaded.wallet,initial.wallet);
-    }
+    await assert.rejects(change('duo'),{code:'PAIR_REQUIRED'});
+    const [first,retry]=await Promise.all([change('solo'),change('solo')]);
+    assert.deepEqual(first,{mode:'solo'});assert.deepEqual(retry,first);
+    const reloaded=await api.call(base);assert.equal(reloaded.mode,'solo');
+    assert.deepEqual(reloaded.hour,initial.hour);assert.deepEqual(reloaded.progress,initial.progress);assert.deepEqual(reloaded.wallet,initial.wallet);
     assert.equal((await api.call(base,undefined,true)).mode,null);
   }
   const all=await api.call('seasons');assert.deepEqual(all.completed,numbers(1,36));assert.equal(all.wallet.gift,1);
@@ -212,7 +213,7 @@ test('the personal index shows actual progress and side puzzles after expiry, wi
   let api=service(d);
   await api.call('cases/1');const first=(await api.call('partidas')).games;
   assert.deepEqual(first.map(g=>g.id),[2,3,4,5,6]);
-  assert.deepEqual(first[0],{id:2,mode:'duo',current:0,total:5,finished:false,available:true});
+  assert.deepEqual(first[0],{id:2,mode:'solo',current:0,total:5,finished:false,available:true});
   assert.equal(first[1].current,2);assert.equal(first[3].current,5);assert.equal(first[3].finished,true);
   assert.deepEqual((await api.call('partidas',undefined,true)).games.map(g=>g.id),[7]);
   const old=structuredClone(api.data);old.active=false;old.cycles.forEach(c=>{c.start-=60*day;c.end-=60*day;});
