@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { firebaseAuthProxy } from './firebase-proxy.mjs';
 
 const root = fileURLToPath(new URL('./public/', import.meta.url));
-const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8', '.png':'image/png', '.svg':'image/svg+xml', '.jpg':'image/jpeg', '.wav':'audio/wav', '.mp3':'audio/mpeg', '.webm':'video/webm', '.mp4':'video/mp4', '.vtt':'text/vtt; charset=utf-8', '.pdf':'application/pdf', '.ico':'image/x-icon', '.xml':'application/xml; charset=utf-8', '.txt':'text/plain; charset=utf-8' };
+const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8', '.png':'image/png', '.svg':'image/svg+xml', '.jpg':'image/jpeg', '.webp':'image/webp', '.wav':'audio/wav', '.mp3':'audio/mpeg', '.webm':'video/webm', '.mp4':'video/mp4', '.vtt':'text/vtt; charset=utf-8', '.pdf':'application/pdf', '.ico':'image/x-icon', '.xml':'application/xml; charset=utf-8', '.txt':'text/plain; charset=utf-8' };
 
 export function createApp({api,authProxy=firebaseAuthProxy} = {}) {
   return createServer(async (req, res) => {

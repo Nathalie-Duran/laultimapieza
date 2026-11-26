@@ -3,6 +3,7 @@ import {ApiError} from './auth-provider.mjs';
 import {CASE_ORDER} from './progression.mjs';
 import {valdemarWallet, withValdemarTransaction} from './valdemar-wallet.mjs';
 import {readValdemarRelease} from './valdemar-release.mjs';
+import {evaluateHourStage,readHour,requireHourComplete} from './valdemar-hour.mjs';
 
 const files = new Map();
 // Only versioned, server-owned files are passed here. No path comes from the request.
@@ -58,7 +59,13 @@ async function progressAction(store,uid,scope,story,action,input) {
   data.valdemarCaseProgress ||= {};
   const cases = data.valdemarCaseProgress[scope] ||= {};
   const record = cases[story.id] ||= {};
+  if (action === 'stage') {
+    const {advanced,correct,feedback} = evaluateHourStage(story,record,input);
+    if (advanced) await store.saveMemberData(uid,data);
+    return {correct,feedback,hour:readHour(story,record)};
+  }
   if (action === 'deduce') {
+    if (!record.deduced) requireHourComplete(story,record);
     if (!story.hypotheses.some(item => item.id === input.hypothesis)) {
       throw new ApiError(400,'Elige una de las hipótesis del expediente.');
     }
@@ -70,6 +77,7 @@ async function progressAction(store,uid,scope,story,action,input) {
     return {correct,progress:visibleProgress(record,story)};
   }
   if (!record.deduced) throw new ApiError(409,'Resuelve primero la deducción del expediente.','DEDUCTION_REQUIRED');
+  requireHourComplete(story,record);
   if (!story.choices.some(item => item.id === input.choice)) throw new ApiError(400,'Elige un desenlace disponible.');
   if (record.choice && record.choice !== input.choice) {
     throw new ApiError(409,'Esta historia ya tiene una decisión guardada en tu álbum.','ENDING_SAVED');
@@ -81,9 +89,9 @@ async function progressAction(store,uid,scope,story,action,input) {
   return {progress:visibleProgress(record,story)};
 }
 
-export async function valdemarRequest({path,method,input,uid,editorial,withStore,billing}) {
+export async function valdemarRequest({path,method,input,uid,editorial,withStore,billing,loadRelease=readValdemarRelease}) {
   const walletRoute = path === '/api/valdemar/wallet';
-  const match = /^\/api\/valdemar\/cases\/([1-9]|1[0-2])(?:\/(reward|open|second|sample|deduce|ending))?$/.exec(path);
+  const match = /^\/api\/valdemar\/cases\/([1-9]|1[0-2])(?:\/(reward|open|second|sample|deduce|ending|stage))?$/.exec(path);
   if (!walletRoute && !match) throw new ApiError(404,'Esta historia no está disponible.');
   const id = match ? Number(match[1]) : null;
   const action = match?.[2] || 'read';
@@ -100,10 +108,10 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       const completed = availableCases.filter(caseId => data.valdemarCaseProgress?.[scope]?.[caseId]?.choice);
       return {wallet,released:availableCases.length,availableCases,completed};
     }
-    const release = await readValdemarRelease(store);
+    const release = await loadRelease(store);
     const story = release.stories.find(item => item.id === id);
     if (!story) throw new ApiError(503,'El expediente está temporalmente fuera de servicio.');
-    if (action === 'deduce' || action === 'ending') return progressAction(store,uid,scope,story,action,input);
+    if (action === 'deduce' || action === 'ending' || action === 'stage') return progressAction(store,uid,scope,story,action,input);
     const sample = release.samples.find(item => item.id === id);
     if (action === 'sample') {
       if (!sample || !Number.isInteger(input.answer) || input.answer < 0 || input.answer >= sample.answers.length) {
@@ -125,8 +133,9 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       asset('valdemar-challenges-'+Math.ceil(id/4)+'.js'),
       store.getMemberData(uid)
     ]);
-    return {story:visibleStory(story),sample:visibleSample(sample),gameScript,
+    const record = data.valdemarCaseProgress?.[scope]?.[id];
+    return {story:visibleStory(story),sample:visibleSample(sample),gameScript,hour:readHour(story,record),
       stationScript:id===1 ? release.stationScript : null,
-      wallet,hints,progress:visibleProgress(data.valdemarCaseProgress?.[scope]?.[id],story)};
+      wallet,hints,progress:visibleProgress(record,story)};
   });
 }
