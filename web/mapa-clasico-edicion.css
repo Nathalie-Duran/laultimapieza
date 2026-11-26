@@ -166,6 +166,7 @@ body.cinematic-edition .classic-sheet #cipher-title, .classic-sheet #cipher-titl
   .classic-sheet .cipher-section { scroll-margin-top: 4px; }
 }
 @media (max-width: 700px) {
+  html:has(.classic-sheet) { scroll-padding-top: .75rem; }
   .classic-sheet .map-heading { grid-template-columns: 1fr; gap: 1.45rem; }
   .classic-sheet .classic-cover { width:100%; object-position:center; }
   .classic-sheet .map-heading::before { background:linear-gradient(90deg,#0e2020db,#13202078),linear-gradient(0deg,#102020 2%,#10202000 100%); }
