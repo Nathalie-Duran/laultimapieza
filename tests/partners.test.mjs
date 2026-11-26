@@ -20,11 +20,19 @@ const story={
     answer:['b'],success:'Acertado',retry:'Inténtalo otra vez'
   }))}
 };
-const releases={stories:[story],samples:[],nuevos:[]};
+function clues(section){
+  return ['A','B','AB'].map(role=>({id:role,label:'Fuente '+role,kind:'text',role,body:'contenido-'+role+'-'+section}));
+}
+const twoPapers={...story,id:13,evidenceCards:clues('expediente'),
+  side:{title:'Comparar las fuentes',mode:'multi',options:[],materials:clues('reto')},
+  hour:{stages:story.hour.stages.map((stage,i)=>({...stage,materials:clues('etapa-'+i),
+    corroboration:{prompt:'Contrasta dos fuentes',answer:['A','B']}}))}};
+const releases={stories:[story],samples:[],nuevos:[twoPapers]};
 
 // Each request gets an isolated transaction. A failed acceptance must leave both seats available for retry.
 function harness(){
   let data={members:new Map(),profiles:new Map(),partners:new Map(),seats:new Map(),mail:new Map()};
+  let membershipLookups=0;
   let tail=Promise.resolve();
   const withStore=fn=>{
     const transaction=tail.then(async()=>{
@@ -76,14 +84,15 @@ function harness(){
   const billing={
     publicConfig:()=>({checkoutAvailable:false}),
     membership:async(store,uid)=>{
+      membershipLookups++;
       const member=await store.getMemberData(uid);
       const seasonAccess=worldSeasonAccess(member);
       return {seasonAccess,canPlay:member.active===true&&seasonAccess.availableCases.length>0};
     }
   };
-  const api=createGameApi({config,withStore,billing,stories:[],origins:[origin],verify:async request=>{
+  const api=createGameApi({config,withStore,billing,stories:[],origins:[origin],isAdministrator:user=>user.userId==='editor',verify:async request=>{
     const uid=request.headers.get('authorization');
-    if(!['alice','bob','eve'].includes(uid))throw new ApiError(401,'Inicia sesión.');
+    if(!['alice','bob','eve','editor'].includes(uid))throw new ApiError(401,'Inicia sesión.');
     return identity(uid);
   }});
   async function call(uid,path,input){
@@ -98,6 +107,8 @@ function harness(){
   }
   return {
     call,ok,
+    get queuedMail(){return [...data.mail.values()].map(message=>structuredClone(message));},
+    get membershipLookups(){return membershipLookups;},
     async fund(uid,blocks=1){
       await withStore(async store=>{
         const member=await store.getMemberData(uid);
@@ -128,8 +139,8 @@ function harness(){
       await ok(uid,'/api/partners',{caseId,email:to});
       return (await this.list(uid)).find(row=>row.caseId===caseId&&row.direction==='sent');
     },
-    async game(uid,route='',input){
-      return valdemarRequest({path:'/api/valdemar/cases/1'+route,method:input?'POST':'GET',input,uid,
+    async game(uid,route='',input,caseId=1){
+      return valdemarRequest({path:'/api/valdemar/cases/'+caseId+route,method:input?'POST':'GET',input,uid,
         user:identity(uid),editorial:false,billing,withStore,loadRelease:async()=>releases});
     }
   };
@@ -214,10 +225,42 @@ test('Las parejas se eligen por juego y una retirada o un rechazo libera el siti
   assert.equal((await h.invite('alice',1,email('bob'))).status,'pending');
 });
 
+test('La persona habitual es una preferencia privada, disponible gratis y en edición, sin correos ni asignaciones automáticas',async()=>{
+  const h=harness(),path='/api/partners/preferred';
+  assert.equal((await h.call('',path,{email:email('bob')})).status,401);
+  for(const uid of ['alice','editor']){
+    assert.equal((await h.ok(uid,path)).preferredEmail,null);
+    assert.equal((await h.ok(uid,path,{email:'  BOB@EXAMPLE.TEST  '})).preferredEmail,email('bob'));
+    assert.equal((await h.ok(uid,path)).preferredEmail,email('bob'));
+    for(const invalid of [email(uid),'sin-arroba']){
+      assert.equal((await h.call(uid,path,{email:invalid})).status,400);
+      assert.equal((await h.ok(uid,path)).preferredEmail,email('bob'));
+    }
+  }
+  await h.ok('eve',path,{email:email('editor'),userId:'alice'});
+  assert.equal((await h.ok('alice',path)).preferredEmail,email('bob'));
+  assert.equal((await h.ok('bob',path)).preferredEmail,null);
+  assert.equal(h.membershipLookups,0);
+  assert.deepEqual(h.queuedMail,[]);
+  assert.deepEqual(await h.list('bob'),[]);
+  await h.fund('alice');
+  const invite=await h.invite('alice',1,email('bob'));
+  await h.ok('alice',path,{email:email('eve')});
+  assert.equal((await h.ok('alice','/api/partners')).preferredEmail,email('eve'));
+  await h.ok('alice',path,{email:null});
+  assert.equal((await h.ok('alice',path)).preferredEmail,null);
+  assert.equal((await h.ok('editor',path)).preferredEmail,email('bob'));
+  assert.deepEqual((await h.list('bob')).map(row=>[row.id,row.status]),[[invite.id,'pending']]);
+  assert.deepEqual(await h.list('eve'),[]);
+  assert.deepEqual(h.queuedMail.map(message=>[message.type,message.address]),[['case_invitation',email('bob')]]);
+});
+
 test('Dos cuentas comparten los pasos y el desenlace, conservan sus llaves y rechazan cambios de una pareja anterior',async()=>{
   const h=harness();
   for(const uid of ['alice','bob','eve'])await h.fund(uid);
+  await assert.rejects(h.game('alice','/mode',{mode:'duo'}),{status:409,code:'PAIR_REQUIRED'});
   const {id}=await h.invite('alice',1,email('bob'));
+  await assert.rejects(h.game('alice','/mode',{mode:'duo'}),{status:409,code:'PAIR_REQUIRED'});
   await h.ok('bob','/api/partners/'+id+'/accept',{});
   const alice=await h.game('alice'),bob=await h.game('bob');
   assert.equal(alice.partner.id,id);assert.equal(bob.partner.id,id);
@@ -244,5 +287,41 @@ test('Dos cuentas comparten los pasos y el desenlace, conservan sus llaves y rec
   assert.equal((await h.game('eve')).progress.choice,null);
   await h.game('alice','/mode',{partnerId:id,mode:'solo'});
   await assert.rejects(h.game('bob','/stage',stage(0)),error=>error.status>=400);
-  assert.equal((await h.game('bob')).progress.choice,'guardar');
+  for(const uid of ['alice','bob']){
+    const solo=await h.game(uid);
+    assert.equal(solo.mode,'solo');assert.equal(solo.partner,null);
+    assert.equal(solo.hour.current,5);assert.equal(solo.progress.choice,'guardar');
+  }
+});
+
+test('Los cuerpos privados de cada papel permanecen separados al abrir, avanzar, reintentar y releer el diario',async()=>{
+  const h=harness();
+  for(const uid of ['alice','bob']){await h.fund(uid,4);await h.finishFirstSeason(uid);}
+  const game=(uid,route,input)=>h.game(uid,route,input,13);
+  const {id}=await h.invite('alice',13,email('bob'));
+  await h.ok('bob','/api/partners/'+id+'/accept',{});
+  function check(message,role){
+    const other=role==='A'?'B':'A';
+    assert(!JSON.stringify(message).includes('contenido-'+other+'-'));
+    const expected=[role,'AB'];
+    assert.deepEqual(message.hour.stage.materials.map(item=>item.role),expected);
+    for(const past of message.hour.journal)assert.deepEqual(past.materials.map(item=>item.role),expected);
+    assert.deepEqual(message.hour.stage.corroboration.options,['A','B','AB'].map(id=>({id,label:'Fuente '+id})));
+    if(message.story){
+      assert.deepEqual(message.story.evidenceCards.map(item=>item.role),expected);
+      assert.deepEqual(message.side.materials.map(item=>item.role),expected);
+    }
+  }
+  for(const [uid,role] of [['alice','A'],['bob','B']])check(await game(uid),role);
+  const step={index:0,choice:['b'],sources:['A','B'],partnerId:id,role:'B'};
+  const next=await game('alice','/stage',step);
+  assert.equal(next.hour.journal.length,1);check(next,'A');
+  const retry=await game('bob','/stage',{...step,role:'A'});
+  assert.equal(retry.hour.current,1);check(retry,'B');
+  for(const [uid,role] of [['alice','A'],['bob','B']])check(await game(uid),role);
+  await game('bob','/mode',{partnerId:id,mode:'solo'});
+  const solo=await game('bob');
+  for(const materials of [solo.hour.stage.materials,solo.hour.journal[0].materials,solo.story.evidenceCards,solo.side.materials]){
+    assert.deepEqual(materials.map(item=>item.role),['A','B','AB']);
+  }
 });
