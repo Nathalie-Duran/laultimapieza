@@ -414,3 +414,13 @@ html:has(#scene-preview.vallejo-player[open]) { overflow:hidden; }
   .vp-shell .vp-material-copy { padding:.68rem .78rem .85rem; }
   .vp-shell .vp-card-title { font-size:clamp(1.05rem,1.55vw,1.43rem); }
 }
+@media (max-width:374px) {
+  .vp-shell .vp-intake-intro { min-height:9.6rem; padding:.83rem .72rem; }
+  .vp-shell .vp-table-copy { max-width:100%; }
+  #scene-preview.vallejo-player .vp-table-copy .vp-intake-title { max-width:none; font-size:1.68rem; }
+  .vp-shell .vp-table-copy p:not(.vp-eyebrow) { font-size:.85rem; line-height:1.4; }
+  .vp-shell .vp-evidence-grid { gap:.36rem; padding:.6rem; }
+  .vp-shell button.vp-evidence-card { grid-template-columns:4rem minmax(0,1fr); min-height:4.4rem; }
+  .vp-shell .vp-material-copy { padding:.42rem 1.3rem .45rem .56rem; }
+  .vp-shell .vp-card-title { font-size:1rem; }
+}
