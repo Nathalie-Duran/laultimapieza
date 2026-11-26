@@ -39,21 +39,30 @@ const sceneCovers = new Set(["cartas-medianoche","ultima-funcion","archivo-ausen
 function sceneImage(s){return s && sceneCovers.has(s.id) ? '/' + s.id + '.jpg' : '';}
 
 function coverStory(m) {
- return `<section class="vh-hero" aria-labelledby="vh-title">
+ const materials = [
+   ['image','Imagen','Ficha de admisión'],
+   ['audio','Audio','Timbre del depósito'],
+   ['text','Texto','Correo del Archivo'],
+   ['web','Archivo web','Registro de digitalización']
+ ];
+ return `<section class="vh-hero v87-cover" aria-labelledby="vh-title">
    <div class="vh-copy">
-     <p class="vh-kicker">Misterio online para una o dos personas</p>
+     <p class="vh-kicker">Demo gratuita · Clínica Vallejo</p>
      <h1 id="vh-title">¿Qué ocurrió en la <em>Sala 7?</em></h1>
-     <p class="vh-lead"><strong>Clínica Vallejo, 1987.</strong> El doctor ha desaparecido. Seis pacientes sobrevivieron, pero ninguno recuerda aquella noche. Abre la caja 87-V y reconstruye lo ocurrido.</p>
+     <p class="vh-lead">En 1987 desapareció el doctor Vallejo. Sus seis pacientes sobrevivieron, pero ninguno recuerda aquella noche. Esta madrugada, el Archivo te ha enviado la primera ficha de la caja 87-V.</p>
      <div class="vh-actions">
        <button type="button" class="button primary" data-action="preview-open">Jugar la demo gratis</button>
        ${m.canPlay?'<a class="vh-secondary" href="#casos">Ir a mis casos</a>':'<button type="button" class="vh-secondary" data-action="page-section" data-target="shelf-title">Ver los casos del primer mes</button>'}
      </div>
-     <p class="vh-meta">Sin cuenta ni tarjeta. Juega desde el navegador.</p>
+     <p class="vh-meta">A solas o en pareja · Sin cuenta ni tarjeta</p>
    </div>
-   <figure class="vh-evidence">
-     <div class="vh-sheets"><img class="vh-plan" src="/vallejo-plano.jpg" alt="Plano del pabellón de la Clínica Vallejo" width="864" height="442"><img class="vh-form" src="/vallejo-ficha.jpg" alt="Ficha de admisión de Marta Ibáñez, paciente número 0147" width="720" height="681" fetchpriority="high"></div>
-     <figcaption><span>De la ficha de Marta</span><q>Sueños recurrentes con una puerta.</q></figcaption>
+   <figure class="v87-cover-art">
+     <img src="/vallejo-mesa-87v.webp" width="1536" height="1024" alt="Una casete, un plano y la fotografía de un pasillo en la mesa del archivo." fetchpriority="high">
+     <figcaption><span>Del correo de apertura</span><q>Le recomendamos no trabajar de noche.</q></figcaption>
    </figure>
+   <div class="v87-evidence-launch" role="group" aria-label="Abrir una pista de la demo">
+     ${materials.map(([key,type,label])=>`<button type="button" class="v87-format" data-action="preview-open" data-vp-format="${key}"><span class="v87-mini v87-mini-${key}" aria-hidden="true"></span><span class="v87-format-name"><small>${type}</small><strong>${label}</strong></span><span class="v87-open" aria-hidden="true">↗</span></button>`).join('')}
+   </div>
  </section>`;
 }
 
@@ -74,7 +83,7 @@ function home(m){
  const resumed=latest&&(m.stories||[]).find(s=>s.id===latest.caseId);
  const returning=m.userId?`<section class="return-strip"><div><span class="ui-kicker">Tu investigación</span><h2>${resumed?esc(resumed.title):'Tu plano del archivo clásico'}</h2><p>${resumed?latest.history.length+' decisiones completadas':count(m)+' de 12 piezas recuperadas'}</p></div>${resumed&&m.canPlay?`<button class="button primary" data-action="resume" data-id="${esc(latest.id)}">Continuar mi partida</button>`:'<a class="button" href="#mapa-clasico">Abrir el plano clásico</a>'}</section>`:'';
  return `${returning}${coverStory(m)}
- <div class="cover-tail vh-tail"><span>Lee los documentos, escucha las grabaciones y contrasta tus sospechas.</span>${shareBox({title:'Clínica Vallejo'},'/vallejo.html')}</div>
+ <div class="cover-tail vh-tail">${shareBox({title:'Clínica Vallejo'},'/vallejo.html')}</div>
  ${root.ValdemarCatalog ? root.ValdemarCatalog.home({canPlay:m.canPlay,admin:m.membership?.role==='admin'}) : ''}
  ${homeSeasonOffer(m)}`;
 }

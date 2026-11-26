@@ -15,6 +15,22 @@
     ]
   };
   const typeNames = { email: 'Correo', image: 'Documento', gate: 'Expediente', audio: 'Audio' };
+  const receptionAudio = 'vallejo-recepcion-87v.wav';
+  const tableMedia = [
+    [
+      { format:'text', label:'Correo del Archivo', use:'Lee lo que el Archivo encontró en la caja.', file:'00_email_apertura.html' },
+      { format:'audio', label:'Timbre del depósito', use:'Escucha la señal que quedó grabada al recibir la copia.', tool:'audio' },
+      { format:'image', label:'Ficha de admisión', use:'Acércate a la primera ficha digitalizada.', file:'01_ficha_admision.png' },
+      { format:'web', label:'Registro de digitalización', use:'Cruza la hora del correo con la señal del depósito.', tool:'web' }
+    ],
+    [
+      { format:'text', label:'El segundo correo', use:'Lee el mensaje que acompaña esta entrega.', file:'00_email_tomas.html' },
+      { format:'audio', label:'Cinta de terapia', use:'Escucha la grabación de la sesión.', file:'02_grabacion_sesion1.wav' },
+      { format:'image', label:'Diario de Marta', use:'Examina la página del diario de sueño.', file:'01_diario_marta.png' },
+      { format:'web', label:'Registro de digitalización', use:'Vuelve al resguardo de la primera entrega.', tool:'web' }
+    ]
+  ];
+  const formatNames = { text:'Texto', audio:'Audio', image:'Imagen', web:'Archivo web' };
   const dialog = () => document.getElementById('scene-preview');
   let state = null;
   let consent = false;
@@ -50,7 +66,7 @@
     if (document.querySelector('link[data-vallejo-style],link[href*="vallejo-demo.css"]')) return;
     const link = node('link');
     link.rel = 'stylesheet';
-    link.href = '/vallejo-demo.css?v=fin-87v-2';
+    link.href = '/vallejo-demo.css?v=mesa-87v-1';
     link.dataset.vallejoStyle = '1';
     document.head.append(link);
   }
@@ -59,10 +75,138 @@
     const { shell, shelfToggle, side } = state;
     shell.classList.toggle('vp-shelf-open', expanded);
     shelfToggle.setAttribute('aria-expanded', String(expanded));
-    if (expanded && focusFirst) side.querySelector('[aria-current="page"]')?.focus();
+    if (expanded && focusFirst) (side.querySelector('[aria-current="page"]') || side.querySelector('.vp-doc-button'))?.focus();
   }
   function note(message) {
     if (state) state.status.textContent = message;
+  }
+  function tableCards(st) {
+    st.tableGrid.replaceChildren();
+    for (const medium of tableMedia[st.section]) {
+      const card = button('', 'vp-evidence-card vp-material', () => openMedium(st, medium.format, st.section));
+      card.dataset.kind = card.dataset.format = medium.format;
+      const art = node('span', 'vp-card-art vp-material-art');
+      art.setAttribute('aria-hidden','true');
+      if (medium.format === 'image') {
+        const thumb = node('img'); thumb.alt = ''; thumb.src = '/' + medium.file; thumb.decoding = 'async'; art.append(thumb);
+      } else if (medium.format === 'audio') {
+        for (let n = 0; n < 12; n++) art.append(node('i'));
+      }
+      const copy = node('span','vp-material-copy');
+      copy.append(node('small','vp-card-format',formatNames[medium.format]),node('strong','vp-card-title',medium.label),node('span','vp-card-use',medium.use));
+      const reviewed = st.consulted.has(medium.file || medium.tool);
+      if (reviewed) {
+        card.dataset.reviewed = 'true';
+        const label = medium.tool === 'web' && st.receiptConfirmed ? 'Copia identificada' : 'Consultado';
+        copy.append(node('span','vp-card-state',label));
+      }
+      const arrow = node('span','vp-card-arrow vp-material-arrow','↗'); arrow.setAttribute('aria-hidden','true');
+      card.append(art,copy,arrow); st.tableGrid.append(card);
+    }
+    const first = st.section === 0;
+    st.tableKicker.textContent = 'Archivo Provincial de Salud Mental';
+    st.tableTitle.textContent = first ? 'La mesa de recepción' : 'La segunda entrega';
+    st.tableIntro.textContent = first ? 'El Archivo ha digitalizado la caja de la clínica. Para reconocer su copia en el registro, contrasta la hora del correo con el timbre del depósito.' : 'El primer expediente está abierto. Un nuevo correo acompaña al diario de Marta y a una cinta de terapia. Decide por dónde seguir.';
+    st.tableStart.textContent = st.lastIndex[st.section] !== undefined ? 'Continuar con los documentos' : first ? 'Abrir el correo de la caja' : 'Abrir el segundo correo';
+    st.tableSessions.replaceChildren();
+    if (st.sessions.length > 1 && st.unlocked.has(st.sessions[0].id)) {
+      st.sessions.forEach((session, index) => {
+        const tab = button('Sesión ' + (index + 1), 'vp-session-choice', () => { st.section = index; st.index = st.lastIndex[index] || 0; showTable(st); });
+        tab.setAttribute('aria-pressed',String(st.section === index)); st.tableSessions.append(tab);
+      });
+    }
+    st.tableSessions.hidden = !st.tableSessions.childElementCount;
+  }
+
+  function hideOtherPanes(st, keep) {
+    for (const [key, pane] of st.panes) {
+      if (key !== keep) {
+        pane.hidden = true;
+        pane.querySelector('audio')?.pause();
+      }
+    }
+  }
+  function showTable(st, focus = true) {
+    const source = st.mode === 'tool' ? st.activeTool : st.mode === 'original' ? st.sessions[st.section].documents[st.index].file : null;
+    const medium = source && tableMedia[st.section].find(item=>(item.file || item.tool) === source);
+    st.mode = 'table';
+    hideOtherPanes(st);
+    shelf(false);
+    updateNav();
+    if (focus) {
+      const card = medium && st.tableGrid.querySelector('[data-format="' + medium.format + '"]');
+      if (card) card.focus();
+      else {
+        st.table.scrollTop = 0;
+        st.tableTitle.focus({preventScroll:true});
+      }
+    }
+  }
+  function receiptTool(st, pane) {
+    const article = node('article','vp-intake-tool vp-entry');
+    article.append(node('p','vp-eyebrow','Archivo Provincial · Depósito digital'),node('h4','','Parte de recepción'),node('p','','El sistema guardó tres resguardos. El reloj de recepción coincide con el del correo. ¿Qué copia corresponde a la caja 87-V?'));
+    const table = node('table','vp-entry-table');
+    const caption = node('caption','','Copias recibidas esta madrugada');
+    const head = table.createTHead().insertRow();
+    for (const title of ['Copia','Hora','Timbre','Cotejo']) { const th = node('th','',title); th.scope='col'; head.append(th); }
+    table.prepend(caption);
+    const rows = table.createTBody();
+    const footer = node('p','vp-entry-status'); footer.setAttribute('role','status');
+    const next = button('Examinar la ficha de admisión','vp-button vp-entry-next',()=>openMedium(st,'image',0));
+    next.hidden = !st.receiptConfirmed;
+    if (st.receiptConfirmed) footer.textContent = 'Copia D-24 identificada. Su resguardo corresponde a la ficha que acompañaba el correo.';
+    for (const [id,time,signal] of [['D-18','03:08','Largo · corto · corto'],['D-21','03:12','Corto · largo · corto'],['D-24','03:12','Largo · corto · corto']]) {
+      const row = rows.insertRow(); row.dataset.copy = id;
+      const name = node('th','',id); name.scope = 'row'; row.append(name);
+      row.append(node('td','',time),node('td','',signal));
+      const action = button('Cotejar','vp-entry-option',()=>{
+        if (st.receiptConfirmed) return;
+        if (id !== 'D-24') {
+          footer.textContent = id + (id === 'D-18' ? ' coincide con el timbre. Comprueba la hora del mensaje.' : ' coincide con la hora. Vuelve a escuchar en qué orden suenan los timbres.');
+          return;
+        }
+        st.receiptConfirmed = true;
+        row.dataset.matched = 'true';
+        footer.textContent = 'Copia D-24 identificada. El Archivo confirma que la ficha adjunta al correo pertenece a esta entrega.';
+        next.hidden = false;
+        table.querySelectorAll('button').forEach(control=>{control.disabled=true;});
+      });
+      action.setAttribute('aria-label','Cotejar la copia '+id);
+      action.disabled = st.receiptConfirmed;
+      if (st.receiptConfirmed && id === 'D-24') row.dataset.matched = 'true';
+      row.insertCell().append(action);
+    }
+    article.append(table,footer,next); pane.append(article);
+  }
+  function audioTool(pane) {
+    const article = node('article','vp-intake-tool vp-intake-audio');
+    article.append(node('p','vp-eyebrow','Recepción del depósito'),node('h4','','Timbre del depósito'),node('p','','Al registrar una copia, el timbre deja su señal en la grabadora. Escucha cómo se suceden los toques.'));
+    const player = node('audio'); player.controls = true; player.preload = 'metadata'; player.src = '/' + receptionAudio; player.setAttribute('aria-label','Reproducir el timbre del depósito');
+    const transcript = node('details','vp-entry-transcript');
+    transcript.append(node('summary','','Leer la transcripción'),node('p','','Se oye un clic y un leve ruido de fondo. Suena el timbre de forma prolongada. Tras una pausa, suenan dos timbrazos cortos, separados. El ruido de fondo se apaga.'));
+    article.append(player,transcript); pane.append(article);
+  }
+  function openMedium(st, format, section) {
+    if (section > 0 && !st.unlocked.has(st.sessions[0].id)) return;
+    const medium = tableMedia[section]?.find(item=>item.format === format);
+    if (!medium) return;
+    if (medium.file) {
+      const index = st.sessions[section].documents.findIndex(doc=>doc.file === medium.file);
+      if (index >= 0) select(section,index);
+      return;
+    }
+    st.section = section; st.index = st.lastIndex[section] || 0; st.mode = 'tool'; st.activeTool = medium.tool;
+    st.consulted.add(medium.tool);
+    const key = 'intake/' + medium.tool;
+    let pane = st.panes.get(key);
+    if (!pane) {
+      pane = node('div','vp-pane vp-intake-pane');
+      pane.setAttribute('role','region'); pane.setAttribute('aria-label',medium.label);
+      if (medium.tool === 'web') receiptTool(st,pane); else audioTool(pane);
+      st.reader.append(pane); st.panes.set(key,pane);
+    }
+    hideOtherPanes(st,key); pane.hidden = false;
+    shelf(false); updateNav(); st.heading.focus({preventScroll:true});
   }
   function seasonLink(route, label, primary) {
     const onHome = root.location.pathname === '/';
@@ -169,7 +313,7 @@
     current.documents.forEach((item, index) => {
       const li = node('li');
       const control = button('', 'vp-doc-button', () => select(st.section, index));
-      if (st.index === index) control.setAttribute('aria-current', 'page');
+      if (st.mode === 'original' && st.index === index) control.setAttribute('aria-current', 'page');
       const number = node('span', 'vp-doc-number', String(index + 1).padStart(2, '0'));
       number.setAttribute('aria-hidden', 'true');
       control.append(number, node('span', '', item.label));
@@ -184,7 +328,22 @@
         st.sessionList.append(tab);
       });
     }
-    renderHints(st);
+    const atTable = st.mode === 'table', tool = st.mode === 'tool';
+    st.shell.classList.toggle('vp-at-table',atTable);
+    st.shell.classList.toggle('vp-at-intake-tool',tool);
+    st.table.hidden = !atTable;
+    st.side.hidden = st.desk.hidden = atTable;
+    st.footerActions.hidden = st.help.hidden = atTable || tool;
+    if (atTable) tableCards(st);
+    if (tool) {
+      st.shelfToggle.textContent = 'Documentos de la sesión';
+      st.heading.textContent = tableMedia[st.section].find(medium=>medium.tool === st.activeTool)?.label || 'Documento';
+      for (const control of [st.zoom,st.adjust,st.bright,st.mirror,st.separate]) control.hidden = true;
+    }
+    if (atTable || tool) {
+      root.clearTimeout(st.hintTimer);
+      st.hintBox.open = false;
+    } else renderHints(st);
   }
   function unlock(st, section) {
     if (state !== st) return;
@@ -322,12 +481,9 @@
     if (!st || (section > 0 && !st.unlocked.has(st.sessions[section - 1]?.id))) return;
     const doc = st.sessions[section]?.documents[index];
     if (!doc) return;
-    for (const [file, pane] of st.panes) {
-      if (file !== doc.file) {
-        pane.hidden = true;
-        pane.querySelector('audio')?.pause();
-      }
-    }
+    hideOtherPanes(st,doc.file);
+    st.mode = 'original';
+    st.consulted.add(doc.file);
     st.section = section;
     st.index = index;
     st.pairInfo.open = false;
@@ -341,8 +497,11 @@
   function setupDOM(host, st) {
     host.innerHTML = `<div class="vp-shell">
       <header class="vp-header"><div><p class="vp-eyebrow" data-vp-caption></p><h2 id="scene-title">Clínica Vallejo</h2></div><button type="button" class="vp-close" data-action="scene-close" aria-label="Cerrar la demo">Cerrar</button></header>
-      <div class="vp-work"><aside class="vp-side" id="vp-documentos" aria-label="Documentos del expediente"><div class="vp-side-head"><h3>Documentos</h3><button type="button" class="vp-side-close" aria-label="Cerrar la lista de documentos">Cerrar</button></div><div class="vp-sessions"></div><ol class="vp-doc-list"></ol></aside>
-      <section class="vp-desk" aria-label="Lector de documentos"><div class="vp-document-head"><button type="button" class="vp-shelf-toggle" aria-controls="vp-documentos" aria-expanded="false">Documentos</button><h3 class="vp-doc-title" tabindex="-1"></h3><button type="button" class="vp-zoom" hidden>Ampliar imagen</button><button type="button" class="vp-adjust" hidden>Invertir</button><button type="button" class="vp-brighten" hidden>Subir brillo</button><button type="button" class="vp-mirror" hidden>Espejo</button><a class="vp-open-original vp-separate" target="_blank" rel="noopener" hidden>Abrir aparte</a></div><div class="vp-reader"></div>
+      <div class="vp-work"><section class="vp-intake vp-table" aria-labelledby="vp-intake-title">
+      <header class="vp-intake-intro vp-table-hero"><img class="vp-table-cover" src="/vallejo-mesa-87v.webp" width="1000" height="500" alt=""><div class="vp-table-copy"><p class="vp-eyebrow" data-vp-table-kicker></p><h3 class="vp-intake-title" id="vp-intake-title" tabindex="-1"></h3><p class="vp-intake-description"></p><nav class="vp-intake-sessions" aria-label="Mesas disponibles" hidden></nav><button class="vp-intake-start vp-table-start" type="button"></button></div></header>
+      <div class="vp-evidence-grid vp-table-materials" aria-label="Pruebas de la mesa" role="group"></div></section>
+      <aside class="vp-side" id="vp-documentos" aria-label="Documentos del expediente"><div class="vp-side-head"><h3>Documentos</h3><button type="button" class="vp-side-close" aria-label="Cerrar la lista de documentos">Cerrar</button></div><div class="vp-sessions"></div><ol class="vp-doc-list"></ol></aside>
+      <section class="vp-desk" aria-label="Lector de documentos"><div class="vp-document-head"><button type="button" class="vp-table-return vp-back-table">Volver a la mesa</button><button type="button" class="vp-shelf-toggle" aria-controls="vp-documentos" aria-expanded="false">Documentos</button><h3 class="vp-doc-title" tabindex="-1"></h3><button type="button" class="vp-zoom" hidden>Ampliar imagen</button><button type="button" class="vp-adjust" hidden>Invertir</button><button type="button" class="vp-brighten" hidden>Subir brillo</button><button type="button" class="vp-mirror" hidden>Espejo</button><a class="vp-open-original vp-separate" target="_blank" rel="noopener" hidden>Abrir aparte</a></div><div class="vp-reader"></div>
       <div class="vp-help"><section class="vp-finale" hidden aria-labelledby="vp-finale-title"><h3 id="vp-finale-title">¿Sobrevivirá una cinta durante treinta años?</h3><p>Has abierto el expediente de Tomás. En «Mundos cruzados», dos épocas de la misma estación esconden tu siguiente pista. Es una de las cuatro historias del primer mes.</p><div class="vp-season-actions"></div><div class="case-share vp-share-demo"><button type="button" data-copy-invite="https://www.laultimapieza.es/vallejo.html?via=invitacion">Copiar enlace a la demo</button><p role="status" aria-live="polite"></p></div></section>
       <details class="vp-pair" hidden><summary>Consultar los dos documentos</summary><p><span></span> <a target="_blank" rel="noopener"></a></p></details>
       <details class="vp-hints" hidden><summary>Pistas de esta prueba</summary><div class="vp-hints-body"><ol class="vp-hint-list"></ol><button type="button" class="vp-hint-table" hidden>Ver la tabla de Vigenère</button><button type="button" class="vp-hint-more">Revelar la primera pista</button><small class="vp-hint-status"></small></div></details></div></section></div>
@@ -351,6 +510,9 @@
     const q = selector => host.querySelector(selector);
     Object.assign(st, { shell: q('.vp-shell'), sessionCaption: q('[data-vp-caption]'), side: q('.vp-side'), shelfToggle: q('.vp-shelf-toggle'), sideList: q('.vp-doc-list'), sessionList: q('.vp-sessions'), heading: q('.vp-doc-title'), reader: q('.vp-reader'), zoom: q('.vp-zoom'), status: q('.vp-live'), previous: q('.vp-prev'), next: q('.vp-next'), nextSession: q('.vp-next-session'), offer: q('.vp-finale') });
     Object.assign(st, { adjust: q('.vp-adjust'), bright: q('.vp-brighten'), mirror: q('.vp-mirror'), separate: q('.vp-separate'), pairInfo: q('.vp-pair'), pairText: q('.vp-pair span'), pairLink: q('.vp-pair a'), hintBox: q('.vp-hints'), hintList: q('.vp-hint-list'), hintStatus: q('.vp-hint-status'), hintMore: q('.vp-hint-more'), hintTable: q('.vp-hint-table') });
+    Object.assign(st, { desk:q('.vp-desk'), help:q('.vp-help'), footerActions:q('.vp-footer-actions'), table:q('.vp-intake'), tableKicker:q('[data-vp-table-kicker]'), tableTitle:q('.vp-intake-title'), tableIntro:q('.vp-intake-description'), tableStart:q('.vp-intake-start'), tableGrid:q('.vp-evidence-grid'), tableSessions:q('.vp-intake-sessions') });
+    q('.vp-table-return').addEventListener('click',()=>showTable(st));
+    st.tableStart.addEventListener('click',()=>select(st.section,st.lastIndex[st.section] || 0));
     st.shelfToggle.addEventListener('click', () => shelf(!st.shell.classList.contains('vp-shelf-open'), true));
     q('.vp-side-close').addEventListener('click', () => { shelf(false); st.shelfToggle.focus(); });
     st.previous.addEventListener('click', () => select(st.section, st.index - 1));
@@ -426,15 +588,21 @@
     if (host.open) host.close();
     dispose(st);
   }
-  function open() {
+  function open(format) {
     const host = dialog();
-    if (!host || (host.open && state)) return;
+    if (!host) return;
+    const requested = Object.hasOwn(formatNames,format) ? format : null;
+    if (host.open && state) {
+      if (requested) openMedium(state,requested,0);
+      return;
+    }
     if (state?.paused && host.contains(state.shell)) {
       state.paused = false;
       state.trigger = document.activeElement;
       host.showModal();
       updateNav();
-      state.heading.focus({ preventScroll: true });
+      if (requested) openMedium(state,requested,0);
+      else (state.mode === 'table' ? state.tableTitle : state.heading).focus({ preventScroll: true });
       return;
     }
     if (state) dispose(state);
@@ -442,7 +610,7 @@
     const trigger = document.activeElement;
     const parent = document.getElementById('modal');
     if (parent?.open) parent.close();
-    const st = { sessions: sessions(), section: 0, index: 0, lastIndex: [], panes: new Map(), unlocked: new Set(), counted: new Set(), hintHistory: new Map(), observers: [], trigger, paused: false };
+    const st = { sessions: sessions(), section: 0, index: 0, mode:'table', consulted:new Set(), receiptConfirmed:false, lastIndex: [], panes: new Map(), unlocked: new Set(), counted: new Set(), hintHistory: new Map(), observers: [], trigger, paused: false };
     state = st;
     if (root.InvitationCounts?.enabled) consent = true;
     host.classList.add('vallejo-player');
@@ -452,12 +620,13 @@
     host.addEventListener('close', st.onClose);
     host.addEventListener('cancel', st.onCancel);
     if (!host.open) host.showModal();
-    select(0, 0, false);
-    host.querySelector('.vp-close').focus({ preventScroll: true });
+    if (requested) openMedium(st,requested,0);
+    else showTable(st);
     count('demo_start');
   }
   document.addEventListener('click', event => {
-    if (event.target.closest?.('[data-action="preview-open"]')) open();
+    const trigger = event.target.closest?.('[data-action="preview-open"]');
+    if (trigger) open(trigger.dataset.vpFormat);
   });
   root.CasePreview = { open, close };
   if (document.body?.dataset.vallejoStandalone === 'true') open();
