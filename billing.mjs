@@ -4,6 +4,18 @@ import {orderedCycles,releaseCalendar,SEASON_NAMES} from './progression.mjs';
 import {mailKey} from './mail-service.mjs';
 import {creditValdemarWelcome,worldSeasonAccess} from './valdemar-wallet.mjs';
 
+function publicDocumentUrl(value) {
+  if (typeof value !== 'string' || !/^https:\/\//i.test(value.trim())) return null;
+  if (!URL.canParse(value)) return null;
+  const url = new URL(value);
+  if (url.username || url.password) return null;
+  const hostname = url.hostname.replace(/\.$/, '');
+  // Published documents use DNS hostnames. Exclude local addresses and reserved suffixes.
+  const domain = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/i;
+  if (!domain.test(hostname) || /(?:^|\.)(?:localhost|local|internal|lan|test|invalid|example|home\.arpa)$/i.test(hostname)) return null;
+  return url.href;
+}
+
 function purchasedBlocks(subscription) {
   const raw = subscription.metadata?.lup_blocks;
   if (raw === undefined) return null; // Finite twelve-case legacy pass.
@@ -24,10 +36,14 @@ export function validSignature(raw,header,secret,now=Date.now()){
 }
 export function createBilling(env=process.env,fetcher=fetch){
   const configured=!!(env.STRIPE_SECRET_KEY&&env.STRIPE_WEBHOOK_SECRET&&env.STRIPE_PRICE_ID&&env.STRIPE_PORTAL_CONFIGURATION&&env.BILLING_TERMS_URL&&env.BILLING_PRIVACY_URL&&env.BILLING_ENABLED==='true');
+  const portalConfigured=Boolean(env.STRIPE_SECRET_KEY?.trim() && env.STRIPE_PORTAL_CONFIGURATION?.trim());
   const origin='https://laultimapieza.es';
   async function stripe(path,values,idem){
-    if(!configured)throw new ApiError(503,'La contratación todavía no está abierta.','BILLING_UNAVAILABLE');
+    const portal=path==='billing_portal/sessions';
+    if(portal && !portalConfigured)throw new ApiError(503,'El portal de gestión de suscripciones no está disponible en este momento.','BILLING_PORTAL_UNAVAILABLE');
+    if(!portal && !configured)throw new ApiError(503,'La contratación todavía no está abierta.','BILLING_UNAVAILABLE');
     const response=await fetcher('https://api.stripe.com/v1/'+path,{method:values?'POST':'GET',headers:{Authorization:'Bearer '+env.STRIPE_SECRET_KEY,'Stripe-Version':'2026-10-28.endive',...(values?{'Content-Type':'application/x-www-form-urlencoded'}:{}),...(idem?{'Idempotency-Key':idem}:{})},...(values?{body:new URLSearchParams(values)}:{}),signal:AbortSignal.timeout(15000)});
+    if(portal && !response.ok)throw new ApiError(503,'No se ha podido abrir el portal de suscripciones. Inténtalo más tarde.','BILLING_PORTAL_UNAVAILABLE');
     if(!response.ok)throw new ApiError(503,'No podemos comprobar el pago ahora. Inténtalo de nuevo.','BILLING_UNAVAILABLE');
     return response.json();
   }
@@ -99,7 +115,7 @@ export function createBilling(env=process.env,fetcher=fetch){
   }
   return {
     configured,
-    publicConfig(){return {checkoutAvailable:configured,termsUrl:configured?env.BILLING_TERMS_URL:null,privacyUrl:configured?env.BILLING_PRIVACY_URL:null};},
+    publicConfig(){return {checkoutAvailable:configured,termsUrl:publicDocumentUrl(env.BILLING_TERMS_URL),privacyUrl:publicDocumentUrl(env.BILLING_PRIVACY_URL)};},
     async membership(store,uid,options){const {data,active,purchaseHeld}=await sync(store,uid,options);return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess:worldSeasonAccess(data,{active,purchaseHeld}),periodEnd:data.periodEnd||null,waitlist:!!data.waitlist,hasCustomer:!!data.customer};},
     async canPlay({store,uid,caseId}){const {data,active}=await sync(store,uid);if(active&&caseId&&caseId!=='habitacion-309'&&!releaseCalendar(data.cycles||[],data.claims||[]).unlockedCaseIds.includes(caseId))throw new ApiError(409,'Este caso está bloqueado. Cada pago mensual confirmado desbloquea los cuatro casos del siguiente bloque.','CASE_NOT_RELEASED');return active;},
     async claim(store,uid,caseId){
@@ -142,7 +158,13 @@ export function createBilling(env=process.env,fetcher=fetch){
       }
       return {url:result.url};
     },
-    async portal(store,uid){const data=await store.getMemberData(uid);if(!data.customer)throw new ApiError(409,'Todavía no tienes una suscripción.');return {url:(await stripe('billing_portal/sessions',{customer:data.customer,configuration:env.STRIPE_PORTAL_CONFIGURATION,return_url:origin+'/#perfil',locale:'es'})).url};},
+    async portal(store,uid){
+      const data=await store.getMemberData(uid,{readOnly:true});
+      if(!data.customer)throw new ApiError(409,'Todavía no tienes una suscripción.');
+      const session=await stripe('billing_portal/sessions',{customer:data.customer,
+        configuration:env.STRIPE_PORTAL_CONFIGURATION,return_url:origin+'/#perfil?seccion=cuenta',locale:'es'});
+      return {url:session.url};
+    },
     async webhook(request,withStore){
       const raw=await request.text();if(!configured||!validSignature(raw,request.headers.get('stripe-signature'),env.STRIPE_WEBHOOK_SECRET))return Response.json({error:'Firma no válida.'},{status:400});
       let event;try{event=JSON.parse(raw);}catch{return Response.json({error:'Evento no válido.'},{status:400});}
