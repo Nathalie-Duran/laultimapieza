@@ -16,6 +16,17 @@
 .colecciones-card strong {color:#fff1d3;font:400 clamp(1.8rem,3.2vw,3.4rem)/1.05 Georgia,serif;}
 .colecciones-card b {width:fit-content;color:#fae6b8;font:600 .9rem/1.5 var(--sans,system-ui,sans-serif);}
 .colecciones-card i {font-style:normal;padding-inline-start:.22rem;}
+.colecciones-card .colecciones-seal {font:500 .88rem/1.3 var(--sans,system-ui,sans-serif);color:#fff1cf;}
+.colecciones-atlas {margin-top:0;}
+.colecciones-atlas>header {max-width:66ch;margin:0 0 2rem;}
+.colecciones-atlas h1 {font:400 clamp(2.7rem,6.5vw,5.6rem)/1 Georgia,serif;letter-spacing:-.045em;margin:.2em 0;color:#fff1d7;}
+.colecciones-atlas>header p {color:#cfcbbf;line-height:1.65;}
+.colecciones-resumen {margin:1.2rem 0;padding:1rem 1.2rem;border:1px solid #53605c;border-radius:8px;color:#ece6d2;}
+.colecciones-resumen h2 {font-size:1.3rem;margin:0 0 .6rem;}
+.colecciones-resumen ul {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:.5rem 1.2rem;list-style:none;margin:0;padding:0;}
+.colecciones-resumen a {color:#f1d397;text-underline-offset:.2em;}
+.colecciones-resumen small {display:block;color:#d5d3c6;}
 .colecciones-card:hover b {text-decoration:underline;text-underline-offset:.2em;}
 .colecciones-nav a:focus-visible,.colecciones-card:focus-visible {outline:3px solid #ffe3a0;outline-offset:3px;}
 @media(max-width:640px){.colecciones-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.25rem;}.colecciones-nav a{padding:.45rem;}.colecciones-nav span{font-size:.82rem;}.colecciones-nav small{font-size:.59rem;letter-spacing:.035em;}.colecciones-home>div{grid-template-columns:1fr;gap:.6rem;}.colecciones-card{min-height:10rem;}}
+@media(max-width:640px){.colecciones-nav{grid-template-columns:repeat(2,minmax(0,1fr));}.colecciones-nav a{padding:.55rem .65rem;}.colecciones-nav small{font-size:.64rem;}}

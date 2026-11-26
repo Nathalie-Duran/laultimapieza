@@ -8,6 +8,36 @@
   --md-bg:#121820; --md-surface:#1b2630; --md-line:#51616c; --md-light:#f1eee6; --md-dim:#c3ced0;
   --md-accent:#b4d9d5; --md-deep:#1b3337; --md-ink:#edf0e9;
 }
+.md-world[data-md-world=necropolis],.md-game[data-md-world=necropolis] {
+  --md-bg:#102538;--md-surface:#193648;--md-line:#86734f;--md-light:#fff0cc;--md-dim:#e0d4bd;
+  --md-accent:#f3c66d;--md-deep:#132b3a;--md-ink:#f6ead6;
+}
+.md-world[data-md-world=necropolis] .md-atlas {
+  border:1px solid #b59b60;border-radius:.2rem;box-shadow:0 .55rem 1.6rem #0005;
+}
+.md-world[data-md-world=necropolis] .md-file,.md-game[data-md-world=necropolis] .md-game-intro {
+  background:linear-gradient(160deg,#22455a,#122b3b 70%);
+}
+.md-world[data-md-world=necropolis] .md-file figure {
+  border-bottom:3px double #bfa46b;
+}
+.md-world[data-md-world=necropolis] .md-pin-face {
+  width:76%;height:88%;border-radius:47% 47% .24rem .24rem;border:1px solid #f0d092;color:#fbe8b3;
+  background:linear-gradient(110deg,#304e61,#102836 65%);
+  box-shadow:inset 0 0 0 2px #263e49,inset 0 0 0 3px #ab8f59,0 2px 5px #160f0bcc;
+}
+.md-world[data-md-world=necropolis] .md-pin[aria-current=location] .md-pin-face {
+  color:#24271e;border-color:#fff0a8;background:linear-gradient(135deg,#ffe5a1 10%,#e0b269 85%);
+  box-shadow:inset 0 0 0 2px #8d6e3e,0 0 0 2px #24353c;
+  outline:2px solid #253646;outline-offset:1px;
+}
+.md-world[data-md-world=necropolis] .md-pin[data-md-complete=true]::before {
+  content:"";position:absolute;left:50%;bottom:79%;width:.86rem;height:.86rem;
+  transform:translateX(-50%);border-radius:50%;border:1px solid #fff0b7;
+  background:radial-gradient(circle at 40% 35%,#fff9c8,#ffcf62 50%,#b87524);
+  box-shadow:0 0 .55rem .12rem #f8ad59,0 0 1rem .2rem #e7b55a80;z-index:2;
+}
+.md-game.vd-player[data-md-world=necropolis] .vhour {--work-line:#7a775b;--work-paper:#f2e6c9;--work-ink:#213540;--work-teal:#305366;}
 .md-world *,.md-game *,.md-world *::before,.md-world *::after { box-sizing:border-box; }
 .md-world [hidden],.md-game [hidden]{display:none!important}
 .md-world :is(a,button,summary,[tabindex="0"]):focus-visible,.md-game :is(a,button,summary,input):focus-visible {

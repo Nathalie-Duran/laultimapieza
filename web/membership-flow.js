@@ -32,9 +32,9 @@ if(typeof document!=='undefined')document.addEventListener('submit',async event=
    const next=document.querySelector('.waiting-interest h3');if(next){next.tabIndex=-1;next.focus();}
  }catch(error){status.textContent=error.message||'No hay conexión. Vuelve a intentarlo.';button.disabled=false;}
 });
-const seasonNames=['Valdemar','El Tablero de Ámbar','Umbravía'];
-const seasonRoutes=['casos','expedicion','umbravia'];
-function adminCard(){return '<section class="account-card"><span class="club-kicker">ADMINISTRADORA</span><h2>Tu acceso editorial</h2><p>Puedes probar los 36 juegos de las tres temporadas y consultar el archivo clásico.</p>'+root.Colecciones.menu('')+'</section>';}
+const seasonNames=['Valdemar','El Tablero de Ámbar','Umbravía','La Necrópolis del Sol Velado'];
+const seasonRoutes=['casos','expedicion','umbravia','necropolis'];
+function adminCard(){return '<section class="account-card"><span class="club-kicker">ADMINISTRADORA</span><h2>Tu acceso editorial</h2><p>Puedes probar los 48 juegos de las cuatro temporadas y consultar el archivo clásico.</p>'+root.Colecciones.menu('')+'</section>';}
 function plans(){
  if(state.role==='admin')return adminCard();
  const access=state.seasonAccess;
@@ -61,7 +61,7 @@ function plans(){
    <header>
      <p class="cover-caption">Temporada 0${number} · ${name}</p>
      <h1>Cuatro misterios al mes.</h1>
-     <p class="season-intro">Empieza en Valdemar. Tras resolver sus doce juegos podrás seguir en El Tablero de Ámbar. Cuando completes esa expedición, se abrirá el camino a Umbravía.</p>
+     <p class="season-intro">Empieza en Valdemar. Tras resolver sus doce juegos podrás seguir en El Tablero de Ámbar. Después te esperan el pueblo encantado de Umbravía y las doce cámaras de la Necrópolis del Sol Velado. Cada tablero tiene su propio sello y epílogo.</p>
      ${current?.finishAccess && current.completed===12 && number>current.number ? '<p>Has completado '+seasonNames[current.number-1]+'. Su pase ya está abonado. Puedes volver a <a href="#'+seasonRoutes[current.number-1]+'">tus doce juegos</a> o contratar esta nueva temporada.</p>' : ''}
    </header>
    <div class="club-plan-grid">
@@ -71,7 +71,7 @@ function plans(){
        <p class="club-small offer-availability">${config.checkoutAvailable||held?'IVA incluido.':'Precio previsto, IVA incluido. La suscripción abrirá próximamente.'}</p>
        <p class="pass-benefit"><strong>Cuatro historias con cada pago mensual.</strong> Comparte la pantalla o juega a solas. Investiga audios, imágenes, documentos y archivos web, con un reto paralelo en cada historia.</p>
        <p class="postal-terms">${costText} ${cycles?'Puedes cancelar antes de la próxima renovación.':held?.finishAccess?'Puedes volver a los doce juegos desde tu cuenta.':'Cuando termines la temporada anterior se abrirán los juegos de este pase.'}</p>
-       <p>Recibes una única llave de bienvenida con tu primer pase. Cada reto superado por primera vez da otra llave. Una llave abre un sobre con dos ayudas.</p>
+       <p>Recibes una llave al contratar cada nueva suscripción. La bienvenida se entrega una vez por suscripción. Cada reto superado por primera vez da otra llave. Una llave abre un sobre con dos ayudas.</p>
        ${action}
      </article>
      <div class="club-plan-aside">
@@ -81,7 +81,7 @@ function plans(){
          <a class="text-link" href="#${route}">Explorar los 12 juegos</a>
        </article>
        <div class="plan-faq">
-         <details><summary>¿Cómo se abren los juegos?</summary><p>Cada cuota mensual abre cuatro juegos de la misma temporada. Una temporada tiene tres bloques. Para acceder a la siguiente debes guardar el desenlace de los doce juegos y contratar su pase.</p></details>
+         <details><summary>¿Cómo se abren los juegos?</summary><p>Cada cuota mensual abre cuatro juegos de la misma temporada. Una temporada tiene tres bloques. Para acceder a la siguiente debes guardar el desenlace de los doce juegos y contratar el pase siguiente. El duodécimo desenlace completa el sello de ese tablero.</p></details>
          <details><summary>¿Y si me falta un juego al terminar el pase?</summary><p>Si ya abonaste los tres bloques, puedes terminar los juegos pendientes de esa temporada. Tú decides cuándo contratar la siguiente. Si cancelas antes del tercer bloque, podrás jugar hasta el final del periodo pagado y retomar los bloques pendientes más adelante.</p></details>
        </div>
        <button class="button plan-demo" data-action="preview-open">Jugar gratis a Clínica Vallejo</button>

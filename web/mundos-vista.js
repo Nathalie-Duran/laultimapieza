@@ -4,6 +4,8 @@
   const editions = {
     expedicion: {
       number:2, offset:12, title:'El Tablero de Ámbar', short:'Tablero de Ámbar',
+      genre:'Aventuras',station:'Casilla',count:'expediciones',progress:'expediciones completadas',done:'Expedición completada.',notebook:'Cuaderno de campo',
+      previous:{from:'de Valdemar',back:'Volver a Valdemar',href:'#casos'},
       image:'/expedicion-tablero.webp', imageAlt:'Tablero de expedición tallado en madera, con un recorrido entre doce destinos.',
       intro:'Una barquera ha perdido su valija. En la montaña, un observatorio ha perdido el norte. Coloca el peón donde quieras empezar.',
       boardLabel:'Tablero de las doce expediciones', index:'Índice de expediciones',
@@ -12,11 +14,23 @@
     },
     umbravia: {
       number:3, offset:24, title:'Umbravía', short:'Umbravía',
+      genre:'Terror psicológico',station:'Lugar',count:'lugares',progress:'faroles encendidos',done:'Caso resuelto, farol encendido.',notebook:'Archivo del pueblo',
+      previous:{from:'del Tablero de Ámbar',back:'Volver al Tablero de Ámbar',href:'#expedicion'},
       image:'/umbravia-pueblo.webp', imageAlt:'Vista ilustrada de Umbravía al anochecer, con doce lugares que se pueden investigar.',
       intro:'En el cine, una silueta aparece sobre una pantalla desconectada. Elige un edificio para investigar. Cada caso resuelto enciende un farol.',
       boardLabel:'Plano del pueblo encantado de Umbravía', index:'Directorio del pueblo',
       selectLabel:'Localizar', launch:'Entrar en el caso', returnLabel:'Volver al pueblo',
       positions:[[14,26],[37,19],[58,23],[84,25],[14,49],[34,41],[59,46],[85,45],[13,74],[36,67],[60,70],[84,68]]
+    },
+    necropolis: {
+      number:4,offset:36,title:'La Necrópolis del Sol Velado',short:'La Necrópolis',
+      genre:'Aventuras en el antiguo Egipto',station:'Cámara',count:'cámaras',progress:'sellos iluminados',done:'Cámara resuelta, sello iluminado.',notebook:'Cuaderno de excavación',
+      previous:{from:'de Umbravía',back:'Volver a Umbravía',href:'#umbravia'},
+      image:'/necropolis-egipto.webp',imageAlt:'Sección de una necrópolis egipcia con doce cámaras distribuidas en tres niveles.',
+      intro:'Bajo la arena se abren doce cámaras. Elige un umbral para examinar sus vestigios. Cada misterio resuelto ilumina un sello.',
+      boardLabel:'Sección de la Necrópolis del Sol Velado',index:'Directorio de las cámaras',
+      selectLabel:'Explorar',launch:'Entrar en la cámara',returnLabel:'Volver a la necrópolis',
+      positions:[[13,20],[37,20],[62,20],[85,20],[13,50],[37,50],[62,50],[85,50],[13,78],[37,78],[62,78],[85,78]]
     }
   };
   const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -58,11 +72,10 @@
   }
   function accessMarkup(edition,item,allowed,completed,status) {
     if(allowed)return `<a class="md-cta" href="#mundos-jugar?id=${item.id}">${completed?'Ver mi desenlace':edition.launch} <span aria-hidden="true">→</span></a>`;
-    const prev=edition.number===2?'Valdemar':'El Tablero de Ámbar';
     const block=Math.ceil((item.id-edition.offset)/4);
     const info=status?.previousReady ? 'Este caso se abre con la mensualidad '+block+' de esta temporada.' :
-      'Completa los doce casos de '+prev+' para acceder. '+(status?'Llevas '+status.previousCompleted+' de 12. ':'')+'Después se habilitan cuatro por mensualidad.';
-    return `<p class="md-locked-note">${esc(info)}</p><a class="md-cta md-cta-secondary" href="${status?.previousReady?'#planes':edition.number===2?'#casos':'#expedicion'}">${status?.previousReady?'Consultar mi pase':'Volver a '+prev} <span aria-hidden="true">→</span></a>`;
+      'Completa los doce casos '+edition.previous.from+' para acceder. '+(status?'Llevas '+status.previousCompleted+' de 12. ':'')+'Después se habilitan cuatro por mensualidad.';
+    return `<p class="md-locked-note">${esc(info)}</p><a class="md-cta md-cta-secondary" href="${status?.previousReady?'#planes':edition.previous.href}">${status?.previousReady?'Consultar mi pase':edition.previous.back} <span aria-hidden="true">→</span></a>`;
   }
   function view(world,options={}) {
     const {edition,candidates,item}=boardData(world);
@@ -72,14 +85,14 @@
     const enlarged=old?.querySelector('.md-map-window')?.dataset.zoom==='true';
     const open=old?.querySelector('.md-directory')?.open;
     const allowed=options.admin===true || options.role==='admin' || options.membership?.role==='admin';
-    const placeType=world==='expedicion'?'Casilla':'Lugar';
+    const placeType=edition.station;
     return `<section class="md-world" data-md-world="${world}" data-md-selected="${item.id}" data-md-editor="${allowed}" aria-labelledby="md-world-title">
-      <header class="md-mast"><div><p class="md-caption">Temporada ${number(edition.number)} · ${world==='expedicion'?'Aventuras':'Terror psicológico'}</p><h1 id="md-world-title">${esc(edition.title)}</h1></div><div class="md-mast-end"><p>${esc(edition.intro)}</p></div></header>
+      <header class="md-mast"><div><p class="md-caption">Temporada ${number(edition.number)} · ${esc(edition.genre)}</p><h1 id="md-world-title">${esc(edition.title)}</h1></div><div class="md-mast-end"><p>${esc(edition.intro)}</p></div></header>
       <div class="md-atlas"><div class="md-board">
         <div class="md-map-window" data-zoom="${!!enlarged}" role="region" tabindex="0" aria-label="${esc(edition.boardLabel)}"><div class="md-surface">
           <img class="md-map-art" src="${edition.image}" width="1536" height="1024" alt="${esc(edition.imageAlt)}" fetchpriority="high">
           ${world==='expedicion'?trail(edition.positions):''}<div class="md-pins">${candidates.map(v=>pin(edition,world,v,item.id)).join('')}</div></div></div>
-        <div class="md-board-tools"><span class="md-board-status" data-md-progress>${world==='expedicion'?'12 expediciones':'12 lugares'}</span>${world==='expedicion'?'<button type="button" class="md-roll" aria-describedby="md-roll-note" disabled>Mover el peón</button>':''}<button type="button" class="md-zoom" aria-pressed="${!!enlarged}">${enlarged?'Ver completo':'Ampliar'}</button></div>${world==='expedicion'?'<p id="md-roll-note" class="md-board-note" aria-live="polite"></p>':''}</div>
+        <div class="md-board-tools"><span class="md-board-status" data-md-progress>12 ${esc(edition.count)}</span>${world==='expedicion'?'<button type="button" class="md-roll" aria-describedby="md-roll-note" disabled>Mover el peón</button>':''}<button type="button" class="md-zoom" aria-pressed="${!!enlarged}">${enlarged?'Ver completo':'Ampliar'}</button></div>${world==='expedicion'?'<p id="md-roll-note" class="md-board-note" aria-live="polite"></p>':''}</div>
         <article class="md-file" id="md-file" aria-labelledby="md-case-title"><figure><img src="/mundo-${item.id}.webp" width="768" height="512" alt="" decoding="async"><figcaption>${esc(placeType)} ${number(local)}</figcaption></figure><div class="md-file-copy">
           <p class="md-caption">${esc(item.place)}</p><h2 id="md-case-title" tabindex="-1">${esc(item.title)}</h2><p class="md-question">${esc(item.question)}</p>
           <p class="md-facts"><span>≈ 60 min</span><span>1–2 personas</span><span>Bloque ${Math.ceil(local/4)} de 3</span></p>
@@ -109,7 +122,7 @@
     else if(key==='Home')target=pins[0]; else if(key==='End')target=pins.at(-1); else return;
     event.preventDefault();center(event.currentTarget.querySelector('.md-map-window'),target);target.focus({preventScroll:true});
   }
-  function mount(world,bridge) {
+  function mount(world,bridge,access) {
     const node=document.querySelector('.md-world[data-md-world="'+world+'"]');
     if(!node || board?.element===node)return;
     const local={world,element:node};board=local;
@@ -156,17 +169,17 @@
     if(intent?.hash===location.hash) {intent=null;focusFile(node);}
     else intent=null;
     if(!bridge?.isSignedIn?.())return;
-    bridge.request('/api/valdemar/seasons').then(data=>{
+    (access||bridge.request('/api/valdemar/seasons')).then(data=>{
       if(board!==local || !node.isConnected || !bridge.isSignedIn())return;
       const done=new Set(data.completed || []);
       for(const link of node.querySelectorAll('[data-md-id]')){
         if(done.has(Number(link.dataset.mdId))){
           link.dataset.mdComplete='true';
-          if(link.dataset.mdWay==='pin')link.setAttribute('aria-label',link.getAttribute('aria-label')+(world==='umbravia'?'. Caso resuelto, farol encendido.':'. Expedición completada.'));
+          if(link.dataset.mdWay==='pin')link.setAttribute('aria-label',link.getAttribute('aria-label')+'. '+edition.done);
         }
       }
       const count=destinations.filter(v=>done.has(v.id)).length;
-      node.querySelector('[data-md-progress]').textContent=count+' de 12 '+(world==='expedicion'?'expediciones completadas':'faroles encendidos');
+      node.querySelector('[data-md-progress]').textContent=count+' de 12 '+edition.progress;
       const status=data.seasons?.find(season=>season.number===edition.number);
       const available=new Set(data.availableCases || []);
       node.querySelector('.md-access').innerHTML=accessMarkup(edition,item,available.has(id),done.has(id),status);
@@ -175,5 +188,5 @@
       updateRoll(ready,ready.length?suggestion+'El peón elige una expedición abierta que aún no has terminado.':exhausted?'Has completado todas tus expediciones abiertas.':'El peón estará disponible al desbloquear esta temporada.');
     }).catch(()=>{if(board===local)updateRoll([],'No se ha podido consultar qué expediciones tienes abiertas.');});
   }
-  window.Mundos={view,mount,story,route,nameOf};
+  window.Mundos={view,mount,story,route,nameOf,edition:world=>editions[world]};
 })();

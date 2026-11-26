@@ -40,7 +40,7 @@
   }
   function list(opts={}) {
     const month=[1,2,3].includes(Number(opts.month))?Number(opts.month):1;
-    return `<section class="vd-section vd-list"><header class="vd-head"><div><p class="vd-label">Valdemar · Temporada 1</p><h1>Las doce historias</h1><p class="vd-intro">Cuatro misterios cada mes para jugar a solas o compartir pantalla. ¿Por dónde empiezas?</p></div><a class="vd-textlink" href="/#mapa?mes=${month}">Explorar el mes en el plano</a></header><nav class="vd-months" aria-label="Mes de la temporada">${[1,2,3].map(n=>`<a href="/#casos?mes=${n}"${month===n?' aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><h2 class="vd-group" tabindex="-1">Las historias del mes ${month}</h2>${cards(month)}<p class="vd-foot"><a href="/#archivo-clasico">Visitar el archivo de casos anteriores</a></p></section>`;
+    return `<section class="vd-section vd-list"><header class="vd-head"><div><p class="vd-label">Valdemar · Temporada 1</p><h1>Las doce historias de Valdemar</h1><p class="vd-intro">Cuatro misterios cada mes para jugar a solas o compartir pantalla. ¿Por dónde empiezas?</p></div><a class="vd-textlink" href="/#mapa?mes=${month}">Explorar el mes en el plano</a></header><nav class="vd-months" aria-label="Mes de la temporada">${[1,2,3].map(n=>`<a href="/#casos?mes=${n}"${month===n?' aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><h2 class="vd-group" tabindex="-1">Las historias del mes ${month}</h2>${cards(month)}<p class="vd-foot"><a href="/#archivo-clasico">Visitar el archivo de casos anteriores</a></p></section>`;
   }
   function entry(item,opts,unlocked) {
     const href=unlocked?'/#valdemar-jugar?id='+item.id:'/#planes';

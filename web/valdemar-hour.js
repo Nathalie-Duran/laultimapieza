@@ -231,6 +231,12 @@
     node.addEventListener('toggle',()=>{if(!node.open && state.voice && node.contains(state.voice.button))stopVoice(state);});
     return node;
   }
+  const shelfFilters=new WeakMap();
+  function filterByRole(root,role) {
+    for(const shelf of root.querySelectorAll('.vhour-shelf')){
+      if(shelf.dataset.roleFilter!==(role||'all'))shelfFilters.get(shelf)?.(role);
+    }
+  }
   function proofShelf(items,state) {
     const shelf=el('div',null,'vhour-shelf');
     const tools=el('div',null,'vhour-shelf-tools');
@@ -254,14 +260,14 @@
     }
     if(items.some(m=>m.role==='A'||m.role==='B')) {
       for (const [role,label] of [['','Todas las pruebas'],['A','Papel 1'],['B','Papel 2']]){
-        const b=control(label,()=>select(role));buttons.push({role,button:b});filters.append(b);
+        const b=control(label,()=>select(role));b.dataset.vhourRole=role||'all';buttons.push({role,button:b});filters.append(b);
       }
       tools.append(filters);
     }
     shelf.append(tools);
     const stack=el('div',null,'vhour-stack');
     stack.append(...records.map(r=>r.card));shelf.append(stack);
-    select('');
+    shelfFilters.set(shelf,select);select('');
     return shelf;
   }
   function corroborationField(spec,sources,onChange) {
@@ -559,5 +565,5 @@
     render(hour);
     return {update:next=>render(next),pause:()=>stopVoice(state)};
   }
-  window.ValdemarHour={mount,proofShelf,decision,stopVoice};
+  window.ValdemarHour={mount,proofShelf,decision,stopVoice,filterByRole};
 })();

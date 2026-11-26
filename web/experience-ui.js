@@ -69,7 +69,7 @@ function coverStory(m) {
 function homeSeasonOffer(m) {
  const held=m.membership?.seasonAccess?.seasons?.filter(s=>s.paidBlocks.length).at(-1);
  if(held){
-   const route=['casos','expedicion','umbravia'][held.number-1];
+   const route=['casos','expedicion','umbravia','necropolis'][held.number-1];
    const name=held.number===1?'Valdemar':root.Mundos.nameOf(route);
    return `<section class="season-strip vh-member-map"><div><h2>Tu colección de ${esc(name)}</h2><p>${held.completed} de 12 juegos terminados. ${held.finishAccess?'Has abonado los tres bloques de esta temporada.':'Tienes '+held.paidBlocks.length+' de 3 bloques abonados.'}</p></div><a class="shelf-link" href="#${route}">Ver mis juegos</a></section>`;
  }
@@ -77,8 +77,8 @@ function homeSeasonOffer(m) {
  const open=root.ClubAccess?.checkoutAvailable===true;
  const label=open?'Ver la suscripción':m.membership?.waitlist?'Ver mi aviso de apertura':'Avísame cuando abra';
  return `<section class="vh-offer" aria-labelledby="vh-offer-title">
-   <div><p class="cover-caption">La suscripción · Temporada 01</p><h2 id="vh-offer-title">Doce historias en Valdemar.</h2>
-   <p>Cuatro historias cada mes para investigar a solas o compartir pantalla. Recibes una llave al contratar y puedes ganar más con los retos paralelos.</p></div>
+   <div><p class="cover-caption">La suscripción · Temporada 01</p><h2 id="vh-offer-title">El viaje empieza en Valdemar.</h2>
+   <p>Cada cuota abre cuatro juegos. Al completar los doce de un tablero reúnes su sello y puedes contratar la temporada siguiente. Una llave de bienvenida y los retos paralelos te dan acceso a las ayudas.</p></div>
    <div class="vh-terms"><p class="vh-price"><strong>29,95 €</strong><span>/mes</span></p><p class="vh-offer-note">${open?'IVA incluido':'Precio previsto · Próxima apertura'}</p><a href="#planes" class="button primary">${label}</a></div>
  </section>`;
 }
@@ -87,7 +87,7 @@ function home(m){
  const cases=season(m);
  const latest=(m.sessions||[]).find(s=>s.status!=='finished'&&s.members.some(p=>p.userId===m.userId));
  const resumed=latest&&(m.stories||[]).find(s=>s.id===latest.caseId);
- const returning=m.userId?`<section class="return-strip"><div><span class="ui-kicker">Tu investigación</span><h2>${resumed?esc(resumed.title):'Tu plano del archivo clásico'}</h2><p>${resumed?latest.history.length+' decisiones completadas':count(m)+' de 12 piezas recuperadas'}</p></div>${resumed&&m.canPlay?`<button class="button primary" data-action="resume" data-id="${esc(latest.id)}">Continuar mi partida</button>`:'<a class="button" href="#mapa-clasico">Abrir el plano clásico</a>'}</section>`:'';
+ const returning=m.userId?`<section class="return-strip"><div><span class="ui-kicker">Tu investigación</span><h2>${resumed?esc(resumed.title):'Tus tableros de temporada'}</h2><p>${resumed?latest.history.length+' decisiones completadas':'Cada juego que terminas recupera una pieza del sello de su tablero.'}</p></div>${resumed&&m.canPlay?`<button class="button primary" data-action="resume" data-id="${esc(latest.id)}">Continuar mi partida</button>`:'<a class="button" href="#tableros">Explorar mis tableros</a>'}</section>`:'';
  return `${returning}${coverStory(m)}
  <div class="cover-tail vh-tail">${shareBox({title:'Clínica Vallejo'},'/vallejo.html')}</div>
  ${root.ValdemarCatalog ? root.ValdemarCatalog.home({canPlay:m.canPlay,admin:m.membership?.role==='admin'}) : ''}

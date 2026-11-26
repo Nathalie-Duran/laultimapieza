@@ -50,12 +50,109 @@
   const directionNames=['norte','este','sur','oeste'];
   const numerals=['cero','un','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez'];
   function numberOf(s) {return /^\d+$/.test(s)?Number(s):numerals.indexOf(s);}
+  function surveyChart(source){
+    if(!/se suceden|marca inicial|filas [a-z][–-][a-z]|flecha a la|fotos del reverso|pulsos numerados|alturas relativas|puertas luminosas en los postigos/i.test(source))return null;
+    const chart=canvas(288,148);
+    if(!chart)return null;
+    const {c,el}=chart;
+    const lapis='#224f69',ochre='#9b572c',ink='#263b43';
+    function line(x,y,xx,yy,color=lapis,width=2){
+      c.strokeStyle=color;c.lineWidth=width;c.beginPath();c.moveTo(x,y);c.lineTo(xx,yy);c.stroke();
+    }
+    function label(text,x,y,align='center'){
+      c.fillStyle=ink;c.textAlign=align;c.textBaseline='middle';c.font='bold 12px system-ui';c.fillText(text,x,y);
+    }
+    function point(x,y,color,r=5){c.fillStyle=color;c.beginPath();c.arc(x,y,r,0,2*Math.PI);c.fill();}
+    const route=source.match(/de (sur|norte) a (sur|norte) se suceden ([^,.]{1,18}), ([^,.]{1,18}) y ([^.]{1,18})\./i);
+    const readings=[...source.matchAll(/ensayo ([\p{L}]+): marca inicial (\d+), final (\d+)/giu)];
+    const grid=source.match(/filas ([A-Z])[–-]([A-Z]) de arriba abajo y columnas (\d+)[–-](\d+) de izquierda a derecha/i);
+    const samples=[...source.matchAll(/\b([A-Z]) = ((?:larga|corta|doble)(?:, (?:larga|corta|doble))+?) \(flecha a la (izquierda|derecha)\)/g)];
+    const backs=[...source.matchAll(/\b([A-Z]) \(grieta (derecha|izquierda) (arriba|abajo), gota (derecha|izquierda) (arriba|abajo)\)/g)];
+    const pulses=source.match(/pulsos numerados (\d+) a (\d+)\. Se oyen golpes en ([\d, y]+)\./i);
+    const levels=source.match(/de izquierda a derecha: ([^,.]+), ([^,.]+), ([^.]+)\. Sobre la línea del agua sus alturas relativas son (\d+), (\d+) y (\d+) divisiones/i);
+    const panels=[...source.matchAll(/([\p{L}]+) \((\d+) (izquierda|central|derecha) \+ (\d+) (izquierda|central|derecha)\)/gu)];
+    if(route){
+      const stops=route.slice(3),northbound=route[1].toLowerCase()==='sur';
+      line(50,22,50,127);label('N',50,10);label('S',50,138);
+      stops.forEach((name,i)=>{const y=northbound?112-i*38:36+i*38;point(50,y,ochre);line(56,y,85,y);label(name.trim(),95,y,'left');});
+    }else if(readings.length>=2){
+      const max=Math.max(...readings.flatMap(r=>r.slice(2).map(Number)));if(max<=0||max>100)return null;
+      readings.forEach((r,i)=>{
+        const y=33+i*50,x=v=>84+Number(v)/max*168;
+        label(r[1],5,y,'left');line(84,y,252,y,'#adac93');
+        for(let k=0;k<=max;k++)line(x(k),y-3,x(k),y+3,'#9f9d90',1);
+        for(const [j,word] of ['inicio','final'].entries()){
+          const value=r[j+2];point(x(value),y,j?ochre:lapis);label(word+' '+value,x(value),y+(j?15:-15));
+        }
+      });
+    }else if(grid){
+      const first=grid[1].charCodeAt(0),last=grid[2].charCodeAt(0),low=Number(grid[3]),high=Number(grid[4]);
+      const red=source.match(/señal roja está en ([A-Z]\d+)/i),set=source.match(/puntos marcados:\s*([A-Z\d, y]+)\./i);
+      if(!red||!set||last<first||last-first>8||high<low||high-low>8)return null;
+      const dots=new Set(set[1].match(/[A-Z]\d+/g)),dy=96/(last-first+1),dx=181/(high-low+1);
+      for(let y=first;y<=last;y++)for(let x=low;x<=high;x++){
+        const xx=65+(x-low)*dx,yy=24+(y-first)*dy,k=String.fromCharCode(y),id=k+x;
+        c.strokeStyle='#9c945f';c.lineWidth=1;c.strokeRect(xx,yy,dx,dy);
+        if(x===low)label(k,xx-12,yy+dy/2);if(y===first)label(x,xx+dx/2,yy-12);
+        if(dots.has(id))point(xx+dx/2,yy+dy/2,lapis);
+        if(id===red[1]){c.fillStyle='#9c3b35';c.fillRect(xx+dx/2-5,yy+dy/2-5,10,10);}
+      }
+      label('●  Puntos marcados     ■  Señal roja',144,136);
+    }else if(samples.length){
+      samples.forEach((r,i)=>{
+        const y=23+i*40;label(r[1],14,y);
+        r[2].split(', ').forEach((shape,j)=>{
+          const x=48+j*54;
+          if(shape==='doble'){line(x-3,y-8,x-3,y+8);line(x+3,y-8,x+3,y+8);}
+          else {const h=shape==='larga'?13:6;line(x,y-h,x,y+h,lapis,3);}
+        });
+        const right=r[3]==='derecha',tip=right?262:205;
+        line(205,y,262,y,ochre);line(tip,y,tip+(right?-7:7),y-5,ochre);line(tip,y,tip+(right?-7:7),y+5,ochre);
+      });
+    }else if(backs.length){
+      backs.forEach((r,i)=>{
+        const x=22+i*66;label(r[1],x+22,30);
+        c.lineWidth=1;c.strokeStyle=lapis;c.strokeRect(x,48,45,54);
+        const at=(side,edge)=>[x+(side==='derecha'?35:10),edge==='arriba'?59:91];
+        const [cx,cy]=at(r[2],r[3]),[vx,vy]=at(r[4],r[5]);
+        line(cx-3,cy-6,cx+2,cy,ochre);line(cx+2,cy,cx-2,cy+6,ochre);point(vx,vy,lapis,4);
+      });
+      label('Grieta   ϟ       Gota   ●',144,125);
+    }else if(levels){
+      const names=levels.slice(1,4),heights=levels.slice(4).map(Number),maximum=Math.max(...heights);
+      if(maximum<=0||maximum>16)return null;
+      const base=112,step=83/maximum;line(18,base,270,base,lapis,2);
+      for(let i=1;i<=maximum;i++)line(18,base-i*step,270,base-i*step,'#c5b9a0',1);
+      names.forEach((name,i)=>{const x=49+i*91,y=base-heights[i]*step;line(x,base,x,y,'#99917f',1);point(x,y,ochre,5);label(heights[i],x+12,y);label(name,x,132);});
+    }else if(panels.length===4){
+      const columns=['izquierda','central','derecha'],indices=[...new Set(panels.flatMap(p=>[Number(p[2]),Number(p[4])]))].sort((a,b)=>a-b);
+      if(indices.length>4)return null;
+      panels.forEach((sample,i)=>{
+        const x=27+65*i;label(sample[1],x+22,30);
+        for(const [j,n] of indices.entries())for(const [k,column] of columns.entries()){
+          const xx=x+15*k,yy=53+20*j;
+          c.strokeStyle='#998b74';c.lineWidth=1;c.strokeRect(xx,yy,15,20);
+          if(i===0&&k===0)label(n,xx-13,yy+10);
+          if(n===Number(sample[2])&&column===sample[3]||n===Number(sample[4])&&column===sample[5])point(xx+7.5,yy+10,ochre,4);
+        }
+      });
+      label('Ventanas registradas en los postigos',144,127);
+    }else if(pulses){
+      const a=Number(pulses[1]),b=Number(pulses[2]);if(b<a||b-a>15)return null;
+      const struck=new Set(pulses[3].match(/\d+/g).map(Number)),step=252/(b-a+1);
+      for(let n=a;n<=b;n++){const x=18+(n-a+.5)*step;label(n,x,107);line(x,83,x,90);if(struck.has(n))point(x,68,lapis,7);}
+      line(18,86,270,86);label('Golpes registrados',144,33);
+    }else return null;
+    const wrap=node('div','ml-survey');wrap.append(el);return wrap;
+  }
   function specimenChart(source) {
+    const survey=surveyChart(source);if(survey)return survey;
     const clean=source.toLowerCase(),symbols=[];
     let caption='';
     // Only plot relations explicitly recorded by the author, never solve or infer a missing value.
     const exposures=[...clean.matchAll(/(\d+)\s*h\s*:\s*(?:dirección\s+)?(norte|este|sur|oeste)\s*,\s*(\d+)\s+losas/g)];
     const vents=[...source.matchAll(/(?:^|[.]\s+)([^.\n:]{1,24}):\s*boca\s+(?:hacia\s+)?(norte|este|sur|oeste)\s*,\s*(abierta|cerrada)/gi)];
+    const measuredVents=[...source.matchAll(/(?:^|[.]\s+)([^.\n:]{1,24}):\s*(\d+),\s*boca al (norte|este|sur|oeste),\s*([^.;]+)/gi)];
     const petals=clean.match(/(\d+|un|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez) pétalos,?\s+(\d+|un|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)[^.]+?muesca/);
     const range=clean.match(/escala circular (\d+)\s*[–—-]\s*(\d+)/);
     const first=clean.match(/punto inicial\s+(\d+)/);
@@ -65,6 +162,8 @@
       for(const [,time,distanceDir,length] of exposures)symbols.push({label:time+' h',dir:distanceDir,len:Number(length),annotation:length+' losas'});
     }else if(vents.length>=2){
       for(const [,name,dir,gate] of vents)symbols.push({label:name.trim(),dir:dir.toLowerCase(),annotation:gate});
+    }else if(measuredVents.length>=2){
+      for(const [,name,value,dir,gate] of measuredVents)symbols.push({label:name.trim()+' · '+value,dir:dir.toLowerCase(),annotation:gate});
     }else if(levels.length>1 && /desde el fondo/.test(clean)){
       const p=canvas(310,210);if(!p)return null;
       const g=p.c,bottom=178,top=20,axis=44;
@@ -180,19 +279,44 @@
     const t=node('table','ml-table'),body=node('tbody');
     const columns=Math.max(...rows.map(r=>r.length));
     const numberUnits=/^(-?\d+(?:[.,]\d+)?)\s*(kg|g|cm|mm|m|min|s|h|vueltas|unidades)$/i;
+    const numericColumns=rows[0].map((h,i)=>/^(?:altura de la |dedos a )/i.test(h)?i:-1).filter(i=>i>=0);
+    const recorded=rows.slice(1).flatMap(row=>numericColumns.map(i=>Number(row[i])));
+    const maxHeight=recorded.length&&recorded.every(v=>Number.isFinite(v)&&v>=0)?Math.max(...recorded):0;
+    const slots=rows.map(row=>row[1]?.match(/^tapa (\d+) y (\d+)$/i));
+    const slotCount=slots.length>=2&&slots.every(Boolean)?Math.max(...slots.flatMap(s=>s.slice(1).map(Number))):0;
     const scales=Array.from({length:columns},(_,i)=>{
       const values=rows.map(r=>r[i]?.trim().match(numberUnits)).filter(Boolean);
       if(values.length<2||values.length<rows.length-1||values.some(x=>x[2].toLowerCase()!==values[0][2].toLowerCase()))return null;
       const nums=values.map(x=>Number(x[1].replace(',','.')));
       return Math.min(...nums)>=0?Math.max(...nums):null;
     });
-    rows.forEach(row=>{
+    rows.forEach((row,rowIndex)=>{
       const tr=node('tr');
       row.forEach((value,i)=>{
         const cell=node(i===0?'th':'td');
         if(i===0)cell.scope='row';
         const ink=marks(value);
         if(ink)cell.append(ink);
+        if(slotCount>0&&slotCount<=12&&i===1){
+          const p=canvas(slotCount*16+4,17);
+          if(p){p.el.className='ml-window-strip';p.c.lineWidth=1.5;for(let n=1;n<=slotCount;n++){
+            const x=3+(n-1)*16,covered=slots[rowIndex].slice(1).includes(String(n));
+            p.c.strokeStyle='#31586a';p.c.strokeRect(x,3,11,11);if(covered){p.c.fillStyle='#31586a';p.c.fillRect(x,3,11,11);}
+          }cell.append(p.el);}
+        }
+        if(numericColumns.includes(i)&&rowIndex>0&&maxHeight>0){
+          const bar=node('i','ml-measure');bar.style.width=Number(value)/maxHeight*100+'%';bar.setAttribute('aria-hidden','true');cell.append(bar);
+        }
+        if(/^(rombo|círculo|óvalo|media luna)$/i.test(value)){
+          const p=canvas(40,28);
+          if(p){
+            p.el.className='ml-glyph';const g=p.c;g.strokeStyle='#31586a';g.lineWidth=2;g.beginPath();
+            if(value==='rombo'){g.moveTo(20,3);g.lineTo(34,14);g.lineTo(20,25);g.lineTo(6,14);g.closePath();}
+            else if(value==='media luna'){g.moveTo(29,4);g.bezierCurveTo(1,-3,1,32,29,24);g.bezierCurveTo(13,23,13,6,29,4);}
+            else g.ellipse(20,14,value==='óvalo'?16:10,10,0,0,2*Math.PI);
+            g.stroke();cell.append(p.el);
+          }
+        }
         cell.append(node('span',null,value));
         const match=value.trim().match(numberUnits);
         if(scales[i]&&match){
@@ -272,7 +396,7 @@
     dialog.showModal();close.focus();
   }
   function enhance(root,world) {
-    if(!root||!['expedicion','umbravia'].includes(world))return;
+    if(!root||!['expedicion','umbravia','necropolis'].includes(world))return;
     for(const figure of root.querySelectorAll('.vhour-material[data-kind="visual"] .vhour-plate:not([data-ml-ready])')){
       const data=extract(figure);if(!data)continue;
       const card=figure.closest('.vhour-material');

@@ -13,7 +13,7 @@ document.addEventListener('click',async event=>{
   if(action==='billing-checkout'||action==='billing-portal'){
    const path=action==='billing-portal'||root.ClubAccess.state.ownAccess?'portal':'checkout';
    const season=Number(button.dataset.season);
-   const payload=path==='checkout'&&[1,2,3].includes(season)?{season}:{};
+   const payload=path==='checkout'&&[1,2,3,4].includes(season)?{season}:{};
    const r=await bridge.request('/api/billing/'+path,payload),url=new URL(r.url);
    if(url.protocol!=='https:'||!['checkout.stripe.com','billing.stripe.com'].includes(url.hostname))throw new Error('No se ha podido abrir el pago seguro.');
    location.assign(url.href);

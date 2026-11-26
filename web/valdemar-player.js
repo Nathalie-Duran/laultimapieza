@@ -55,6 +55,7 @@
     if (!active) return;
     const previous = active;
     active = null;
+    previous.modeControl?.destroy();
     previous.hourView?.pause();
     pauseAudio(previous.frame);
     previous.frame?.remove();
@@ -142,7 +143,7 @@
       selected=role;
       for(const b of roleBar.querySelectorAll('button'))b.setAttribute('aria-pressed',String(Number(b.dataset.role)===role));
       privateArea.replaceChildren();
-      const label=role===0?story.solo:story.roles?.[role-1];
+      const label=role===0?(c.modeControl?.mode==='solo'?'Aquí están los documentos de ambos papeles.':story.solo):story.roles?.[role-1];
       if(label)privateArea.append(element('p',label,'vd-note'));
       const cards=(story.evidenceCards||[]).filter(card=>role===0 || Number(card.role)===role);
       for (const card of cards) {
@@ -151,9 +152,16 @@
         privateArea.append(fold);
       }
     }
+    c.showModePaper=paper=>{
+      const role=paper==='A'?1:paper==='B'?2:0;
+      if(selected!==role)reveal(role);
+    };
     ['Papel 1','Papel 2','En solitario'].forEach((name,i)=>{
       const role=i===2?0:i+1;
-      const b=button(name,()=>{if(selected!==role)reveal(role);});
+      const b=button(name,()=>{
+        if(c.modeControl?.mode==='duo' && role)c.modeControl.setPaper(role===1?'A':'B');
+        else if(selected!==role)reveal(role);
+      });
       b.dataset.role=String(role);b.setAttribute('aria-pressed','false');roleBar.append(b);
     });
     privateArea.append(element('p','Elige tu carpeta para ver qué sabe tu personaje. En solitario puedes consultar las dos.','vd-note'));
@@ -364,7 +372,8 @@
     c.balance.setAttribute('aria-live','polite');
     headlinks.append(link('Todas las historias',c.catalog,'vd-link'),c.balance);
     const description=element('div',null,'vd-intro-copy');
-    description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title),element('p',story.question,'vd-question'));
+    c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,mode=>request(c,'mode',{mode}),paper=>c.showModePaper?.(paper));
+    description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title),c.modeControl.entry,element('p',story.question,'vd-question'));
     if(story.intro)description.append(element('p',story.intro,'vd-narrative'));
     head.append(description,still);
     const nav=element('nav',null,'vd-tabs');nav.setAttribute('aria-label','Mesa de juego');
@@ -376,14 +385,16 @@
     if(c.data.hour?.hotel && window.ValdemarHour){c.hotel=element('section',null,'vd-panel vhour vhour-hotel-panel');c.hotel.tabIndex=-1;}
     buildDesk(c);buildGame(c);renderEnding(c);updateWallet(c,c.data);
     c.pair.append(c.gamePanel,c.desk);
-    c.frame.replaceChildren(head,nav,c.pair,c.help,c.ending);
+    c.frame.replaceChildren(head,nav,c.modeControl.change,c.pair,c.help,c.ending);
     if(c.hotel){
       c.hotel.append(button('Volver a la investigación',()=>selectView(c,'desk',true),'vd-primary'));
       c.frame.append(c.hotel);
     }
+    c.modeControl.mount();
     selectView(c,c.data.progress?.choice?'ending':'desk');
   }
   function showFailure(c,e) {
+    c.modeControl?.destroy();
     c.frame.replaceChildren(element('h1','La mesa de Valdemar'),element('p',errorMessage(e)));
     if(!c.bridge.isSignedIn() || e?.status===401){
       const login=element('button','Entrar','vd-primary');

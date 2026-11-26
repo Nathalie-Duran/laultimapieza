@@ -57,6 +57,10 @@
 .vp-shell :is(button, summary, a, input, [tabindex]):focus-visible, .vp-standalone :is(button,a):focus-visible { outline: 3px solid #fbe2a5; outline-offset: -3px; }
 .vp-header, .vp-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 18px; }
 .vp-header { background: #1b2c27; border-bottom: 1px solid var(--vp-line); }
+.vp-play-mode {margin-inline-start:auto;display:flex;align-items:center;gap:.5rem;color:#f1e8cd;font-size:.8rem;}
+.vp-play-mode select {max-width:8.8em;min-height:38px;background:#20342d;border:1px solid #899789;border-radius:5px;color:#fff2cc;padding:.35rem .45rem;font:inherit;}
+.vp-play-mode select:focus-visible {outline:2px solid #e9c786;outline-offset:2px;}
+@media(max-width:600px){.vp-play-mode span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}.vp-header>div:first-child{min-width:0;}}
 .vp-shell .vp-eyebrow, .vp-standalone .vp-eyebrow { margin: 0 0 2px; color: var(--vp-gold); font-size: .7rem; font-weight: 650; letter-spacing: .13em; text-transform: uppercase; }
 .vp-shell .vp-header h2 { color: var(--vp-ink); font: 500 clamp(1.25rem, 2.3vw, 1.8rem)/1.08 Georgia, serif; }
 .vp-work { position: relative; min-height: 0; min-width: 0; display: grid; grid-template-columns: clamp(195px, 20%, 260px) minmax(0, 1fr); }

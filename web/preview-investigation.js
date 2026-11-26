@@ -66,7 +66,7 @@
     if (document.querySelector('link[data-vallejo-style],link[href*="vallejo-demo.css"]')) return;
     const link = node('link');
     link.rel = 'stylesheet';
-    link.href = '/vallejo-demo.css?v=mesa-87v-1';
+    link.href = '/vallejo-demo.css?v=pareja-4';
     link.dataset.vallejoStyle = '1';
     document.head.append(link);
   }
@@ -93,7 +93,8 @@
         for (let n = 0; n < 12; n++) art.append(node('i'));
       }
       const copy = node('span','vp-material-copy');
-      copy.append(node('small','vp-card-format',formatNames[medium.format]),node('strong','vp-card-title',medium.label),node('span','vp-card-use',medium.use));
+      const reader=['image','audio'].includes(medium.format)?'Sala de pruebas':'Archivo';
+      copy.append(node('small','vp-card-format',formatNames[medium.format]+(st.playMode==='duo'?' · '+reader:'')),node('strong','vp-card-title',medium.label),node('span','vp-card-use',medium.use));
       const reviewed = st.consulted.has(medium.file || medium.tool);
       if (reviewed) {
         card.dataset.reviewed = 'true';
@@ -302,7 +303,8 @@
     }[doc.file];
     st.pairInfo.hidden = !pair;
     if (pair) {
-      st.pairText.textContent = pair[0];
+      const [joint,alone]=pair[0].split(' Si juegas a solas, ');
+      st.pairText.textContent = st.playMode==='duo' ? joint : 'Puedes '+alone.replace(/^puedes /,'');
       st.pairLink.href = '/' + pair[1];
       st.pairLink.textContent = pair[2] + ' en otra pestaña';
     }
@@ -496,7 +498,7 @@
   }
   function setupDOM(host, st) {
     host.innerHTML = `<div class="vp-shell">
-      <header class="vp-header"><div><p class="vp-eyebrow" data-vp-caption></p><h2 id="scene-title">Clínica Vallejo</h2></div><button type="button" class="vp-close" data-action="scene-close" aria-label="Cerrar la demo">Cerrar</button></header>
+      <header class="vp-header"><div><p class="vp-eyebrow" data-vp-caption></p><h2 id="scene-title">Clínica Vallejo</h2></div><label class="vp-play-mode"><span>Cómo jugar</span><select aria-label="Modalidad de la demo"><option value="solo">En solitario</option><option value="duo">En pareja</option></select></label><button type="button" class="vp-close" data-action="scene-close" aria-label="Cerrar la demo">Cerrar</button></header>
       <div class="vp-work"><section class="vp-intake vp-table" aria-labelledby="vp-intake-title">
       <header class="vp-intake-intro vp-table-hero"><img class="vp-table-cover" src="/vallejo-mesa-87v.webp" width="1000" height="500" alt=""><div class="vp-table-copy"><p class="vp-eyebrow" data-vp-table-kicker></p><h3 class="vp-intake-title" id="vp-intake-title" tabindex="-1"></h3><p class="vp-intake-description"></p><nav class="vp-intake-sessions" aria-label="Mesas disponibles" hidden></nav><button class="vp-intake-start vp-table-start" type="button"></button></div></header>
       <div class="vp-evidence-grid vp-table-materials" aria-label="Pruebas de la mesa" role="group"></div></section>
@@ -508,6 +510,13 @@
       <footer class="vp-footer"><details class="vp-privacy"><summary>Opciones</summary><div class="vp-options"><label><input type="checkbox" data-vp-consent> Permitir contadores anónimos de uso de la demo, incluida la apertura del pase al terminar. Si llegué por invitación, también se contarán mi visita y mi solicitud de aviso. Opcional.</label><details class="vp-restart"><summary>Empezar de nuevo</summary><p>Se borrarán tus respuestas y pistas de esta partida.</p><button type="button" class="vp-reset">Reiniciar la demo</button></details></div></details>
       <div class="vp-footer-actions"><button class="vp-prev" type="button">Anterior</button><button class="vp-next" type="button">Siguiente</button><button class="vp-proceed vp-next-session" type="button" hidden>Abrir la siguiente sesión</button></div></footer><p class="vp-live" role="status" aria-live="polite"></p></div>`;
     const q = selector => host.querySelector(selector);
+    q('.vp-play-mode select').value=st.playMode;
+    q('.vp-play-mode select').addEventListener('change',event=>{
+      st.playMode=event.target.value==='duo'?'duo':'solo';
+      if(st.mode==='table')tableCards(st);
+      else if(st.mode==='original')updateNav();
+      note(st.playMode==='duo'?'En pareja. Una persona consulta el Archivo y la otra examina las pruebas.':'En solitario. Puedes consultar los dos grupos de pistas.');
+    });
     Object.assign(st, { shell: q('.vp-shell'), sessionCaption: q('[data-vp-caption]'), side: q('.vp-side'), shelfToggle: q('.vp-shelf-toggle'), sideList: q('.vp-doc-list'), sessionList: q('.vp-sessions'), heading: q('.vp-doc-title'), reader: q('.vp-reader'), zoom: q('.vp-zoom'), status: q('.vp-live'), previous: q('.vp-prev'), next: q('.vp-next'), nextSession: q('.vp-next-session'), offer: q('.vp-finale') });
     Object.assign(st, { adjust: q('.vp-adjust'), bright: q('.vp-brighten'), mirror: q('.vp-mirror'), separate: q('.vp-separate'), pairInfo: q('.vp-pair'), pairText: q('.vp-pair span'), pairLink: q('.vp-pair a'), hintBox: q('.vp-hints'), hintList: q('.vp-hint-list'), hintStatus: q('.vp-hint-status'), hintMore: q('.vp-hint-more'), hintTable: q('.vp-hint-table') });
     Object.assign(st, { desk:q('.vp-desk'), help:q('.vp-help'), footerActions:q('.vp-footer-actions'), table:q('.vp-intake'), tableKicker:q('[data-vp-table-kicker]'), tableTitle:q('.vp-intake-title'), tableIntro:q('.vp-intake-description'), tableStart:q('.vp-intake-start'), tableGrid:q('.vp-evidence-grid'), tableSessions:q('.vp-intake-sessions') });
@@ -521,7 +530,7 @@
     const member = !!root.ClubAccess?.canPlay;
     const plans = seasonLink('planes', 'Ver el pase mensual', !member);
     const cases = seasonLink('casos', member ? 'Elegir mi siguiente caso' : 'Explorar los casos', member);
-    q('.vp-season-actions').append(...(member ? [cases, plans] : [plans, cases]));
+    q('.vp-season-actions').append(...(member ? [cases, plans] : [plans, cases]),seasonLink('tableros','Ver los cuatro tableros',false));
     q('.vp-close').addEventListener('click', event => { event.stopPropagation(); suspend(); });
     q('.vp-reset').addEventListener('click', () => {
       close();
@@ -610,7 +619,7 @@
     const trigger = document.activeElement;
     const parent = document.getElementById('modal');
     if (parent?.open) parent.close();
-    const st = { sessions: sessions(), section: 0, index: 0, mode:'table', consulted:new Set(), receiptConfirmed:false, lastIndex: [], panes: new Map(), unlocked: new Set(), counted: new Set(), hintHistory: new Map(), observers: [], trigger, paused: false };
+    const st = { sessions: sessions(), section: 0, index: 0, mode:'table', playMode:'solo', consulted:new Set(), receiptConfirmed:false, lastIndex: [], panes: new Map(), unlocked: new Set(), counted: new Set(), hintHistory: new Map(), observers: [], trigger, paused: false };
     state = st;
     if (root.InvitationCounts?.enabled) consent = true;
     host.classList.add('vallejo-player');

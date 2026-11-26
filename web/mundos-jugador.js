@@ -19,6 +19,7 @@
   }
   function clear() {
     if(!current)return;
+    current.modeControl?.destroy();
     current.hour?.pause();
     if(current.sideVoice)window.ValdemarHour?.stopVoice?.(current.sideVoice);
     current.observer?.disconnect();
@@ -33,6 +34,7 @@
   function active(c) {return current===c && c.bridge.isSignedIn();}
   function showAccess(c,message,reason) {
     if(c!==current)return;
+    c.modeControl?.destroy();
     c.hour?.pause();
     if(c.sideVoice)window.ValdemarHour?.stopVoice?.(c.sideVoice);
     c.observer?.disconnect();
@@ -42,11 +44,11 @@
     if(!c.bridge?.isSignedIn() || reason===401) {
       const login=el('button','Entrar en mi cuenta','md-cta');login.type='button';login.dataset.action='auth-login';panel.append(login);
     } else if(reason===402) {
-      panel.append(el('p','Esta temporada se abre después de completar los doce desenlaces de '+(c.item.world==='umbravia'?'El Tablero de Ámbar':'Valdemar')+'. Cada mensualidad habilita cuatro casos.'),link('Consultar mi pase','#planes','md-cta'));
+      panel.append(el('p','Esta temporada se abre después de completar los doce desenlaces '+worlds.edition(c.item.world).previous.from+'. Cada mensualidad habilita cuatro casos.'),link('Consultar mi pase','#planes','md-cta'));
     }
-    else if(reason==='gate') panel.append(link('Ver temporada anterior',c.item.world==='umbravia'?'#expedicion':'#casos','md-cta'));
+    else if(reason==='gate') panel.append(link('Ver temporada anterior',worlds.edition(c.item.world).previous.href,'md-cta'));
     else panel.append(button('Volver a intentar',()=>{const {id,item,bridge}=c;clear();mountGame(id||item.id,bridge);},'md-cta'));
-    panel.append(link('Volver a '+worlds.nameOf(c.item.world),worlds.route(c.item.world,c.item.id)));
+    panel.append(link(worlds.edition(c.item.world).returnLabel,worlds.route(c.item.world,c.item.id)));
     c.frame.replaceChildren(panel);c.frame.removeAttribute('aria-busy');
   }
   async function request(c,action,payload) {
@@ -93,7 +95,7 @@
   function refreshHelp(c) {
     const h=c.panels.help,{hints=[],wallet}=c.data;
     const id=c.item.id,opened=wallet.opened.includes(id);
-    const eyebrow=el('p',c.item.world==='expedicion'?'Cuaderno de campo':'Archivo del pueblo','md-caption');
+    const eyebrow=el('p',worlds.edition(c.item.world).notebook,'md-caption');
     h.replaceChildren(eyebrow,el('h2','Sobre de ayuda'));
     const status=live();
     async function claim(control,op) {
@@ -161,7 +163,7 @@
     if(progress.deduction)target.append(el('p',progress.deduction,'md-hint'));
     if(progress.choice){
       const name=story.choices.find(o=>o.id===progress.choice)?.label;
-      target.append(el('h3',name||'Tu decisión'),el('p',progress.outcome),link(c.item.world==='umbravia'?'Volver al pueblo':'Volver al tablero',worlds.route(c.item.world,c.item.id),'md-cta'));
+      target.append(el('h3',name||'Tu decisión'),el('p',progress.outcome),link(worlds.edition(c.item.world).returnLabel,worlds.route(c.item.world,c.item.id),'md-cta'));
     } else target.append(concludeForm(c,story.choices,'¿Cómo queréis cerrar esta historia? La decisión quedará guardada.','Guardar desenlace','ending'));
   }
   function renderSide(c,feedback) {
@@ -195,13 +197,9 @@
     cover.src='/mundo-'+item.id+'.webp';cover.alt='';cover.width=768;cover.height=512;
     figure.append(cover,el('figcaption',item.place));
     const top=el('div',null,'md-game-top');c.balance=el('span','','md-wallet');c.balance.setAttribute('aria-live','polite');
-    top.append(link(item.world==='umbravia'?'← Volver al pueblo':'← Volver al tablero',worlds.route(item.world,item.id)),c.balance);
-    copy.append(top,el('p',worlds.nameOf(item.world)+' · '+item.place,'md-caption'),el('h1',story.title),el('p',story.question,'md-game-question'),el('p',story.intro,'md-game-prose'));
-    if(story.roles?.length){
-      const roles=el('details',null,'md-roles');roles.append(el('summary','Repartir los papeles'));
-      const list=el('ol');for(const line of story.roles)list.append(el('li',line));roles.append(list);
-      if(story.solo)roles.append(el('p',story.solo));copy.append(roles);
-    }
+    top.append(link('← '+worlds.edition(item.world).returnLabel,worlds.route(item.world,item.id)),c.balance);
+    c.modeControl=window.ModalidadJuego.create(frame,story,c.data.mode,mode=>request(c,'mode',{mode}));
+    copy.append(top,el('p',worlds.nameOf(item.world)+' · '+item.place,'md-caption'),el('h1',story.title),c.modeControl.entry,el('p',story.question,'md-game-question'),el('p',story.intro,'md-game-prose'));
     header.append(copy,figure);
     const nav=el('nav',null,'md-game-tabs');nav.setAttribute('aria-label','Secciones de la partida');
     c.controls={};c.panels={};
@@ -214,7 +212,7 @@
     if(item.world==='umbravia'){
       c.quiet=button('Lectura silenciosa',()=>quiet(c,!c.silent),'md-muted-toggle');nav.append(c.quiet);
     }
-    frame.replaceChildren(header,nav,...Object.values(c.panels));
+    frame.replaceChildren(header,nav,c.modeControl.change,...Object.values(c.panels));
     c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
       submit:(index,choice,sources)=>request(c,'stage',{index,choice,...(sources?{sources}:{})}),
       reload:async()=>{const result=await request(c);c.data.progress=result.progress;return result.hour;},
@@ -231,6 +229,7 @@
       window.MundosLaminas?.enhance(frame,item.world);
     };
     enhance();
+    c.modeControl.mount();
     c.observer=new MutationObserver(enhance);
     c.observer.observe(frame,{childList:true,subtree:true});
     select(c,c.data.progress.choice?'end':'main');

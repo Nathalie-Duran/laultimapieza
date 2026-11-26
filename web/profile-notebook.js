@@ -93,10 +93,10 @@
       return '<li class="' + (earned ? 'is-earned' : at === next ? 'is-next' : 'is-pending') +
         '"><span>' + at + ' piezas</span><strong>' + name + '</strong><small>' + state + '</small></li>';
     }).join('');
-    return '<section class="pn-season" aria-labelledby="pn-season-title"><div class="pn-section-heading"><h2 id="pn-season-title">Mi plano de la temporada</h2><span class="pn-count">' +
-      countLabel + '</span></div>' + (partial && !pieces ? '' : '<progress class="pn-meter" aria-label="Piezas de la temporada confirmadas" max="12" value="' +
+    return '<section class="pn-season" aria-labelledby="pn-season-title"><div class="pn-section-heading"><h2 id="pn-season-title">Mi plano del archivo clásico</h2><span class="pn-count">' +
+      countLabel + '</span></div>' + (partial && !pieces ? '' : '<progress class="pn-meter" aria-label="Piezas del archivo clásico confirmadas" max="12" value="' +
       pieces + '">' + pieces + ' de 12</progress>') + (partial ? '<p>Falta confirmar la resolución de alguna partida guardada.</p>' : '') +
-      '<p>Resolver un caso distinto de la temporada aporta una pieza. Los casos adicionales se guardan en tu archivo sin sumar piezas.</p>' +
+      '<p>Terminar un caso del archivo clásico y contrastar su enigma aporta una pieza a este plano. Los casos adicionales se guardan en tu archivo sin sumar piezas.</p>' +
       '<ol class="pn-milestones" aria-label="Hitos de la temporada">' + labels + '</ol><a class="text-link" href="#mapa-clasico">Consultar el plano clásico</a></section>';
   }
 
@@ -165,7 +165,7 @@
       session.members?.some(member => member?.userId === userId)));
     function mayOpen(session) {
       if (!canPlay) return false;
-      const invited = session.mode === 'duo' && userId && session.ownerId && session.ownerId !== userId &&
+      const invited = userId && session.ownerId && session.ownerId !== userId &&
         session.members?.some(member => member?.userId === userId);
       if (invited && online) return membership?.guestOwners?.includes(session.ownerId) === true;
       return typeof caseAllowed !== 'function' || (catalog.has(session.caseId) && caseAllowed(session.caseId));
@@ -180,8 +180,12 @@
     const groups = group(ongoing, 'En curso', model, true, true) + group(complete, 'Terminadas', model, !ongoing.length, true);
     const firstCase = canPlay ? browse('Elegir un caso') : '<button type="button" class="button primary" data-action="preview-open">Jugar a Clínica Vallejo</button>';
     const join = input.online && input.userId ? '<button type="button" class="button" data-action="join">Unirme con un código</button>' : '';
+    const seasons = input.online && input.userId && window.customElements?.get('season-archive');
+    const seasonList = seasons ? '<season-archive'+(owned.length?' data-with-classic':'')+'></season-archive>' : '';
+    const classic = owned.length ? (seasons?'<h2 class="pn-classic-heading">Archivo clásico</h2>':'')+groups :
+      seasons ? '' : '<p class="pn-empty">Todavía no tienes partidas guardadas.</p><div class="pn-actions">'+firstCase+'</div>';
     return '<section class="pn-dashboard pn-archive" aria-labelledby="pn-sessions-title"><div class="pn-section-heading"><h1 id="pn-sessions-title">Mis partidas</h1>' + join + '</div>' +
-      (owned.length ? groups : '<p class="pn-empty">Todavía no tienes partidas guardadas.</p><div class="pn-actions">' + firstCase + '</div>') + '</section>';
+      seasonList + classic + '</section>';
   }
 
   function progress(input = {}) {

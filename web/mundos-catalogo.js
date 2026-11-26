@@ -286,5 +286,149 @@ window.MundosCatalogo = Object.freeze([
     ],
     "world": "umbravia",
     "month": 9
+  },
+  {
+    "id": 37,
+    "title": "La barca que remontó la noche",
+    "place": "Muelle de las Dos Orillas",
+    "question": "¿Cómo llegó la barca funeraria de Neryt al muelle de arriba cuando el agua corría hacia abajo?",
+    "roles": [
+      "Sigues los rastros que dejó el casco en las dos orillas.",
+      "Cruzas los relevos, las tablillas de carga y las voces del muelle."
+    ],
+    "world": "necropolis",
+    "month": 10
+  },
+  {
+    "id": 38,
+    "title": "La hora robada al sol",
+    "place": "Cámara de las Clepsidras",
+    "question": "¿Por qué dos guardianes juraron horas diferentes para la misma entrada de Neryt?",
+    "roles": [
+      "Lees las escalas, sus ceros y la posición del poste de sombra.",
+      "Sincronizas las voces de guardia con los ensayos del taller."
+    ],
+    "world": "necropolis",
+    "month": 10
+  },
+  {
+    "id": 39,
+    "title": "El nombre bajo la cal",
+    "place": "Patio de los Cartuchos",
+    "question": "¿Quién cubrió el nombre de Neryt y qué dejó legible a propósito?",
+    "roles": [
+      "Sigues las capas, el borde de las placas y los trazos del cartucho.",
+      "Lees los turnos de trabajo y distingues los testimonios de épocas distintas."
+    ],
+    "world": "necropolis",
+    "month": 10
+  },
+  {
+    "id": 40,
+    "title": "El sello de las vendas azules",
+    "place": "Taller del Lino",
+    "question": "¿Cómo pudo sonar hueco un rollo sellado al que el inventario atribuye un fragmento del disco?",
+    "roles": [
+      "Lees el tejido, los bordes y la secuencia del envoltorio.",
+      "Reconstruyes las cargas y los traslados a partir de recibos y sonidos."
+    ],
+    "world": "necropolis",
+    "month": 10
+  },
+  {
+    "id": 41,
+    "title": "Las siete puertas del oeste",
+    "place": "Capilla de las Siete Puertas",
+    "question": "¿Por qué el relieve de Yaru representa siete puertas cuando la capilla solo permite atravesar cuatro?",
+    "roles": [
+      "Orientas el relieve y trabajas con las siluetas de las hojas y las hornacinas.",
+      "Lees el itinerario de las guardianas y sincronizas los puntos de vista."
+    ],
+    "world": "necropolis",
+    "month": 11
+  },
+  {
+    "id": 42,
+    "title": "La noche de las estrellas inmóviles",
+    "place": "Estanque de las Estrellas",
+    "question": "¿Qué eran los tres puntos de luz que parecían estrellas inmóviles la noche en que Yaru selló el patio?",
+    "roles": [
+      "Mides los reflejos y orientas las placas desde el puesto de observación.",
+      "Sigues el nivel del agua y los turnos de las guardianas de la luz."
+    ],
+    "world": "necropolis",
+    "month": 11
+  },
+  {
+    "id": 43,
+    "title": "El perfume que volvió con la crecida",
+    "place": "Casa del Loto",
+    "question": "¿Cómo llegó a la Casa del Loto una vasija que el almacén del río aún daba por perdida?",
+    "roles": [
+      "Entra en el patio de la perfumista y compara cierres, residuos y huellas.",
+      "Sigue a la barquera entre las dos orillas con las cuentas del embarcadero."
+    ],
+    "world": "necropolis",
+    "month": 11
+  },
+  {
+    "id": 44,
+    "title": "El juicio de los fragmentos",
+    "place": "Archivo de los Óstraca",
+    "question": "¿Quién vio realmente el fragmento del disco que el tribunal de Yaru dio por entregado?",
+    "roles": [
+      "Ocupa el banco de las partes y escucha cada pregunta antes de asignarle una respuesta.",
+      "Extiende los fragmentos de cerámica y recompón las caras del acta."
+    ],
+    "world": "necropolis",
+    "month": 11
+  },
+  {
+    "id": 45,
+    "title": "La galería que contesta",
+    "place": "Galería de las Voces",
+    "question": "¿Por qué una galería sellada devuelve una palabra que nadie ha pronunciado?",
+    "roles": [
+      "Entra hasta el umbral de la galería y registra el ritmo de los retornos.",
+      "Recorre los patios de servicio y distingue quién podía hablar a través de la pared."
+    ],
+    "world": "necropolis",
+    "month": 12
+  },
+  {
+    "id": 46,
+    "title": "La barca del sol partido",
+    "place": "Astillero Solar",
+    "question": "¿Podéis devolver a flote la barca de Neryt sin convertir una mitad del sol en la imagen equivocada?",
+    "roles": [
+      "Sube al andamio de proa y gira los calcos de las tablas.",
+      "Revisa las entregas del astillero desde tierra y comprueba el equilibrio de la carga."
+    ],
+    "world": "necropolis",
+    "month": 12
+  },
+  {
+    "id": 47,
+    "title": "La sombra que dejó la reina",
+    "place": "Cámara de la Reina Neryt",
+    "question": "¿Qué orden daba Neryt con dos dedos y quién añadió otros dos a su sombra?",
+    "roles": [
+      "Acompaña a la portadora de la lámpara y dibuja cada sombra desde su altura.",
+      "Desde el banco del escultor, distingue la piedra original, los añadidos y sus autores."
+    ],
+    "world": "necropolis",
+    "month": 12
+  },
+  {
+    "id": 48,
+    "title": "Cuando despierte el disco",
+    "place": "Santuario del Sol Velado",
+    "question": "¿Qué debía revelar el disco de Yaru la mañana en que tres custodios volvieran a reunirse?",
+    "roles": [
+      "Entra en el santuario, coteja las tres piezas y coloca sus reproducciones sobre la mesa de luz.",
+      "Acompaña a las tres mesas de Yaru y reconstruye qué aceptó compartir cada una."
+    ],
+    "world": "necropolis",
+    "month": 12
   }
 ]);
