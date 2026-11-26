@@ -8,12 +8,12 @@ function invitationMessage({caseId, inviterName, caseTitle}) {
   const game = caseTitle || (season ? `el caso ${String((id-1)%12+1).padStart(2,'0')} de ${season}` : 'un caso de La Última Pieza');
   const subject = 'Tienes una invitación para jugar a La Última Pieza';
   const paragraphs = [
-    `${inviterName || 'Otra persona'} te invita a investigar ${game} en pareja.`,
-    'Abre Mi cuenta con esta dirección de correo y entra en Jugar en pareja para ver la invitación. Si es tu primera visita, puedes crear tu cuenta gratis.',
-    'Para jugar juntos, cada persona necesita su propia suscripción activa y tener ese juego desbloqueado. Tú decides si aceptas la invitación.'
+    `${inviterName || 'Tu compañero'} ha elegido «En pareja» para investigar ${game} contigo.`,
+    'Abre ese juego con la cuenta asociada a este correo. Si quieres participar, selecciona también «En pareja». Cuando las dos personas hayáis elegido, cada una verá un papel distinto y sus propias pistas.',
+    'Necesitáis tener acceso a ese caso desde vuestras cuentas. Si es tu primera visita, puedes registrarte gratis y consultar el pase.'
   ];
-  const url = 'https://www.laultimapieza.es/#perfil?seccion=pareja';
-  const action = 'Ver mi invitación';
+  const url = 'https://www.laultimapieza.es/' + (season ? '#' + (id<=12?'valdemar-jugar':'mundos-jugar') + '?id=' + id : '#perfil?seccion=pareja');
+  const action = season ? 'Abrir el juego' : 'Ver mis juegos';
   return {
     subject,
     text: [subject, ...paragraphs, action + '\n' + url].join('\n\n'),
@@ -30,7 +30,9 @@ export function messageTemplate(type,data){
     'Crear una cuenta es gratis y no activa una suscripción. Puedes resolver la demo; para jugar los casos completos necesitas contratar el plan.',
     'Cada elección muestra los puntos que suma. Las pistas y los intentos del enigma no penalizan.'
   ]:[
-    'Hemos confirmado el pago de 29,95 € de tu ciclo mensual.',
+    Number.isSafeInteger(data.amountPaid) && data.amountPaid > 0
+      ? `Hemos confirmado el pago de ${new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(data.amountPaid/100)} de tu cuota mensual.`
+      : 'Hemos confirmado el pago de tu cuota mensual.',
     'Tu pago ha desbloqueado de inmediato cuatro casos nuevos. Los pendientes se acumulan y puedes acceder a tus retos desbloqueados mientras tengas una suscripción activa.',
     `Tu periodo pagado termina el ${date}. Puedes continuar y repetir los casos elegidos durante ese periodo.`,
     'La temporada tiene un máximo de tres ciclos. Puedes gestionar la cancelación antes de la próxima renovación desde Mi cuenta.'

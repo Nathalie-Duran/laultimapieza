@@ -135,9 +135,11 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           return resetPersonalProgress(store,uid,input,isAdministrator(user),user.emailVerified===true?user.email:'');
         if(path==='/api/bootstrap'&&method==='GET'){
           if(isAdministrator(user)&&store.markEditorial)await store.markEditorial(uid);
+          if(billing?.refreshOfferIdentity)await billing.refreshOfferIdentity(store,user,isAdministrator(user)===true);
           const sessions=await store.listSessions(uid);
           const membership=isAdministrator(user)
-            ? {...adminMembership(),seasonAccess:worldSeasonAccess(await store.getMemberData(uid),{editorial:true})}
+            ? {...adminMembership(),seasonAccess:worldSeasonAccess(await store.getMemberData(uid),{editorial:true}),
+              ...(billing?.partnerOffer?{partnerOffer:await billing.partnerOffer(store,uid,null,true)}:{})}
             : billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
           membership.canManage=canManageSite(user);membership.ownAccess=membership.canPlay;membership.guestOwners=[];
           return {profile,sessions,journey:await readJourney(store,stories,uid,sessions),activeSessionId:profile.activeSessionId||null,membership};

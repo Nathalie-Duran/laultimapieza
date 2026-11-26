@@ -1,8 +1,12 @@
 import { ApiError } from './auth-provider.mjs';
 import { readAnalytics } from './analytics.mjs';
 import {mailKey} from './mail-service.mjs';
+import {partnerOfferSchema,partnerOfferStore} from './partner-offer-store.mjs';
 
 const schema = [
+  `CREATE TABLE IF NOT EXISTS lup_case_choice_locks (
+    bucket SMALLINT UNSIGNED PRIMARY KEY
+  ) ENGINE=InnoDB`,
   `CREATE TABLE IF NOT EXISTS lup_case_partners (
     id CHAR(36) CHARACTER SET ascii PRIMARY KEY, case_id TINYINT UNSIGNED NOT NULL,
     owner_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL, owner_name VARCHAR(64) NOT NULL,
@@ -46,7 +50,8 @@ const schema = [
     session_id VARCHAR(36) COLLATE utf8mb4_bin NOT NULL, user_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
     PRIMARY KEY(session_id,user_id), INDEX lup_user (user_id),
     FOREIGN KEY(session_id) REFERENCES lup_sessions(id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  ...partnerOfferSchema
 ];
 function profile(row) {
   return row ? { userId: row.user_id, name: row.name, color: row.color, avatar:row.avatar||'detective',
@@ -79,11 +84,22 @@ export function createDatabase(env=process.env) {
       await initialized;
       await connection.beginTransaction();
       const store = {
+        ...partnerOfferStore(query),
+        async lockCasePair(bucket){
+          // Transaction-scoped mutual exclusion for reciprocal choices made at the same time.
+          // At most 4096 anonymous lock rows, independent of the number of accounts.
+          await query('INSERT INTO lup_case_choice_locks(bucket) VALUES(?) ON DUPLICATE KEY UPDATE bucket=VALUES(bucket)',[bucket]);
+        },
+        async pendingCaseChoices(email,caseId,now){
+          const rows=await query(`SELECT * FROM lup_case_partners WHERE email=? AND case_id=?
+            AND status='pending' AND expires_at>? ORDER BY id FOR UPDATE`,[email,caseId,now]);
+          return rows.map(partner);
+        },
         async getPartner(id){
           return partner((await query('SELECT * FROM lup_case_partners WHERE id=? FOR UPDATE',[id]))[0]);
         },
         async listPairedCases(uid){
-          const rows=await query("SELECT case_id FROM lup_case_partners WHERE status='accepted' AND (owner_id=? OR guest_id=?)",[uid,uid]);
+          const rows=await query("SELECT case_id FROM lup_case_partners WHERE status='accepted' AND (owner_id=? OR guest_id=?) AND JSON_UNQUOTE(JSON_EXTRACT(progress_json,'$.consentVersion'))='2'",[uid,uid]);
           return rows.map(row=>row.case_id);
         },
         async getCasePartner(uid,caseId,now){

@@ -5,7 +5,7 @@ import {worldSeasonAccess, valdemarWallet, withValdemarTransaction, WORLD_CASE_C
 import {readValdemarRelease} from './valdemar-release.mjs';
 import {evaluateHourStage,readHour,requireHourComplete,roleMaterials} from './valdemar-hour.mjs';
 import {hasCaseActivity,recordCaseActivity} from './season-activity.mjs';
-import {endPair,partnerCases,partnerInfo,partnerScope,syncPairProgress} from './partner-api.mjs';
+import {endPair,hasGameConsent,partnerCases,partnerInfo,partnerScope,syncPairProgress} from './partner-api.mjs';
 
 const files = new Map();
 // Only versioned, server-owned files are passed here. No path comes from the request.
@@ -210,7 +210,9 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       return {wallet,released:availableCases.length,availableCases,completed};
     }
     const personal = data.valdemarCaseProgress?.[scope]?.[id];
-    const accepted=reservation?.status==='accepted' && partnerScope(reservation,uid)===scope ? reservation : null;
+    const waitingForPartner=hasGameConsent(reservation) && reservation.status==='pending' && reservation.ownerId===uid &&
+      reservation.email===data.preferredPartnerEmail;
+    const accepted=hasGameConsent(reservation) && reservation.status==='accepted' && partnerScope(reservation,uid)===scope ? reservation : null;
     let pair=null;
     if(accepted && (editorial || membership?.canPlay===true)){
       const other=accepted.ownerId===uid?accepted.guestId:accepted.ownerId;
@@ -223,8 +225,8 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const record=pair?pair.progress:personal;
     const mode=pair?'duo':accepted || !editorial && personal?.mode==='duo'?'solo':playModes.has(personal?.mode)?personal.mode:null;
     if(poll)return pair
-      ? {partner,mode,hour:{current:record.choice?5:record.hourStep||0},progress:{deduced:record.deduced===true,choice:record.choice||null}}
-      : {partner:null,mode};
+      ? {partner,mode,waitingForPartner:false,hour:{current:record.choice?5:record.hourStep||0},progress:{deduced:record.deduced===true,choice:record.choice||null}}
+      : {partner:null,mode,waitingForPartner};
     if (action==='mode') {
       const mode=input?.mode;
       if (!playModes.has(mode)) throw new ApiError(400,'Elige jugar en solitario o en pareja.','INVALID_PLAY_MODE');
@@ -233,6 +235,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
         await endPair(store,accepted);
         return {mode,partner:null};
       }
+      if(reservation && !accepted && mode==='solo')await endPair(store,reservation);
       if(pair)return {mode:'duo',partner};
       if (record?.mode!==mode) {
         const alreadyStarted = hasCaseActivity(data,scope,id);
@@ -272,7 +275,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     if (action !== 'read') return {wallet,hints,...(newWorld && action==='reward' ? {feedback:story.side.success} : {})};
     const role=partner?.role;
     const dossier = {story:visibleStory(story,role),hour:readHour(story,record,role),wallet,hints,progress:visibleProgress(record,story),
-      mode,partner,editorialPreview:editorial===true};
+      mode,partner,waitingForPartner,editorialPreview:editorial===true};
     if (newWorld) return {...dossier,side:visibleSide(story.side,role)};
     const gameScript = await asset('valdemar-challenges-'+Math.ceil(id/4)+'.js');
     return {...dossier,sample:visibleSample(sample),gameScript,stationScript:id===1 ? release.stationScript : null};

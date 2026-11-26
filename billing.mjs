@@ -3,6 +3,8 @@ import {ApiError} from './auth-provider.mjs';
 import {orderedCycles,releaseCalendar,SEASON_NAMES} from './progression.mjs';
 import {mailKey} from './mail-service.mjs';
 import {creditValdemarWelcome,worldSeasonAccess} from './valdemar-wallet.mjs';
+import {accountOffer,emailKey,indexPurchase,paidPassInvoice,publicPartnerOffer,regularAmountCents} from './partner-offer.mjs';
+import {PARTNER_COUPON,applyRenewalOffer} from './partner-stripe.mjs';
 
 function publicDocumentUrl(value) {
   if (typeof value !== 'string' || !/^https:\/\//i.test(value.trim())) return null;
@@ -38,11 +40,12 @@ export function createBilling(env=process.env,fetcher=fetch){
   const configured=!!(env.STRIPE_SECRET_KEY&&env.STRIPE_WEBHOOK_SECRET&&env.STRIPE_PRICE_ID&&env.STRIPE_PORTAL_CONFIGURATION&&env.BILLING_TERMS_URL&&env.BILLING_PRIVACY_URL&&env.BILLING_ENABLED==='true');
   const portalConfigured=Boolean(env.STRIPE_SECRET_KEY?.trim() && env.STRIPE_PORTAL_CONFIGURATION?.trim());
   const origin='https://laultimapieza.es';
-  async function stripe(path,values,idem){
+  async function stripe(path,values,idem,{allowMissing=false}={}){
     const portal=path==='billing_portal/sessions';
     if(portal && !portalConfigured)throw new ApiError(503,'El portal de gestión de suscripciones no está disponible en este momento.','BILLING_PORTAL_UNAVAILABLE');
     if(!portal && !configured)throw new ApiError(503,'La contratación todavía no está abierta.','BILLING_UNAVAILABLE');
     const response=await fetcher('https://api.stripe.com/v1/'+path,{method:values?'POST':'GET',headers:{Authorization:'Bearer '+env.STRIPE_SECRET_KEY,'Stripe-Version':'2026-10-28.endive',...(values?{'Content-Type':'application/x-www-form-urlencoded'}:{}),...(idem?{'Idempotency-Key':idem}:{})},...(values?{body:new URLSearchParams(values)}:{}),signal:AbortSignal.timeout(15000)});
+    if(allowMissing && response.status===404)return null;
     if(portal && !response.ok)throw new ApiError(503,'No se ha podido abrir el portal de suscripciones. Inténtalo más tarde.','BILLING_PORTAL_UNAVAILABLE');
     if(!response.ok)throw new ApiError(503,'No podemos comprobar el pago ahora. Inténtalo de nuevo.','BILLING_UNAVAILABLE');
     return response.json();
@@ -54,14 +57,19 @@ export function createBilling(env=process.env,fetcher=fetch){
     const candidates=subs.data.filter(s=>s.metadata?.lup_uid===uid&&s.items?.data?.some(i=>i.price?.id===env.STRIPE_PRICE_ID));
     const purchaseHeld=candidates.some(s=>!['canceled','incomplete_expired'].includes(s.status));
     const sub=candidates.find(s=>s.status==='active')||candidates[0];
-    if(!sub)return {data,active:false};
+    if(!sub){
+      if(!readOnly && data.active){
+        data.active=false;data.periodEnd=0;await store.saveMemberData(uid,data);await indexPurchase(store,uid,data);
+      }
+      return {data,active:false};
+    }
     if(data.subscription!==sub.id){data.scheduleConfigured=false;data.schedule=null;}
     data.subscription=sub.id;
-    const invoices=await stripe('invoices?subscription='+encodeURIComponent(sub.id)+'&status=paid&limit=100');
+    const invoices=await stripe('invoices?subscription='+encodeURIComponent(sub.id)+'&status=paid&limit=100&expand[]=data.discounts&expand[]=data.total_discount_amounts.discount');
     const cycles=[];
     for(const invoice of invoices.data||[]){
       const line=invoice.lines?.data?.find(l=>(l.pricing?.price_details?.price||l.price?.id)===env.STRIPE_PRICE_ID);
-      if(!line||!['subscription_create','subscription_cycle'].includes(invoice.billing_reason)||invoice.amount_paid<2995||invoice.currency!=='eur')continue;
+      if(!paidPassInvoice(invoice,line,PARTNER_COUPON))continue;
       cycles.push({id:invoice.id,subscription:sub.id,amountPaid:invoice.amount_paid,paidAt:invoice.status_transitions?.paid_at?invoice.status_transitions.paid_at*1000:null,start:line.period.start*1000,end:line.period.end*1000,revoked:(data.revokedInvoices||[]).includes(invoice.id)});
     }
     const blocks=purchasedBlocks(sub);
@@ -108,16 +116,118 @@ export function createBilling(env=process.env,fetcher=fetch){
     if(active&&store.enqueueMail){
       for(const invoice of invoices.data||[]){
         const cycle=data.cycles.find(c=>c.id===invoice.id&&!c.revoked);
-        if(cycle&&cycle.end>Date.now()&&invoice.customer_email)await store.enqueueMail(mailKey('subscription',invoice.id),invoice.customer_email,'subscription',{periodEnd:cycle.end,renewal:invoice.billing_reason==='subscription_cycle'});
+        if(cycle&&cycle.end>Date.now()&&invoice.customer_email)await store.enqueueMail(mailKey('subscription',invoice.id),invoice.customer_email,'subscription',{periodEnd:cycle.end,amountPaid:cycle.amountPaid,renewal:invoice.billing_reason==='subscription_cycle'});
       }
     }
     await store.saveMemberData(uid,data);
-    return {data,active,purchaseHeld};
+    await indexPurchase(store,uid,data);
+    return {data,active,purchaseHeld,subscription:sub};
   }
+  async function invalidateCheckout(store,uid,data,eligible){
+    const pending=data.pendingSeasonCheckout;
+    if(!pending?.id || pending.expiresAt<=Date.now() || (pending.partnerDiscount===true)===eligible)return;
+    const path='checkout/sessions/'+encodeURIComponent(pending.id);
+    let old=await stripe(path);
+    if(old.status==='open'){
+      try{await stripe(path+'/expire',{},'lup-expire-'+pending.id);}
+      catch(error){old=await stripe(path);if(old.status==='open')throw error;}
+    }
+    if(old.status==='complete')return;
+    data.pendingSeasonCheckout={...pending,expiresAt:0};
+    await store.saveMemberData(uid,data);
+  }
+  function currentAtBoundary(sub,now){
+    if(!sub || sub.status!=='active' || sub.pause_collection)return false;
+    if(sub.cancel_at && sub.cancel_at*1000<=now)return false;
+    return !sub.cancel_at_period_end || Number.isFinite(sub.cancel_at);
+  }
+  function settledPeriods(data){
+    return (data.cycles||[]).filter(c=>c.id && c.subscription===data.subscription && !c.revoked &&
+      !(data.revokedInvoices||[]).includes(c.id) && Number.isSafeInteger(c.amountPaid) && c.amountPaid>0 && c.start<c.end);
+  }
+  // At normal renewal the previous paid period ends before the new draft is
+  // collected. Keep only the discount already earned at that exact boundary.
+  // Current reciprocal consent and both live provider subscriptions must still agree.
+  async function earnedRenewalBoundary(store,uid,data,sub){
+    const now=Date.now(),periods=settledPeriods(data);
+    const boundary=Math.max(0,...periods.filter(c=>c.start<=now).map(c=>c.end));
+    if(!data.preferredPartnerEmail || data.partnerDiscountPeerKey!==emailKey(data.preferredPartnerEmail) ||
+       data.partnerOfferEditorial || !currentAtBoundary(sub,now) ||
+       boundary>now || now-boundary>=48*3600000)return null;
+    const peer=await store.getMutualOfferPartner?.(uid,emailKey(data.preferredPartnerEmail));
+    if(!peer || peer===uid)return null;
+    const other=await store.getMemberData(peer,{readOnly:true});
+    if(other.partnerOfferEditorial || !other.customer || !other.subscription ||
+        !settledPeriods(other).some(c=>c.start<boundary && boundary<=c.end))return null;
+    const otherSub=await stripe('subscriptions/'+encodeURIComponent(other.subscription));
+    if(otherSub.id!==other.subscription || otherSub.metadata?.lup_uid!==peer ||
+      !otherSub.items?.data?.some(item=>item.price?.id===env.STRIPE_PRICE_ID) || !currentAtBoundary(otherSub,now))return null;
+    return Math.floor(boundary/1000);
+  }
+  async function reconcileOffer(withStore,uid,version){
+    if(!configured)return;
+    await withStore(async store=>{
+      let data=await store.getMemberData(uid);
+      if(version!==undefined && !await store.lockOfferJob(uid,version))return;
+      await invalidateCheckout(store,uid,data,false);
+      let preserve=null;
+      if(data.customer){
+        const current=await sync(store,uid);
+        data=current.data;
+        const subscription=current.subscription;
+        const reviewable=subscription && (['active','past_due','paused','unpaid'].includes(subscription.status) || data.partnerDiscountPeerKey);
+        if(reviewable){
+          const offer=await accountOffer(store,uid,data.preferredPartnerEmail,data.partnerOfferEditorial===true);
+          const eligible=subscription.status==='active' && !subscription.pause_collection && current.active && offer.eligible;
+          if(!eligible)preserve=await earnedRenewalBoundary(store,uid,data,subscription);
+          await applyRenewalOffer(stripe,{subscription,scheduleId:subscription.schedule||data.schedule,
+            priceId:env.STRIPE_PRICE_ID,eligible,preserveBoundary:preserve});
+          const peerKey=eligible?emailKey(data.preferredPartnerEmail):preserve?data.partnerDiscountPeerKey:null;
+          if((data.partnerDiscountPeerKey||null)!==peerKey){
+            data.partnerDiscountPeerKey=peerKey;
+            await store.saveMemberData(uid,data);
+          }
+        }
+      }
+      if(version!==undefined){
+        if(preserve)await store.retryOfferJob(uid,version);
+        else await store.finishOfferJob(uid,version);
+      }
+    });
+  }
+  let processingOffers=false;
   return {
     configured,
-    publicConfig(){return {checkoutAvailable:configured,termsUrl:publicDocumentUrl(env.BILLING_TERMS_URL),privacyUrl:publicDocumentUrl(env.BILLING_PRIVACY_URL)};},
-    async membership(store,uid,options){const {data,active,purchaseHeld}=await sync(store,uid,options);return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess:worldSeasonAccess(data,{active,purchaseHeld}),periodEnd:data.periodEnd||null,waitlist:!!data.waitlist,hasCustomer:!!data.customer};},
+    publicConfig(){return {checkoutAvailable:configured,termsUrl:publicDocumentUrl(env.BILLING_TERMS_URL),privacyUrl:publicDocumentUrl(env.BILLING_PRIVACY_URL),partnerOffer:publicPartnerOffer};},
+    partnerOffer:accountOffer,
+    async updatePartnerPreference(store,uid,beforeEmail,afterEmail,editorial=false){
+      if(store.recordOfferPreference)await store.recordOfferPreference(uid,editorial?null:emailKey(afterEmail));
+      return accountOffer(store,uid,afterEmail,editorial);
+    },
+    async refreshOfferIdentity(store,user,editorial=false){
+      if(user.emailVerified!==true || !user.email || !store.recordOfferPurchase)return;
+      const data=await store.getMemberData(user.userId);
+      const key=emailKey(user.email);
+      if(data.partnerVerifiedEmailKey!==key || (data.partnerOfferEditorial===true)!==editorial){
+        data.partnerVerifiedEmailKey=key;data.partnerOfferEditorial=editorial;await store.saveMemberData(user.userId,data);
+      }
+      await indexPurchase(store,user.userId,data);
+    },
+    refreshPartnerOffer:reconcileOffer,
+    async processPartnerOffers(withStore){
+      if(!configured || processingOffers)return;
+      processingOffers=true;
+      try{
+        await withStore(store=>store.expireOfferPurchases?.());
+        await withStore(store=>store.scheduleChangedPartners?.());
+        const jobs=await withStore(store=>store.listOfferJobs(10));
+        for(const {uid,version} of jobs){
+          try{await reconcileOffer(withStore,uid,version);}
+          catch{await withStore(store=>store.retryOfferJob(uid,version));}
+        }
+      }finally{processingOffers=false;}
+    },
+    async membership(store,uid,options){const {data,active,purchaseHeld}=await sync(store,uid,options);return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess:worldSeasonAccess(data,{active,purchaseHeld}),periodEnd:data.periodEnd||null,waitlist:!!data.waitlist,hasCustomer:!!data.customer,partnerOffer:await accountOffer(store,uid,data.preferredPartnerEmail)};},
     async pollMembership(store,uid){
       const data=await store.getMemberData(uid,{readOnly:true});
       const now=Date.now();
@@ -140,30 +250,36 @@ export function createBilling(env=process.env,fetcher=fetch){
     },
     async checkout(store,user,input={}){
       if(!configured)throw new ApiError(503,'La contratación todavía no está abierta.','BILLING_UNAVAILABLE');
+      await this.refreshOfferIdentity(store,user);
       const {data,active,purchaseHeld}=await sync(store,user.userId);
       if(active||purchaseHeld)throw new ApiError(409,'Ya hay un pase o un pago en curso. Consúltalo en Mi cuenta.','SUBSCRIPTION_IN_PROGRESS');
       const purchase=worldSeasonAccess(data,{active}).nextPurchase;
       if(!purchase)throw new ApiError(409,'Para contratar otra temporada, termina primero los doce casos de la anterior.','SEASON_NOT_AVAILABLE');
       if((input?.season??1)!==purchase.number)throw new ApiError(409,'Selecciona la temporada disponible antes de contratar.','SEASON_SELECTION_REQUIRED');
       const ordinals=purchase.blocks.map(n=>(purchase.number-1)*3+n).join(',');
+      if(input.expectPartnerOffer===true)throw new ApiError(409,'La primera cuota cuesta 29,95 €. El descuento en pareja se aplica a las renovaciones.','PARTNER_OFFER_CHANGED');
+      await invalidateCheckout(store,user.userId,data,false);
       // Reuse an open payment page across devices, even after the retry key's time window.
       if(data.pendingSeasonCheckout?.expiresAt>Date.now()){
         const pending=data.pendingSeasonCheckout;
         const prior=await stripe('checkout/sessions/'+encodeURIComponent(pending.id));
-        if(prior.status==='open' && pending.blocks===ordinals && prior.url)return {url:prior.url};
+        if(prior.status==='open' && pending.blocks===ordinals && pending.partnerDiscount!==true && prior.url)return {url:prior.url};
         if(prior.status==='open')throw new ApiError(409,'Hay una solicitud anterior de pago en curso.','CHECKOUT_IN_PROGRESS');
         if(prior.status==='complete' && !data.cycles?.some(c=>c.subscription===prior.subscription))throw new ApiError(409,'Estamos confirmando tu pago.','CHECKOUT_IN_PROGRESS');
       }
       // Verify the advertised amount and monthly cadence before creating a Checkout session.
       const price=await stripe('prices/'+encodeURIComponent(env.STRIPE_PRICE_ID));
-      if(price.unit_amount!==2995||price.currency!=='eur'||price.recurring?.interval!=='month'||price.recurring?.interval_count!==1||price.tax_behavior!=='inclusive')throw new ApiError(503,'El precio está pendiente de configuración.','BILLING_UNAVAILABLE');
+      if(price.unit_amount!==regularAmountCents||price.currency!=='eur'||price.recurring?.interval!=='month'||price.recurring?.interval_count!==1||price.tax_behavior!=='inclusive')throw new ApiError(503,'El precio está pendiente de configuración.','BILLING_UNAVAILABLE');
       if(!data.customer){const customer=await stripe('customers',{email:user.email,'metadata[lup_uid]':user.userId},'lup-customer-'+user.userId);data.customer=customer.id;await store.saveMemberData(user.userId,data);}
       const minute=Math.floor(Date.now()/1800000);
       const seasonName=SEASON_NAMES[purchase.number-1];
-      const description=seasonName+'. Cuatro casos por cuota de 29,95 € al mes (IVA incluido). Este pase finaliza después de '+purchase.remainingCycles+(purchase.remainingCycles===1?' cuota.':' cuotas.')+' Puedes cancelar antes de renovar. La siguiente temporada se contrata por separado.';
-      const result=await stripe('checkout/sessions',{mode:'subscription',customer:data.customer,'line_items[0][price]':env.STRIPE_PRICE_ID,'line_items[0][quantity]':'1','subscription_data[metadata][lup_uid]':user.userId,'subscription_data[metadata][lup_season]':String(purchase.number),'subscription_data[metadata][lup_blocks]':ordinals,client_reference_id:user.userId,success_url:origin+'/#planes?checkout=complete',cancel_url:origin+'/#planes',locale:'es','custom_text[submit][message]':description},'lup-checkout-'+user.userId+'-'+ordinals+'-'+minute);
+      const description=seasonName+'. La primera cuota es de 29,95 € (IVA incluido). Cada cuota abre cuatro casos. El 50 % se aplica desde la siguiente factura si ambos tenéis un pase activo y os habéis elegido en el perfil. Este pase finaliza después de '+purchase.remainingCycles+(purchase.remainingCycles===1?' cuota.':' cuotas.')+' Puedes cancelar antes de renovar. La siguiente temporada se contrata por separado.';
+      const previous=data.pendingSeasonCheckout?.id||'new';
+      const attempt=mailKey('season-checkout',[user.userId,ordinals,'full-first',minute,previous].join('/'));
+      const result=await stripe('checkout/sessions',{mode:'subscription',customer:data.customer,'line_items[0][price]':env.STRIPE_PRICE_ID,'line_items[0][quantity]':'1',
+        'subscription_data[metadata][lup_uid]':user.userId,'subscription_data[metadata][lup_season]':String(purchase.number),'subscription_data[metadata][lup_blocks]':ordinals,client_reference_id:user.userId,success_url:origin+'/#planes?checkout=complete',cancel_url:origin+'/#planes',locale:'es','custom_text[submit][message]':description},'lup-checkout-'+attempt);
       if(result.id && result.expires_at){
-        data.pendingSeasonCheckout={id:result.id,blocks:ordinals,expiresAt:result.expires_at*1000};
+        data.pendingSeasonCheckout={id:result.id,blocks:ordinals,expiresAt:result.expires_at*1000,partnerDiscount:false};
         await store.saveMemberData(user.userId,data);
       }
       return {url:result.url};
@@ -187,10 +303,27 @@ export function createBilling(env=process.env,fetcher=fetch){
       await withStore(async store=>{const uid=await store.findCustomer(typeof customer==='string'?customer:customer.id);if(!uid)return;
         if(event.type==='charge.refunded'||event.type==='charge.dispute.created'){
           const invoice=typeof charge?.invoice==='string'?charge.invoice:charge?.invoice?.id;
-          if(invoice){const data=await store.getMemberData(uid);data.revokedInvoices=[...new Set([...(data.revokedInvoices||[]),invoice])];await store.saveMemberData(uid,data);}
+          let receipts=invoice?[invoice]:[];
+          const intent=typeof charge?.payment_intent==='string'?charge.payment_intent:charge?.payment_intent?.id;
+          if(!invoice && intent){
+            const payments=await stripe('invoice_payments?payment[type]=payment_intent&payment[payment_intent]='+encodeURIComponent(intent)+'&limit=100');
+            receipts=(payments.data||[]).map(entry=>typeof entry.invoice==='string'?entry.invoice:entry.invoice?.id).filter(Boolean);
+          }
+          if(receipts.length){const data=await store.getMemberData(uid);data.revokedInvoices=[...new Set([...(data.revokedInvoices||[]),...receipts])];await store.saveMemberData(uid,data);await indexPurchase(store,uid,data);}
         }
         await sync(store,uid);
-      });return Response.json({received:true});
+        const billingStateChanged=event.type==='invoice.payment_failed' ||
+          ['customer.subscription.deleted','customer.subscription.paused','customer.subscription.resumed'].includes(event.type) ||
+          event.type==='customer.subscription.updated' &&
+          ['status','pause_collection','cancel_at','cancel_at_period_end'].some(k=>Object.hasOwn(event.data?.previous_attributes||{},k));
+        if(billingStateChanged)await store.queueOfferReview?.(uid);
+      });
+      if(['invoice.paid','invoice.payment_succeeded','invoice.payment_failed','charge.refunded','charge.dispute.created','customer.subscription.updated','customer.subscription.deleted','customer.subscription.paused','customer.subscription.resumed'].includes(event.type)){
+        // The underlying transaction already committed each impacted member's job.
+        // A temporary provider lock is retried by the regular worker.
+        await this.processPartnerOffers(withStore).catch(()=>{});
+      }
+      return Response.json({received:true});
     }
   };
 }

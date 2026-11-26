@@ -20,5 +20,19 @@ export async function createRuntimeApi(env=process.env) {
     engine:context.GameEngine,stories:context.STORIES,
     origins:(env.APP_ORIGINS||'https://laultimapieza.es,https://www.laultimapieza.es,https://yxkiqfgt3l.c35.airoapp.ai,https://yxkiqfgt3l.preview.c35.airoapp.ai').split(',').map(s=>s.trim()).filter(Boolean)});
   api.processMail=()=>mailer.process(withStore);
+  let pricingBusy=false,backfillComplete=false;
+  api.processPartnerOffers=async()=>{
+    if(pricingBusy||!databaseConfigured(env))return;
+    pricingBusy=true;
+    try{
+      try{
+        if(!backfillComplete)backfillComplete=await withStore(store=>store.backfillPartnerOffers());
+        await withStore(store=>store.expireOfferPurchases());
+        await withStore(store=>store.scheduleChangedPartners());
+      }finally{
+        await billing.processPartnerOffers(withStore);
+      }
+    }finally{pricingBusy=false;}
+  };
   return api;
 }
