@@ -60,9 +60,21 @@
     pauseAudio(previous.frame);
     previous.frame?.remove();
   }
+  function reopen(c) {
+    if(!valid(c))return;
+    clear();render(c.id,c.bridge,{catalogHref:c.catalog,resume:true});
+  }
   async function request(c, action, payload) {
     if (!sessionLive(c)) throw new Error('Inicia sesión para seguir jugando.');
-    const result = await c.bridge.request('/api/valdemar/cases/'+c.id+(action?'/'+action:''),payload);
+    const body=payload===undefined?undefined:{...payload,partnerId:c.data?.partner?.id||null};
+    let result;
+    try {
+      result=await c.bridge.request('/api/valdemar/cases/'+c.id+(action?'/'+action:''),body);
+    } catch(error) {
+      if(error.code==='PAIR_CHANGED')reopen(c);
+      else if(action==='pair-state' && sessionLive(c) && [401,402,403].includes(error.status))showFailure(c,error);
+      throw error;
+    }
     if(!sessionLive(c)) throw new Error('La partida ya no está abierta.');
     return result;
   }
@@ -159,8 +171,7 @@
     ['Papel 1','Papel 2','En solitario'].forEach((name,i)=>{
       const role=i===2?0:i+1;
       const b=button(name,()=>{
-        if(c.modeControl?.mode==='duo' && role)c.modeControl.setPaper(role===1?'A':'B');
-        else if(selected!==role)reveal(role);
+        if(!c.data.partner && selected!==role)reveal(role);
       });
       b.dataset.role=String(role);b.setAttribute('aria-pressed','false');roleBar.append(b);
     });
@@ -372,7 +383,10 @@
     c.balance.setAttribute('aria-live','polite');
     headlinks.append(link('Ver en el plano','#mapa?lugar='+c.id,'vd-link'),link('Todas las historias',c.catalog,'vd-link'),c.balance);
     const description=element('div',null,'vd-intro-copy');
-    c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,mode=>request(c,'mode',{mode}),paper=>c.showModePaper?.(paper));
+    c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,mode=>request(c,'mode',{mode}),paper=>c.showModePaper?.(paper),{
+      caseId:c.id,partner:c.data.partner,data:c.data,readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
+      onState:state=>window.ModalidadJuego.syncProgress(c.data,state,c.hourView,()=>renderEnding(c)),reopen:()=>reopen(c)
+    });
     description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title),c.modeControl.entry,element('p',story.question,'vd-question'));
     if(story.intro)description.append(element('p',story.intro,'vd-narrative'));
     head.append(description,still);
@@ -397,6 +411,7 @@
   }
   function showFailure(c,e) {
     c.modeControl?.destroy();
+    c.hourView?.pause();pauseAudio(c.frame);
     c.frame.replaceChildren(element('h1','La mesa de Valdemar'),element('p',errorMessage(e)));
     if(!c.bridge.isSignedIn() || e?.status===401){
       const login=element('button','Entrar','vd-primary');

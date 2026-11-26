@@ -40,7 +40,7 @@
   }
   function list(opts={}) {
     const month=[1,2,3].includes(Number(opts.month))?Number(opts.month):1;
-    return `<section class="vd-section vd-list"><header class="vd-head"><div><p class="vd-label">Valdemar · Temporada 1</p><h1>Las doce historias de Valdemar</h1><p class="vd-intro">Cuatro misterios cada mes para jugar a solas o compartir pantalla. ¿Por dónde empiezas?</p></div><a class="vd-textlink" href="/#mapa?mes=${month}">Explorar el mes en el plano</a></header><nav class="vd-months" aria-label="Mes de la temporada">${[1,2,3].map(n=>`<a href="/#casos?mes=${n}"${month===n?' aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><h2 class="vd-group" tabindex="-1">Las historias del mes ${month}</h2>${cards(month)}<p class="vd-foot"><a href="/#archivo-clasico">Visitar el archivo de casos anteriores</a></p></section>`;
+    return `<section class="vd-section vd-list"><header class="vd-head"><div><p class="vd-label">Valdemar · Temporada 1</p><h1>Las doce historias de Valdemar</h1><p class="vd-intro">Cuatro misterios cada mes. Elige cuál investigar y con quién jugar.</p></div><a class="vd-textlink" href="/#mapa?mes=${month}">Explorar el mes en el plano</a></header><nav class="vd-months" aria-label="Mes de la temporada">${[1,2,3].map(n=>`<a href="/#casos?mes=${n}"${month===n?' aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><h2 class="vd-group" tabindex="-1">Las historias del mes ${month}</h2>${cards(month)}<p class="vd-foot"><a href="/#archivo-clasico">Visitar el archivo de casos anteriores</a></p></section>`;
   }
   function entry(item,opts,unlocked) {
     const href=unlocked?'/#valdemar-jugar?id='+item.id:'/#planes';
@@ -69,7 +69,7 @@
       <header class="vd-feature"><figure><img src="${item.image}" width="764" height="508" alt="${esc(item.coverAlt)}" fetchpriority="high"><figcaption>${esc(item.place)}</figcaption></figure>
       <div class="vd-description"><p class="vd-label">Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}${unlocked?'':demo}</div><p class="vd-availability">${message}</p></div></header>
       ${item.id===2?hotelCall(cta):''}
-      <section class="vd-brief"><div><h2>Los papeles de esta historia</h2><p>A solas puedes consultar las dos carpetas. En pareja, compartid la pantalla y repartíos los papeles.</p></div><ol><li><strong>Papel 1</strong>${esc(item.roleA)}</li><li><strong>Papel 2</strong>${esc(item.roleB)}</li></ol></section>
+      <section class="vd-brief"><div><h2>Los papeles de esta historia</h2><p>A solas puedes abrir las dos carpetas. En pareja, cada uno investiga desde su cuenta. Ambos necesitáis un pase activo con este caso desbloqueado.</p><a class="vd-textlink" href="/#perfil?seccion=pareja&amp;juego=${item.id}">Elegir con quién jugar</a></div><ol><li><strong>Papel 1</strong>${esc(item.roleA)}</li><li><strong>Papel 2</strong>${esc(item.roleB)}</li></ol></section>
       <p class="vd-method">Cruza audios, imágenes, documentos y archivos web. La primera vez que superes el reto paralelo de esta historia ganarás una llave. Puedes usarla para abrir un sobre de ayuda.</p></article>`;
   }
   window.ValdemarCatalog=Object.freeze({items:Object.freeze(items),get,path,access,home,list,detail});

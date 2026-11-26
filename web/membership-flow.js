@@ -59,8 +59,10 @@ function questions(standalone=false){
  const heading=standalone?'h1':'h2';
  return `<section class="pase-preguntas" aria-labelledby="pase-faq"><p class="pase-supra">Antes de jugar</p><${heading} id="pase-faq" tabindex="-1">Preguntas frecuentes</${heading}>
    <details><summary>¿Puedo probar una historia antes de suscribirme?</summary><p>En Clínica Vallejo recibes una caja de archivo. Escucha la cinta, examina la ficha y cruza las pistas con el registro. Puedes probarla sin cuenta. <a href="/vallejo.html">Abrir la demo</a></p></details>
-   <details><summary>¿Se puede jugar a solas y pasar a pareja?</summary><p>Sí. A solas ves las pistas de los dos papeles. En pareja compartís pantalla, elegís un papel cada uno y os contáis lo que habéis descubierto. Puedes cambiar de modalidad durante el caso y conservar la etapa alcanzada.</p></details>
-   <details><summary>¿Cuántos juegos se abren y cuánto dura cada uno?</summary><p>Cada cuota mensual abre cuatro juegos de la temporada. Calcula unos 60 minutos por caso. Si haces una pausa, retoma la etapa guardada en Mis partidas.</p></details>
+   <details><summary>¿Crear una cuenta es gratis?</summary><p>Sí. Puedes registrarte sin tarjeta, elegir tu nombre de juego y consultar las invitaciones que lleguen a tu correo. <a href="/#perfil">Abrir mi perfil</a></p></details>
+   <details><summary>¿Cómo invito a alguien a un juego?</summary><p>En Mi cuenta, elige el juego y escribe el correo de la otra persona. La invitación aparece en el perfil asociado a ese correo una vez verificado. Para jugar juntos, los dos necesitáis un pase personal con ese caso abierto. Puedes elegir a alguien distinto para el siguiente misterio. <a href="/#perfil?seccion=pareja">Ver mis invitaciones</a></p></details>
+   <details><summary>¿Se puede jugar a solas y pasar a pareja?</summary><p>Sí. A solas investigas con los dos expedientes. En pareja, cada persona entra con su cuenta y comparte sus descubrimientos. Si vuelves a jugar a solas, conservas la etapa alcanzada.</p></details>
+   <details><summary>¿Cuántos juegos se abren y cuánto dura cada uno?</summary><p>Cada cuota mensual abre cuatro juegos de la temporada para la persona que la paga. Calcula unos 60 minutos por caso. Si haces una pausa, retoma la etapa guardada en Mis partidas.</p></details>
    <details><summary>¿Para qué sirven las llaves?</summary><p>Recibes una llave de bienvenida una sola vez al contratar. En cada caso puedes ganar otra la primera vez que superes su reto paralelo. Una llave abre un sobre con dos ayudas.</p></details>
    <details><summary>¿Cómo paso al siguiente tablero?</summary><p>Cada desenlace aporta una pieza al sello del tablero. Con los doce desenlaces guardados podrás leer su epílogo y contratar la temporada siguiente. El recorrido empieza en Valdemar y continúa en el Tablero de Ámbar, Umbravía y la Necrópolis del Sol Velado.</p></details>
    <details><summary>¿Cómo gestiono o cancelo mi suscripción?</summary><p>En Mi cuenta, abre la pestaña Cuenta y elige «Gestionar mi suscripción». Desde ahí puedes consultar tu pase y cancelar antes del siguiente cobro. Si paras antes del tercer pago, el acceso dura hasta el fin del periodo abonado. Cuando ya has abonado los tres bloques, puedes terminar los casos pendientes. <a href="/#perfil?seccion=cuenta">Ir a Mi cuenta</a></p></details>
@@ -100,6 +102,8 @@ function plans(){
      : `<a class="button primary wide" href="#${route}">Volver a ${name}</a>`;
  const terms=[['Condiciones',config.termsUrl],['Política de privacidad',config.privacyUrl]].filter(([,url])=>typeof url==='string'&&/^https:\/\//i.test(url)).map(([label,url])=>`<a href="${esc(url)}" rel="noopener" target="_blank">${label}</a>`).join(' · ');
  const portal=state.ownAccess && state.hasCustomer;
+ const signed=root.GameAccountBridge?.isSignedIn?.()===true;
+ const freeAccount=signed?'':'<p><button type="button" class="button" data-action="auth-register">Crear cuenta gratis</button></p>';
  const action=config.checkoutAvailable||portal?checkout+(terms?'<p>'+terms+'</p>':''):held?.finishAccess?'<a class="button primary wide" href="#'+route+'">Volver a '+name+'</a>':interest();
  const cycles=offer?.number===number ? offer.remainingCycles : held ? 3-held.paidBlocks.length : 3;
  const costText=cycles===0 ? 'Has abonado los tres bloques de esta temporada.' :
@@ -116,6 +120,7 @@ function plans(){
  const mainLabel=openingLink?.label||(state.ownAccess?'Ver mi suscripción':'Ver el pase de '+name);
  const past=current?.finishAccess && current.completed===12 && number>current.number;
  return `<section class="pase-temporada" data-season="${number}">
+   ${params.get('checkout')==='complete'?`<aside class="pase-ficha" role="status"><h2>${state.ownAccess?'Tu pase está activo':'Estamos comprobando tu pase'}</h2><p>${state.ownAccess?'Ya puedes elegir uno de tus juegos abiertos e invitar a alguien desde tu perfil.':'Tus juegos aparecerán en el perfil cuando se confirme el pago.'}</p><a class="button" href="/#perfil?seccion=pareja">Ir a mis juegos e invitaciones</a></aside>`:''}
    <header class="pase-escena">
      <img class="pase-fondo" src="${heroImage}" alt="" width="1536" height="1024" fetchpriority="high">
      <div class="pase-apertura"><p class="pase-supra">Pase de temporada · ${name}</p>
@@ -134,14 +139,14 @@ function plans(){
        <div class="pase-caso-copy"><span class="pase-lugar">${esc(s.place)}</span><h3 id="pase-caso-${s.id}">${esc(s.title)}</h3><p>${esc(number===1?valdemarHooks[i]:s.question)}</p></div></a>`).join('')}</div>
    </section>
    <div class="pase-detalle" id="pase-detalle"><article class="pase-ficha">
-     <p class="pase-supra">Suscripción mensual</p>
+     <p class="pase-supra">Pase personal · Suscripción mensual</p>
      <h2 id="pass-review-title" tabindex="-1">${reviewing?'Revisa tu pase de '+name:'El pase de '+name}</h2>
-     <p class="pase-incluye">Cada mes se abren cuatro investigaciones de unos 60 minutos. En pareja, compartís pantalla y cada uno sigue las pistas de su papel. A solas, tienes los dos expedientes.</p>
-     <p class="pase-precio"><strong>29,95 €</strong> / mes</p>
+     <p class="pase-incluye">Cada mes se abren cuatro investigaciones de unos 60 minutos en tu cuenta. Puedes jugarlas a solas o invitar desde tu perfil a alguien distinto para cada caso. Para jugar en pareja, ambos necesitáis tener ese misterio abierto con vuestro propio pase.</p>
+     <p class="pase-precio"><strong>29,95 €</strong> / persona al mes</p>
      <p class="pase-estado">${config.checkoutAvailable||held?'IVA incluido.':'Precio previsto, IVA incluido. La suscripción abrirá próximamente.'}</p>
      <p class="pase-importe">${costText} ${cycles?'Puedes cancelar antes de la próxima renovación.':held?.finishAccess?'Los doce juegos siguen disponibles en tu cuenta.':''}</p>
      ${past?`<p>Has completado ${seasonNames[current.number-1]}. <a href="/#${seasonRoutes[current.number-1]}">Volver a esa temporada</a></p>`:''}
-     <div class="pase-decision">${action}</div>
+     <div class="pase-decision">${action}${freeAccount}${signed && (state.ownAccess||held?.finishAccess)?'<p><a href="/#perfil?seccion=pareja">Elegir un juego e invitar a mi pareja</a></p>':''}</div>
    </article>${questions()}</div>
  </section>`;
 }
@@ -151,7 +156,7 @@ root.ClubAccess={...old,plans,enrollment:plans,banner(){if(typeof location!=='un
  const current=access?.seasons?.filter(s=>s.paidBlocks.length).at(-1);
  const next=access?.nextPurchase;
  const canFinish=current?.finishAccess && current.completed<12;
- const title=current?.finishAccess&&current.completed===12?'Temporada completada':state.ownAccess?'Tu temporada está activa':canFinish?'Tu temporada está pendiente de terminar':current?'Tu pase está en pausa':state.canPlay?'Acceso como invitado':'Sin suscripción activa';
+ const title=current?.finishAccess&&current.completed===12?'Temporada completada':state.ownAccess?'Tu temporada está activa':canFinish?'Tu temporada está pendiente de terminar':current?'Tu pase está en pausa':'Cuenta gratuita';
  const progress=(access?.seasons||[]).filter(s=>s.paidBlocks.length).map(s=>{
    const name=seasonNames[s.number-1];
    const paid=s.finishAccess?'Pase abonado':s.paidBlocks.length+' de 3 bloques abonados';

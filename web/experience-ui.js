@@ -32,7 +32,7 @@ function callToPlay(s,m){
 function seasonMeter(m){return `<div class="season-meter"><span><b>${count(m)}</b> de 12 piezas recuperadas</span><span>${Math.round(count(m)/12*100)}%</span><progress max="12" value="${count(m)}" aria-label="Experiencias completadas">${count(m)} de 12</progress></div>`;}
 function invitationPath(s){return '/caso/'+encodeURIComponent(s.id)+'/';}
 
-function shareBox(s,path){if(!s)return '';const url='https://www.laultimapieza.es'+(path||invitationPath(s))+'?via=invitacion';const message='¿Resolvemos «'+s.title+'» juntos? '+url;return `<details class="case-share"><summary>¿Con quién lo resolverías?</summary><div><a href="https://wa.me/?text=${encodeURIComponent(message)}" target="_blank" rel="noopener noreferrer">Proponerlo por WhatsApp ↗</a><button type="button" data-copy-invite="${esc(url)}">Copiar enlace</button></div><p role="status" aria-live="polite"></p></details>`;}
+function shareBox(s,path){if(!s)return '';const url='https://www.laultimapieza.es'+(path||invitationPath(s))+'?via=invitacion';const message='Mira el avance de «'+s.title+'». '+url;return `<details class="case-share"><summary>Compartir el avance del caso</summary><div><a href="https://wa.me/?text=${encodeURIComponent(message)}" target="_blank" rel="noopener noreferrer">Compartir por WhatsApp ↗</a><button type="button" data-copy-invite="${esc(url)}">Copiar enlace al avance</button></div><p role="status" aria-live="polite"></p></details>`;}
 
 function invitation(s,m){if(!s||s.id==='habitacion-309')return catalog(m);const i=s.episode-1;const month=s.season===1?Math.ceil(s.episode/4):0;const hook=s.season===1&&openingQuestions[i];return `<article class="invite-page"><div class="invite-content"><a class="text-link" href="${month?'#archivo-clasico?mes='+month:'#archivo-clasico'}">${month?'Ver el mes '+month+' del archivo clásico':'Ver el archivo clásico'}</a><p class="ui-kicker">${month?'ARCHIVO CLÁSICO · MES '+month:'CASO ADICIONAL'} · ${s.id==='cartas-medianoche'?'≈60':month?'30–45':'15–25'} MIN · 1–2 PERSONAS</p><h1>${esc(s.title)}</h1>${hook?`<p class="invite-question">${esc(hook)}</p>`:''}<p class="invite-description">${esc(s.description)}</p>${m.canPlay?callToPlay(s,m):`<button class="button primary" data-action="preview-open">Jugar a Clínica Vallejo gratis</button><p class="action-note">Abre la caja 87-V de la Clínica Vallejo. Sin cuenta ni tarjeta.</p><a class="text-link" href="#planes">Ver la temporada · 29,95 €/mes</a>`}${shareBox(s)}${m.referred?`<details class="invite-privacy"><summary>Privacidad de esta visita</summary><label><input type="checkbox" data-invite-counts ${root.InvitationCounts?.enabled?'checked':''}> Permitir contadores anónimos de la visita, el inicio de la demo y la solicitud de aviso. Opcional.</label></details>`:''}</div><figure class="invite-poster"><img src="${sceneImage(s)||invitationPath(s)+'portada.png'}" width="1200" height="630" alt="" fetchpriority="high"></figure></article>`;}
 const sceneCovers = new Set(["cartas-medianoche","ultima-funcion","archivo-ausencias","marea-quieta","habitacion-309","frecuencia-17","jardin-invierno","retrato-prestado","mesa-13","tren-detenido","ciudad-invisible","ultimo-coro","ultima-invitacion"]);
@@ -55,7 +55,7 @@ function coverStory(m) {
        ${m.canPlay?'<a class="vh-secondary" href="#casos">Ir a mis casos</a>':'<button type="button" class="vh-secondary" data-action="page-section" data-target="shelf-title">Ver los casos del primer mes</button>'}
      </div>
      <p class="vh-meta">Demo sin cuenta ni tarjeta.</p>
-     <p class="vh-pass-line">El pase incluye <strong>cuatro misterios al mes de unos 60 minutos cada uno</strong>, para jugar a solas o en pareja compartiendo pantalla. <a href="#planes">${root.ClubAccess?.checkoutAvailable===true?'29,95 €/mes, IVA incluido':'Precio previsto de 29,95 €/mes'}</a>.</p>
+     <p class="vh-pass-line">El pase incluye <strong>cuatro misterios al mes de unos 60 minutos cada uno</strong>, para jugar a solas o con alguien que también tenga ese caso abierto. <a href="#planes">${root.ClubAccess?.checkoutAvailable===true?'29,95 €/mes, IVA incluido':'Precio previsto de 29,95 €/mes'}</a>.</p>
    </div>
    <figure class="v87-cover-art">
      <img src="/vallejo-mesa-87v.webp" width="1536" height="1024" alt="Una casete, un plano y la fotografía de un pasillo en la mesa del archivo." fetchpriority="high">
@@ -87,8 +87,8 @@ function homeSeasonOffer(m) {
  const label=open?'Ver la suscripción':m.membership?.waitlist?'Ver mi aviso de apertura':'Avísame cuando abra';
  return `<section class="vh-offer" aria-labelledby="vh-offer-title">
    <div><p class="cover-caption">La suscripción · Temporada 01</p><h2 id="vh-offer-title">El viaje empieza en Valdemar.</h2>
-   <p>Cada cuota abre cuatro juegos. Al completar los doce de un tablero reúnes su sello y puedes contratar la temporada siguiente. Una llave de bienvenida y los retos paralelos te dan acceso a las ayudas.</p></div>
-   <div class="vh-terms"><p class="vh-price"><strong>29,95 €</strong><span>/mes</span></p><p class="vh-offer-note">${open?'IVA incluido':'Precio previsto · Próxima apertura'}</p><a href="#planes" class="button primary">${label}</a></div>
+   <p>Cada pase personal abre cuatro juegos por cuota. En tu perfil puedes invitar por correo a una persona distinta para cada juego. Al completar los doce de un tablero reúnes su sello y puedes contratar la temporada siguiente. Una llave de bienvenida y los retos paralelos te dan acceso a las ayudas.</p></div>
+   <div class="vh-terms"><p class="vh-price"><strong>29,95 €</strong><span>/ persona al mes</span></p><p class="vh-offer-note">${open?'IVA incluido':'Precio previsto · Próxima apertura'}</p><a href="#planes" class="button primary">${label}</a></div>
  </section>`;
 }
 
@@ -106,9 +106,7 @@ function classicReturn(m){
    if(game.caseId==='habitacion-309'||game.status==='finished'||(game.ownerId!==m.userId&&!game.members?.some(p=>p.userId===m.userId)))continue;
    const story=m.stories?.find(s=>s.id===game.caseId);
    if(!story)continue;
-   const invited=game.ownerId&&game.ownerId!==m.userId&&Array.isArray(m.membership?.guestOwners);
-   if(invited&&!m.membership.guestOwners.includes(game.ownerId))continue;
-   if(!invited&&root.MonthlyAccess&&!root.MonthlyAccess.allowed(story,m))continue;
+   if(root.MonthlyAccess&&!root.MonthlyAccess.allowed(story,m))continue;
    const time=classicActivity(game);
    if(recent&&recent.time>=time)continue;
    const moves=game.history?.length||0;

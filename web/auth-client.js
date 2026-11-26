@@ -37,9 +37,14 @@
   // Keep initialization errors observable by the app without an unhandled rejection.
   ready.catch(()=>{});
   async function persistence(remember){await ready;if(!auth)unavailable();await sdk.setPersistence(auth,remember?sdk.browserLocalPersistence:sdk.browserSessionPersistence);}
-  const options=()=>({url:location.origin+'/#perfil',handleCodeInApp:false});
+  function returnRoute(hash=location.hash){
+    if(/^#planes\?(revisar=[1-4]|gestion=aviso)$/.test(hash))return hash;
+    if(/^#perfil(?:\?seccion=(?:cuenta|pareja)(?:&juego=(?:[1-9]|[1-3]\d|4[0-8]))?)?$/.test(hash))return hash;
+    return '#perfil';
+  }
+  const options=()=>({url:location.origin+'/'+returnRoute(),handleCodeInApp:false});
   root.AccountAccess={
-    ready,
+    ready,returnRoute,
     get enabled(){return enabled;},
     get user(){return auth?.currentUser||null;},
     error(error){return messages[error?.code]|| (error?.code?'No se ha podido completar el acceso. Inténtalo de nuevo.':error?.message)||'No se ha podido completar la acción.';},

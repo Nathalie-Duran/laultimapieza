@@ -1,4 +1,31 @@
 /* Case invitations share the same reading layout for a visitor and a returning player. */
+.public-account-actions { display: none; }
+.postal-visitor .sidebar .public-account-actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(.4rem, 1vw, .9rem);
+}
+.public-account-actions .public-signin {
+  min-height: 44px;
+  padding: .45rem .35rem;
+  font: inherit;
+  color: #efece4;
+  background: transparent;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: .25em;
+  cursor: pointer;
+}
+.postal-visitor .sidebar .public-account-actions .postal-login {
+  min-height: 44px;
+  margin: 0;
+  padding-inline: .85rem;
+}
+@media (max-width: 560px) {
+  .postal-visitor .sidebar:has(.public-account-actions) .brand > span:not(.brand-icon) {
+    display: none;
+  }
+}
 .invite-page {
   display: grid;
   grid-template-columns: minmax(0, 1.06fr) minmax(0, .94fr);

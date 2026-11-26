@@ -32,6 +32,10 @@
     return '<div id="md-game-host"><p role="status">Abriendo la investigación…</p></div>';
   }
   function active(c) {return current===c && c.bridge.isSignedIn();}
+  function reopen(c) {
+    if(c!==current)return;
+    clear();mountGame(c.item.id,c.bridge,true);
+  }
   function showAccess(c,message,reason) {
     if(c!==current)return;
     c.modeControl?.destroy();
@@ -54,12 +58,14 @@
   async function request(c,action,payload) {
     if(!active(c))throw Error('Vuelve a abrir tu cuenta para continuar.');
     try {
-      const result=await c.bridge.request('/api/valdemar/cases/'+c.item.id+(action?'/'+action:''),payload);
+      const body=payload===undefined?undefined:{...payload,partnerId:c.data?.partner?.id||null};
+      const result=await c.bridge.request('/api/valdemar/cases/'+c.item.id+(action?'/'+action:''),body);
       if(!active(c))throw Error('Has salido de esta investigación.');
       return result;
     } catch(error) {
       if(c===current){
-        if(error.code==='CASE_NOT_RELEASED')showAccess(c,error.message,402);
+        if(error.code==='PAIR_CHANGED')reopen(c);
+        else if(error.code==='CASE_NOT_RELEASED')showAccess(c,error.message,402);
         else if(error.code==='PREVIOUS_SEASON_REQUIRED')showAccess(c,error.message,'gate');
         else if([401,402,403].includes(error.status))showAccess(c,error.message,error.status);
       }
@@ -199,7 +205,10 @@
     figure.append(cover,el('figcaption',item.place));
     const top=el('div',null,'md-game-top');c.balance=el('span','','md-wallet');c.balance.setAttribute('aria-live','polite');
     top.append(link('← '+worlds.edition(item.world).returnLabel,worlds.route(item.world,item.id)),c.balance);
-    c.modeControl=window.ModalidadJuego.create(frame,story,c.data.mode,mode=>request(c,'mode',{mode}));
+    c.modeControl=window.ModalidadJuego.create(frame,story,c.data.mode,mode=>request(c,'mode',{mode}),null,{
+      caseId:item.id,partner:c.data.partner,data:c.data,readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
+      onState:state=>window.ModalidadJuego.syncProgress(c.data,state,c.hour,()=>renderEnd(c)),reopen:()=>reopen(c)
+    });
     copy.append(top,el('p',worlds.nameOf(item.world)+' · '+item.place,'md-caption'),el('h1',story.title),c.modeControl.entry,el('p',story.question,'md-game-question'),el('p',story.intro,'md-game-prose'));
     header.append(copy,figure);
     const nav=el('nav',null,'md-game-tabs');nav.setAttribute('aria-label','Secciones de la partida');

@@ -5,8 +5,7 @@ const date=t=>new Date(t).toLocaleDateString('es-ES',{day:'numeric',month:'long'
 function allowed(story,m){
  const membership=m.membership||{};
  if(membership.role==='admin')return true;
- if(membership.ownAccess&&(story.season!==1||membership.calendar?.unlockedCaseIds?.includes(story.id)))return true;
- return (m.sessions||[]).some(s=>s.caseId===story.id&&s.members.some(x=>x.userId===m.userId)&&membership.guestOwners?.includes(s.ownerId));
+ return membership.ownAccess===true && (story.season!==1 || membership.calendar?.unlockedCaseIds?.includes(story.id)===true);
 }
 function label(story,m){if(allowed(story,m))return '';const block=Math.ceil(story.episode/4);return `<span class="case-lock" aria-label="Caso bloqueado"><span aria-hidden="true">🔒</span> ${m.membership?.calendar?.unlockedCaseIds?.includes(story.id)?'Requiere suscripción activa':story.season===1?'Incluido en el '+(['primer','segundo','tercer'][block-1]||block)+' mes':'Requiere suscripción activa'}</span>`;}
 function summary(m){

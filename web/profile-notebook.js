@@ -163,15 +163,12 @@
     return typeof stamp === 'string' && /^\d{4}-\d{2}-\d{2}/.test(stamp) && Number.isFinite(Date.parse(stamp));
   }
 
-  function notebookModel({sessions = [], stories = [], canPlay = false, userId, caseAllowed, online = false, membership} = {}) {
+  function notebookModel({sessions = [], stories = [], canPlay = false, userId, caseAllowed} = {}) {
     const catalog = new Map(stories.map(story => [story.id, story]));
     const owned = sessions.filter(session => session?.id && userId && (session.ownerId === userId ||
       session.members?.some(member => member?.userId === userId)));
     function mayOpen(session) {
       if (!canPlay) return false;
-      const invited = userId && session.ownerId && session.ownerId !== userId &&
-        session.members?.some(member => member?.userId === userId);
-      if (invited && online) return membership?.guestOwners?.includes(session.ownerId) === true;
       return typeof caseAllowed !== 'function' || (catalog.has(session.caseId) && caseAllowed(session.caseId));
     }
     return {catalog, owned, mayOpen, canPlay, details: sessionDetails(owned, catalog)};
@@ -183,13 +180,13 @@
     const ongoing = owned.filter(session => !finished(session)), complete = owned.filter(finished);
     const groups = group(ongoing, 'En curso', model, true, true) + group(complete, 'Terminadas', model, !ongoing.length, true);
     const firstCase = canPlay ? browse('Elegir un caso') : '<button type="button" class="button primary" data-action="preview-open">Jugar a Clínica Vallejo</button>';
-    const join = input.online && input.userId ? '<button type="button" class="button" data-action="join">Unirme con un código</button>' : '';
+    const join = input.online && input.userId ? '<a class="button" href="/#perfil?seccion=pareja">Mis invitaciones</a>' : '';
     const seasons = input.online && input.userId && window.customElements?.get('season-archive');
     const seasonList = seasons ? '<season-archive'+(owned.length?' data-with-classic':'')+'></season-archive>' : '';
     const classic = owned.length ? (seasons?'<h2 class="pn-classic-heading">Archivo clásico</h2>':'')+groups :
       seasons ? '' : '<p class="pn-empty">Todavía no tienes partidas guardadas.</p><div class="pn-actions">'+firstCase+'</div>';
     return '<section class="pn-dashboard pn-archive" aria-labelledby="pn-sessions-title"><div class="pn-section-heading"><h1 id="pn-sessions-title">Mis partidas</h1>' + join + '</div>' +
-      seasonList + classic + '</section>';
+      seasonList + classic + (input.online && input.userId ? '<button type="button" class="text-button" data-action="join">Introducir un código del archivo clásico</button>' : '') + '</section>';
   }
 
   if (root.customElements && !root.customElements.get('notebook-return')) {
