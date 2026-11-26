@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102420">
+  <meta name="description" content="Consulta cómo se guardan las partidas de La Última Pieza, gestiona tu suscripción y tu aviso de apertura, y revisa los controles de privacidad de la demo.">
+  <link rel="canonical" href="https://www.laultimapieza.es/privacidad.html">
+  <title>Privacidad y gestión de tus datos · La Última Pieza</title>
+  <link rel="stylesheet" href="/privacidad.css">
+</head>
+<body>
+  <a class="skip" href="#contenido">Saltar al contenido</a>
+  <header class="mast">
+    <div class="wrap mast-inner">
+      <a class="brand" href="/#inicio"><img src="/brand-logo.png?v=eye-1" alt="" width="38" height="38">La Última Pieza</a>
+      <nav aria-label="Principal"><a href="/#planes">El pase</a><a href="/#perfil">Mi cuenta</a></nav>
+    </div>
+  </header>
+  <main id="contenido" tabindex="-1">
+    <div class="intro">
+      <div class="wrap">
+        <h1>Privacidad y gestión<br>de tus datos</h1>
+        <p>Elige qué quieres gestionar y consulta qué se guarda al pedir un aviso, jugar o contratar un pase.</p>
+      </div>
+    </div>
+    <div class="wrap layout">
+      <nav class="contents" aria-label="En esta página">
+        <h2>En esta página</h2>
+        <a href="#avisos">Aviso de apertura</a>
+        <a href="#cuenta">Cuenta y partidas</a>
+        <a href="#suscripcion">Suscripción y pagos</a>
+        <a href="#demo">Demo y estadísticas</a>
+        <a href="#derechos">Derechos sobre tus datos</a>
+      </nav>
+      <div class="sections">
+        <section id="avisos" aria-labelledby="t-avisos">
+          <h2 id="t-avisos">Aviso de apertura</h2>
+          <p>Si pides el aviso, guardamos tu correo para comunicarte la apertura de la temporada. Puedes pedirlo y retirarlo sin cuenta. El navegador donde lo solicites conserva el resguardo que permite identificar tu solicitud.</p>
+          <p>Para retirarlo, vuelve con ese navegador y elige «Retirar mi solicitud». Si pediste el aviso desde tu cuenta, puedes gestionarlo al iniciar sesión.</p>
+          <a class="action" href="/#planes?gestion=aviso">Gestionar mi aviso</a>
+        </section>
+        <section id="cuenta" aria-labelledby="t-cuenta">
+          <h2 id="t-cuenta">Cuenta y partidas</h2>
+          <p>Usamos tu correo para identificar tu cuenta. Guardamos el nombre y el avatar de tu perfil, tus partidas, decisiones, desenlaces, llaves y piezas para que puedas continuar. En una partida compartida, tu compañero puede ver tu nombre de juego y tu avatar.</p>
+          <p>En «Mi cuenta» puedes editar tu perfil o reiniciar tu progreso. El reinicio de una cuenta borra su avance de juego y requiere escribir <strong>REINICIAR</strong>. Conservas tu cuenta y los bloques abonados. Quien haya jugado contigo conserva su avance.</p>
+          <a class="action" href="/#perfil">Abrir mi cuenta</a>
+        </section>
+        <section id="suscripcion" aria-labelledby="t-suscripcion">
+          <h2 id="t-suscripcion">Suscripción y pagos</h2>
+          <p>Al contratar, Stripe tramita el pago. La web asocia a tu cuenta el estado del pase, el periodo abonado y los bloques a los que tienes acceso.</p>
+          <p>En «Cuenta y suscripción» puedes consultar tu estado. Si tienes una cuenta de facturación, el botón «Gestionar mi suscripción» te lleva al portal de pago.</p>
+          <a class="action" href="/#perfil?seccion=cuenta">Abrir cuenta y suscripción</a>
+        </section>
+        <section id="demo" aria-labelledby="t-demo">
+          <h2 id="t-demo">Demo y estadísticas</h2>
+          <p>Puedes jugar a Clínica Vallejo sin registrarte. En este navegador se guardan la última pista consultada, los expedientes abiertos y las ayudas utilizadas. Si el navegador bloquea ese almacenamiento, podrás continuar mientras mantengas abierta la pestaña.</p>
+          <p>Dentro de la demo, abre «Opciones». Allí puedes reiniciar la demo o activar y desactivar los contadores opcionales de uso. Si los activas, se cuentan acciones como abrir la caja, pedir una pista o terminar la investigación. Al llegar por una invitación, también pueden contarse la visita y la petición de aviso.</p>
+          <a class="action" href="/vallejo.html">Abrir la demo de Clínica Vallejo</a>
+        </section>
+        <section id="derechos" aria-labelledby="t-derechos">
+          <h2 id="t-derechos">Derechos sobre tus datos</h2>
+          <p>El reinicio actúa sobre el progreso del juego. Para solicitar una copia, la rectificación o la supresión de tus datos personales, escribe al <strong>Equipo de LaUltimaPieza.es</strong> en <a class="contact" href="mailto:info@laultimapieza.es">info@laultimapieza.es</a>. Indica qué necesitas y, si corresponde, el correo que utilizaste para tu cuenta o el aviso de apertura.</p>
+          <p id="politica-publicada" hidden><a class="action" href="#" id="politica-enlace">Consultar la política de privacidad del servicio</a></p>
+          <a class="text-link" href="https://www.aepd.es/derechos-y-deberes/conoce-tus-derechos">Cómo ejercer tus derechos según la AEPD</a>
+        </section>
+      </div>
+    </div>
+  </main>
+  <footer class="end"><div class="wrap"><a class="brand" href="/#inicio">La Última Pieza</a><a href="/#planes?seccion=preguntas">Preguntas frecuentes</a></div></footer>
+  <script>
+    (async function showPublishedPolicy() {
+      try {
+        const response = await fetch('/api/billing/config', {cache:'no-store', credentials:'omit'});
+        if (!response.ok) return;
+        const config = await response.json();
+        if (typeof config.privacyUrl !== 'string' || !config.privacyUrl.trim()) return;
+        const url = new URL(config.privacyUrl, location.origin);
+        if (url.protocol !== 'https:' || url.username || url.password) return;
+        if (url.hostname.replace(/^www\./,'') === location.hostname.replace(/^www\./,'') && url.pathname === location.pathname) return;
+        document.getElementById('politica-enlace').href = url.href;
+        document.getElementById('politica-publicada').hidden = false;
+      } catch { /* The guide and its controls are available independently. */ }
+    })();
+  </script>
+</body>
+</html>

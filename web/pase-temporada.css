@@ -1,0 +1,302 @@
+.pase-temporada {
+  --pase-fondo: #101817;
+  --pase-papel: #f2e9d8;
+  --pase-tinta: #26251f;
+  --pase-acento: #f3c98a;
+  --pase-linea: #454b45;
+  --pase-display: var(--serif, Georgia, serif);
+  color: #f7f1e4;
+  min-inline-size: 0;
+}
+.pase-temporada[data-season="2"] { --pase-acento: #f6cf83; }
+.pase-temporada[data-season="3"] { --pase-acento: #efb8b1; }
+.pase-temporada[data-season="4"] { --pase-acento: #f2c877; }
+.pase-temporada *, .pase-temporada *::before, .pase-temporada *::after { box-sizing: border-box; }
+.pase-temporada :is(a, button, input, summary):focus-visible {
+  outline: 3px solid #ffdea5;
+  outline-offset: 3px;
+}
+.pase-temporada .pase-escena {
+  isolation: isolate;
+  position: relative;
+  display: grid;
+  align-items: center;
+  min-block-size: clamp(27rem, 38vw, 40rem);
+  margin: 0;
+  background: var(--pase-fondo);
+  border-radius: .4rem;
+  overflow: hidden;
+}
+.pase-temporada .pase-fondo,
+.pase-temporada .pase-escena::before {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.pase-temporada .pase-fondo {
+  z-index: -2;
+  display: block;
+  object-fit: cover;
+  object-position: 70% 51%;
+}
+.pase-temporada[data-season="1"] .pase-fondo { object-position: 70% 24%; }
+.pase-temporada .pase-escena::before {
+  z-index: -1;
+  content: "";
+  background: linear-gradient(90deg, #101817 0%, rgb(16 24 23 / 98%) 20%, rgb(16 24 23 / 89%) 37%, rgb(16 24 23 / 66%) 50%, rgb(16 24 23 / 8%) 76%, transparent 100%);
+  pointer-events: none;
+}
+.pase-temporada .pase-apertura {
+  width: min(63%, 48rem);
+  min-width: 0;
+  padding: clamp(2rem, 4.5vw, 5rem);
+  padding-right: 0;
+}
+.pase-temporada .pase-supra, .pase-temporada .pase-lugar {
+  display: block;
+  margin: 0;
+  color: var(--pase-acento);
+  font: 700 .76rem/1.5 var(--sans, system-ui, sans-serif);
+  text-transform: uppercase;
+  letter-spacing: .13em;
+}
+.pase-temporada .pase-apertura h1 {
+  margin: .8rem 0 1rem;
+  max-inline-size: 17ch;
+  color: #fff6e5;
+  font: 400 clamp(3.05rem, 4.82vw, 5.55rem)/1.02 var(--pase-display) !important;
+  letter-spacing: -.048em;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+.pase-temporada .pase-apertura h1 em { color: var(--pase-acento); font-weight: inherit; }
+.pase-temporada .pase-premisa {
+  margin: 0;
+  max-inline-size: 44ch;
+  color: #efeee6;
+  font-size: clamp(1rem, 1.25vw, 1.2rem);
+  line-height: 1.57;
+  text-wrap: pretty;
+}
+.pase-temporada .pase-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.25rem; margin-top: 1.55rem; }
+.pase-temporada .pase-principal, .pase-temporada .pase-demo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.9rem;
+  max-width: 100%;
+  padding: .72rem 1.15rem;
+  border: 1px solid transparent;
+  border-radius: .32rem;
+  font: 650 1rem/1.35 var(--sans, system-ui, sans-serif);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: normal;
+}
+.pase-temporada .pase-principal { background: var(--pase-acento); color: #282217; }
+.pase-temporada .pase-demo { padding-inline: .14rem; background: transparent; color: #f6eddd; text-decoration: underline; text-underline-offset: .3em; }
+.pase-temporada .pase-pie-foto {
+  position: absolute;
+  right: clamp(.9rem, 2vw, 2.1rem);
+  bottom: clamp(.9rem, 2vw, 2.1rem);
+  display: inline-flex;
+  align-items: center;
+  gap: .24em;
+  min-block-size: 2.75rem;
+  max-width: calc(100% - 2rem);
+  padding: .35rem .76rem;
+  background: rgb(13 20 19 / 88%);
+  color: #fff3df;
+  border-inline-start: 2px solid var(--pase-acento);
+  border-radius: 1px;
+  font-size: .85rem;
+  line-height: 1.35;
+  text-decoration: none;
+}
+.pase-temporada .pase-estrenos { margin-block: clamp(2.6rem, 5vw, 5.3rem); }
+.pase-temporada .pase-seccion { display: flex; align-items: end; justify-content: space-between; gap: .6rem 1.5rem; flex-wrap: wrap; margin-block-end: 1.25rem; }
+.pase-temporada :is(.pase-seccion, .pase-ficha, .pase-preguntas) h2 {
+  margin: .35rem 0 0;
+  color: inherit;
+  font: 400 clamp(2.1rem, 3.1vw, 3.5rem)/1.08 var(--pase-display);
+  letter-spacing: -.042em;
+  text-wrap: balance;
+}
+.pase-temporada .pase-enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: .3em;
+  min-block-size: 2.75rem;
+  color: #f1d7ad;
+  font-size: .96rem;
+  text-decoration: underline;
+  text-underline-offset: .28em;
+}
+.pase-temporada .pase-peliculas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(.85rem, 1.6vw, 1.75rem); }
+.pase-temporada .pase-caso { display: flex; flex-direction: column; min-width: 0; color: #f7efdf; text-decoration: none; border-radius: .2rem; }
+.pase-temporada .pase-caso figure { margin: 0; aspect-ratio: 1.7; background: #1a2322; border-radius: .22rem; overflow: hidden; }
+.pase-temporada .pase-caso img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pase-temporada .pase-caso-copy { padding-block: .82rem .3rem; }
+.pase-temporada .pase-lugar { font-size: .71rem; letter-spacing: .105em; }
+.pase-temporada .pase-caso h3 { margin: .3rem 0 .45rem; color: inherit; font: 400 clamp(1.4rem, 1.72vw, 2rem)/1.15 var(--pase-display); letter-spacing: -.025em; }
+.pase-temporada .pase-caso-copy p { margin: 0; color: #d0d4c9; font-size: .99rem; line-height: 1.52; text-wrap: pretty; }
+.pase-temporada .pase-detalle {
+  display: grid;
+  grid-template-columns: minmax(0, 1.06fr) minmax(0, .94fr);
+  align-items: start;
+  gap: clamp(1.6rem, 5vw, 6.4rem);
+  padding-block: clamp(2.1rem, 4vw, 4rem);
+  border-block-start: 1px solid var(--pase-linea);
+  scroll-margin-top: .5rem;
+}
+.pase-temporada .pase-ficha {
+  min-width: 0;
+  padding: clamp(1.35rem, 3.4vw, 3.25rem);
+  background: var(--pase-papel);
+  color: var(--pase-tinta);
+  border-radius: .45rem;
+}
+.pase-temporada .pase-ficha .pase-supra { color: #795025; }
+.pase-temporada .pase-precio { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; margin: 1.1rem 0 .45rem; color: #514b42; }
+.pase-temporada .pase-precio strong { color: #29271f; font: 500 clamp(2.45rem, 3.75vw, 4.35rem)/1.05 var(--pase-display); letter-spacing: -.055em; }
+.pase-temporada .pase-ficha :is(.pase-estado, .pase-incluye, .pase-importe) { max-inline-size: 58ch; margin: .65rem 0 0; font-size: 1rem; line-height: 1.53; color: #363730; }
+.pase-temporada .pase-ficha .pase-estado { color: #5e4630; font-weight: 650; }
+.pase-temporada .pase-ficha .pase-importe { color: #534e43; font-size: .92rem; }
+.pase-temporada .pase-decision { min-width: 0; margin-top: 1.4rem; padding-top: 1.2rem; border-block-start: 1px solid #b5a991; color: var(--pase-tinta); }
+.pase-temporada .pase-decision .waiting-interest { margin: 0; padding: 0; border: 0; background: transparent; color: inherit; }
+.pase-temporada .pase-decision h3 { margin: 0 0 .8rem; color: var(--pase-tinta); font: 600 1.16rem/1.35 var(--sans, system-ui, sans-serif); }
+.pase-temporada .pase-decision :is(p, label, span, a) { color: inherit; }
+.pase-temporada .pase-decision p { line-height: 1.55; }
+.pase-temporada .pase-decision a { text-underline-offset: .2em; }
+.pase-temporada .postal-list-form { display: grid; gap: .85rem; min-width: 0; }
+.pase-temporada .postal-list-form label { display: block; font-size: .96rem; font-weight: 600; }
+.pase-temporada .postal-list-form input[type="email"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.9rem;
+  margin-top: .3rem;
+  padding: .58rem .7rem;
+  border: 1px solid #776c58;
+  border-radius: .28rem;
+  background: #fffaf0;
+  color: #28261f;
+  font-size: 1rem;
+}
+.pase-temporada .postal-list-form input::placeholder { color: #69665d; opacity: 1; }
+.pase-temporada .postal-list-form .notice-consent { display: flex; align-items: flex-start; gap: .55rem; font-weight: 400; line-height: 1.45; }
+.pase-temporada .notice-consent input { flex: none; width: 1.12rem; height: 1.12rem; margin: .15rem 0 0; accent-color: #334036; }
+.pase-temporada .pase-ficha .pase-decision :is(.button, button) {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 2.9rem;
+  max-width: 100%;
+  padding: .67rem 1rem;
+  background: #28392e;
+  color: #fff8e9;
+  border: 1px solid #28392e;
+  border-radius: .32rem;
+  box-shadow: none;
+  text-decoration: none;
+  line-height: 1.4;
+  white-space: normal;
+}
+.pase-temporada .pase-ficha .pase-decision .button:disabled { background: #ded7c8; color: #57574f; border-color: #a8a18e; opacity: 1; cursor: default; }
+.pase-temporada .pase-decision .postal-list-form .micro { margin: 0; color: #534f44; font-size: .89rem; }
+.pase-temporada .pase-decision .postal-list-form [role="status"] { color: #4f3523; font-weight: 600; }
+.pase-temporada .pase-ficha :is(a, button, input):focus-visible { outline-color: #7c411f; }
+.pase-temporada .pase-preguntas { min-width: 0; padding-block: .65rem; }
+.pase-temporada .pase-preguntas h2 { margin: 0 0 1.2rem; }
+.pase-temporada .pase-preguntas .pase-supra + h2 { margin-top: .35rem; }
+.pase-temporada :is(#pass-review-title, #pase-faq) { scroll-margin-block-start: .5rem; }
+.pase-temporada .pase-preguntas details { margin: 0; padding: 0; background: none; border: 0; border-block-start: 1px solid var(--pase-linea); border-radius: 0; }
+.pase-temporada .pase-preguntas details:last-child { border-block-end: 1px solid var(--pase-linea); }
+.pase-temporada .pase-preguntas summary { display: list-item; min-height: 2.75rem; margin: 0; padding: 1rem .3rem; color: #f4e6cf; font-weight: 650; line-height: 1.4; cursor: pointer; }
+.pase-temporada .pase-preguntas summary::marker { color: var(--pase-acento); }
+.pase-temporada .pase-preguntas details p { margin: 0 0 1rem; max-width: 57ch; color: #d8dcd1; line-height: 1.58; }
+.pase-temporada .pase-preguntas details a { color: var(--pase-acento); text-decoration: underline; text-underline-offset: .2em; }
+.pase-temporada .pase-detalle:has(> .pase-ficha:only-child) { grid-template-columns: minmax(0, 42rem); justify-content: center; border: 0; padding-top: 0; }
+.pase-temporada .pase-ficha h1 { margin: .45rem 0 1.3rem; color: var(--pase-tinta); font: 400 clamp(2.2rem, 4vw, 3.8rem)/1.08 var(--pase-display); letter-spacing: -.045em; }
+.pase-temporada .pase-ficha [data-manage-notice] { padding: .95rem; border: 1px solid #b5a991; border-radius: .32rem; color: var(--pase-tinta); }
+.pase-temporada .pase-ficha [data-manage-notice] h3 { margin: 0; color: inherit; font-size: 1.15rem; }
+.pase-temporada .pase-ficha [data-manage-notice] p { color: inherit; font-size: .96rem; }
+.pase-temporada .pase-ficha:only-child .button { max-width: 100%; min-height: 2.85rem; background: #28392e; border-color: #28392e; color: #fff7e8; white-space: normal; }
+.pase-temporada .pase-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .25rem 1.15rem;
+  margin: .75rem 0 0;
+  padding: .5rem 0;
+  border: 0;
+  color: #d8c8ab;
+  font: 400 .92rem/1.4 var(--sans, system-ui, sans-serif);
+}
+.pase-temporada .pase-links a { display: inline-flex; align-items: center; min-height: 2.75rem; color: inherit; text-decoration: underline; text-underline-offset: .24em; }
+.pase-temporada .pase-ficha .pase-links { color: #57432d; }
+.pase-temporada.pase-ayuda { max-width: 47rem; margin-inline: auto; padding-block: clamp(.75rem, 3vw, 2rem); }
+.pase-temporada.pase-ayuda h1 { margin: .45rem 0 1.5rem; color: #fff2da; font: 400 clamp(2.35rem, 5vw, 4.75rem)/1.05 var(--pase-display); letter-spacing: -.048em; }
+.page > footer:has(> .pase-footer) { flex-wrap: wrap; align-items: center; }
+.page footer .pase-footer {
+  display: flex;
+  position: static;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .15rem 1.05rem;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.page footer .pase-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: .35rem .08rem;
+  color: #d9d4c8;
+  font: 500 .91rem/1.4 var(--sans, system-ui, sans-serif);
+  text-decoration: underline;
+  text-underline-offset: .23em;
+}
+.page footer .pase-footer a:is(:hover, :focus-visible) { color: #ffe1ab; }
+.page footer .pase-footer a:focus-visible { outline: 3px solid #f8cb86; outline-offset: 2px; }
+@media (hover: hover) {
+  .pase-temporada .pase-principal:hover { background: #ffdfaa; }
+  .pase-temporada :is(.pase-demo, .pase-enlace, .pase-pie-foto):hover { color: #fff4d6; text-decoration: underline; }
+  .pase-temporada .pase-caso:hover h3 { color: var(--pase-acento); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; }
+  .pase-temporada .pase-ficha .pase-decision :is(.button, button):not(:disabled):hover { background: #374f3e; color: #fff8e9; }
+}
+@media (max-width: 64rem) {
+  .pase-temporada .pase-peliculas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.4rem 1.1rem; }
+}
+@media (max-width: 48rem) {
+  .page > footer:has(> .pase-footer) { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); }
+  .page footer .pase-footer { width: 100%; }
+  .pase-temporada .pase-escena { grid-template-columns: minmax(0, 1fr); grid-template-rows: clamp(10.65rem, 42vw, 13.75rem) auto; align-items: stretch; min-block-size: 0; }
+  .pase-temporada .pase-fondo { position: static; grid-area: 1 / 1; object-position: 77% 53%; }
+  .pase-temporada[data-season="1"] .pase-fondo { object-position: 84% 43%; }
+  .pase-temporada .pase-escena::before { position: static; grid-area: 1 / 1; background: linear-gradient(0deg, rgb(8 14 13 / 24%), transparent 42%); }
+  .pase-temporada .pase-pie-foto { position: static; grid-area: 1 / 1; align-self: end; justify-self: start; margin: 0 0 .55rem .6rem; }
+  .pase-temporada .pase-apertura { grid-area: 2 / 1; width: 100%; padding: clamp(1rem, 4vw, 1.75rem); }
+  .pase-temporada .pase-apertura h1 { margin: .5rem 0 .72rem; font-size: clamp(2.12rem, 7.8vw, 3.4rem) !important; }
+  .pase-temporada .pase-acciones { margin-top: 1.05rem; }
+  .pase-temporada .pase-detalle { grid-template-columns: minmax(0, 1fr); gap: 1.85rem; }
+}
+@media (max-width: 32rem) {
+  .pase-temporada .pase-peliculas { grid-template-columns: minmax(0, 1fr); gap: 1.55rem; }
+  .pase-temporada .pase-caso figure { aspect-ratio: 1.92; }
+  .pase-temporada .pase-seccion { gap: .12rem; margin-block-end: .8rem; }
+  .pase-temporada .pase-ficha { padding: 1.1rem; }
+  .pase-temporada .pase-decision :is(.button, button) { width: 100%; }
+}
+@media (max-width: 23rem) {
+  .pase-temporada .pase-acciones { align-items: stretch; gap: .12rem; }
+  .pase-temporada .pase-acciones > * { width: 100%; }
+}
