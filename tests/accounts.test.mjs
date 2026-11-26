@@ -19,6 +19,9 @@ function fakeStore(){
     async saveMemberData(uid,data){memberData.set(uid,structuredClone(data));},
     async getSeasonSolved(uid,season){return rewards.get(uid+':'+season)||null;},
     async saveSeasonSolved(uid,season){const key=uid+':'+season;if(!rewards.has(key))rewards.set(key,new Date().toISOString());},
+    async clearSeasonReward(uid){rewards.delete(uid+':1');},
+    async lockSessionIdsForReset(uid){return (await this.listSessions(uid)).map(session=>session.id);},
+    async deleteSoloSession(id){sessions.delete(id);},
     async ensureProfile(user){if(!profiles.has(user.userId))profiles.set(user.userId,{...user,color:'#b1846b'});return structuredClone(profiles.get(user.userId));},
     async getProfile(uid){return structuredClone(profiles.get(uid));},
     async updateProfile(uid,name,color){Object.assign(profiles.get(uid),{name,color});return this.getProfile(uid);},
@@ -28,6 +31,7 @@ function fakeStore(){
     async findInvite(hash){return structuredClone([...sessions.values()].find(r=>r.inviteHash===hash)||null);},
     async insertSession(session){sessions.set(session.id,{session:structuredClone(session)});},
     async addMember(){},
+    async removeMember(id,uid){if(profiles.get(uid)?.activeSessionId===id)profiles.get(uid).activeSessionId=null;},
     async saveSession(session){sessions.get(session.id).session=structuredClone(session);},
     async setInvite(id,inviteHash,inviteUntil){Object.assign(sessions.get(id),{inviteHash,inviteUntil});}
   };
@@ -43,6 +47,97 @@ function harness(authorizePlay=async()=>true){
   };
   return {store,call,api};
 }
+
+test('Reiniciar solo borra el progreso de la cuenta confirmada y conserva los bloques abonados y el recorrido del compañero',async()=>{
+  const {call,store}=harness(async({uid})=>uid==='alice');
+  const profile=uid=>({userId:uid,name:uid});
+  const classic=stories.find(story=>story.season===1);
+  const shared=engine.makeSession(classic.id,[profile('alice'),profile('bob')],'duo');
+  const choice=classic.nodes[shared.nodeId].choices[0];
+  const voted=engine.vote(shared,'alice',shared.nodeId,choice.id,shared.version).session;
+  const played=engine.vote(voted,'bob',voted.nodeId,choice.id,voted.version).session;
+  played.investigation={attempts:1,solvedBy:'alice',solvedAt:'2026-01-01',stages:{clue:{solvedBy:'alice',solvedAt:'2026-01-01'}}};
+  const finished=structuredClone(played);
+  finished.id=crypto.randomUUID();
+  finished.status='finished';
+  finished.nodeId=Object.keys(classic.endings)[0];
+  await store.insertSession(played);
+  await store.insertSession(finished);
+  const solo=(await call('alice','/api/sessions',{caseId:classic.id,mode:'solo'})).body.session;
+  const localInput={localSessionId:'local-import-before-reset',caseId:classic.id,history:[]};
+  assert.equal((await call('alice','/api/import-local',localInput)).status,200);
+  await store.saveSeasonSolved('alice',1);
+  await store.saveSeasonSolved('bob',1);
+  const before={customer:'fixture-id',subscription:'fixture-pass',cycles:[{id:'invoice',start:1,end:2,subscription:'fixture-pass'}],
+    seasonEnding:'share',claims:[classic.id],valdemarCaseProgress:{paid:{1:{ending:'left'}}}};
+  await store.saveMemberData('alice',before);
+  await store.saveMemberData('bob',{seasonEnding:'preserve',balanceNote:'unchanged'});
+  const firstBob=(await call('bob','/api/bootstrap')).body;
+  const resetPath='/api/me/progress/reset';
+  const request={confirmation:'REINICIAR',requestId:crypto.randomUUID(),uid:'bob'};
+  assert.equal((await call('',resetPath,request)).status,401);
+  assert.equal((await call('alice',resetPath,{...request,confirmation:'sí'})).status,400);
+  assert.equal((await call('alice',resetPath,{...request,requestId:'bad'})).status,400);
+  assert.equal((await call('alice','/api/bootstrap')).body.journey.completed,1);
+  assert.deepEqual((await call('alice',resetPath,request)).body,{reset:true});
+
+  const clean=(await call('alice','/api/bootstrap')).body;
+  assert.equal(clean.profile.name,'alice');
+  assert.equal(clean.activeSessionId,null);
+  assert.equal(clean.sessions.length,0);
+  assert.equal(clean.journey.completed,0);
+  assert.equal(clean.journey.ending,null);
+  assert.equal(await store.getSeasonSolved('alice',1),null);
+  const data=await store.getMemberData('alice');
+  assert.deepEqual(data.cycles,before.cycles);
+  assert.equal(data.customer,before.customer);
+  assert.equal(data.valdemarCaseProgress.paid,undefined);
+  assert.equal(data.claims,undefined);
+  assert.deepEqual((await store.getMemberData('bob')),{seasonEnding:'preserve',balanceNote:'unchanged'});
+  const bob=(await call('bob','/api/bootstrap')).body;
+  assert.deepEqual(bob.journey,firstBob.journey);
+  assert.ok(await store.getSeasonSolved('bob',1));
+  assert.deepEqual(bob.membership.guestOwners,['alice']);
+  const surviving=bob.sessions.find(s=>s.id===played.id);
+  assert.equal(surviving.mode,'solo');
+  assert.deepEqual(surviving.members,[played.members[1]].map(member=>JSON.parse(JSON.stringify(member))));
+  assert.equal(surviving.history.length,played.history.length);
+  assert.deepEqual(Object.keys(surviving.history[0].preferences),['bob']);
+  assert.equal(surviving.investigation.solvedBy,undefined);
+  assert.ok(surviving.investigation.stages.clue.solvedAt);
+  const nextChoice=classic.nodes[surviving.nodeId].choices[0];
+  assert.equal((await call('bob','/api/sessions/'+played.id+'/choose',{
+    nodeId:surviving.nodeId,version:surviving.version,choiceId:nextChoice.id})).body.transitioned,true);
+  assert.equal((await call('alice','/api/sessions/'+played.id)).status,404);
+  assert.equal((await call('alice','/api/active-session',{sessionId:finished.id},'PUT')).status,404);
+  assert.equal((await call('alice','/api/sessions',{mode:'solo',caseId:classic.id,requestId:solo.id})).status,410);
+  assert.equal((await call('alice','/api/import-local',localInput)).status,410);
+  const fresh=(await call('alice','/api/sessions',{mode:'solo',caseId:classic.id})).body.session;
+  assert.deepEqual((await call('alice',resetPath,request)).body,{reset:true});
+  assert.deepEqual((await call('alice','/api/bootstrap')).body.sessions.map(s=>s.id),[fresh.id]);
+});
+
+test('El titular conserva su partida cuando se reinicia la cuenta invitada, y los reintentos antiguos no afectan partidas nuevas',async()=>{
+  const {call,store}=harness();
+  const story=stories[0], owner={userId:'alice',name:'Alice'}, guest={userId:'bob',name:'Bob'};
+  await call('bob','/api/bootstrap');
+  const pair=engine.makeSession(story.id,[owner,guest],'duo');
+  await store.insertSession(pair);
+  const unrelated=(await call('alice','/api/sessions',{caseId:story.id,mode:'solo'})).body.session;
+  const original=await store.getSession(unrelated.id);
+  const request={confirmation:'REINICIAR',requestId:crypto.randomUUID()};
+  assert.equal((await call('bob','/api/me/progress/reset',request)).status,200);
+  const old=(await call('alice','/api/sessions/'+pair.id)).body.session;
+  assert.equal(old.ownerId,'alice');
+  assert.deepEqual(old.members.map(m=>m.userId),['alice']);
+  assert.deepEqual(await store.getSession(unrelated.id),original);
+  assert.equal((await call('bob','/api/sessions/'+pair.id)).status,404);
+  const second={...request,requestId:crypto.randomUUID()};
+  assert.equal((await call('bob','/api/me/progress/reset',second)).status,200);
+  const next=(await call('bob','/api/sessions',{caseId:story.id,mode:'solo'})).body.session;
+  assert.equal((await call('bob','/api/me/progress/reset',request)).status,200);
+  assert.deepEqual((await call('bob','/api/bootstrap')).body.sessions.map(s=>s.id),[next.id]);
+});
 
 test('El plano solo revela piezas de casos terminados por la cuenta y exige doce experiencias distintas',async()=>{
   const {store,call}=harness();
@@ -133,6 +228,81 @@ test('Las invitaciones son privadas, caducan y solo admiten a un segundo usuario
   store.sessions.get(second.session.id).inviteUntil=Date.now()-1;
   assert.equal((await call('bob','/api/join',{code:second.inviteCode})).status,400);
   assert.equal((await call('bob','/api/bootstrap')).body.sessions.length,1);
+});
+test('Cambiar el equipo conserva la partida y revoca solo los permisos de quien sale',async()=>{
+  const {store,call}=harness(async({uid})=>uid==='alice'),story=stories[0];
+  const created=(await call('alice','/api/sessions',{caseId:story.id,mode:'solo'})).body.session;
+  const path='/api/sessions/'+created.id;
+  const cast=(who,s,choiceId)=>call(who,path+'/choose',{nodeId:s.nodeId,choiceId,version:s.version});
+  const mode=(who,s,target)=>call(who,path+'/mode',{mode:target,version:s.version},'PUT');
+  const firstChoice=story.nodes[created.nodeId].choices[0];
+  const first=(await cast('alice',created,firstChoice.id)).body.session;
+  const waiting=(await mode('alice',first,'duo')).body.session;
+  assert.equal(waiting.id,first.id);assert.equal(waiting.nodeId,first.nodeId);
+  assert.deepEqual(waiting.history,first.history);assert.deepEqual(waiting.members,first.members);
+  assert.equal((await mode('alice',first,'solo')).status,409);
+  const invite=(await call('alice',path+'/invite',{})).body.inviteCode;
+  const shared=(await call('bob','/api/join',{code:invite})).body.session;
+  assert.equal(shared.status,'active');assert.equal(shared.members[1].role,'B');
+  assert.equal((await mode('bob',shared,'solo')).status,403);
+  assert.equal((await mode('eve',shared,'solo')).status,404);
+  const nextChoice=story.nodes[shared.nodeId].choices[0];
+  await cast('alice',shared,nextChoice.id);
+  const agreed=(await cast('bob',shared,nextChoice.id)).body.session;
+  const bobScores=agreed.members[1].scores;
+  assert.ok(Object.values(bobScores).some(score=>score>0));
+  const saved=store.sessions.get(created.id).session;
+  saved.investigation={attempts:2,hints:1,solvedAt:'then',solvedBy:'bob'};
+  const oldNode=saved.nodeId,pending=story.nodes[oldNode].choices[0].id;
+  await cast('bob',saved,pending);
+  const solo=(await mode('alice',saved,'solo')).body.session;
+  assert.equal(solo.id,first.id);assert.equal(solo.nodeId,oldNode);
+  assert.deepEqual(solo.history.map(entry=>entry.choiceId),agreed.history.map(entry=>entry.choiceId));
+  assert.equal(solo.investigation.solvedAt,'then');assert.deepEqual(solo.members[0].scores,agreed.members[0].scores);
+  assert.deepEqual(solo.votes,[]);assert.deepEqual(solo.firstVotes,{});
+  assert.equal((await call('bob',path)).status,404);
+  assert.equal((await cast('bob',saved,pending)).status,404);
+  const guest=(await call('bob','/api/bootstrap')).body;
+  assert.equal(guest.sessions.length,0);assert.equal(guest.activeSessionId,null);assert.equal(guest.membership.canPlay,false);
+  const returned=(await mode('alice',solo,'duo')).body.session;
+  const cancelled=(await call('alice',path+'/invite',{})).body.inviteCode;
+  const stopped=(await mode('alice',returned,'solo')).body.session;
+  assert.equal((await call('eve','/api/join',{code:cancelled})).status,400);
+  await mode('alice',stopped,'duo');
+  const newCode=(await call('alice',path+'/invite',{})).body.inviteCode;
+  const newGuest=(await call('eve','/api/join',{code:newCode})).body.session;
+  assert.equal(JSON.stringify(newGuest).includes('"bob"'),false);
+  assert.equal(JSON.stringify((await call('eve','/api/bootstrap')).body.sessions).includes('"bob"'),false);
+  assert.deepEqual(Object.values(newGuest.members[1].scores),Array(6).fill(0));
+  const single=(await mode('alice',newGuest,'solo')).body.session;
+  const continued=(await cast('alice',single,pending)).body.session;
+  assert.equal(continued.history.length,3);assert.equal(continued.status,'active');
+  await mode('alice',continued,'duo');
+  const backCode=(await call('alice',path+'/invite',{})).body.inviteCode;
+  const back=(await call('bob','/api/join',{code:backCode})).body.session;
+  assert.deepEqual(back.members[1].scores,bobScores);
+  assert.equal(back.history.length,3);assert.equal(store.sessions.size,1);
+});
+
+test('El motor local permite cambiar de modalidad entre turnos y conserva los créditos antiguos',()=>{
+  const story=stories[0],alice={userId:'alice',name:'Alice'},bob={userId:'bob',name:'Bob'};
+  let s=engine.makeSession(story.id,[alice,bob],'duo');
+  const choice=story.nodes[s.nodeId].choices[0].id;
+  s=engine.vote(s,'alice',s.nodeId,choice,s.version).session;
+  s=engine.vote(s,'bob',s.nodeId,choice,s.version).session;
+  const legacy=s.history[0];delete legacy.preferenceEffects;delete legacy.preferences;
+  const node=s.nodeId,secondChoice=story.nodes[node].choices[0].id;
+  s=engine.vote(s,'alice',node,secondChoice,s.version).session;
+  const solo=engine.changePlayMode(s,'alice','solo',s.version);
+  assert.equal(solo.nodeId,node);assert.equal(solo.history.length,1);assert.equal(solo.firstVotes.alice,secondChoice);
+  assert.throws(()=>engine.changePlayMode(s,'bob','solo',s.version));
+  assert.throws(()=>engine.vote(solo,'bob',node,secondChoice,solo.version));
+  const waiting=engine.changePlayMode(solo,'alice','duo',solo.version);
+  assert.throws(()=>engine.joinTeam(waiting,alice));
+  const fresh=engine.joinTeam(waiting,{userId:'eve',name:'Eve'});
+  assert.deepEqual(Object.values(fresh.members[1].scores),Array(6).fill(0));
+  const restored=engine.joinTeam(waiting,bob);
+  for(const key of engine.KEYS.slice(0,3))assert.equal(restored.members[1].scores[key],legacy.effects[key]||0);
 });
 test('Repetir una creación confirmada no duplica la partida',async()=>{
   const {call}=harness();const input={caseId:stories[0].id,mode:'solo',requestId:crypto.randomUUID()};
