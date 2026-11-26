@@ -21,6 +21,7 @@ export function readHour(story,record) {
   const current = record?.choice ? stages.length : count;
   const active = stages[current];
   const stage = active ? {...reading(active),mode:active.mode,options:active.options.map(({id,label}) => ({id,label}))} : null;
+  if (stage?.mode === 'order') stage.requiredCount = active.answer.length;
   const journal = stages.slice(0,count).map((value,index) => ({index,...reading(value),success:value.success}));
   return {stages:stages.map(outline),current,stage,journal,...(hotel ? {hotel} : {})};
 }
