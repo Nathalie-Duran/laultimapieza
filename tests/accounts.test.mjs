@@ -50,7 +50,7 @@ function harness(authorizePlay=async()=>true){
 }
 
 test('Reiniciar solo borra el progreso de la cuenta confirmada y conserva los bloques abonados y el recorrido del compañero',async()=>{
-  const {call,store}=harness(async({uid})=>uid==='alice');
+  const {call,store}=harness(async({uid})=>['alice','bob'].includes(uid));
   const profile=uid=>({userId:uid,name:uid});
   const classic=stories.find(story=>story.season===1);
   const shared=engine.makeSession(classic.id,[profile('alice'),profile('bob')],'duo');
@@ -98,7 +98,8 @@ test('Reiniciar solo borra el progreso de la cuenta confirmada y conserva los bl
   const bob=(await call('bob','/api/bootstrap')).body;
   assert.deepEqual(bob.journey,firstBob.journey);
   assert.ok(await store.getSeasonSolved('bob',1));
-  assert.deepEqual(bob.membership.guestOwners,['alice']);
+  assert.deepEqual(bob.membership.guestOwners,[]);
+  assert.equal(bob.membership.ownAccess,true);
   const surviving=bob.sessions.find(s=>s.id===played.id);
   assert.equal(surviving.mode,'solo');
   assert.deepEqual(surviving.members,[played.members[1]].map(member=>JSON.parse(JSON.stringify(member))));
@@ -170,8 +171,8 @@ test('Sin suscripción se bloquean nuevas partidas y no bastan campos enviados p
   assert.equal((await call('alice','/api/bootstrap')).body.membership.canPlay,false);
 });
 test('Perder la suscripción bloquea continuar, votar e invitar sin borrar el progreso',async()=>{
-  let active=true;
-  const {call}=harness(async({uid})=>active&&uid==='alice');
+  let active=true, secondPaid=false;
+  const {call}=harness(async({uid})=>uid==='alice'?active:uid==='bob'&&secondPaid);
   const created=(await call('alice','/api/sessions',{caseId:availableStory.id,mode:'duo'})).body;
   active=false;
   const id=created.session.id;
@@ -183,8 +184,13 @@ test('Perder la suscripción bloquea continuar, votar e invitar sin borrar el pr
   assert.equal((await call('eve','/api/sessions/'+id)).status,404);
   assert.equal((await call('alice','/api/bootstrap')).body.sessions.length,1);
   active=true;
+  assert.equal((await call('bob','/api/join',{code:created.inviteCode})).status,402);
+  secondPaid=true;
   assert.equal((await call('bob','/api/join',{code:created.inviteCode})).status,200);
   assert.equal((await call('bob','/api/sessions/'+id)).status,200);
+  secondPaid=false;
+  assert.equal((await call('bob','/api/sessions/'+id)).status,402);
+  assert.equal((await call('bob','/api/bootstrap')).body.membership.canPlay,false);
 });
 test('Importar progreso local no concede acceso de pago',async()=>{
   const {call}=harness(async()=>false),story=availableStory;
@@ -231,7 +237,7 @@ test('Las invitaciones son privadas, caducan y solo admiten a un segundo usuario
   assert.equal((await call('bob','/api/bootstrap')).body.sessions.length,1);
 });
 test('Cambiar el equipo conserva la partida y revoca solo los permisos de quien sale',async()=>{
-  const {store,call}=harness(async({uid})=>uid==='alice'),story=availableStory;
+  const {store,call}=harness(),story=availableStory;
   const created=(await call('alice','/api/sessions',{caseId:story.id,mode:'solo'})).body.session;
   const path='/api/sessions/'+created.id;
   const cast=(who,s,choiceId)=>call(who,path+'/choose',{nodeId:s.nodeId,choiceId,version:s.version});
@@ -264,7 +270,7 @@ test('Cambiar el equipo conserva la partida y revoca solo los permisos de quien 
   assert.equal((await call('bob',path)).status,404);
   assert.equal((await cast('bob',saved,pending)).status,404);
   const guest=(await call('bob','/api/bootstrap')).body;
-  assert.equal(guest.sessions.length,0);assert.equal(guest.activeSessionId,null);assert.equal(guest.membership.canPlay,false);
+  assert.equal(guest.sessions.length,0);assert.equal(guest.activeSessionId,null);assert.equal(guest.membership.ownAccess,true);
   const returned=(await mode('alice',solo,'duo')).body.session;
   const cancelled=(await call('alice',path+'/invite',{})).body.inviteCode;
   const stopped=(await mode('alice',returned,'solo')).body.session;

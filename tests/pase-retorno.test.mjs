@@ -78,3 +78,16 @@ test('La ayuda y la retirada del aviso están disponibles sin contratar',async()
     assert.equal(shop.requests.length,0);
   }
 });
+
+test('La vuelta de Stripe lleva a las invitaciones y espera confirmación individual antes de anunciar el acceso',async()=>{
+  const shop=await storefront();
+  shop.login(1);
+  shop.location.hash='#planes?checkout=complete';
+  const pending=shop.page.ClubAccess.plans();
+  assert.match(pending,/Estamos comprobando tu pase/);
+  assert.match(pending,/href="\/#perfil\?seccion=pareja"/);
+  assert.doesNotMatch(pending,/Tu pase está activo/);
+  shop.page.ClubAccess.set({ownAccess:true,canPlay:true});
+  assert.match(shop.page.ClubAccess.plans(),/Tu pase está activo/);
+  assert.deepEqual(shop.requests,[]);
+});
