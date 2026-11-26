@@ -10,7 +10,8 @@ import {worldSeasonAccess} from '../valdemar-wallet.mjs';
 const origin='https://example.test';
 const config={apiKey:'fixture',projectId:'fixture',appId:'fixture',authDomain:'fixture.test'};
 const email=uid=>uid+'@example.test';
-const identity=uid=>({userId:uid,name:uid,email:email(uid),emailVerified:true});
+const identity=uid=>({userId:uid,name:uid==='lookalike'?'editor':uid,email:email(uid),emailVerified:true});
+const isGameEditor=user=>user.emailVerified===true&&['editor','curator'].includes(user.userId);
 const nearNow=Date.now();
 const story={
   id:1,title:'La carta',hints:['Primera pista','Segunda pista'],choices:[{id:'guardar',label:'Guardar'}],
@@ -23,7 +24,7 @@ const story={
 function clues(section){
   return ['A','B','AB'].map(role=>({id:role,label:'Fuente '+role,kind:'text',role,body:'contenido-'+role+'-'+section}));
 }
-const twoPapers={...story,id:13,evidenceCards:clues('expediente'),
+const twoPapers={...story,id:13,evidenceCards:clues('expediente'),roles:['contenido-A-consigna','contenido-B-consigna'],
   side:{title:'Comparar las fuentes',mode:'multi',options:[],materials:clues('reto')},
   hour:{stages:story.hour.stages.map((stage,i)=>({...stage,materials:clues('etapa-'+i),
     corroboration:{prompt:'Contrasta dos fuentes',answer:['A','B']}}))}};
@@ -90,9 +91,9 @@ function harness(){
       return {seasonAccess,canPlay:member.active===true&&seasonAccess.availableCases.length>0};
     }
   };
-  const api=createGameApi({config,withStore,billing,stories:[],origins:[origin],isAdministrator:user=>user.userId==='editor',verify:async request=>{
+  const api=createGameApi({config,withStore,billing,stories:[],origins:[origin],isAdministrator:isGameEditor,verify:async request=>{
     const uid=request.headers.get('authorization');
-    if(!['alice','bob','eve','editor'].includes(uid))throw new ApiError(401,'Inicia sesión.');
+    if(!['alice','bob','eve','editor','curator','lookalike'].includes(uid))throw new ApiError(401,'Inicia sesión.');
     return identity(uid);
   }});
   async function call(uid,path,input){
@@ -109,6 +110,7 @@ function harness(){
     call,ok,
     get queuedMail(){return [...data.mail.values()].map(message=>structuredClone(message));},
     get membershipLookups(){return membershipLookups;},
+    album(uid,scope){return structuredClone(data.members.get(uid)?.valdemarCaseProgress?.[scope]||{});},
     async fund(uid,blocks=1){
       await withStore(async store=>{
         const member=await store.getMemberData(uid);
@@ -141,7 +143,7 @@ function harness(){
     },
     async game(uid,route='',input,caseId=1){
       return valdemarRequest({path:'/api/valdemar/cases/'+caseId+route,method:input?'POST':'GET',input,uid,
-        user:identity(uid),editorial:false,billing,withStore,loadRelease:async()=>releases});
+        user:identity(uid),editorial:isGameEditor(identity(uid)),billing,withStore,loadRelease:async()=>releases});
     }
   };
 }
@@ -310,6 +312,9 @@ test('Los cuerpos privados de cada papel permanecen separados al abrir, avanzar,
     if(message.story){
       assert.deepEqual(message.story.evidenceCards.map(item=>item.role),expected);
       assert.deepEqual(message.side.materials.map(item=>item.role),expected);
+      const own=role==='A'?0:1;
+      assert.equal(message.story.roles[own],'contenido-'+role+'-consigna');
+      assert.match(message.story.roles[1-own],/documento/);
     }
   }
   for(const [uid,role] of [['alice','A'],['bob','B']])check(await game(uid),role);
@@ -321,7 +326,61 @@ test('Los cuerpos privados de cada papel permanecen separados al abrir, avanzar,
   for(const [uid,role] of [['alice','A'],['bob','B']])check(await game(uid),role);
   await game('bob','/mode',{partnerId:id,mode:'solo'});
   const solo=await game('bob');
+  assert.deepEqual(solo.story.roles,twoPapers.roles);
   for(const materials of [solo.hour.stage.materials,solo.hour.journal[0].materials,solo.story.evidenceCards,solo.side.materials]){
     assert.deepEqual(materials.map(item=>item.role),['A','B','AB']);
   }
+});
+
+test('Dos cuentas editoriales o una editorial y otra de pago pueden emparejarse en ambos sentidos con álbumes separados',async()=>{
+  for(const [owner,guest] of [['editor','curator'],['curator','editor'],['curator','bob'],['bob','curator']]){
+    const h=harness();
+    for(const uid of [owner,guest]){
+      if(isGameEditor(identity(uid))){
+        assert.equal((await h.ok(uid,'/api/partners')).availableCases.length,48);
+      }else{
+        await h.fund(uid);
+        assert.deepEqual((await h.ok(uid,'/api/partners')).availableCases,[1,2,3,4]);
+      }
+    }
+    const caseId=owner==='bob'||guest==='bob'?1:13;
+    const game=(uid,route,input)=>h.game(uid,route,input,caseId);
+    const {id}=await h.invite(owner,caseId,email(guest));
+    await h.ok(guest,'/api/partners/'+id+'/accept',{});
+    const pair=await Promise.all([game(owner),game(guest)]);
+    assert.deepEqual(pair.map(dossier=>dossier.partner?.role),['A','B'],owner+' + '+guest);
+    if(caseId===13)for(const [index,dossier] of pair.entries()){
+      assert(!JSON.stringify(dossier).includes('contenido-'+(index===0?'B':'A')+'-'));
+    }
+    await game(guest,'/stage',{index:0,choice:['b'],sources:['A','B'],partnerId:id,editorial:true});
+    for(const uid of [owner,guest]){
+      const editorial=isGameEditor(identity(uid));
+      assert.equal(h.album(uid,editorial?'editorial':'paid')[caseId].hourStep,1);
+      assert.deepEqual(h.album(uid,editorial?'paid':'editorial'),{});
+    }
+    if([owner,guest].includes('bob')){
+      await h.stop('bob');
+      await assert.rejects(game('bob','/stage',{index:1,choice:['b'],partnerId:id,role:'admin'}),
+        error=>error.status===402||error.status===409);
+      const editor=owner==='bob'?guest:owner;
+      assert.equal((await game(editor)).partner,null);
+      assert.equal((await game(editor)).hour.current,1);
+    }
+  }
+});
+
+test('La exención de juego procede de la identidad comprobada y no concede la gestión a la segunda cuenta editorial',async()=>{
+  const h=harness();
+  const flags={userId:'curator',name:'editor',role:'admin',isGameEditor:true,editorial:true,ownerScope:'editorial',guestScope:'editorial'};
+  assert.equal((await h.call('curator','/api/admin/analytics')).status,403);
+  assert.equal((await h.call('lookalike','/api/partners',{caseId:1,email:email('bob'),...flags})).status,402);
+  for(const uid of ['bob','lookalike']){
+    const invitation=await h.invite('editor',1,email(uid));
+    assert.equal((await h.call(uid,'/api/partners/'+invitation.id+'/accept',flags)).status,402);
+    assert.deepEqual((await h.ok(uid,'/api/partners')).availableCases,[]);
+    await h.ok('editor','/api/partners/'+invitation.id+'/revoke',{});
+  }
+  await h.fund('bob');
+  const unopened=await h.invite('curator',5,email('bob'));
+  assert.ok([402,409].includes((await h.call('bob','/api/partners/'+unopened.id+'/accept',flags)).status));
 });
