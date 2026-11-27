@@ -25,7 +25,7 @@ const detailsButton=(s,label='Ver experiencia',cls='button')=>`<button class="${
 function callToPlay(s,m){
  const p=stop(m,s.id),saved=p&&session(m,p.sessionId);
  if(p?.completed&&saved)return `<button class="button primary" data-action="archive-open" data-id="${esc(saved.id)}">Ver mi desenlace</button>`;
- if(!m.canPlay)return '<a class="button primary" href="#planes">Ver el pase personal</a>';
+ if(!m.canPlay)return '<a class="button primary" href="#planes">Ver suscripción</a>';
  if(root.MonthlyAccess&&!root.MonthlyAccess.allowed(s,m))return root.MonthlyAccess.label(s,m)+'<a class="button" href="#planes">Ver mi suscripción</a>';
  return saved?`<button class="button primary" data-action="resume" data-id="${esc(saved.id)}">Continuar · ${p.decisions}/${p.totalDecisions} decisiones</button>`:`<button class="button primary" data-action="setup" data-case="${esc(s.id)}">Empezar esta experiencia</button>`;
 }
@@ -76,7 +76,7 @@ root.addEventListener?.('case-preview-progress',()=>{
 });
 
 function homeSeasonOffer(m) {
- const held=m.membership?.seasonAccess?.seasons?.filter(s=>s.paidBlocks.length).at(-1);
+ const held=m.membership?.seasonAccess?.seasons?.filter(s=>s.previousReady!==false && s.paidBlocks.length).at(-1);
  if(held){
    const route=['casos','expedicion','umbravia','necropolis'][held.number-1];
    const name=held.number===1?'Valdemar':root.Mundos.nameOf(route);
@@ -87,7 +87,7 @@ function homeSeasonOffer(m) {
  const label=open?'Ver la suscripción':m.membership?.waitlist?'Ver mi aviso de apertura':'Avísame cuando abra';
  return `<section class="vh-offer" aria-labelledby="vh-offer-title">
    <div><p class="cover-caption">La suscripción · Temporada 01</p><h2 id="vh-offer-title">El viaje empieza en Valdemar.</h2>
-   <p>Cada cuota personal abre cuatro misterios. Jugad desde vuestras cuentas, comparad las pistas de los dos papeles y completad los doce juegos para descubrir el sello del tablero.</p></div>
+   <p>La mensualidad desbloquea cuatro aventuras. Resuelve las doce de cada tablero para reconstruir su reliquia y pasar al siguiente. En pareja, cada persona investiga con su propio papel.</p></div>
    <div class="vh-terms"><p class="vh-price"><strong>29,95 €</strong><span>primera cuota por persona</span></p><p class="vh-offer-note">${open?'IVA incluido':'Precio previsto · Próxima apertura'}. Si os elegís mutuamente y ambos tenéis un pase activo, cada uno recibe un 50 % en sus próximas renovaciones.</p><a href="#planes" class="button primary">${label}</a></div>
  </section>`;
 }
@@ -211,6 +211,7 @@ function home(m){
  return `${returning}${coverStory(m)}
  <div class="cover-tail vh-tail">${shareBox({title:'Clínica Vallejo'},'/vallejo.html')}</div>
  ${root.ValdemarCatalog ? root.ValdemarCatalog.home({canPlay:m.canPlay,admin:m.membership?.role==='admin'}) : ''}
+ <section class="adventure-links" aria-label="Más formas de jugar"><a href="/#desafios"><strong>Desafíos</strong><span>Resuelve retos paralelos para ganar llaves y abrir pistas.</span></a><a href="/#perfil?seccion=progreso"><strong>Mi personaje</strong><span>Consulta tus ocho habilidades, tu experiencia y tus logros.</span></a></section>
  ${homeSeasonOffer(m)}`;
 }
 const openingQuestions = ["¿Dónde se esconde la última carta de Valdemar?","¿Cómo desapareció el faro durante el ensayo?","¿Por qué el catálogo borra un recuerdo de Teresa?","¿Qué ocurrió en el faro de Marea quieta?"];

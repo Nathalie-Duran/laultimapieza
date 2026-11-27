@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {noticeTypes} from './play-notices.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const mailKey=(type,id)=>createHash('sha256').update(type+':'+id).digest('hex');
 function invitationMessage({caseId, inviterName, caseTitle}) {
@@ -22,7 +23,28 @@ function invitationMessage({caseId, inviterName, caseTitle}) {
 }
 export function messageTemplate(type,data){
   if (type === 'case_invitation') return invitationMessage(data);
+  const optionalSubjects={case_finished:'Has terminado una aventura',board_finished:'Has completado un tablero y su reliquia',
+    pair_confirmed:'La partida en pareja está confirmada',new_challenge:'Hay un nuevo desafío en el tablero',
+    inactivity:'Tu investigación te espera'};
+  if(Object.hasOwn(optionalSubjects,type)){
+    const id=Number(data.caseId);
+    const season=['Valdemar','El Tablero de Ámbar','Umbravía','La Necrópolis del Sol Velado'][Math.floor((id-1)/12)];
+    const title=season?'el caso '+((id-1)%12+1)+' de '+season:'tu caso';
+    const subject=optionalSubjects[type], body={
+      case_finished:'Has guardado el desenlace de '+title+'. Su pieza ya forma parte de tu colección.',
+      board_finished:'Al terminar '+title+' has reunido las doce piezas de '+season+'. Ya puedes abrir su sello y leer el epílogo.',
+      pair_confirmed:'Las dos cuentas han elegido jugar juntas en '+title+'. Al abrirlo, cada persona encontrará su papel.',
+      new_challenge:'Se ha publicado un desafío para '+title+'. Puedes jugarlo cuando ese caso esté abierto en tu pase.',
+      inactivity:'Han pasado catorce días desde la última visita registrada. Puedes retomar tu investigación desde Mis partidas.'
+    }[type];
+    const route=type==='inactivity'?'archivo':type==='board_finished'||type==='case_finished'?'perfil?seccion=logros':
+      type==='new_challenge'?'desafios':(id<=12?'valdemar-jugar':'mundos-jugar')+'?id='+id;
+    const base='https://www.laultimapieza.es/#',prefs=base+'perfil?seccion=cuenta';
+    return {subject,text:[subject,body,base+route,'Cambiar mis avisos: '+prefs].join('\n\n'),
+      html:'<!doctype html><html lang="es"><body><h1>'+esc(subject)+'</h1><p>'+esc(body)+'</p><p><a href="'+base+route+'">Abrir La Última Pieza</a></p><p><a href="'+prefs+'">Cambiar mis avisos de correo</a></p></body></html>'};
+  }
   const welcome=type==='welcome',date=data.periodEnd?new Date(data.periodEnd).toLocaleDateString('es-ES',{timeZone:'Europe/Madrid'}):'';
+  const journey=data.billingPlan==='four-boards-v1';
   const subject=welcome?'Tu cuenta de La última pieza está lista':data.renewal?'Tu nuevo ciclo de La última pieza está confirmado':'Tu suscripción a La última pieza está activa';
   const lines=welcome?[
     `Hola ${data.name||'investigador'}, tu cuenta ya está verificada.`,
@@ -33,9 +55,13 @@ export function messageTemplate(type,data){
     Number.isSafeInteger(data.amountPaid) && data.amountPaid > 0
       ? `Hemos confirmado el pago de ${new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(data.amountPaid/100)} de tu cuota mensual.`
       : 'Hemos confirmado el pago de tu cuota mensual.',
-    'Tu pago ha desbloqueado de inmediato cuatro casos nuevos. Los pendientes se acumulan y puedes acceder a tus retos desbloqueados mientras tengas una suscripción activa.',
+    journey
+      ? 'Tu pase de los cuatro tableros cubre cuatro juegos nuevos con esta cuota. Los bloques abonados se acumulan hasta que completes los doce casos del tablero anterior. Las cuotas terminan al abonar el último bloque de los 48 juegos.'
+      : 'Tu pase de temporada cubre cuatro juegos de tu tablero con esta cuota. Los cobros terminan al completar los bloques de tu pase contratado.',
+    ...(data.renewal ? (journey?['Esta renovación incluye una llave para pedir ayuda durante la investigación.']:[])
+      : ['Tu alta incluye una llave de bienvenida para pedir ayuda durante la investigación.']),
     `Tu periodo pagado termina el ${date}. Puedes continuar y repetir los casos elegidos durante ese periodo.`,
-    'La temporada tiene un máximo de tres ciclos. Puedes gestionar la cancelación antes de la próxima renovación desde Mi cuenta.'
+    'Puedes consultar los bloques abonados y gestionar la cancelación antes de la próxima renovación desde Mi cuenta.'
   ];
   const url='https://laultimapieza.es/'+(welcome?'#inicio':'#perfil');
   return {subject,text:subject+'\n\n'+lines.join('\n\n')+'\n\nEntrar: '+url+'\n\nLa última pieza · Mensaje sobre tu cuenta, sin publicidad.',html:`<!doctype html><html lang="es"><body style="margin:0;background:#0b1320;color:#e9eff5;font-family:Arial,sans-serif"><div style="max-width:600px;margin:auto;padding:32px"><p style="color:#efc17b;letter-spacing:3px">LA ÚLTIMA PIEZA</p><h1 style="font-size:28px;line-height:1.3">${esc(subject)}</h1>${lines.map(l=>`<p style="font-size:16px;line-height:1.7">${esc(l)}</p>`).join('')}<p style="margin:30px 0"><a href="${url}" style="display:inline-block;padding:14px 22px;border-radius:8px;background:#efc17b;color:#101820;text-decoration:none;font-weight:bold">Entrar en mi cuenta</a></p><p style="font-size:12px;color:#aebccc">Mensaje sobre tu cuenta, sin publicidad. No respondas con contraseñas ni datos de pago.</p></div></body></html>`};
@@ -47,6 +73,12 @@ export function createMailer(env=process.env,fetcher=fetch){
     try{for(let i=0;i<10;i++){
       const job=await withStore(store=>store.claimMail());if(!job)break;
       try{
+        const consent=!Object.hasOwn(noticeTypes,job.type) || await withStore(async store=>{
+          if(await store.noticeStillWanted(job))return true;
+          await store.cancelMail(job.id);
+          return false;
+        });
+        if(!consent)continue;
         const response=await fetcher('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json','Idempotency-Key':job.id},body:JSON.stringify({from:env.MAIL_FROM,to:[job.email],...messageTemplate(job.type,job.data)}),signal:AbortSignal.timeout(12000)});
         if(!response.ok)throw new Error('PROVIDER_'+response.status);
         const result=await response.json();if(!result.id)throw new Error('PROVIDER_RESPONSE');

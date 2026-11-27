@@ -1,10 +1,15 @@
+import {secretArchive} from './secret-archive.mjs';
+import {creditSecretMission} from './valdemar-wallet.mjs';
+import {useInventory, inspectInventory} from './expedition.mjs';
 import {readFile} from 'node:fs/promises';
 import {ApiError} from './auth-provider.mjs';
 import {CASE_ORDER} from './progression.mjs';
-import {worldSeasonAccess, valdemarWallet, withValdemarTransaction, WORLD_CASE_COUNT} from './valdemar-wallet.mjs';
+import {worldSeasonAccess, valdemarWallet, withValdemarTransaction, WORLD_CASE_COUNT, hintFees, parallelPrize} from './valdemar-wallet.mjs';
 import {readValdemarRelease} from './valdemar-release.mjs';
 import {evaluateHourStage,readHour,requireHourComplete,roleMaterials} from './valdemar-hour.mjs';
 import {hasCaseActivity,recordCaseActivity} from './season-activity.mjs';
+import {rememberStage,seasonCareer} from './season-career.mjs';
+import {notifyEnding} from './play-notices.mjs';
 import {endPair,hasGameConsent,partnerCases,partnerInfo,partnerScope,syncPairProgress} from './partner-api.mjs';
 
 const files = new Map();
@@ -47,9 +52,15 @@ function visibleProgress(record,story) {
   };
 }
 
-function visibleHints(story,wallet) {
-  if (!wallet.opened.includes(story.id)) return [];
-  return story.hints.slice(0,wallet.second.includes(story.id) ? 2 : 1);
+function caseHints(story,wallet,pair) {
+  const shared=pair?.progress?.sharedHints||[];
+  const values={open:story.hints[0],second:story.hints[1],solution:story.deduction};
+  const owned={open:wallet.opened,second:wallet.second,solution:wallet.solution};
+  return Object.entries(hintFees).map(([op,fee])=>{
+    const visible=owned[op].includes(story.id)||shared.includes(op);
+    return {op,cost:op==='second' && wallet.legacyEnvelopes.includes(story.id)?0:fee,
+      text:visible?values[op]:null,shared:shared.includes(op)};
+  });
 }
 
 const playModes = new Set(['solo','duo']);
@@ -57,7 +68,7 @@ const playModes = new Set(['solo','duo']);
 async function personalGames(data,scope,access,store,loadRelease,pairedCases) {
   const records=data.valdemarCaseProgress?.[scope] || {};
   const wallet=data.valdemarSeasonOne?.[scope] || {};
-  const sideProgress=new Set([...(wallet.won || []),...(wallet.opened || []),...(wallet.second || [])]);
+  const sideProgress=new Set([...(wallet.won || []),...(wallet.opened || []),...(wallet.second || []),...(wallet.solution || [])]);
   const games=[];
   for(let id=1;id<=WORLD_CASE_COUNT;id++){
     const record=records[id] || {};
@@ -88,11 +99,19 @@ async function personalGames(data,scope,access,store,loadRelease,pairedCases) {
       if(err.code!=='VALDEMAR_RELEASE_PENDING')throw err;
     }
   }
-  return {games,access};
+  return {games,access,career:seasonCareer(data,scope),archive:secretArchive(data,scope,access)};
 }
 
 function releasedStory(release,id) {
   return (id>CASE_ORDER.length ? release.nuevos : release.stories)?.find(item=>item.id===id);
+}
+
+function availableKeyChallenge(access,wallet,id,release) {
+  if (!wallet.won.includes(id)) return null;
+  const other = access.availableCases.find(candidate => !wallet.won.includes(candidate) && releasedStory(release,candidate));
+  if (!other) return null;
+  const route = other <= CASE_ORDER.length ? 'valdemar-jugar' : 'mundos-jugar';
+  return {title:releasedStory(release,other).title,href:'#'+route+'?id='+other+'&seccion=reto'};
 }
 
 function visibleSample(sample) {
@@ -127,11 +146,22 @@ async function progressAction(store,uid,scope,story,action,input,pair) {
   async function save(event){
     if(pair)return syncPairProgress(store,pair,event);
     recordCaseActivity(data,scope,story.id,alreadyStarted,event);
+    if(scope==='paid')await store.touchNoticeActivity?.(uid);
+    if(event==='end')await notifyEnding(store,uid,data,scope,story.id);
     await store.saveMemberData(uid,data);
+  }
+  if (action === 'inventory') {
+    const role = partnerInfo(pair,uid)?.role;
+    if (useInventory(story,record,role,input)) {
+      if (!pair && record.missionPrize) creditSecretMission(data,scope,story.id,record.missionPrize);
+      await save('inventory');
+    }
+    return {inventory:inspectInventory(story,record,role)};
   }
   if (action === 'stage') {
     const {advanced,correct,feedback} = evaluateHourStage(story,record,input);
     if (advanced) {
+      rememberStage(record,input.index,story.hour.stages[input.index],Boolean(pair));
       await save('advance');
     }
     return {correct,feedback,hour:readHour(story,record,partnerInfo(pair,uid)?.role)};
@@ -166,7 +196,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
   const seasonsRoute = path === '/api/valdemar/seasons';
   const gamesRoute = path === '/api/valdemar/partidas';
   const sealRoute = /^\/api\/valdemar\/seals\/([1-9]\d?)$/.exec(path);
-  const match = /^\/api\/valdemar\/cases\/([1-9]\d?)(?:\/(reward|open|second|sample|deduce|ending|stage|mode|pair-state))?$/.exec(path);
+  const match = /^\/api\/valdemar\/cases\/([1-9]\d?)(?:\/(reward|open|second|solution|sample|deduce|ending|stage|mode|inventory|pair-state))?$/.exec(path);
   const id = match ? Number(match[1]) : null;
   if ((!walletRoute && !seasonsRoute && !gamesRoute && !sealRoute && !match) || id>WORLD_CASE_COUNT) throw new ApiError(404,'Esta historia no está disponible.');
   const newWorld = id > CASE_ORDER.length;
@@ -225,7 +255,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const record=pair?pair.progress:personal;
     const mode=pair?'duo':accepted || !editorial && personal?.mode==='duo'?'solo':playModes.has(personal?.mode)?personal.mode:null;
     if(poll)return pair
-      ? {partner,mode,waitingForPartner:false,hour:{current:record.choice?5:record.hourStep||0},progress:{deduced:record.deduced===true,choice:record.choice||null}}
+      ? {partner,mode,waitingForPartner:false,sharedHintCount:record.sharedHints?.length||0,hour:{current:record.choice?5:record.hourStep||0,inventory:{revision:record.inventoryRevision||0}},progress:{deduced:record.deduced===true,choice:record.choice||null}}
       : {partner:null,mode,waitingForPartner};
     if (action==='mode') {
       const mode=input?.mode;
@@ -251,6 +281,13 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const release = await loadRelease(store);
     const story = releasedStory(release,id);
     if (!story) throw new ApiError(503,'El expediente está temporalmente fuera de servicio.');
+    if (action === 'inventory') {
+      const result = await progressAction(store,uid,scope,story,action,input,pair);
+      if (result.inventory.rooms.some(room => room.assignment?.complete)) {
+        result.wallet = await valdemarWallet(store,uid,{editorial,seasonAccess:access,pair});
+      }
+      return result;
+    }
     if (action === 'deduce' || action === 'ending' || action === 'stage') return progressAction(store,uid,scope,story,action,input,pair);
     const sample = newWorld ? null : release.samples.find(item => item.id === id);
     if (action === 'sample') {
@@ -270,12 +307,15 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
         }
       }
     }
-    const wallet = await valdemarWallet(store,uid,{editorial,seasonAccess:access},action,id);
-    const hints = visibleHints(story,wallet);
-    if (action !== 'read') return {wallet,hints,...(newWorld && action==='reward' ? {feedback:story.side.success} : {})};
+    const wallet = await valdemarWallet(store,uid,{editorial,seasonAccess:access,pair,checkPrice:true,quotedCost:input?.quotedCost},action,id);
+    const hintOptions=caseHints(story,wallet,pair);
+    const hints=hintOptions.filter(option=>option.text).map(option=>option.text);
+    const sharedHintCount=pair?.progress?.sharedHints?.length||0;
+    const keyChallenge=availableKeyChallenge(access,wallet,id,release);
+    if (action !== 'read') return {wallet,hints,keyChallenge,hintOptions,sharedHintCount,...(newWorld && action==='reward' ? {feedback:story.side.success} : {})};
     const role=partner?.role;
     const dossier = {story:visibleStory(story,role),hour:readHour(story,record,role),wallet,hints,progress:visibleProgress(record,story),
-      mode,partner,waitingForPartner,editorialPreview:editorial===true};
+      mode,partner,waitingForPartner,keyChallenge,hintOptions,sharedHintCount,parallelPrize:parallelPrize(id),editorialPreview:editorial===true};
     if (newWorld) return {...dossier,side:visibleSide(story.side,role)};
     const gameScript = await asset('valdemar-challenges-'+Math.ceil(id/4)+'.js');
     return {...dossier,sample:visibleSample(sample),gameScript,stationScript:id===1 ? release.stationScript : null};

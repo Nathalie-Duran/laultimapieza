@@ -326,3 +326,33 @@
   .pn-milestones > li.is-earned, .pn-milestones > li.is-next { border: 2px solid Highlight; }
   .pn-milestones > li.is-earned { border-style: double; border-width: 3px; }
 }
+
+.pn-career {
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid currentColor;
+  border-radius: 1rem;
+}
+.pn-career h3, .pn-career-grid + h2 { margin-top: 1.5rem; }
+.pn-career details { margin-block: 1rem; }
+.pn-career summary { cursor: pointer; }
+.pn-career-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: .75rem;
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+}
+.pn-career-grid li {
+  display: grid;
+  align-content: start;
+  gap: .35rem;
+  padding: .9rem;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: .65rem;
+}
+.pn-career-grid li.is-earned { border-color: currentColor; }
+.pn-career-grid small { font-size: .9rem; }
+.pn-xp-list { padding: 0; list-style: none; }
+.pn-xp-list li { display: flex; justify-content: space-between; gap: 1rem; margin: .5rem 0; }
+.pn-xp-list strong { white-space: nowrap; }

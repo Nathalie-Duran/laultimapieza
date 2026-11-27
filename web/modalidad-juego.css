@@ -49,3 +49,9 @@
 @media(max-width:420px) {
   .vd-player :is(.gm-entry,.gm-change) .gm-label {display:block;margin:0 0 .4rem;}
 }
+
+.vd-player[data-play-mode="pending"] > :is(.vd-tabs,.vd-pair,.vd-panel,.md-game-tabs,.md-game-panel,.gm-change) {display:none}
+.expedition-inventory :is(select,button) {max-inline-size:100%;min-block-size:2.75rem;white-space:normal}
+.expedition-inventory fieldset {min-inline-size:0}
+.expedition-inventory :is(label,blockquote,summary,p) {overflow-wrap:anywhere}
+.expedition-inventory :focus-visible {outline:2px solid currentColor;outline-offset:3px}

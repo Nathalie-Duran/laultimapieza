@@ -1,9 +1,16 @@
 import { ApiError } from './auth-provider.mjs';
 import { readAnalytics } from './analytics.mjs';
+import {summarizeManagementAccount} from './case-review.mjs';
+import {challengeSchema,stageMetricsSchema,challengeStore} from './published-challenges.mjs';
+import {noticesSchema,publicationNoticeSchema,noticeStore} from './play-notices.mjs';
 import {mailKey} from './mail-service.mjs';
 import {partnerOfferSchema,partnerOfferStore} from './partner-offer-store.mjs';
 
 const schema = [
+  challengeSchema,
+  stageMetricsSchema,
+  noticesSchema,
+  publicationNoticeSchema,
   `CREATE TABLE IF NOT EXISTS lup_case_choice_locks (
     bucket SMALLINT UNSIGNED PRIMARY KEY
   ) ENGINE=InnoDB`,
@@ -84,6 +91,8 @@ export function createDatabase(env=process.env) {
       await initialized;
       await connection.beginTransaction();
       const store = {
+        ...challengeStore(query),
+        ...noticeStore(query),
         ...partnerOfferStore(query),
         async lockCasePair(bucket){
           // Transaction-scoped mutual exclusion for reciprocal choices made at the same time.
@@ -145,6 +154,22 @@ export function createDatabase(env=process.env) {
         },
         async markEditorial(uid){await query('INSERT IGNORE INTO lup_editorial_users(user_id) VALUES(?)',[uid]);},
         analytics(options){return readAnalytics(query,options);},
+        async readCaseReviews(uid){
+          const [row]=await query("SELECT JSON_EXTRACT(data_json,'$.caseReviews') AS reviews FROM lup_member_data WHERE user_id=?",[uid]);
+          return typeof row?.reviews==='string' ? JSON.parse(row.reviews) : row?.reviews || {};
+        },
+        async lookupManagementAccounts(name){
+          const rows=await query(`SELECT p.name, p.created_at,
+            JSON_EXTRACT(m.data_json,'$.cycles') AS cycles,
+            JSON_UNQUOTE(JSON_EXTRACT(m.data_json,'$.subscription')) AS subscription,
+            JSON_UNQUOTE(JSON_EXTRACT(m.data_json,'$.active')) AS active,
+            JSON_EXTRACT(m.data_json,'$.valdemarCaseProgress.paid') AS progress
+            FROM lup_profiles p LEFT JOIN lup_member_data m ON m.user_id=p.user_id
+            WHERE p.name=? AND NOT EXISTS (SELECT 1 FROM lup_editorial_users e WHERE e.user_id=p.user_id)
+            ORDER BY p.created_at DESC,p.user_id LIMIT 11`,[name]);
+          const now=Date.now();
+          return {accounts:rows.slice(0,10).map(row=>summarizeManagementAccount(row,now)),more:rows.length>10};
+        },
         async addOpeningNotice(email,receiptHash){
           const result=await query('INSERT IGNORE INTO lup_opening_notices(email,receipt_hash) VALUES (?,?)',[email,receiptHash]);
           if(result.affectedRows===1)await this.metric('notice_add');
@@ -173,6 +198,7 @@ export function createDatabase(env=process.env) {
           return {id:row.id,email:row.email,type:row.type,data:JSON.parse(row.data_json)};
         },
         async finishMail(id,providerId){await query("UPDATE lup_mail_outbox SET status='sent',provider_id=?,last_error=NULL WHERE id=?",[providerId,id]);},
+        async cancelMail(id){await query("UPDATE lup_mail_outbox SET status='cancelled' WHERE id=?",[id]);},
         async retryMail(id,error){await query("UPDATE lup_mail_outbox SET status=IF(attempts>=8,'review','pending'),next_at=?,last_error=? WHERE id=?",[Date.now()+300000,error,id]);},
         async getMemberData(uid,{readOnly=false}={}) {
           if(!readOnly)await query('INSERT IGNORE INTO lup_member_data (user_id,data_json) VALUES (?,?)',[uid,'{}']);

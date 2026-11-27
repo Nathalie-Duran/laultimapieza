@@ -18,17 +18,44 @@ function publicDocumentUrl(value) {
   return url.href;
 }
 
+const journeyPlan='four-boards-v1';
+const catalogBlocks=SEASON_NAMES.length*3;
+
 function purchasedBlocks(subscription) {
   const raw = subscription.metadata?.lup_blocks;
-  if (raw === undefined) return null; // Finite twelve-case legacy pass.
+  const journey=subscription.metadata?.lup_plan===journeyPlan;
+  if (raw === undefined && !journey) return null; // Finite twelve-case legacy pass.
   const numbers = String(raw).split(',').map(Number);
   const season = Number(subscription.metadata?.lup_season);
-  if (!Number.isInteger(season) || season<1 || season>SEASON_NAMES.length || !numbers.length || numbers.length>3 ||
-      numbers.some((block,i)=>!Number.isInteger(block) || block<1 || Math.ceil(block/3)!==season ||
+  if (!Number.isInteger(season) || season<1 || season>SEASON_NAMES.length || !numbers.length ||
+      numbers.length>(journey?catalogBlocks:3) || Math.ceil(numbers[0]/3)!==season ||
+      numbers.some((block,i)=>!Number.isInteger(block) || block<1 || block>catalogBlocks || (!journey && Math.ceil(block/3)!==season) ||
         (i>0 && block<=numbers[i-1]))) {
     throw new ApiError(503,'No podemos comprobar los bloques contratados.','BILLING_UNAVAILABLE');
   }
   return numbers;
+}
+
+// A late receipt must not move a previously granted block. For replacement
+// invoices covering the same month, keep one entitlement for that period.
+function journeyCycles(previous,receipts,blocks){
+  const byStart=new Map(previous.map(c=>[c.start,c]));
+  const periods=new Map();
+  for(const receipt of receipts){
+    const old=periods.get(receipt.start);
+    const persisted=byStart.get(receipt.start);
+    if(!old || (old.revoked && !receipt.revoked) ||
+        old.revoked===receipt.revoked && receipt.id===persisted?.id)periods.set(receipt.start,receipt);
+  }
+  const used=new Set(previous.map(c=>c.worldBlock));
+  const remaining=blocks.filter(n=>!used.has(n));
+  const cycles=[];
+  for(const receipt of periods.values()){
+    const assigned=byStart.get(receipt.start)?.worldBlock;
+    const worldBlock=blocks.includes(assigned)?assigned:remaining.shift();
+    if(worldBlock)cycles.push({...receipt,worldBlock,plan:journeyPlan});
+  }
+  return cycles;
 }
 export function validSignature(raw,header,secret,now=Date.now()){
   const fields=String(header||'').split(','),time=Number(fields.find(x=>x.startsWith('t='))?.slice(2));
@@ -69,14 +96,24 @@ export function createBilling(env=process.env,fetcher=fetch){
     const cycles=[];
     for(const invoice of invoices.data||[]){
       const line=invoice.lines?.data?.find(l=>(l.pricing?.price_details?.price||l.price?.id)===env.STRIPE_PRICE_ID);
-      if(!paidPassInvoice(invoice,line,PARTNER_COUPON))continue;
-      cycles.push({id:invoice.id,subscription:sub.id,amountPaid:invoice.amount_paid,paidAt:invoice.status_transitions?.paid_at?invoice.status_transitions.paid_at*1000:null,start:line.period.start*1000,end:line.period.end*1000,revoked:(data.revokedInvoices||[]).includes(invoice.id)});
+      if(!invoice.id || !paidPassInvoice(invoice,line,PARTNER_COUPON) ||
+        !Number.isSafeInteger(line.period?.start) || !Number.isSafeInteger(line.period?.end) ||
+        line.period.start>=line.period.end)continue;
+      cycles.push({id:invoice.id,subscription:sub.id,renewal:invoice.billing_reason==='subscription_cycle',amountPaid:invoice.amount_paid,paidAt:invoice.status_transitions?.paid_at?invoice.status_transitions.paid_at*1000:null,start:line.period.start*1000,end:line.period.end*1000,revoked:(data.revokedInvoices||[]).includes(invoice.id)});
     }
     const blocks=purchasedBlocks(sub);
+    data.billingPlan=sub.metadata?.lup_plan===journeyPlan?journeyPlan:'season';
     const revoked=new Set([...(data.revokedInvoices||[]),...(data.cycles||[]).filter(c=>c.revoked).map(c=>c.id)]);
-    data.cycles=orderedCycles([...(data.cycles||[]),...cycles].map(c=>({...c,revoked:revoked.has(c.id)})));
-    const ownCycles=data.cycles.filter(c=>c.subscription===sub.id);
-    if(blocks)ownCycles.forEach((cycle,index)=>{cycle.worldBlock=blocks[index]||0;});
+    const previous=data.cycles||[];
+    const reconciled=orderedCycles([...previous,...cycles].map(c=>({...c,revoked:revoked.has(c.id)})));
+    let ownCycles=reconciled.filter(c=>c.subscription===sub.id);
+    if(data.billingPlan===journeyPlan){
+      ownCycles=journeyCycles(previous.filter(c=>c.subscription===sub.id),ownCycles,blocks);
+    }else if(blocks){
+      ownCycles.forEach((cycle,index)=>{cycle.worldBlock=blocks[index]||0;});
+      ownCycles=ownCycles.filter(c=>c.worldBlock);
+    }
+    data.cycles=orderedCycles([...reconciled.filter(c=>c.subscription!==sub.id),...ownCycles]);
     // Keep one verified status per subscription. Replayed webhooks update the same record.
     data.billingHistory ||= {};
     for(const item of candidates){
@@ -103,7 +140,7 @@ export function createBilling(env=process.env,fetcher=fetch){
       const start=schedule.current_phase?.start_date||schedule.phases?.[0]?.start_date;
       if(!start)throw new ApiError(503,'Estamos confirmando el calendario de tu temporada.','BILLING_UNAVAILABLE');
       const remaining=blocks ? blocks.length-ownCycles.filter(c=>c.start<start*1000).length : 4-data.cycles.length;
-      await stripe('subscription_schedules/'+schedule.id,{end_behavior:'cancel',proration_behavior:'none','phases[0][start_date]':String(start),'phases[0][items][0][price]':env.STRIPE_PRICE_ID,'phases[0][items][0][quantity]':'1','phases[0][duration][interval]':'month','phases[0][duration][interval_count]':String(Math.max(1,Math.min(3,remaining))),'phases[0][proration_behavior]':'none'});
+      await stripe('subscription_schedules/'+schedule.id,{end_behavior:'cancel',proration_behavior:'none','phases[0][start_date]':String(start),'phases[0][items][0][price]':env.STRIPE_PRICE_ID,'phases[0][items][0][quantity]':'1','phases[0][duration][interval]':'month','phases[0][duration][interval_count]':String(Math.max(1,Math.min(blocks?.length||3,remaining))),'phases[0][proration_behavior]':'none'});
       data.scheduleConfigured=true;data.schedule=schedule.id;
     }
     const now=Date.now();
@@ -116,16 +153,23 @@ export function createBilling(env=process.env,fetcher=fetch){
     if(active&&store.enqueueMail){
       for(const invoice of invoices.data||[]){
         const cycle=data.cycles.find(c=>c.id===invoice.id&&!c.revoked);
-        if(cycle&&cycle.end>Date.now()&&invoice.customer_email)await store.enqueueMail(mailKey('subscription',invoice.id),invoice.customer_email,'subscription',{periodEnd:cycle.end,amountPaid:cycle.amountPaid,renewal:invoice.billing_reason==='subscription_cycle'});
+        if(cycle && cycle.start<=now && cycle.end>now && invoice.customer_email){
+          await store.enqueueMail(mailKey('subscription',invoice.id),invoice.customer_email,'subscription',{
+            periodEnd:cycle.end,amountPaid:cycle.amountPaid,renewal:cycle.renewal,
+            billingPlan:data.billingPlan
+          });
+        }
       }
     }
     await store.saveMemberData(uid,data);
     await indexPurchase(store,uid,data);
     return {data,active,purchaseHeld,subscription:sub};
   }
-  async function invalidateCheckout(store,uid,data,eligible){
+  async function invalidateCheckout(store,uid,data,eligible,requestedPlan){
     const pending=data.pendingSeasonCheckout;
-    if(!pending?.id || pending.expiresAt<=Date.now() || (pending.partnerDiscount===true)===eligible)return;
+    if(!pending?.id || pending.expiresAt<=Date.now())return;
+    const planChanged=requestedPlan && (pending.plan||'season')!==requestedPlan;
+    if(!planChanged && (pending.partnerDiscount===true)===eligible)return;
     const path='checkout/sessions/'+encodeURIComponent(pending.id);
     let old=await stripe(path);
     if(old.status==='open'){
@@ -198,7 +242,7 @@ export function createBilling(env=process.env,fetcher=fetch){
   let processingOffers=false;
   return {
     configured,
-    publicConfig(){return {checkoutAvailable:configured,termsUrl:publicDocumentUrl(env.BILLING_TERMS_URL),privacyUrl:publicDocumentUrl(env.BILLING_PRIVACY_URL),partnerOffer:publicPartnerOffer};},
+    publicConfig(){return {checkoutAvailable:configured,journeyPlan,termsUrl:publicDocumentUrl(env.BILLING_TERMS_URL),privacyUrl:publicDocumentUrl(env.BILLING_PRIVACY_URL),partnerOffer:publicPartnerOffer};},
     partnerOffer:accountOffer,
     async updatePartnerPreference(store,uid,beforeEmail,afterEmail,editorial=false){
       if(store.recordOfferPreference)await store.recordOfferPreference(uid,editorial?null:emailKey(afterEmail));
@@ -253,17 +297,23 @@ export function createBilling(env=process.env,fetcher=fetch){
       await this.refreshOfferIdentity(store,user);
       const {data,active,purchaseHeld}=await sync(store,user.userId);
       if(active||purchaseHeld)throw new ApiError(409,'Ya hay un pase o un pago en curso. Consúltalo en Mi cuenta.','SUBSCRIPTION_IN_PROGRESS');
-      const purchase=worldSeasonAccess(data,{active}).nextPurchase;
+      const access=worldSeasonAccess(data,{active});
+      const purchase=access.nextPurchase;
       if(!purchase)throw new ApiError(409,'Para contratar otra temporada, termina primero los doce casos de la anterior.','SEASON_NOT_AVAILABLE');
       if((input?.season??1)!==purchase.number)throw new ApiError(409,'Selecciona la temporada disponible antes de contratar.','SEASON_SELECTION_REQUIRED');
-      const ordinals=purchase.blocks.map(n=>(purchase.number-1)*3+n).join(',');
+      const journey=input?.plan===journeyPlan;
+      if(input?.plan!==undefined && !journey)throw new ApiError(409,'Vuelve a consultar las condiciones del pase.','PLAN_CHANGED');
+      const blocks=journey
+        ? access.seasons.flatMap(s=>[1,2,3].filter(n=>!s.paidBlocks.includes(n)).map(n=>(s.number-1)*3+n))
+        : purchase.blocks.map(n=>(purchase.number-1)*3+n);
+      const ordinals=blocks.join(',');
       if(input.expectPartnerOffer===true)throw new ApiError(409,'La primera cuota cuesta 29,95 €. El descuento en pareja se aplica a las renovaciones.','PARTNER_OFFER_CHANGED');
-      await invalidateCheckout(store,user.userId,data,false);
+      await invalidateCheckout(store,user.userId,data,false,journey?journeyPlan:'season');
       // Reuse an open payment page across devices, even after the retry key's time window.
       if(data.pendingSeasonCheckout?.expiresAt>Date.now()){
         const pending=data.pendingSeasonCheckout;
         const prior=await stripe('checkout/sessions/'+encodeURIComponent(pending.id));
-        if(prior.status==='open' && pending.blocks===ordinals && pending.partnerDiscount!==true && prior.url)return {url:prior.url};
+        if(prior.status==='open' && pending.blocks===ordinals && (pending.plan===journeyPlan)===journey && pending.partnerDiscount!==true && prior.url)return {url:prior.url};
         if(prior.status==='open')throw new ApiError(409,'Hay una solicitud anterior de pago en curso.','CHECKOUT_IN_PROGRESS');
         if(prior.status==='complete' && !data.cycles?.some(c=>c.subscription===prior.subscription))throw new ApiError(409,'Estamos confirmando tu pago.','CHECKOUT_IN_PROGRESS');
       }
@@ -273,13 +323,14 @@ export function createBilling(env=process.env,fetcher=fetch){
       if(!data.customer){const customer=await stripe('customers',{email:user.email,'metadata[lup_uid]':user.userId},'lup-customer-'+user.userId);data.customer=customer.id;await store.saveMemberData(user.userId,data);}
       const minute=Math.floor(Date.now()/1800000);
       const seasonName=SEASON_NAMES[purchase.number-1];
-      const description=seasonName+'. La primera cuota es de 29,95 € (IVA incluido). Cada cuota abre cuatro casos. El 50 % se aplica desde la siguiente factura si ambos tenéis un pase activo y os habéis elegido en el perfil. Este pase finaliza después de '+purchase.remainingCycles+(purchase.remainingCycles===1?' cuota.':' cuotas.')+' Puedes cancelar antes de renovar. La siguiente temporada se contrata por separado.';
+      const duration=journey?' Pase para los cuatro tableros, hasta completar los bloques pendientes. Termina tras '+blocks.length+(blocks.length===1?' cuota.':' cuotas.')+' Cada tablero requiere los 12 desenlaces del anterior.':' Este pase termina tras '+blocks.length+(blocks.length===1?' cuota.':' cuotas.')+' La siguiente temporada se contrata por separado.';
+      const description=seasonName+'. Primera cuota personal: 29,95 € con IVA. Renovación mensual: 29,95 €. Cada cuota abona cuatro casos. El 50 % se aplica desde la próxima factura si ambos tenéis un pase activo y os habéis elegido en el perfil.'+duration+' Puedes cancelar antes de renovar.';
       const previous=data.pendingSeasonCheckout?.id||'new';
-      const attempt=mailKey('season-checkout',[user.userId,ordinals,'full-first',minute,previous].join('/'));
+      const attempt=mailKey('season-checkout',[user.userId,ordinals,journey?journeyPlan:'season','full-first',minute,previous].join('/'));
       const result=await stripe('checkout/sessions',{mode:'subscription',customer:data.customer,'line_items[0][price]':env.STRIPE_PRICE_ID,'line_items[0][quantity]':'1',
-        'subscription_data[metadata][lup_uid]':user.userId,'subscription_data[metadata][lup_season]':String(purchase.number),'subscription_data[metadata][lup_blocks]':ordinals,client_reference_id:user.userId,success_url:origin+'/#planes?checkout=complete',cancel_url:origin+'/#planes',locale:'es','custom_text[submit][message]':description},'lup-checkout-'+attempt);
+        ...(journey?{'subscription_data[metadata][lup_plan]':journeyPlan}:{}),'subscription_data[metadata][lup_uid]':user.userId,'subscription_data[metadata][lup_season]':String(purchase.number),'subscription_data[metadata][lup_blocks]':ordinals,client_reference_id:user.userId,success_url:origin+'/#planes?checkout=complete',cancel_url:origin+'/#planes',locale:'es','custom_text[submit][message]':description},'lup-checkout-'+attempt);
       if(result.id && result.expires_at){
-        data.pendingSeasonCheckout={id:result.id,blocks:ordinals,expiresAt:result.expires_at*1000,partnerDiscount:false};
+        data.pendingSeasonCheckout={id:result.id,blocks:ordinals,plan:journey?journeyPlan:'season',expiresAt:result.expires_at*1000,partnerDiscount:false};
         await store.saveMemberData(user.userId,data);
       }
       return {url:result.url};

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { creditValdemarWelcome, valdemarWallet, withValdemarTransaction } from '../valdemar-wallet.mjs';
+import { creditSecretMission, creditPublishedChallenge, creditValdemarWelcome, valdemarWallet, withValdemarTransaction } from '../valdemar-wallet.mjs';
 
 const owner = 'owner';
 const options = { editorial: false };
@@ -56,19 +56,23 @@ test('paid wallet backfills old purchases, is idempotent under concurrent action
   assert.equal((await perform('open',1)).balance, 0);
   await Promise.all([perform('reward',3), perform('reward',3)]);
   await perform('open',2);
+  await assert.rejects(perform('second',1),{code:'NOT_ENOUGH_KEYS'});
+  await perform('reward',1);await perform('reward',4);
   await perform('second',1);
   await perform('second',1);
-  assert.deepEqual(await perform('read'), { gift:1, balance:0, won:[3], opened:[1,2], second:[1] });
-  await assert.rejects(perform('second',4),{code:'ENVELOPE_CLOSED'});
+  const saved=await perform('read');
+  assert.equal(saved.balance,0);assert.deepEqual(saved.won,[3,1,4]);assert.deepEqual(saved.opened,[1,2]);assert.deepEqual(saved.second,[1]);
+  assert.deepEqual(saved.history.map(entry=>entry.amount),[1,-1,1,-1,1,1,-2]);
+  await assert.rejects(perform('second',4),{code:'NOT_ENOUGH_KEYS'});
   await assert.rejects(perform('reward',5),{code:'CASE_NOT_RELEASED'});
   await assert.rejects(perform('open','2'),{status:400});
 });
 
 test('editorial rewards are isolated from real accounts and never generate a paid welcome', async () => {
   const db = memory(purchased());
-  assert.equal((await db.run(store=>valdemarWallet(store,owner,{editorial:true},'reward',12))).balance, 2);
+  assert.equal((await db.run(store=>valdemarWallet(store,owner,{editorial:true},'reward',12))).balance, 3);
   const paid = await db.run(store=>valdemarWallet(store,owner,options));
-  assert.deepEqual(paid,{gift:1,balance:1,won:[],opened:[],second:[]});
+  assert.equal(paid.gift,1);assert.equal(paid.balance,1);assert.deepEqual(paid.won,[]);assert.deepEqual(paid.history.map(row=>row.kind),['welcome']);
   const d=purchased();
   d.cycles[0].revoked=true;
   assert.equal(creditValdemarWelcome(d),false);
@@ -88,4 +92,24 @@ test('lock failures retry after rollback while ambiguous connection failures pro
     count++;throw Object.assign(new Error(),{code:'PROTOCOL_CONNECTION_LOST'});
   },()=>{}),{code:'PROTOCOL_CONNECTION_LOST'});
   assert.equal(count,1);
+});
+
+test('migration preserves old envelopes and rewards, adds new renewals and mission prizes once',async()=>{
+  const data=purchased();
+  data.valdemarSeasonOne={paid:{welcomes:[data.subscription],won:[12],opened:[1],second:[]}};
+  data.cycles.push({...data.cycles[0],id:'renew',plan:'four-boards-v1',renewal:true});
+  assert.equal(creditValdemarWelcome(data),true);
+  assert.equal(creditValdemarWelcome(data),false);
+  assert.equal(creditSecretMission(data,'paid',2,3),true);
+  assert.equal(creditSecretMission(data,'paid',2,3),false);
+  assert.equal(creditPublishedChallenge(data,'paid','published-uuid',1),true);
+  assert.equal(creditPublishedChallenge(data,'paid','published-uuid',1),false);
+  const db=memory(data);
+  const call=(action,id)=>db.run(store=>valdemarWallet(store,owner,options,action,id));
+  assert.equal((await call('second',1)).balance,6);
+  const solution=await call('solution',2);
+  assert.equal(solution.balance,3);
+  assert.deepEqual(solution.solution,[2]);
+  assert.equal((await call('solution',2)).balance,3);
+  assert.deepEqual(solution.history.map(row=>row.amount),[1,1,-1,1,3,1,0,-3]);
 });

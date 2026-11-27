@@ -23,4 +23,22 @@ test('Subscription email is queued only for a qualifying paid cycle and deduplic
  const billing=createBilling(env,async url=>new URL(url).pathname==='/v1/subscriptions'?Response.json({data:[{id:'sub_test',metadata:{lup_uid:'alice'},status:'active',items:{data:[{price:{id:'price_test'}}]}}]}):Response.json({data:[{id:'in_test',customer_email:'recipient@example.test',currency:'eur',amount_paid:paid,billing_reason:'subscription_create',lines:{data:[{pricing:{price_details:{price:'price_test'}},period:{start,end:start+30*86400}}]}}]}));
  assert.equal((await billing.membership(store,'alice')).canPlay,false);assert.equal(jobs.size,0);
  paid=2995;await billing.membership(store,'alice');await billing.membership(store,'alice');assert.equal(jobs.size,1);assert.equal(jobs.get(mailKey('subscription','in_test'))[1],'subscription');
+ assert.equal(jobs.get(mailKey('subscription','in_test'))[2].billingPlan,'season');
+});
+
+test('los correos de alta y renovación describen el bloque y las llaves del contrato pagado',()=>{
+ for(const billingPlan of ['four-boards-v1','season',undefined])for(const renewal of [true,false]){
+   const amountPaid=renewal?1498:2995;
+   const message=messageTemplate('subscription',{billingPlan,renewal,amountPaid,periodEnd:Date.UTC(2026,11,27)});
+   for(const content of [message.text,message.html]){
+     assert.match(content,/cuatro juegos/);
+     assert.match(content,renewal?/14,98/:/29,95/);
+     assert.match(content,/cancelación/);
+     if(billingPlan==='four-boards-v1')assert.match(content,/48 juegos/);
+     else assert.match(content,/pase de temporada/);
+     if(!renewal)assert.match(content,/una llave de bienvenida/);
+     else if(billingPlan==='four-boards-v1')assert.match(content,/renovación incluye una llave/);
+     else assert.doesNotMatch(content,/incluye una llave/);
+   }
+ }
 });

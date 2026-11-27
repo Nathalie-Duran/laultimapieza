@@ -139,6 +139,9 @@
     }
     if(game&&!c.gameMounted) mountGame(c);
     if(focus){
+      if(c.frame.dataset.playMode==='pending'){
+        c.modeControl.entry.querySelector('button')?.focus();return;
+      }
       const target=game?c.gamePanel:desk?c.desk:view==='hotel'?c.hotel:view==='help'?c.help:c.ending;
       target.focus({preventScroll:true});target.scrollIntoView({block:'start'});
     }
@@ -192,6 +195,11 @@
       const hourNode=element('div');c.desk.append(hourNode);
       c.hourView=window.ValdemarHour.mount(hourNode,c.data.hour,{
         hotelNode:c.hotel,role:c.data.partner?.role,station:c.id===1,
+        inventory:async input=>{
+          const result=await request(c,'inventory',input);
+          if(result.wallet)updateWallet(c,result);
+          return result;
+        },
         submit:(index,choice,sources)=>request(c,'stage',{index,choice,...(sources?{sources}:{})}),
         reload:async()=>{const latest=await request(c);c.data.progress=latest.progress;return latest.hour;},
         change:hour=>{c.data.hour=hour;renderEnding(c);},
@@ -204,47 +212,20 @@
     c.desk.append(button('Contrastar la deducción final',()=>selectView(c,'ending',true),'vd-primary'));
   }
   function updateWallet(c,data) {
-    if(data.wallet)c.data.wallet=data.wallet;
-    if(Array.isArray(data.hints))c.data.hints=data.hints;
+    window.Keyring.update(c.data,data);
     const wallet=c.data.wallet;
     c.balance.textContent=wallet.balance===1?'1 llave':wallet.balance+' llaves';
-    c.rewardStatus.textContent=wallet.won.includes(c.id)?'Ya has recibido la llave de este reto.':'La primera victoria en este reto añade una llave a tu suscripción.';
+    c.rewardStatus.textContent=wallet.won.includes(c.id)?'Ya has recibido la llave de este reto.':'Primera victoria: +'+c.data.parallelPrize+(c.data.parallelPrize===1?' llave.':' llaves.');
     renderHelp(c);
   }
   function renderHelp(c) {
-    const {wallet,hints=[]}=c.data;
-    const open=wallet.opened.includes(c.id);
-    const help=c.help;
-    const body=element('div',null,'vd-letter-body'),status=announcement();
-    if(!open) {
-      body.append(element('p','Una llave abre las dos orientaciones de este caso. Podrás leerlas por separado y volver a consultarlas.'));
-      if(wallet.balance>0) {
-        const consume=button('Abrir el sobre · 1 llave',()=>run(c,'help',async()=>{
-          consume.disabled=true;
-          updateWallet(c,await request(c,'open',{}));
-        },e=>{consume.disabled=false;status.textContent=errorMessage(e);}),'vd-primary');
-        body.append(consume);
-      } else {
-        body.append(element('p','Tu llavero está vacío. Puedes seguir consultando las pruebas o ganar una llave en un reto pendiente.','vd-note'));
-        if(!wallet.won.includes(c.id)){
-          if(c.helpFrom!=='game')body.append(button('Ir al reto paralelo',()=>selectView(c,'game',true),'vd-primary'));
-        }else body.append(link('Elegir otro caso',c.catalog,'vd-link'));
-      }
-    } else {
-      body.append(element('h3','Primera orientación'),element('p',hints[0] || 'Recupera la partida para consultar esta orientación.','vd-clue'));
-      if(hints.length>1) body.append(element('h3','Segunda orientación'),element('p',hints[1],'vd-clue'));
-      else {
-        const second=button('Leer la segunda orientación · incluida',()=>run(c,'help',async()=>{
-          second.disabled=true;updateWallet(c,await request(c,'second',{}));
-        },e=>{second.disabled=false;status.textContent=errorMessage(e);}));
-        body.append(second);
-      }
-    }
-    const envelope=element('div',null,'vd-letter');
-    envelope.dataset.open=String(open);
+    const help=c.help, envelope=element('div',null,'vd-letter'),body=element('div',null,'vd-letter-body');
+    envelope.dataset.open=String(c.data.hintOptions.some(option=>option.text));
+    window.Keyring.render(body,{id:c.id,data:c.data,buttonClass:'vd-link',play:()=>selectView(c,'game',true),
+      buy:async (op,quotedCost)=>{updateWallet(c,await request(c,op,{quotedCost}));help.focus({preventScroll:true});}});
     const from=c.helpFrom||'desk';
     const backLabel={game:'Volver al reto',hotel:'Volver a la recepción',ending:'Volver a la resolución',desk:'Volver al expediente'}[from];
-    envelope.append(element('h2',c.id===2?'Sobre de la gobernanta':'Sobre de ayuda'),body,status,
+    envelope.append(element('h2',c.id===2?'Sobre de la gobernanta':'Sobre de ayuda'),body,
       button(backLabel,()=>selectView(c,from,true),'vd-link'));
     help.replaceChildren(envelope);
   }
@@ -275,7 +256,8 @@
     trackGame(c,board,session);
     c.game.mount(board,()=>{
       session.finished=true;
-      if(!valid(c)||c.play!==session || session.overflow || c.data.wallet.won.includes(c.id))return;
+      if(!valid(c)||c.play!==session || session.overflow)return;
+      if(c.data.wallet.won.includes(c.id)){c.rewardStatus.textContent='Reto resuelto de nuevo. El premio ya está en tu historial.';c.restart.hidden=false;return;}
       earn(c,session);
     });
   }
@@ -284,7 +266,7 @@
       c.retryReward.hidden=true;c.rewardStatus.textContent='Comprobando tu victoria…';
       const result=await request(c,'reward',{proof:{moves:session.moves}});
       updateWallet(c,result);
-      c.rewardStatus.textContent='Victoria registrada. La llave de este reto se ha entregado a tu suscripción.';
+      c.rewardStatus.textContent='Victoria registrada. Has ganado '+c.data.parallelPrize+(c.data.parallelPrize===1?' llave.':' llaves.');c.restart.hidden=false;
     },e=>{
       c.rewardStatus.textContent=errorMessage(e);
       if(e?.status===422)c.restart.hidden=false;
@@ -388,7 +370,7 @@
     c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,mode=>request(c,'mode',{mode}),paper=>c.showModePaper?.(paper),{
       caseId:c.id,partner:c.data.partner,data:c.data,partners:(path,body)=>c.bridge.request(path,body),
       readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
-      onState:state=>window.ModalidadJuego.syncProgress(c.data,state,c.hourView,()=>renderEnding(c)),reopen:()=>reopen(c)
+      onState:state=>{const advanced=window.ModalidadJuego.syncProgress(c.data,state,c.hourView,()=>renderEnding(c));updateWallet(c,state);return advanced;},reopen:()=>reopen(c)
     });
     description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title),c.modeControl.entry,element('p',story.question,'vd-question'));
     if(story.intro)description.append(element('p',story.intro,'vd-narrative'));
@@ -415,8 +397,10 @@
     }
     c.modeControl.mount();
     const ending=Boolean(c.data.progress?.choice || (c.resume && c.data.hour && !c.data.hour.stage));
-    selectView(c,ending?'ending':'desk',ending && c.resume);
-    if(c.resume && !ending)c.hourView?.focusStage();
+    c.routeSection=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
+    const sideRequested=c.routeSection==='reto';
+    selectView(c,sideRequested?'game':ending?'ending':'desk',sideRequested || ending && c.resume);
+    if(c.resume && !ending && !sideRequested)c.hourView?.focusStage();
   }
   function showFailure(c,e) {
     c.modeControl?.destroy();
@@ -434,6 +418,10 @@
     if(!host || !bridge)return;
     if(active?.id===id && active.bridge===bridge){
       if(host!==active.frame.parentElement)host.replaceChildren(active.frame);
+      const section=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
+      if(active.gamePanel && section!==active.routeSection){
+        active.routeSection=section;selectView(active,section==='reto'?'game':'desk',true);
+      }
       return;
     }
     clear();

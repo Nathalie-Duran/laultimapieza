@@ -72,9 +72,9 @@ function questions(standalone=false){
    <details><summary>¿Cómo se reparten los papeles? ¿Puedo jugar a solas?</summary><p>El primero que pulsa «En pareja» en ese caso lleva el papel 1. Cuando su compañero pulsa «En pareja», recibe el papel 2. Cada uno ve las pistas de su carpeta y las pruebas comunes. Comparad lo que habéis encontrado para decidir juntos. En solitario puedes ver ambos expedientes. Si cambias de modalidad, conservas el avance.</p></details>
    <details><summary>¿Cuándo empieza y cuándo termina el descuento de pareja?</summary><p>Al contratar o retomar un pase, la primera cuota personal es de 29,95 € con IVA. Cuando los dos os habéis elegido en el perfil y ambos tenéis una suscripción personal activa, cada uno obtiene un 50 % de descuento en su próxima renovación y en las siguientes. Si cambiáis de compañero o uno deja de tener la suscripción activa, las próximas cuotas vuelven a la tarifa general. Las facturas ya emitidas conservan su importe. <a href="/#perfil">Gestionar mi compañero</a></p></details>
    <details><summary>¿Cuántos juegos se abren y cuánto dura cada uno?</summary><p>Cada cuota mensual abre cuatro juegos de la temporada para la persona que la paga. Calcula unos 60 minutos por caso. Si haces una pausa, retoma la etapa guardada en Mis partidas.</p></details>
-   <details><summary>¿Para qué sirven las llaves?</summary><p>Recibes una llave de bienvenida una sola vez al contratar. En cada caso puedes ganar otra la primera vez que superes su reto paralelo. Una llave abre un sobre con dos ayudas.</p></details>
-   <details><summary>¿Cómo paso al siguiente tablero?</summary><p>Cada desenlace aporta una pieza al sello del tablero. Con los doce desenlaces guardados podrás leer su epílogo y contratar la temporada siguiente. El recorrido empieza en Valdemar y continúa en el Tablero de Ámbar, Umbravía y la Necrópolis del Sol Velado.</p></details>
-   <details><summary>¿Cómo gestiono o cancelo mi suscripción?</summary><p>En Mi cuenta, abre la pestaña Cuenta y elige «Gestionar mi suscripción». Desde ahí puedes consultar tu pase y cancelar antes del siguiente cobro. Si paras antes del tercer pago, el acceso dura hasta el fin del periodo abonado. Cuando ya has abonado los tres bloques, puedes terminar los casos pendientes. <a href="/#perfil?seccion=cuenta">Ir a Mi cuenta</a></p></details>
+   <details><summary>¿Para qué sirven las llaves?</summary><p>El nuevo pase incluye una llave al contratar y otra en cada renovación confirmada. También ganas una llave al superar por primera vez un reto paralelo. Una pista orientativa cuesta una llave, una pista detallada dos y la solución explicada tres. En pareja, paga quien pide la pista y ambos pueden leerla.</p></details>
+   <details><summary>¿Cómo paso al siguiente tablero?</summary><p>Con el nuevo pase personal, cada cuota abona cuatro juegos. Cuando terminas los doce casos de un tablero, puedes entrar en los bloques ya abonados del siguiente. Si todavía no has abonado ese bloque, llegará con tu siguiente cuota. Los juegos pagados se acumulan aunque avances más despacio. El recorrido empieza en Valdemar y continúa en el Tablero de Ámbar, Umbravía y la Necrópolis del Sol Velado.</p></details>
+   <details><summary>¿Cómo gestiono o cancelo mi suscripción?</summary><p>En Mi cuenta, abre Cuenta y elige «Gestionar mi suscripción». Puedes cancelar antes del siguiente cobro. Conservas el acceso durante el periodo abonado. Después podrás terminar los tableros que hayas abonado por completo, en orden. Los pases de temporada contratados anteriormente conservan su calendario original. <a href="/#perfil?seccion=cuenta">Ir a Mi cuenta</a></p></details>
    <details><summary>¿Qué datos guardáis y cómo puedo gestionarlos?</summary><p>La cuenta conserva tus partidas, etapas y desenlaces para que puedas volver a ellos. La demo recuerda tu avance en el navegador. Consulta tus controles o escribe al Equipo de LaUltimaPieza.es en <a href="mailto:info@laultimapieza.es">info@laultimapieza.es</a> para ejercer tus derechos. <a href="/privacidad.html">Ver privacidad y datos</a></p></details>
    <details><summary>¿Puedo retirar el aviso de apertura?</summary><p>Abre la gestión de avisos en el navegador donde lo solicitaste. Si usas otro dispositivo, puedes retirarlo desde una cuenta con ese mismo correo verificado. <a href="/#planes?gestion=aviso">Gestionar mi aviso</a></p></details>
  </section>`;
@@ -98,7 +98,7 @@ function plans(){
  if(state.role==='admin')return adminCard()+'<section class="pase-temporada">'+questions()+'</section>';
  const access=state.seasonAccess;
  const offer=access?.nextPurchase;
- const current=access?.seasons?.filter(s=>s.paidBlocks.length).at(-1);
+ const current=access?.seasons?.filter(s=>s.paidBlocks.length && s.previousReady!==false).at(-1);
  const number=(state.ownAccess && current ? current.number : offer?.number)||current?.number||1;
  const held=current?.number===number ? current : null;
  const route=seasonRoutes[number-1],name=seasonNames[number-1];
@@ -110,14 +110,19 @@ function plans(){
  const checkout=state.ownAccess
    ? '<button class="button primary wide" data-action="billing-portal">Gestionar mi suscripción</button>'
    : (!access||offer)
-     ? `<button class="button primary wide" data-action="billing-checkout" data-season="${number}">${reviewing?'Continuar al pago seguro':'Contratar el pase de '+name}</button>`
+     ? `<button class="button primary wide" data-action="billing-checkout" data-season="${number}" data-plan="four-boards-v1">${reviewing?'Continuar al pago seguro':'Contratar el pase de '+name}</button>`
      : `<a class="button primary wide" href="#${route}">Volver a ${name}</a>`;
  const terms=[['Condiciones',config.termsUrl],['Política de privacidad',config.privacyUrl]].filter(([,url])=>typeof url==='string'&&/^https:\/\//i.test(url)).map(([label,url])=>`<a href="${esc(url)}" rel="noopener" target="_blank">${label}</a>`).join(' · ');
  const portal=state.ownAccess && state.hasCustomer;
  const freeAccount=signed?'':'<p><button type="button" class="button" data-action="auth-register">Crear cuenta gratis</button></p>';
  const action=config.checkoutAvailable||portal?checkout+(terms?'<p>'+terms+'</p>':''):held?.finishAccess?'<a class="button primary wide" href="#'+route+'">Volver a '+name+'</a>':interest();
  const cycles=offer?.number===number ? offer.remainingCycles : held ? 3-held.paidBlocks.length : 3;
- const costText=cycles===0 ? 'Has abonado los tres bloques de esta temporada.' :
+ const continuous=state.ownAccess?access?.billingPlan==='four-boards-v1':true;
+ const paidCount=(access?.seasons||[]).reduce((sum,s)=>sum+s.paidBlocks.length,0);
+ const remaining=12-paidCount;
+ const costText=continuous
+   ? (remaining?'Cada cuota abona cuatro juegos, hasta cubrir los 48 del recorrido. Quedan '+remaining+(remaining===1?' cuota':' cuotas')+' para cubrir los cuatro tableros.':'Ya has abonado los 48 juegos de los cuatro tableros.')+' Los cobros terminan al abonar el último bloque. Para jugar en un tablero, termina primero los 12 casos del anterior.'
+   : cycles===0 ? 'Has abonado los tres bloques de esta temporada.' :
    cycles===3 ? 'El pase termina tras tres cuotas. A tarifa general, el máximo por los doce juegos es de 89,85 €.' :
    cycles===1 ? 'Queda una cuota para completar esta temporada.' : 'Quedan dos cuotas para completar esta temporada.';
  const firstMonth=number===1?root.ValdemarCatalog.items.slice(0,4):(root.MundosCatalogo||[]).filter(s=>s.world===route).slice(0,4);
@@ -154,7 +159,7 @@ function plans(){
      <p class="pase-incluye">Cada cuota abre cuatro investigaciones de unos 60 minutos. Juega a solas o comparte el caso con tu compañero. Cada uno sigue las pistas de su papel desde su propia cuenta.</p>
      <p class="pase-precio"><strong>29,95 €</strong> ${state.ownAccess?'por persona al mes · tarifa general':'primera cuota por persona'}</p>
      <p class="pase-estado">${config.checkoutAvailable||held?'IVA incluido.':'Precio previsto, IVA incluido. La suscripción abrirá próximamente.'}${state.ownAccess?'':' La renovación mensual a tarifa general es de 29,95 €.'}</p>
-     <p class="pase-importe">${costText} ${cycles?'Puedes cancelar antes de la próxima renovación.':held?.finishAccess?'Los doce juegos siguen disponibles en tu cuenta.':''}</p>
+     <p class="pase-importe">${costText} ${(continuous?remaining:cycles)?'Puedes cancelar antes de la próxima renovación.':held?.finishAccess?'Los doce juegos siguen disponibles en tu cuenta.':''}</p>
      ${partnerOfferCard(signed,qualified)}
      ${past?`<p>Has completado ${seasonNames[current.number-1]}. <a href="/#${seasonRoutes[current.number-1]}">Volver a esa temporada</a></p>`:''}
      <div class="pase-decision">${action}${freeAccount}${signed && (state.ownAccess||held?.finishAccess)?'<p><a href="/#perfil">Ver mi compañero de juego</a></p>':''}</div>
@@ -164,13 +169,14 @@ function plans(){
 root.ClubAccess={...old,plans,enrollment:plans,banner(){if(typeof location!=='undefined'&&['#planes','#alta-club','#suscripcion'].includes(location.hash.split('?')[0]))return '';return state.role==='admin'?'<aside class="paid-banner" aria-label="Acceso editorial"><span class="paid-dot" aria-hidden="true"></span><p><strong>Acceso editorial</strong> · Tienes los 48 juegos disponibles.</p><a href="'+(state.canManage===true?'#gestion':'#casos')+'">'+(state.canManage===true?'Abrir gestión':'Explorar retos')+'</a></aside>':(state.canPlay||state.seasonAccess?.availableCases?.length)?'':old.banner();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){state=value||{canPlay:false};},account(){
  if(state.role==='admin') return adminCard();
  const access=state.seasonAccess;
- const current=access?.seasons?.filter(s=>s.paidBlocks.length).at(-1);
+ const current=access?.seasons?.filter(s=>s.paidBlocks.length && s.previousReady!==false).at(-1);
  const next=access?.nextPurchase;
  const canFinish=current?.finishAccess && current.completed<12;
  const title=current?.finishAccess&&current.completed===12?'Temporada completada':state.ownAccess?'Tu temporada está activa':canFinish?'Tu temporada está pendiente de terminar':current?'Tu pase está en pausa':'Cuenta gratuita';
  const progress=(access?.seasons||[]).filter(s=>s.paidBlocks.length).map(s=>{
    const name=seasonNames[s.number-1];
    const paid=s.finishAccess?'Pase abonado':s.paidBlocks.length+' de 3 bloques abonados';
+   if(s.previousReady===false)return '<p><strong>'+name+'</strong> · '+paid+' · Termina el tablero anterior para acceder.</p>';
    return '<p><strong>'+name+'</strong> · '+paid+' · '+s.completed+' de 12 juegos terminados.</p><a class="button" href="#'+seasonRoutes[s.number-1]+'">Volver a '+name+'</a>';
  }).join('');
  const noticeLink='<p><a href="/#planes?gestion=aviso">Gestionar avisos de apertura</a> · <a href="/privacidad.html">Privacidad y datos</a></p>';

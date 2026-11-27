@@ -445,7 +445,7 @@
     });
     return form;
   }
-  function hotelMap(hotel,state) {
+  function hotelMap(hotel,state,initial,save) {
     const wrap=el('section',null,'vhour-hotel');
     wrap.append(el('h3','Explorar el hotel'));
     const scene=el('div',null,'vhour-lobby');
@@ -455,7 +455,21 @@
     const pane=el('div',null,'vhour-location');
     const locations=hotel.locations||[],objects=hotel.objects||[],witnesses=hotel.witnesses||[];
     let current=locations[0];
-    const held=new Set(), learnt=new Set();
+    let held=new Set(initial?.objects), learnt=new Set(initial?.witnesses), pending=false;
+    function update(snapshot){
+      if(!snapshot)return;
+      held=new Set(snapshot.objects);learnt=new Set(snapshot.witnesses);
+      display();
+    }
+    async function act(input,message){
+      if(pending)return;
+      pending=true;stopVoice(state);display();
+      try {
+        await save(input);
+        record.textContent=message;
+      } catch(error) { record.textContent=error.message || 'No se ha podido guardar la prueba.'; }
+      finally {pending=false;display();}
+    }
     const pins=[];
     const record=live();
     function located(item,i){
@@ -471,9 +485,9 @@
       for(const [i,obj] of objects.entries()){
         if(located(obj,i)!==current.id)continue;
         const pick=control(held.has(obj.id)?'En tu carpeta: '+obj.label:'Examinar '+obj.label,()=>{
-          held.add(obj.id);display();record.textContent='Guardado en tu carpeta: '+obj.label+'.';
+          act({operation:'hotel-collect',object:obj.id},'Guardado en tu carpeta: '+obj.label+'.');
         });
-        pick.disabled=held.has(obj.id);pane.append(pick);
+        pick.disabled=pending||held.has(obj.id);pane.append(pick);
         if(held.has(obj.id))pane.append(el('p',obj.detail,'vhour-clipping'));
       }
       for(const [i,w] of witnesses.entries()){
@@ -490,10 +504,9 @@
           }
           const result=live();
           const show=control('Mostrar la prueba',()=>{
-            if(select.value===w.object){learnt.add(w.id);stopVoice(state);display();record.textContent=w.name+' amplía su declaración.';}
-            else result.textContent=w.miss;
+            act({operation:'hotel-testimony',object:select.value,witness:w.id},w.name+' amplía su declaración.');
           });
-          talk.append(select,show,result);
+          show.disabled=pending;talk.append(select,show,result);
         }
         pane.append(talk);
       }
@@ -510,19 +523,26 @@
       pins.push({id:place.id,button:b});spots.append(b);
     }
     scene.append(spots);wrap.append(scene,pane,record);display();
-    return wrap;
+    return {node:wrap,update};
   }
   function mount(node,initial,controller) {
     const state={voice:null,station:controller.station};
     let hour=initial;
     const main=el('div',null,'vhour-chapter');
+    const inventory=window.ExpeditionInventory?.create(controller.inventory, value=>{hour.inventory=value;});
     let hotel;
-    if(initial.hotel)hotel=hotelMap(initial.hotel,state);
+    if(initial.hotel)hotel=hotelMap(initial.hotel,state,initial.inventory?.hotel,async input=>{
+      const {inventory:snapshot}=await controller.inventory(input);
+      if(snapshot.revision>=(hour.inventory?.revision||0)){
+        hour.inventory=snapshot;hotel.update(snapshot.hotel);inventory?.update(snapshot,hour.current);
+      }
+    });
     node.classList.add('vhour');
-    node.append(main); if(hotel)(controller.hotelNode||node).append(hotel);
+    node.append(main); if(hotel)(controller.hotelNode||node).append(hotel.node);
     function render(data,feedback='',focus=false) {
       stopVoice(state);
       hour=data;
+      hotel?.update(hour.inventory?.hotel);
       main.replaceChildren();
       const stages=hour.stages||[],index=hour.current,stage=hour.stage;
       if(stage)main.dataset.stage=String(index+1);
@@ -536,6 +556,7 @@
         entry.append(number,el('span',step.place||step.title));nav.append(entry);
       }
       main.append(nav);
+      if(inventory && hour.inventory){inventory.update(hour.inventory, index);main.append(inventory.node);}
       if(feedback){const message=live();message.className='vhour-status vhour-solved';message.textContent=feedback;main.append(message);}
       if(stage) {
         main.append(el('p','Etapa '+(index+1)+' de '+stages.length+' · '+stage.minutes+' min orientativos','vhour-kicker'));
@@ -597,7 +618,7 @@
       }
     }
     render(hour);
-    return {update:next=>render(next),pause:()=>stopVoice(state),focusStage(){
+    return {update:next=>render(next),updateInventory:value=>{hour.inventory=value;hotel?.update(value.hotel);inventory?.update(value,hour.current);},pause:()=>stopVoice(state),focusStage(){
       const heading=main.querySelector('h3');
       if(!heading)return;
       heading.focus({preventScroll:true});

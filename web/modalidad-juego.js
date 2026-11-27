@@ -223,7 +223,7 @@
   function progressChanged(data,state) {
     const current=state.hour?.current;
     if(!Number.isInteger(current)||current<data.hour.current||!state.progress)return false;
-    return current>data.hour.current||(!data.progress.deduced&&state.progress.deduced)||(!data.progress.choice&&state.progress.choice);
+    return (state.sharedHintCount||0)>(data.sharedHintCount||0)||(state.hour.inventory?.revision||0)>(data.hour.inventory?.revision||0)||current>data.hour.current||(!data.progress.deduced&&state.progress.deduced)||(!data.progress.choice&&state.progress.choice);
   }
   function syncProgress(data,state,hourView,renderEnding) {
     if(!progressChanged(data,state))return false;
@@ -232,6 +232,9 @@
     // Poll responses can arrive after the player's own successful submission.
     const newerDecision=(!data.progress.deduced&&state.progress.deduced)||(!data.progress.choice&&state.progress.choice);
     if(newerStage){data.hour=state.hour;hourView.update(state.hour);}
+    if(!newerStage && (state.hour.inventory?.revision||0)>(data.hour.inventory?.revision||0)){
+      data.hour.inventory=state.hour.inventory;hourView.updateInventory?.(state.hour.inventory);
+    }
     if(newerDecision)data.progress=state.progress;
     renderEnding();return true;
   }

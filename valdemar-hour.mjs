@@ -1,3 +1,4 @@
+import {inspectInventory} from './expedition.mjs';
 import {ApiError} from './auth-provider.mjs';
 
 function outline({title,place,minutes}) {
@@ -44,7 +45,7 @@ export function readHour(story,record,role=null) {
     };
   }
   const journal = stages.slice(0,count).map((value,index) => ({index,...reading(value,role),success:value.success}));
-  return {stages:stages.map(outline),current,stage,journal,...(hotel ? {hotel} : {})};
+  return {stages:stages.map(outline),current,stage,journal,inventory:inspectInventory(story,record,role),...(hotel ? {hotel} : {})};
 }
 
 export function requireHourComplete(story,record) {

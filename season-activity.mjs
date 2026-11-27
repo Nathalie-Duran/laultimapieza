@@ -1,7 +1,7 @@
 import {seasonBlocks, SEASON_NAMES} from './progression.mjs';
 
 const DAY = 86400000;
-const sideFields = ['won', 'opened', 'second'];
+const sideFields = ['won', 'opened', 'second','solution'];
 
 export function hasCaseActivity(data, scope, id) {
   const record = data.valdemarCaseProgress?.[scope]?.[id];
@@ -27,7 +27,7 @@ export function summarizeSeasonActivity(rows, {now, first, days, since}) {
   const until = Math.floor(now / DAY) * DAY - 14 * DAY;
   const from = until - days * DAY;
   const seasons = SEASON_NAMES.map((name, index) => ({
-    number: index + 1, name, started: 0, completed: 0,
+    number: index + 1, name, started: 0, completed: 0, activeHolders:0, paidPeriodHolders:0,
     cases: Array.from({length:12}, (_, local) => ({number: local+1, started:0, completed:0}))
   }));
   const transitions = SEASON_NAMES.slice(1).map((_, index) => ({from:index+1, eligible:0, bought:0}));
@@ -36,10 +36,14 @@ export function summarizeSeasonActivity(rows, {now, first, days, since}) {
   let olderStarts = 0;
   for (const row of rows) {
     const starts = [];
+    const activeBoards = new Set();
     let unknownFirst = Boolean(row.resetAt);
     for (let id = 1; id <= 12 * seasons.length; id++) {
       const record = row.progress[id];
       const startedAt = record?.startedAt;
+      if ([record?.updatedAt, startedAt, record?.completedAt].some(
+        at => Number.isFinite(at) && at >= first && at <= now && since !== null && at >= since
+      )) activeBoards.add(Math.floor((id-1)/12));
       if (!Number.isFinite(startedAt) || since === null || startedAt < since || startedAt > now) {
         const old = record?.mode || record?.hourStep || record?.deduced || record?.choice ||
           row.sideIds.has(id);
@@ -69,7 +73,10 @@ export function summarizeSeasonActivity(rows, {now, first, days, since}) {
       }
     }
 
+    for (const index of activeBoards) seasons[index].activeHolders++;
     const validBlocks = seasonBlocks(row.cycles,now).filter(c => !c.revoked && c.start <= now);
+    const currentBoards = new Set(validBlocks.filter(c => c.end > now).map(c => Math.floor((c.number-1)/3)));
+    for (const index of currentBoards) seasons[index].paidPeriodHolders++;
     for (const transition of transitions) {
       const base = (transition.from-1)*12;
       const sealed = seasons[transition.from-1].cases.every(c => row.progress[base+c.number]?.choice);

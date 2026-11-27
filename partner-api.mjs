@@ -1,8 +1,11 @@
+import {mergeInventory} from './expedition.mjs';
 import {createHash,randomUUID} from 'node:crypto';
 import {ApiError} from './auth-provider.mjs';
 import {mailKey} from './mail-service.mjs';
-import {WORLD_CASE_COUNT,withValdemarTransaction} from './valdemar-wallet.mjs';
+import {creditSecretMission,WORLD_CASE_COUNT,withValdemarTransaction} from './valdemar-wallet.mjs';
 import {hasCaseActivity,recordCaseActivity} from './season-activity.mjs';
+import {mergeStageEvidence} from './season-career.mjs';
+import {notifyEnding} from './play-notices.mjs';
 import {publicPartnerOffer} from './partner-offer.mjs';
 
 const day=86400000;
@@ -98,6 +101,9 @@ async function accept(store,billing,user,row,now,scope){
   row.progress.hourStep=Math.min(...personal.map(record=>record.choice?5:record.hourStep||0));
   row.progress.deduced=personal.every(record=>record.deduced||record.choice);
   await store.savePartner(row);
+  for(const member of [row.ownerId,uid].sort()){
+    if(partnerScope(row,member)==='paid')await store.queuePlayNotice?.(member,'pair_confirmed',row.id,{caseId:row.caseId,pairId:row.id});
+  }
   return {ok:true,status:'accepted',partner:partnerInfo(row,uid)};
 }
 
@@ -254,10 +260,17 @@ export async function syncPairProgress(store,row,action){
     const records=(data.valdemarCaseProgress ||= {})[scope] ||= {};
     const record=records[row.caseId] ||= {};
     record.mode='duo';
+    mergeInventory(record,row.progress);
+    if (row.progress.missionPrize) creditSecretMission(data,scope,row.caseId,row.progress.missionPrize);
     record.hourStep=Math.max(record.hourStep||0,row.progress.hourStep||0);
+    mergeStageEvidence(record,row.progress);
     if(row.progress.deduced)record.deduced=true;
-    if(row.progress.choice && !record.choice)record.choice=row.progress.choice;
+    if(row.progress.choice && !record.choice){
+      record.choice=row.progress.choice;
+      if(action==='end')await notifyEnding(store,uid,data,scope,row.caseId);
+    }
     recordCaseActivity(data,scope,row.caseId,started,action);
+    if(scope==='paid')await store.touchNoticeActivity?.(uid);
     await store.saveMemberData(uid,data);
   }
 }

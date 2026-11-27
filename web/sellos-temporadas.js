@@ -207,7 +207,8 @@
             info.append(element('p','Puedes visitar el tablero de '+next.season+'.'));
             actions.append(link('Explorar '+next.season,'#'+next.world));
           }else{
-            info.append(element('p','Tu siguiente temporada es '+next.season+'. Su pase se contrata por separado.'));
+            const continuing=access.billingPlan==='four-boards-v1' && membership.ownAccess;
+            info.append(element('p','Tu siguiente tablero es '+next.season+'. '+(continuing?'Tu próxima cuota abrirá sus primeros cuatro juegos.':'Consulta tu pase para abrir sus primeros cuatro juegos.')));
             const canPurchase=access.nextPurchase?.number===n+1 && nextPass?.previousReady;
             actions.append(link(canPurchase?'Consultar el siguiente pase':'Descubrir '+next.season,canPurchase?'#planes':'#'+next.world));
           }
