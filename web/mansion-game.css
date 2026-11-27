@@ -1,0 +1,425 @@
+/* The two eras share a layout and use distinct accent colors. */
+.mansion-entry, .mansion-game {
+  --house-ink: #f7efd9;
+  --house-muted: #c4c8b9;
+  --house-metal: #e6bf77;
+  --house-glass: #a5d6c7;
+  --house-stroke: #677168;
+  --house-panel: #192524;
+  --house-black: #0d1718;
+  --house-serif: Georgia, "Times New Roman", serif;
+  color: var(--house-ink);
+  font: 400 1rem/1.55 var(--sans, system-ui, sans-serif);
+  isolation: isolate;
+  min-inline-size: 0;
+  text-align: start;
+}
+.mansion-entry *, .mansion-game * { box-sizing: border-box; }
+.mansion-entry :focus-visible, .mansion-game :focus-visible {
+  outline: 3px solid #ffdf80;
+  outline-offset: 3px;
+  scroll-margin-block: 6rem;
+}
+.mansion-entry [hidden], .mansion-game [hidden] { display: none !important; }
+
+.mansion-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  position: relative;
+  min-block-size: clamp(24rem, 38vw, 38rem);
+  margin-block: clamp(1.25rem, 4vw, 3.5rem);
+  overflow: hidden;
+  border: 1px solid #746e55;
+  border-radius: .4rem;
+  background: linear-gradient(120deg, #20312f 0, #132123 58%, #10191a);
+}
+.mansion-entry .mansion-entry-art {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  background: var(--house-panel);
+}
+.mansion-entry .mansion-entry-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, #0b1718f5 2%, #101b1cd9 33%, #0d181b55 69%, transparent), linear-gradient(0deg, #0c1819a6, transparent 48%);
+}
+.mansion-entry-art > img {
+  display: block;
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+.mansion-entry-copy { position: relative; padding: clamp(1.4rem, 4vw, 4rem); min-inline-size: 0; max-inline-size: 43rem; }
+.mansion-entry .mansion-entry-kicker, .mansion-game .mansion-eyebrow {
+  margin: 0 0 .65rem;
+  color: var(--house-metal);
+  font-size: .875rem;
+  font-weight: 650;
+  letter-spacing: .12em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.mansion-entry .mansion-entry-copy :is(h1,h2), .mansion-game .mansion-title {
+  margin: 0;
+  color: var(--house-ink);
+  font: 400 clamp(2.3rem, 4.8vw, 4.8rem)/1.04 var(--house-serif) !important;
+  letter-spacing: -.042em;
+  text-wrap: balance;
+}
+.mansion-entry-copy p:not(.mansion-entry-kicker) { max-inline-size: 53ch; color: var(--house-muted); }
+.mansion-entry .mansion-entry-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .65rem;
+  margin-block-start: 1.25rem;
+}
+.mansion-entry-actions :is(a,button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 2.85rem;
+  padding: .6rem 1.1rem;
+  border: 1px solid var(--house-metal);
+  border-radius: .25rem;
+  background: transparent;
+  color: var(--house-metal);
+  font-weight: 650;
+  text-align: center;
+  text-decoration: none;
+}
+.mansion-entry-actions :is(a,button):first-child { background: var(--house-metal); color: #241c11; }
+.mansion-entry-actions a:not(:first-child) { border-color: transparent; padding-inline: .35rem; color: #fbebd1; text-decoration: underline; text-underline-offset: .22em; }
+.mansion-entry-actions :is(a,button):hover { text-decoration: underline; text-underline-offset: .2em; }
+
+.mansion-game {
+  inline-size: 100%;
+  max-inline-size: 88rem;
+  margin-inline: auto;
+  background: var(--house-black);
+  border: 1px solid #58665e;
+  border-radius: .45rem;
+  --house-gutter: clamp(.85rem, 2.4vw, 2.15rem);
+}
+.mansion-game[data-world="B"] {
+  --house-metal: #a7d9cc;
+  --house-panel: #182629;
+  --house-black: #10181c;
+}
+.mansion-game :is(h2,h3,h4,p,summary,label,button) { overflow-wrap: break-word; }
+.mansion-game :is(h2,h3,h4) { margin: 0 0 .5rem; color: var(--house-ink); font-family: var(--house-serif); line-height: 1.18; }
+.mansion-game h3 { font-size: clamp(1.55rem, 2.6vw, 2.6rem); font-weight: 400; letter-spacing: -.02em; }
+.mansion-game h4 { font-size: 1.3rem; }
+.mansion-game p { margin: .55rem 0; max-width: 72ch; }
+.mansion-game :is(button, input, select, textarea) { font: inherit; }
+.mansion-game :is(button,select,summary) { cursor: pointer; }
+.mansion-game .mansion-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: .6rem 1.5rem;
+  padding: clamp(1.2rem, 3vw, 2.4rem) var(--house-gutter) 1.15rem;
+  background: linear-gradient(120deg, #253431, transparent 68%);
+}
+.mansion-game .mansion-header > * { min-inline-size: 0; }
+.mansion-header > :is(.mansion-eyebrow,.mansion-title) { flex-basis: 100%; }
+.mansion-game .mansion-progress { color: var(--house-glass); font-variant-numeric: tabular-nums; }
+.mansion-game progress { max-inline-size: 100%; accent-color: var(--house-glass); }
+.mansion-game .mansion-worlds, .mansion-game .mansion-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.mansion-game .mansion-worlds { padding-block: .2rem; }
+.mansion-game .mansion-tabs {
+  gap: .25rem .45rem;
+  padding: .5rem var(--house-gutter);
+  border-block: 1px solid #4a5954;
+  background: #172221;
+}
+.mansion-game :is(.mansion-worlds,.mansion-tabs,.mansion-rooms) button,
+.mansion-game :is(.mansion-action,.mansion-primary,.mansion-secondary,.mansion-piece) {
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+  max-inline-size: 100%;
+  padding: .55rem .9rem;
+  border: 1px solid var(--house-stroke);
+  border-radius: .25rem;
+  background: #26332f;
+  color: var(--house-ink);
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+}
+.mansion-game .mansion-tabs button {
+  border-color: transparent;
+  border-block-end: 2px solid transparent;
+  background: transparent;
+  border-radius: 0;
+}
+.mansion-game .mansion-tabs button[aria-selected="true"] {
+  color: var(--house-metal);
+  border-block-end-color: currentColor;
+  background: #24322d;
+  font-weight: 700;
+}
+.mansion-game :is(.mansion-worlds,.mansion-rooms,.mansion-pieces) button:is([aria-pressed="true"],[aria-current="true"],[aria-current="location"]) {
+  color: #182621;
+  background: var(--house-glass);
+  border-color: var(--house-glass);
+}
+.mansion-game button.mansion-primary, .mansion-game a.mansion-primary {
+  color: #201c13;
+  border-color: var(--house-metal);
+  background: var(--house-metal);
+  font-weight: 700;
+}
+.mansion-game button.mansion-secondary { background: transparent; color: var(--house-ink); }
+.mansion-game button:disabled { opacity: .64; cursor: default; }
+.mansion-game .mansion-panel { padding: var(--house-gutter); min-inline-size: 0; }
+.mansion-game .mansion-stage { position: relative; min-inline-size: 0; margin: 0; }
+.mansion-game .mansion-scene {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 16 / 9;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #728075;
+  border-radius: .25rem;
+  background: #1e2925;
+}
+.mansion-game .mansion-scene .mansion-photo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center;
+}
+.mansion-game .mansion-scene .mansion-marker {
+  position: absolute;
+  z-index: 1;
+  left: clamp(1.55rem, var(--x), calc(100% - 1.55rem));
+  top: clamp(1.55rem, var(--y), calc(100% - 1.55rem));
+  display: grid;
+  place-items: center;
+  transform: translate(-50%,-50%);
+  min-inline-size: 2.8rem;
+  min-block-size: 2.8rem;
+  inline-size: 2.8rem;
+  block-size: 2.8rem;
+  padding: .25rem;
+  border: 2px solid #f7dfaa;
+  border-radius: 1.55rem;
+  color: #fbf1d5;
+  background: #17241fee;
+  box-shadow: 0 0 0 3px #111b18aa, 0 3px 12px #101613b3;
+  font: 700 1rem/1.15 var(--sans, system-ui, sans-serif);
+}
+.mansion-game .mansion-marker[aria-pressed="true"] { color: #20251d; background: var(--house-metal); }
+.mansion-game .mansion-marker .mansion-dot { font-variant-numeric: tabular-nums; }
+.mansion-game .mansion-marker-label {
+  position: absolute;
+  inset-block-start: calc(100% + .5rem);
+  inset-inline-start: 50%;
+  inline-size: max-content;
+  max-inline-size: clamp(6rem, 23vw, 12rem);
+  transform: translateX(-50%);
+  padding: .3rem .55rem;
+  border-radius: .2rem;
+  background: #13211ff5;
+  color: #fff4d9;
+  font-size: .875rem;
+  font-weight: 550;
+  opacity: 0;
+  pointer-events: none;
+}
+.mansion-game .mansion-marker:focus-visible { z-index: 2; }
+.mansion-game .mansion-marker:focus-visible .mansion-marker-label { opacity: 1; }
+.mansion-game[data-world="B"] .mansion-scene .mansion-photo { filter: saturate(.55) contrast(1.07); }
+.mansion-game[data-world="B"] .mansion-scene::after {
+  content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, #28647042, transparent 65%, #062f392c); pointer-events: none;
+}
+.mansion-game .mansion-caption {
+  padding: .85rem clamp(.8rem, 1.7vw, 1.5rem);
+  border-inline-start: 2px solid var(--house-metal);
+  background: #1d2a27;
+  color: var(--house-ink);
+  min-inline-size: 0;
+}
+.mansion-game .mansion-objective {
+  margin-block: .85rem;
+  padding: .85rem 1.1rem;
+  border-inline-start: 3px solid var(--house-glass);
+  background: #24352f;
+}
+.mansion-game .mansion-objective > :last-child, .mansion-game .mansion-caption > :last-child { margin-block-end: 0; }
+.mansion-game .mansion-map {
+  margin-block: .85rem;
+  padding: .3rem .85rem;
+  border: 1px solid var(--house-stroke);
+  border-radius: .25rem;
+  background: var(--house-panel);
+}
+.mansion-game .mansion-map summary { padding: .7rem 0; color: var(--house-metal); font-weight: 650; }
+.mansion-game .mansion-rooms, .mansion-game .mansion-cards, .mansion-game .mansion-missions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: .75rem;
+  min-inline-size: 0;
+}
+.mansion-game .mansion-rooms { padding-block: .35rem .8rem; }
+.mansion-game .mansion-rooms button { text-align: start; }
+.mansion-game .mansion-room { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .45rem; }
+.mansion-game .mansion-room-number { font-size: .82rem; font-variant-numeric: tabular-nums; }
+.mansion-game .mansion-room small { margin-inline-start: auto; }
+.mansion-game .mansion-missions { margin-block-start: 1.3rem; }
+.mansion-game .mansion-missions > h3 { grid-column: 1 / -1; }
+.mansion-game .mansion-arcade-drawer > summary { padding: .65rem .15rem; color: var(--house-metal); }
+.mansion-game .mansion-inspection { margin-block: .85rem; }
+.mansion-game .mansion-audio { display: flex; flex-wrap: wrap; gap: .4rem; margin-block-start: .6rem; }
+.mansion-game .mansion-audio audio { max-inline-size: 100%; }
+.mansion-game .mansion-signal { font: 600 1.15rem/1.5 ui-monospace, monospace; color: var(--house-metal); overflow-wrap: anywhere; }
+.mansion-game .mansion-exit { padding: .45rem .2rem; min-block-size: 2.75rem; border: 0; background: transparent; color: var(--house-glass); text-decoration: underline; text-underline-offset: .22em; }
+.mansion-game .mansion-ending { padding: 1rem; margin-block-end: .85rem; border-block: 1px solid var(--house-metal); }
+.mansion-game .mansion-card, .mansion-game .mansion-puzzle {
+  min-inline-size: 0;
+  padding: clamp(.9rem, 2vw, 1.65rem);
+  border: 1px solid var(--house-stroke);
+  border-radius: .3rem;
+  color: var(--house-ink);
+  background: var(--house-panel);
+}
+.mansion-game .mansion-card h3 { font-size: 1.4rem; }
+.mansion-game .mansion-card :last-child { margin-block-end: 0; }
+.mansion-game .mansion-device {
+  margin-block: 1rem;
+  padding: clamp(.8rem, 2vw, 1.45rem);
+  border: 1px solid #716c57;
+  background: linear-gradient(135deg, #303a34, #182423 80%);
+  box-shadow: inset 0 0 0 3px #111d1b;
+}
+.mansion-game .mansion-controls, .mansion-game .mansion-pieces {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .65rem;
+  min-inline-size: 0;
+}
+.mansion-game .mansion-control { display: grid; gap: .35rem; align-content: start; max-inline-size: 100%; }
+.mansion-game :is(input:not([type="radio"]):not([type="checkbox"]):not([type="range"]),select,textarea) {
+  min-block-size: 2.8rem;
+  max-inline-size: 100%;
+  padding: .5rem .65rem;
+  border: 1px solid #a3b4a5;
+  border-radius: .2rem;
+  background: #f1ecdc;
+  color: #1f2a25;
+}
+.mansion-game :is(input[type="range"],.mansion-range) { accent-color: var(--house-metal); max-inline-size: 100%; }
+.mansion-game .mansion-pieces { align-items: stretch; }
+.mansion-game .mansion-piece { display: grid; justify-items: center; align-content: center; gap: .25rem; min-inline-size: 3.4rem; }
+.mansion-game .mansion-symbol { color: inherit; font: 500 1.45rem/1.05 var(--house-serif); }
+.mansion-game .mansion-piece-label { font-size: .9rem; line-height: 1.3; }
+.mansion-game .mansion-readout, .mansion-game .mansion-reference {
+  color: var(--house-glass);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.mansion-game .mansion-status:not(:empty) {
+  padding: .6rem .8rem;
+  border-inline-start: 2px solid var(--house-glass);
+  color: var(--house-ink);
+  background: #1e322c;
+}
+.mansion-game .mansion-status[data-error="true"]:not(:empty) { color: #fff0df; background: #452c26; border-color: #f2ae8b; }
+.mansion-game > .mansion-status:empty { margin: 0; }
+.mansion-game .mansion-puzzle { margin-block: 1rem; }
+.mansion-game .mansion-puzzle > .mansion-pieces { margin-block: .8rem 1rem; }
+.mansion-game .mansion-action { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; }
+.mansion-game .mansion-controls { align-items: stretch; margin-block-start: 1rem; }
+.mansion-game fieldset.mansion-control {
+  min-inline-size: 0;
+  flex: 1 1 13rem;
+  margin: 0;
+  padding: .75rem;
+  border: 1px solid #5e6a61;
+  border-radius: .25rem;
+  background: #111e1c;
+}
+.mansion-game .mansion-control legend { padding-inline: .3rem; color: var(--house-metal); font-weight: 650; }
+.mansion-game .mansion-controls > .mansion-primary { align-self: end; }
+.mansion-game .mansion-controls > .mansion-status { flex-basis: 100%; margin-block: 0; }
+.mansion-game .mansion-controls > .mansion-status:empty { display: none; }
+.mansion-game .mansion-dial .mansion-device {
+  display: grid;
+  place-items: center;
+  inline-size: 4.65rem;
+  block-size: 4.65rem;
+  margin: .15rem auto .45rem;
+  padding: 0;
+  border: 4px double var(--house-metal);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 32%, #596456, #23342e 50%, #16231f 72%);
+  box-shadow: inset 0 0 0 3px #18221f, 0 2px 4px #050e0b;
+}
+.mansion-game .mansion-dial .mansion-symbol {
+  display: grid;
+  place-items: center;
+  block-size: calc(100% - .5rem);
+  inline-size: calc(100% - .5rem);
+  color: var(--house-metal);
+  font-size: 1.9rem;
+  transition: transform .16s ease-out;
+}
+.mansion-game .mansion-dial .mansion-pieces {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(3rem, 1fr) 2.75rem;
+  gap: .3rem;
+  align-items: center;
+}
+.mansion-game .mansion-dial .mansion-piece { min-inline-size: 0; padding-inline: .25rem; font-weight: 700; }
+.mansion-game .mansion-dial .mansion-readout { color: var(--house-ink); text-align: center; }
+.mansion-game .mansion-photo-table { display: grid; gap: .6rem; max-inline-size: 54rem; margin-block: 1rem; }
+.mansion-game .mansion-photo-layers { border: 2px solid #b9ac83; background: #152321; }
+.mansion-game .mansion-photo-table input, .mansion-game [data-kind="radio"] input { inline-size: 100%; min-block-size: 2.75rem; }
+.mansion-game .mansion-code { letter-spacing: .08em; }
+@media (prefers-reduced-motion: reduce) {
+  .mansion-game .mansion-dial .mansion-symbol { transition: none; }
+}
+@media (hover: hover) {
+  .mansion-game button:not(:disabled):hover { border-color: var(--house-metal); }
+  .mansion-game .mansion-marker:not(:disabled):hover { color: #201c13; background: #f2d49c; }
+  .mansion-game .mansion-marker:hover { z-index: 2; }
+  .mansion-game .mansion-marker:hover .mansion-marker-label { opacity: 1; }
+}
+@media (max-width: 720px) {
+  .mansion-entry { min-block-size: 26rem; padding-block-start: 9rem; }
+  .mansion-entry .mansion-entry-art::after { background: linear-gradient(0deg, #0c1819fa 0%, #102020e6 36%, #101c1c24 86%); }
+  .mansion-game .mansion-header { align-items: start; }
+  .mansion-game .mansion-tabs { gap: .1rem .25rem; }
+  .mansion-game .mansion-tabs button { padding-inline: .55rem; }
+}
+@media (max-width: 420px) {
+  .mansion-game { --house-gutter: .65rem; }
+  .mansion-game .mansion-scene { aspect-ratio: 1.65; }
+  .mansion-game .mansion-header { padding-block-start: 1rem; }
+  .mansion-game .mansion-rooms { grid-template-columns: 1fr; }
+  .mansion-game .mansion-piece { padding-inline: .5rem; }
+}
+@media (forced-colors: active) {
+  .mansion-game .mansion-scene .mansion-marker { border-color: ButtonText; background: ButtonFace; color: ButtonText; }
+  .mansion-game .mansion-tabs button[aria-selected="true"] { border-block-end-color: Highlight; }
+}

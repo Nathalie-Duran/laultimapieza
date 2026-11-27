@@ -56,6 +56,7 @@
     const previous = active;
     active = null;
     previous.modeControl?.destroy();
+    previous.mansionView?.destroy();
     previous.hourView?.pause();
     pauseAudio(previous.frame);
     previous.frame?.remove();
@@ -350,10 +351,14 @@
       c.data.progress=result.progress;c.endingAccess=result.seasonAccess;renderEnding(c);c.ending.focus({preventScroll:true});
     },e=>{send.disabled=false;status.textContent=errorMessage(e);})));
   }
+  function attachModeControl(c,host,story,save,onPaper,options) {
+    c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,save,onPaper,options);
+    host.append(c.modeControl.entry);
+  }
   function build(c) {
     const {story}=c.data;
     const number=String(c.id).padStart(2,'0');
-    const catalogItem=window.ValdemarCatalog?.get(c.id);
+    const catalogItem=c.id===1 && c.episode?.legacy?{image:'/valdemar-art-01.webp',place:'La estación'}:window.ValdemarCatalog?.get(c.id);
     c.frame.dataset.vdCase=number;
     const head=element('header',null,'vd-intro');
     const cover=element('img',null,'vd-cover');
@@ -367,12 +372,18 @@
     c.balance.setAttribute('aria-live','polite');
     headlinks.append(link('Ver en el plano','#mapa?lugar='+c.id,'vd-link'),link('Todas las historias',c.catalog,'vd-link'),c.balance);
     const description=element('div',null,'vd-intro-copy');
-    c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,mode=>request(c,'mode',{mode}),paper=>c.showModePaper?.(paper),{
+    description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title));
+    attachModeControl(c,description,story,mode=>request(c,'mode',{mode}),paper=>c.showModePaper?.(paper),{
       caseId:c.id,partner:c.data.partner,data:c.data,partners:(path,body)=>c.bridge.request(path,body),
-      readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
+      readState:async()=>{
+        const state=await request(c,'pair-state');
+        if(c.episode?.edition==='legacy' && state.edition==='mansion')reopen(c);
+        return state;
+      },readDossier:()=>request(c),
       onState:state=>{const advanced=window.ModalidadJuego.syncProgress(c.data,state,c.hourView,()=>renderEnding(c));updateWallet(c,state);return advanced;},reopen:()=>reopen(c)
     });
-    description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title),c.modeControl.entry,element('p',story.question,'vd-question'));
+    description.append(element('p',story.question,'vd-question'));
+    if(c.episode?.legacy)description.append(editionButton(c,'Abrir El secreto de los dos mundos','start'));
     if(story.intro)description.append(element('p',story.intro,'vd-narrative'));
     if(c.data.hour){
       description.append(button('Ir a mi investigación',()=>{
@@ -403,8 +414,80 @@
     selectView(c,sideRequested?'game':ending?'ending':'desk',sideRequested || c.resume && (ending || pending));
     if(c.resume && !ending && !sideRequested && !pending)c.hourView?.enter();
   }
+  function editionButton(c,label,op) {
+    return button(label,()=>run(c,'edition',async()=>{
+      await request(c,'mansion',{op});
+      reopen(c);
+    },error=>c.bridge.toast?.(errorMessage(error))),'vd-primary');
+  }
+
+  function buildMansion(c) {
+    const data=c.data;
+    const header=element('header',null,'vd-intro-copy');
+    header.append(link('Volver al catálogo',c.catalog,'vd-link'),element('p','Valdemar · Caso 01','vd-eyebrow'),
+      element('h1','El secreto de los dos mundos'));
+    const game=element('section');
+    let paper=c.data.partner?.role || (data.editorialPreview && data.mode==='duo'?'A':'solo');
+    async function act(input){
+      try {
+        const result=await request(c,'mansion',{...input,paper});
+        if(result.completed)await c.bridge.refreshSeasonAccess?.().catch(()=>null);
+        if(result.edition!==data.edition){reopen(c);throw Error('Ha cambiado la edición de la partida.');}
+        if(result.mansionRevision>=data.mansionRevision){data.mansion=result.mansion;data.mansionRevision=result.mansionRevision;}
+        return result;
+      }catch(error){
+        if(sessionLive(c)&&[401,402,403].includes(error.status))showFailure(c,error);
+        throw error;
+      }
+    }
+    function mountGame(state){
+      c.mansionView?.destroy();
+      c.mansionView=window.MansionGame.mount(game,{state,role:paper,names:data.names,act,
+        explore:roomId=>act({op:'inspect',roomId}),onExit:()=>{location.hash=c.catalog;}});
+    }
+    const story={roles:['Investiga la mansión habitada de Ada.','Explora las huellas que quedan en la mansión abandonada.']};
+    let modeHost=header;
+    if(data.mansion){
+      modeHost=element('details',null,'gm-entry-options');
+      modeHost.append(element('summary','Modalidad · '+(data.mode==='duo'?'En pareja':'En solitario')));
+      header.replaceChildren(modeHost);
+    }
+    attachModeControl(c,modeHost,story,async mode=>{
+      const result=await request(c,'mode',{mode,mansionEntry:true});
+      if(sessionLive(c))reopen(c);
+      return result;
+    },next=>{
+      const nextPaper=next||'solo';
+      if(!data.editorialPreview || data.partner || paper===nextPaper || !data.mansion)return;
+      paper=nextPaper;
+      act({op:'inspect'}).then(result=>{if(sessionLive(c)&&paper===nextPaper)mountGame(result.mansion);}).catch(error=>c.bridge.toast?.(errorMessage(error)));
+    },{
+      caseId:1,partner:data.partner,data,partners:(path,body)=>c.bridge.request(path,body),
+      readState:()=>request(c,'pair-state'),readDossier:()=>request(c,'mansion'),
+      onState:latest=>{
+        if(latest.edition!==data.edition){reopen(c);return true;}
+        if(latest.mansionRevision<=data.mansionRevision)return false;
+        data.mansionRevision=latest.mansionRevision;data.mansion=latest.mansion;
+        c.mansionView?.update(latest.mansion);return true;
+      },reopen:()=>reopen(c)
+    });
+    if(data.edition==='choose'){
+      game.append(element('h2','Tu partida de la estación'),element('p','Puedes retomar el expediente de la estación o empezar a explorar la mansión. Tu progreso se guarda por separado.'),
+        editionButton(c,'Continuar Mundos cruzados · La estación','legacy'),editionButton(c,'Empezar El secreto de los dos mundos','start'));
+    }else {
+      if(data.legacy)header.append(editionButton(c,'Retomar Mundos cruzados · La estación','legacy'));
+      if(data.mansion){
+        game.className='mansion-game-area';
+        if(!window.MansionGame?.mount)throw Error('La mansión no se ha cargado. Vuelve a abrir la partida.');
+        mountGame(data.mansion);
+      }
+    }
+    c.frame.replaceChildren(header,game);
+    c.modeControl.mount();
+  }
   function showFailure(c,e) {
     c.modeControl?.destroy();
+    c.mansionView?.destroy();
     c.hourView?.pause();pauseAudio(c.frame);
     c.frame.replaceChildren(element('h1','La mesa de Valdemar'),element('p',errorMessage(e)));
     if(!c.bridge.isSignedIn() || e?.status===401){
@@ -434,6 +517,15 @@
     c.frame.append(element('p','Abriendo el expediente…','vd-status'));c.frame.setAttribute('aria-busy','true');
     (async()=>{
       try{
+        if(id===1){
+          c.episode=await request(c,'mansion');
+          if(c.episode.edition!=='legacy'){
+            c.data=c.episode;
+            if(sessionLive(c))buildMansion(c);
+            return;
+          }
+          c.data=c.episode;
+        }
         c.data=await request(c);await loadEngines(c);
         if(sessionLive(c))build(c);
       }catch(e){if(valid(c))showFailure(c,e);}

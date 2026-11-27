@@ -48,7 +48,7 @@ function coverStory(m) {
  return `<section class="vh-hero v87-cover" aria-labelledby="vh-title">
    <div class="vh-copy">
      <p class="vh-kicker">Demo gratuita · Clínica Vallejo</p>
-     <h1 id="vh-title">¿Qué ocurrió en la <em>Sala 7?</em></h1>
+     <h2 id="vh-title">¿Qué ocurrió en la <em>Sala 7?</em></h2>
      <p class="vh-lead">En 1987 desapareció el doctor Vallejo. Sus seis pacientes sobrevivieron, pero ninguno recuerda aquella noche. Esta madrugada, el Archivo te ha enviado la primera ficha de la caja 87-V.</p>
      <div class="vh-actions">
        <button type="button" class="button primary" data-action="preview-open" data-home-demo>${demoAction()}</button>
@@ -128,9 +128,11 @@ function seasonReturn(games){
  for(const game of eligible){
    const card=officialCase(game.id);
    if(!card)continue;
+   if(game.title)card.title=game.title;
+   if(game.edition==='legacy')card.image='/valdemar-art-01.webp';
    const stage=game.current>=game.total?'Desenlace pendiente':'Etapa '+(game.current+1)+' de '+game.total;
    const season=root.Colecciones?.seasons[card.seasonNumber-1]?.name;
-   const detail=[season,stage,
+   const detail=[season,stage,game.edition==='mansion'?game.checkpoint?.title:'',
      game.mode==='duo'?'En pareja':game.mode==='solo'?'En solitario':''].filter(Boolean).join(' · ');
    return {...card,time:activityTime(game.updatedAt),detail,href:card.href+'&retomar=1'};
  }
@@ -208,7 +210,7 @@ if(root.customElements&&!root.customElements.get('home-resume')){
 function home(m){
  const latest=m.userId?classicReturn(m):null;
  const returning=m.userId?`<home-resume data-classic-time="${latest?.time||0}">${returnCard(latest)}</home-resume>`:'';
- return `${returning}${coverStory(m)}
+ return `${returning}${root.ValdemarCatalog?.mansionCover?.(false,m.membership?.role==='admin'||(m.canPlay&&m.membership?.seasonAccess?.seasons?.[0]?.availableCases?.includes(1)))||''}${coverStory(m)}
  <div class="cover-tail vh-tail">${shareBox({title:'Clínica Vallejo'},'/vallejo.html')}</div>
  ${root.ValdemarCatalog ? root.ValdemarCatalog.home({canPlay:m.canPlay,admin:m.membership?.role==='admin'}) : ''}
  <section class="adventure-links" aria-label="Más formas de jugar"><a href="/#desafios"><strong>Desafíos</strong><span>Resuelve retos paralelos para ganar llaves y abrir pistas.</span></a><a href="/#perfil?seccion=progreso"><strong>Mi personaje</strong><span>Consulta tus ocho habilidades, tu experiencia y tus logros.</span></a></section>

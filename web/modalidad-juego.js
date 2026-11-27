@@ -215,6 +215,8 @@
   }
 
   function progressChanged(data,state) {
+    if (Object.hasOwn(data,'mansionRevision')) return (state.mansionRevision||0)!==data.mansionRevision ||
+      (state.edition && state.edition!==data.edition);
     const current=state.hour?.current;
     if(!Number.isInteger(current)||current<data.hour.current||!state.progress)return false;
     return (state.sharedHintCount||0)>(data.sharedHintCount||0)||(state.hour.inventory?.revision||0)>(data.hour.inventory?.revision||0)||current>data.hour.current||(!data.progress.deduced&&state.progress.deduced)||(!data.progress.choice&&state.progress.choice);
