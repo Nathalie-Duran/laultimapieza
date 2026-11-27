@@ -27,9 +27,15 @@ export function seasonCareer(data, scope) {
     const record = records[id] || {};
     const count = Number.isInteger(record.hourStep) ? Math.max(0, Math.min(5, record.hourStep)) : 0;
     stages += count;
-    if (count === 5) allStages++;
+    const mansion=id===1?record.mansion:null;
+    if(mansion){
+      stages+=mansion.completed?15:mansion.current-1;
+      secrets+=(mansion.missions||[]).length;
+      shared+=(record.mansionPairStages||[]).length;
+    }
+    if (count === 5 || mansion?.completed) allStages++;
     if (record.choice) pieces[Math.floor((id - 1) / 12)]++;
-    if (record.deduced === true) deductions++;
+    if (record.deduced === true || mansion?.completed) deductions++;
     if ([1, 2, 3].includes(record.missionPrize)) secrets++;
     if (wins.has(id)) side++;
     for (let index = 0; index < count; index++) {
@@ -40,6 +46,11 @@ export function seasonCareer(data, scope) {
     }
   }
   const finished = pieces.reduce((sum, count) => sum + count, 0);
+  const mansion=records[1]?.mansion;
+  const missions=new Set(mansion?.missions || []);
+  const awakened=mansion?.completed===true;
+  const ordinaryEndings=finished-(awakened && records[1]?.choice==='mansion-sealed'?1:0);
+  const ordinaryDeductions=deductions-(awakened && !records[1]?.deduced?1:0);
   const boards = pieces.filter(count => count === 12).length;
   const rewards = [
     {name: 'Pruebas sencillas o de ediciones anteriores', count: stages - complex, unit: 10},
@@ -52,18 +63,19 @@ export function seasonCareer(data, scope) {
   ];
   const xp = rewards.reduce((total, reward) => total + reward.count * reward.unit, 0);
   const skills = [
-    ['Valentía', finished, 'Elegir un desenlace'],
-    ['Inteligencia', complex, 'Resolver una prueba de orden, selección múltiple o contraste de fuentes'],
-    ['Observación', stages, 'Superar una etapa de investigación'],
+    ['Valentía', ordinaryEndings+(awakened?25:0)+(missions.has('puerta')?25:0), 'Elegir un desenlace y descubrir la habitación secreta'],
+    ['Inteligencia', complex+(awakened?35:0)+(missions.has('diario')?20:0), 'Contrastar fuentes, recuperar el diario y resolver la mansión'],
+    ['Observación', stages+(awakened?30:0)+(missions.has('jardin')?15:0), 'Investigar las etapas y los secretos del jardín'],
     ['Habilidad', side, 'Ganar un reto paralelo'],
-    ['Intuición', deductions, 'Acertar la deducción final'],
+    ['Intuición', ordinaryDeductions+(awakened?20:0), 'Acertar la deducción final'],
     ['Cooperación', shared, 'Resolver una etapa en una partida compartida'],
-    ['Perseverancia', allStages, 'Resolver las cinco etapas de un caso'],
-    ['Empatía', testimony, 'Resolver una etapa que incluya testimonios']
+    ['Perseverancia', allStages, 'Resolver todas las etapas de un caso'],
+    ['Empatía', testimony+(missions.has('nox')?20:0), 'Escuchar testimonios y ayudar a Nox']
   ].map(([name, points, criterion]) => ({name, points, criterion}));
   return {xp, level: 1 + Math.floor(xp / 500), nextLevelXp: (Math.floor(xp / 500) + 1) * 500,
     skills, rewards, pieces, achievements: [
       {name: 'Primera deducción', goal: 1, progress: deductions, unit: 'deducciones'},
+      {name: 'El despertar de Valdemar', goal:1, progress:awakened?1:0, unit:'episodios'},
       {name: 'Investigación en equipo', goal: 1, progress: shared, unit: 'etapas compartidas'},
       {name: 'Especialista en retos', goal: 4, progress: side, unit: 'retos paralelos'},
       {name: 'Colección completa', goal: 4, progress: boards, unit: 'reliquias'}

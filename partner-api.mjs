@@ -94,12 +94,33 @@ async function accept(store,billing,user,row,now,scope){
   const personal=[];
   for(const member of [row.ownerId,uid].sort()){
     const memberScope=partnerScope(row,member);
-    personal.push(progress(await store.getMemberData(member),row.caseId,memberScope));
+    const memberData=await store.getMemberData(member);
+    if(row.caseId===1)row.progress.mansionSharedHints=[...new Set([...(row.progress.mansionSharedHints||[]),
+      ...(memberData.valdemarSeasonOne?.[memberScope]?.mansionHints || [])])];
+    const saved=progress(memberData,row.caseId,memberScope);
+    personal.push(saved);
+    if(row.caseId===1 && saved.mansionLegacy===undefined){
+      const cases=(memberData.valdemarCaseProgress ||= {})[memberScope] ||= {};
+      (cases[1] ||= {}).mansionLegacy=hasCaseActivity(memberData,memberScope,1) && !saved.mansion;
+      if(!cases[1].mansionLegacy)cases[1].mansionEdition='mansion';
+      await store.saveMemberData(member,memberData);
+      saved.mansionLegacy=cases[1].mansionLegacy;
+    }
     await saveMode(store,member,row.caseId,'duo',memberScope);
   }
   // Resume at the last checkpoint reached by both. Previous solo endings remain personal.
-  row.progress.hourStep=Math.min(...personal.map(record=>record.choice?5:record.hourStep||0));
-  row.progress.deduced=personal.every(record=>record.deduced||record.choice);
+  row.progress.hourStep=Math.min(...personal.map(record=>record.choice && record.choice!=='mansion-sealed'?5:record.hourStep||0));
+  row.progress.deduced=personal.every(record=>record.deduced||record.choice && record.choice!=='mansion-sealed');
+  if(row.caseId===1) {
+    row.progress.mansionLegacy=personal.some(record=>record.mansionLegacy);
+    if(!row.progress.mansionLegacy || personal.every(record=>record.mansionEdition==='mansion')) row.progress.mansionEdition='mansion';
+    const checkpoints=personal.map(record=>record.mansion);
+    if(checkpoints.every(Boolean)){
+      const checkpoint=checkpoints.sort((a,b)=>Number(a.completed)-Number(b.completed)||a.current-b.current)[0];
+      row.progress.mansion={...structuredClone(checkpoint),panels:[]};
+      row.progress.mansion.missions=checkpoints[0].missions.filter(id=>checkpoints[1].missions.includes(id));
+    }
+  }
   await store.savePartner(row);
   for(const member of [row.ownerId,uid].sort()){
     if(partnerScope(row,member)==='paid')await store.queuePlayNotice?.(member,'pair_confirmed',row.id,{caseId:row.caseId,pairId:row.id});
@@ -260,14 +281,16 @@ export async function syncPairProgress(store,row,action){
     const records=(data.valdemarCaseProgress ||= {})[scope] ||= {};
     const record=records[row.caseId] ||= {};
     record.mode='duo';
+    if(row.caseId===1 && row.progress.mansionEdition==='legacy')record.mansionLegacy=true;
     mergeInventory(record,row.progress);
     if (row.progress.missionPrize) creditSecretMission(data,scope,row.caseId,row.progress.missionPrize);
     record.hourStep=Math.max(record.hourStep||0,row.progress.hourStep||0);
     mergeStageEvidence(record,row.progress);
     if(row.progress.deduced)record.deduced=true;
-    if(row.progress.choice && !record.choice){
+    if(row.progress.choice && (!record.choice || record.choice==='mansion-sealed')){
+      const hadEnding=Boolean(record.choice);
       record.choice=row.progress.choice;
-      if(action==='end')await notifyEnding(store,uid,data,scope,row.caseId);
+      if(action==='end' && !hadEnding)await notifyEnding(store,uid,data,scope,row.caseId);
     }
     recordCaseActivity(data,scope,row.caseId,started,action);
     if(scope==='paid')await store.touchNoticeActivity?.(uid);

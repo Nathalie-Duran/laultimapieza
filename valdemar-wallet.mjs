@@ -46,6 +46,34 @@ export function creditSecretMission(data,scope,id,amount) {
   return addEntry(walletRecord(data,scope==='editorial'),'mission',id,amount,id);
 }
 
+export function creditMansionMission(data,scope,mission,amount) {
+  if (!['nox','diario','jardin','puerta'].includes(mission) || ![1,2,3].includes(amount)) throw new Error('Premio de la mansión no válido.');
+  return addEntry(walletRecord(data,scope==='editorial'),'mission','mansion/'+mission,amount,1);
+}
+
+export function creditMansionEnding(data,scope) {
+  return addEntry(walletRecord(data,scope==='editorial'),'mansionEnding','mansion',1,1);
+}
+
+export function creditMansionArcade(data,scope,id,amount) {
+  if (typeof id!=='string' || !id || ![1,2].includes(amount)) throw new Error('Premio de recreativa no válido.');
+  return addEntry(walletRecord(data,scope==='editorial'),'mansionArcade',id,amount,1);
+}
+
+export function purchaseMansionHint(data,scope,stage,tier,quotedCost) {
+  if(!Number.isInteger(stage) || stage<1 || stage>15 || !Object.hasOwn(hintFees,tier))throw new ApiError(400,'Elige una ayuda de esta prueba.');
+  const wallet=walletRecord(data,scope==='editorial');
+  const key=stage+'/'+tier;
+  const owned=wallet.mansionHints ||= [];
+  if(owned.includes(key))return false;
+  const cost=hintFees[tier];
+  if(quotedCost!==cost)throw new ApiError(409,'Comprueba el precio antes de abrir la ayuda.','HINT_PRICE_CHANGED');
+  if(snapshot(wallet).balance<cost)throw new ApiError(409,'Te faltan llaves para esta ayuda. Puedes ganarlas en las misiones y recreativas.','NOT_ENOUGH_KEYS');
+  addEntry(wallet,tier,'mansion/'+key,-cost,1);
+  owned.push(key);
+  return true;
+}
+
 export function creditPublishedChallenge(data,scope,challengeId,caseId,advanced=false) {
   if(typeof challengeId!=='string'||!challengeId||!Number.isInteger(caseId)||caseId<1||caseId>WORLD_CASE_COUNT)throw new Error('Reto publicado no válido.');
   return addEntry(walletRecord(data,scope==='editorial'),'challenge',challengeId,advanced?2:1,caseId);
