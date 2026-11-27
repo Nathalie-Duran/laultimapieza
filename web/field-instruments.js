@@ -31,11 +31,11 @@
     return element;
   }
   function lock(panel, definition) {
-    for (const {caption,rows} of definition.tables) {
+    for (const {caption,rows,headers} of definition.tables) {
       const table = el('table');
       table.append(el('caption',caption));
       const headings = el('tr');
-      for (const heading of ['Hora','Consigna']) {
+      for (const heading of headers || ['Hora','Consigna']) {
         const cell = el('th',heading);
         cell.scope='col';
         headings.append(cell);
@@ -69,7 +69,8 @@
     });
     function show() {
       const [a,b,c] = switches.map(control=>control.checked);
-      indicators.textContent = [
+      const signals = [a!==b,b&&!c,a||c];
+      indicators.textContent = definition.lamps ? definition.lamps.map((name,i)=>name + ': ' + (signals[i] ? 'sí' : 'no')).join(' · ') : [
         a!==b ? 'Faro encendido':'Faro apagado',
         b&&!c ? 'Boya encendida':'Boya apagada',
         a||c ? 'Grúa encendida':'Grúa apagada'
@@ -80,21 +81,21 @@
   }
   function lamp(panel, definition) {
     const beam = choices('Orientación de la linterna',[['direct','Luz frontal'],['raking','Luz rasante']],illuminate);
-    const target = choices('Zona del marco',definition.zones.map((zone,i)=>[String(i),zone.label]),illuminate);
+    const target = choices(definition.zoneLabel || 'Zona del marco',definition.zones.map((zone,i)=>[String(i),zone.label]),illuminate);
     const observation = output();
     function illuminate() {
       observation.textContent = definition.zones[Number(target.input.value)][beam.input.value];
     }
-    const {field,input} = inputLine('Palabra tallada',{maxLength:3,minLength:3,autoComplete:'off'});
+    const {field,input} = inputLine(definition.answerLabel || 'Palabra tallada',{maxLength:3,minLength:3,autoComplete:'off'});
     illuminate();panel.append(beam.field,target.field,observation,field);
     return () => input.value;
   }
   function strata(panel, definition) {
-    const view = choices('Profundidad de la muestra',definition.samples.map((sample,i)=>[String(i),sample.label]),inspect);
+    const view = choices(definition.sampleLabel || 'Profundidad de la muestra',definition.samples.map((sample,i)=>[String(i),sample.label]),inspect);
     const reading = output();
     function inspect() { reading.textContent = definition.samples[Number(view.input.value)].detail; }
     inspect();panel.append(view.field,reading);
-    const positions = ['Signo más antiguo','Segundo signo','Signo más reciente'].map(name=>{
+    const positions = (definition.positionLabels || ['Signo más antiguo','Segundo signo','Signo más reciente']).map(name=>{
       const choice = choices(name,[['','Selecciona un signo'],...definition.symbols]);
       choice.input.required=true;
       const row=el('p');row.append(choice.field);panel.append(row);

@@ -189,6 +189,10 @@
       onState:state=>{const advanced=window.ModalidadJuego.syncProgress(c.data,state,c.hour,()=>renderEnd(c));updateWallet(c,state);refreshHelp(c);return advanced;},reopen:()=>reopen(c)
     });
     copy.append(top,el('p',worlds.nameOf(item.world)+' · '+item.place,'md-caption'),el('h1',story.title),c.modeControl.entry,el('p',story.question,'md-game-question'),el('p',story.intro,'md-game-prose'));
+    copy.append(button('Ir a mi investigación',()=>{
+      select(c,'main');
+      c.hour.enter();
+    },'md-cta gm-enter'));
     header.append(copy,figure);
     const nav=el('nav',null,'md-game-tabs');nav.setAttribute('aria-label','Secciones de la partida');
     c.controls={};c.panels={};
@@ -201,7 +205,7 @@
     if(item.world==='umbravia'){
       c.quiet=button('Lectura silenciosa',()=>quiet(c,!c.silent),'md-muted-toggle');nav.append(c.quiet);
     }
-    frame.replaceChildren(header,nav,c.modeControl.change,...Object.values(c.panels));
+    frame.replaceChildren(header,nav,...Object.values(c.panels));
     c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
       role:c.data.partner?.role,
       inventory:async input=>{
@@ -230,8 +234,9 @@
     const ending=Boolean(c.data.progress.choice || (c.resume && !c.data.hour.stage));
     c.routeSection=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
     const sideRequested=c.routeSection==='reto';
-    select(c,sideRequested?'side':ending?'end':'main',sideRequested || ending && c.resume);
-    if(c.resume && !ending && !sideRequested)c.hour.focusStage();
+    const pending=c.frame.dataset.playMode==='pending';
+    select(c,sideRequested?'side':ending?'end':'main',sideRequested || c.resume && (ending || pending));
+    if(c.resume && !ending && !sideRequested && !pending)c.hour.enter();
   }
   function mountGame(id,bridge,resume=false) {
     const host=document.getElementById('md-game-host'),item=worlds.story(id);

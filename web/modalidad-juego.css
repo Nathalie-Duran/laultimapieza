@@ -1,15 +1,11 @@
-.vd-player :is(.gm-entry,.gm-change) {
+.vd-player .gm-entry {
   --gm-accent:var(--md-accent,var(--vd-case-accent,#ecd19a));
   --gm-line:var(--md-line,var(--vd-border,#62736a));
   --gm-muted:var(--md-dim,var(--vd-sub,#d4d6cb));
   color:var(--vd-ink,#f7efdc);min-width:0;overflow-wrap:anywhere;
 }
 .vd-player .gm-entry {border-top:1px solid var(--gm-line);padding-block:.8rem;margin-top:.8rem;}
-.vd-player .gm-change {
-  display:block;border:1px solid var(--gm-line);border-radius:.55rem;
-  padding:.6rem .9rem;margin:0 0 .85rem;background:var(--md-panel,var(--vd-panel,#182724));
-}
-.vd-player :is(.gm-entry,.gm-change) .gm-label {
+.vd-player .gm-entry .gm-label {
   display:inline-block;color:inherit;font:650 .9rem/1.4 var(--sans,system-ui,sans-serif)!important;
   margin:0 .8rem .25rem 0;vertical-align:middle;
 }
@@ -23,6 +19,8 @@
 .vd-player .gm-preview {display:flex;margin-block:.4rem .1rem;padding:.3rem .6rem;font-size:.8rem;}
 .vd-player .gm-option:disabled {opacity:.65;cursor:progress;}
 .vd-player .gm-option:focus-visible,.vd-player .gm-profile:focus-visible {outline:2px solid var(--gm-accent);outline-offset:2px;}
+.vd-player .gm-enter {min-block-size:2.75rem;max-inline-size:100%;white-space:normal;}
+.vd-player .gm-enter:focus-visible {outline:2px solid currentColor;outline-offset:3px;}
 .vd-player .gm-panel {min-width:0;}
 .vd-player .gm-roles {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:.55rem;margin:.7rem 0 .3rem;}
 .vd-player .gm-roles:empty {display:none;}
@@ -47,10 +45,11 @@
 .vd-player .gm-role-line:empty {display:none;}
 .vd-player[data-play-mode] .vhour-filter,.vd-player[data-play-mode] .vd-folders .vd-controls {display:none;}
 @media(max-width:420px) {
-  .vd-player :is(.gm-entry,.gm-change) .gm-label {display:block;margin:0 0 .4rem;}
+  .vd-player .gm-entry .gm-label {display:block;margin:0 0 .4rem;}
 }
 
-.vd-player[data-play-mode="pending"] > :is(.vd-tabs,.vd-pair,.vd-panel,.md-game-tabs,.md-game-panel,.gm-change) {display:none}
+.vd-player[data-play-mode="pending"] .gm-enter,
+.vd-player[data-play-mode="pending"] > :is(.vd-tabs,.vd-pair,.vd-panel,.md-game-tabs,.md-game-panel) {display:none}
 .expedition-inventory :is(select,button) {max-inline-size:100%;min-block-size:2.75rem;white-space:normal}
 .expedition-inventory fieldset {min-inline-size:0}
 .expedition-inventory :is(label,blockquote,summary,p) {overflow-wrap:anywhere}

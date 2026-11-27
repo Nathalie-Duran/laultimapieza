@@ -52,7 +52,11 @@
       } finally {
         busy = false;
         render();
-        if (node.isConnected && (document.activeElement === document.body || node.contains(document.activeElement))) status.focus({preventScroll:true});
+        if (node.isConnected && (document.activeElement === document.body || node.contains(document.activeElement))) {
+          const visited = payload.operation === 'visit' && model.rooms.find(room => room.index === index)?.visited;
+          const next = visited ? body.querySelector('.vd-taller h4') || body.querySelector('button') : null;
+          (next || status).focus({preventScroll:true});
+        }
       }
     }
     function render() {
@@ -67,7 +71,7 @@
       if (!model) return;
       const room = model.rooms.find(room => room.index === selectedRoom);
       const count = model.rooms.reduce((total, room) => total + room.items.filter(item => item.held).length, 0);
-      summary.textContent = 'Explorar e inventario · ' + count + (count === 1 ? ' prueba' : ' pruebas');
+      summary.textContent = 'Explorar e inventario · ' + count + (count === 1 ? ' prueba guardada' : ' pruebas guardadas');
       body.replaceChildren();
       if (!room) return;
       const label = element('label', 'Lugar de investigación ');
@@ -84,7 +88,9 @@
       label.append(places);
       body.append(label);
       if (!room.visited) {
-        body.append(button('Explorar ' + room.place, () => act({operation:'visit'}, 'Lugar explorado.')));
+        const explore=button('Explorar ' + room.place, () => act({operation:'visit'}, 'Lugar explorado.'));
+        explore.dataset.visitRoom='true';
+        body.append(explore);
         return;
       }
       if(room.instrument && window.FieldInstruments) {
@@ -100,6 +106,8 @@
           status.focus({preventScroll:true});
           return true;
         });
+        const title = body.querySelector('.vd-taller h4');
+        if (title) title.tabIndex = -1;
         if(room.recovered) {
           const recovered=element('details','');
           recovered.append(element('summary','Anotación recuperada · '+room.recovered.label),element('blockquote',room.recovered.fragment));
@@ -186,7 +194,17 @@
       model = value;
       render();
     }
-    return {node, update};
+    function startExploring() {
+      const room = model?.rooms.find(room => room.index === current);
+      if (!room || (room.visited && (!room.instrument || room.instrumentSolved))) return false;
+      selectRoom(current);
+      node.open = true;
+      const target = body.querySelector('[data-visit-room]') || body.querySelector('.vd-taller h4') || summary;
+      target.focus({preventScroll:true});
+      target.scrollIntoView({block:'center'});
+      return true;
+    }
+    return {node, update, startExploring};
   }
   window.ExpeditionInventory = Object.freeze({create});
 })();

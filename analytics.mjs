@@ -347,16 +347,23 @@ export async function readAnalytics(query, {days, billingEnabled, stories}) {
   const seasonRows = await query(`SELECT JSON_EXTRACT(m.data_json,'$.valdemarCaseProgress.paid') AS progress,
     JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid.won') AS won,
     JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid.opened') AS opened,
+    JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid.second') AS second_hints,
+    JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid.solution') AS solution_hints,
+    JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid.entries') AS wallet_entries,
     JSON_UNQUOTE(JSON_EXTRACT(m.data_json,'$.progressReset.at')) AS reset_at,
     JSON_EXTRACT(m.data_json,'$.cycles') AS cycles
     FROM lup_member_data m WHERE (JSON_EXTRACT(m.data_json,'$.valdemarCaseProgress.paid') IS NOT NULL
       OR JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid') IS NOT NULL
       OR JSON_LENGTH(JSON_EXTRACT(m.data_json,'$.cycles')) > 0)
       AND NOT EXISTS (SELECT 1 FROM lup_editorial_users e WHERE e.user_id=m.user_id)`);
-  const seasonActivity = summarizeSeasonActivity(seasonRows.map(row => ({
-    progress:jsonValue(row.progress,{}), resetAt:timestamp(row.reset_at),
-    cycles:jsonValue(row.cycles,[]), sideIds:new Set([...jsonValue(row.won,[]),...jsonValue(row.opened,[])])
-  })),{now,first,days,since:timestamp(seasonCoverage?.started_at)});
+  const seasonActivity = summarizeSeasonActivity(seasonRows.map(row => {
+    const unlockedHints = {open:jsonValue(row.opened,[]), second:jsonValue(row.second_hints,[]), solution:jsonValue(row.solution_hints,[])};
+    return {
+      progress:jsonValue(row.progress,{}), resetAt:timestamp(row.reset_at), cycles:jsonValue(row.cycles,[]),
+      entries:jsonValue(row.wallet_entries,[]), unlockedHints,
+      sideIds:new Set([...jsonValue(row.won,[]), ...unlockedHints.open, ...unlockedHints.second, ...unlockedHints.solution])
+    };
+  }),{now,first,days,since:timestamp(seasonCoverage?.started_at)});
   const billing = await readBilling(query, billingEnabled, byDay, selectedDays, now);
   const daily = [...selectedDays.values()];
   const totals = {};

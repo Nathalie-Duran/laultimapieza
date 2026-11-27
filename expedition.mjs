@@ -52,7 +52,7 @@ export function inspectInventory(story, record, role) {
       fragments:mission.sources.filter(item => allowedRole(item,role)).map(item => fragment(item.body,mission.prize)),
       paired:Boolean(role)
     } : null;
-    const instrument = index === 0 && page ? getFieldInstrument(story.id) : null;
+    const instrument = index === 0 && page ? getFieldInstrument(story.id, story.fieldTool) : null;
     const solved = record?.fieldToolSolved === true;
     const recovery = instrument && solved ? materials.find(item => allowedRole(item,role) && typeof item.body === 'string' && item.body.trim()) : null;
     return {...(instrument ? {instrument, instrumentSolved:solved, recovered:recovery && {label:recovery.label,fragment:fragment(recovery.body,1)}} : {}),
@@ -127,8 +127,8 @@ export function useInventory(story, record, role, input) {
   } else if (!page) {
     fail(409, 'Explora el lugar antes de recoger una prueba.');
   } else if (input.operation === 'instrument') {
-    if (index !== 0 || !getFieldInstrument(story.id)) fail(404,'Este lugar no contiene ese instrumento.');
-    if (!checkFieldInstrument(story.id,input.answer)) fail(422,'La lectura no coincide. Revisa las marcas del instrumento.');
+    if (index !== 0 || !getFieldInstrument(story.id, story.fieldTool)) fail(404,'Este lugar no contiene ese instrumento.');
+    if (!checkFieldInstrument(story.id,input.answer,story.fieldTool)) fail(422,'La lectura no coincide. Revisa las marcas del instrumento.');
     if (!record.fieldToolSolved) {record.fieldToolSolved = true;changed = true;}
   } else if (input.operation === 'collect') {
     const item = stage.materials.find(material => material.id === input.item);

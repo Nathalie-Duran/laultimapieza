@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 import {checkFieldInstrument,getFieldInstrument} from '../field-instruments.mjs';
+import {valdemarRequest} from '../valdemar-api.mjs';
 
 const solutions = [[1,'0734'],[13,'010'],[25,'aro'],[37,'junco-luna-pez']];
 test('Los cuatro instrumentos verifican su propia respuesta en el servidor', () => {
@@ -58,4 +59,94 @@ test('Cada mesa permite ajustar los controles nativos, corregir un intento y gua
     assert.equal(attempts.at(-1),answer);
     assert.equal(all(root,'fieldset')[0].disabled,true);
   }
+});
+
+test('La edición del caso decide el instrumento y la respuesta solo se comprueba en el servidor', async () => {
+  const story = {
+    id:13, title:'Caso de ensayo', roles:['Archivo','Campo'], hints:[], choices:[], hypotheses:[],
+    hour:{stages:[{title:'Sala de lectura', materials:[], options:[], mode:'single'}]},
+    side:{materials:[], options:[], answer:[]},
+    fieldTool:{answer:'8615', instrument:{
+      kind:'lock', title:'El registro de ensayo', brief:'Busca el par de registros.', note:'Une sus dos referencias.',
+      tables:[{caption:'Registro', headers:['Entrada','Referencia'], rows:[['Este','86'],['Oeste','15']]}]
+    }}
+  };
+  let saved = {};
+  const store = {
+    getMemberData:async () => structuredClone(saved),
+    saveMemberData:async (_, data) => { saved = structuredClone(data); }
+  };
+  const ask = (operation, answer) => valdemarRequest({
+    path:'/api/valdemar/cases/13' + (operation ? '/inventory' : ''), method:operation ? 'POST' : 'GET',
+    input:{index:0, operation, answer}, uid:'lectora', editorial:true, withStore:fn => fn(store),
+    loadRelease:async () => ({nuevos:[story], stories:[], samples:[]})
+  });
+  function publicPayload(data) {
+    const serialized = JSON.stringify(data);
+    assert.ok(!serialized.includes(story.fieldTool.answer));
+    assert.doesNotMatch(serialized, /"fieldTool"\s*:|"answer"\s*:/);
+    return data;
+  }
+  const first = publicPayload(await ask());
+  assert.equal(first.hour.inventory.rooms[0].visited, false);
+  const visit = publicPayload(await ask('visit'));
+  assert.deepEqual(visit.inventory.rooms[0].instrument, story.fieldTool.instrument);
+  await assert.rejects(ask('instrument','010'), {status:422});
+  assert.equal(publicPayload(await ask()).hour.inventory.rooms[0].instrumentSolved, false);
+  publicPayload(await ask('instrument','8615'));
+  const room = publicPayload(await ask()).hour.inventory.rooms[0];
+  assert.equal(room.instrumentSolved, true);
+  assert.equal(room.instrument.title, 'El registro de ensayo');
+
+  delete story.fieldTool;
+  const older = (await ask()).hour.inventory.rooms[0];
+  assert.deepEqual(older.instrument, getFieldInstrument(13));
+  assert.equal(older.visited, true);
+  assert.equal(older.instrumentSolved, true);
+  assert.equal(checkFieldInstrument(13,'010'), true);
+});
+
+test('Los cuatro formatos muestran sus etiquetas editoriales y mantienen las de la edición antigua', () => {
+  const browser = {window:{}, document:{createElement:element, createTextNode:text => ({...element('text'), textContent:text})}};
+  runInNewContext(browserCode,browser);
+  const paint = definition => {
+    const root = element('div');
+    browser.window.FieldInstruments.render(root,definition,false,async () => false);
+    const controls = [...all(root,'input'), ...all(root,'select')];
+    const labels = all(root,'label');
+    const names = controls.map(input => {
+      const label = labels.find(node => node.children.includes(input));
+      assert.ok(label, 'El control debe quedar asociado a una etiqueta');
+      const name = (label.textContent || all(label,'text').map(node => node.textContent).join('')).trim();
+      assert.ok(name, 'La etiqueta debe tener texto');
+      return name;
+    });
+    return {root, names};
+  };
+  const lock = getFieldInstrument(1);
+  const editedLock = {...lock, tables:[{...lock.tables[0], headers:['Franja propia','Turno propio']}]};
+  assert.deepEqual(all(paint(editedLock).root,'th').map(node => node.textContent), ['Franja propia','Turno propio']);
+  assert.deepEqual(all(paint(lock).root,'th').slice(0,2).map(node => node.textContent), ['Hora','Consigna']);
+
+  const circuit = getFieldInstrument(13);
+  const customSwitches = ['Ramal este','Ramal sur','Ramal oeste'];
+  const customLamps = ['Lámpara este','Lámpara sur','Lámpara oeste'];
+  const wired = paint({...circuit, switches:customSwitches, lamps:customLamps});
+  assert.deepEqual(wired.names, customSwitches);
+  const firstSwitch = all(wired.root,'input')[0];
+  firstSwitch.checked = true;
+  firstSwitch.events.change();
+  assert.ok(all(wired.root,'p').some(node => node.textContent === 'Lámpara este: sí · Lámpara sur: no · Lámpara oeste: sí'));
+  assert.ok(all(paint(circuit).root,'p').some(node => node.textContent?.includes('Faro apagado')));
+
+  const lamp = getFieldInstrument(25);
+  assert.deepEqual(paint({...lamp, zoneLabel:'Borde del cuño', answerLabel:'Letras del cuño'}).names,
+    ['Letras del cuño','Orientación de la linterna','Borde del cuño']);
+  assert.deepEqual(paint(lamp).names, ['Palabra tallada','Orientación de la linterna','Zona del marco']);
+
+  const strata = getFieldInstrument(37);
+  const positions = ['Primera marca','Marca intermedia','Última marca'];
+  assert.deepEqual(paint({...strata, sampleLabel:'Capa del sondeo', positionLabels:positions}).names,
+    ['Capa del sondeo', ...positions]);
+  assert.deepEqual(paint(strata).names, ['Profundidad de la muestra','Signo más antiguo','Segundo signo','Signo más reciente']);
 });

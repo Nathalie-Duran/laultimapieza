@@ -51,13 +51,13 @@ const cases = new Map([
   }]
 ]);
 
-export function getFieldInstrument(caseId) {
-  const entry = cases.get(caseId);
+export function getFieldInstrument(caseId, edition) {
+  const entry = edition ?? cases.get(caseId);
   return entry ? structuredClone(entry.instrument) : null;
 }
 
-export function checkFieldInstrument(caseId, answer) {
-  const entry = cases.get(caseId);
+export function checkFieldInstrument(caseId, answer, edition) {
+  const entry = edition ?? cases.get(caseId);
   if (!entry || typeof answer !== 'string' || answer.length > 32) return false;
   return answer.trim().toLocaleUpperCase('es') === entry.answer.toLocaleUpperCase('es');
 }

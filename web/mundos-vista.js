@@ -79,8 +79,8 @@
   function accessMarkup(edition,item,allowed,completed,status) {
     if(allowed)return `<a class="md-cta" href="#mundos-jugar?id=${item.id}">${completed?'Ver mi desenlace':edition.launch} <span aria-hidden="true">→</span></a>`;
     const block=Math.ceil((item.id-edition.offset)/4);
-    const info=status?.previousReady ? 'Este caso se abre con la mensualidad '+block+' de esta temporada.' :
-      'Completa los doce casos '+edition.previous.from+' para acceder. '+(status?'Llevas '+status.previousCompleted+' de 12. ':'')+'Después se habilitan cuatro por mensualidad.';
+    const info=status?.previousReady ? 'Este caso pertenece al bloque '+block+' de este tablero. Consulta los bloques abonados en tu pase.' :
+      'Completa los doce casos '+edition.previous.from+' para acceder. '+(status?'Llevas '+status.previousCompleted+' de 12. ':'')+'Al terminar podrás jugar a los bloques que tengas abonados.';
     return `<p class="md-locked-note">${esc(info)}</p><a class="md-cta md-cta-secondary" href="${status?.previousReady?'#planes':edition.previous.href}">${status?.previousReady?'Consultar mi pase':edition.previous.back} <span aria-hidden="true">→</span></a>`;
   }
   function view(world,options={}) {

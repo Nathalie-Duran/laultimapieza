@@ -15,7 +15,11 @@
     return '<div class="colecciones-cards">'+seasons.map((s,i)=>{
       const pass=access?.seasons?.find(p=>p.number===i+1);
       const count=Number.isInteger(pass?.completed)?Math.max(0,Math.min(12,pass.completed)):0;
-      return `<a class="colecciones-card" data-board="${s.board}" href="/#${s.board}"><img src="/${s.art}" width="1536" height="1024" loading="lazy" decoding="async" alt=""><span><small>Temporada 0${i+1} · ${s.genre}</small><strong>${s.name}</strong><span class="colecciones-seal">${s.seal} · ${pass?count+'/12 piezas':'12 piezas'}</span><b>${s.action} <i aria-hidden="true">↗</i></b></span></a>`;
+      const open = pass?.availableCases?.length || 0;
+      const state = !pass ? '' : count===12 ? 'Tablero completado' :
+        pass.previousReady===false ? 'Pendiente del desenlace del tablero anterior' :
+        open ? open+' de 12 aventuras disponibles' : 'Pendiente de desbloqueo';
+      return `<a class="colecciones-card" data-board="${s.board}" href="/#${s.board}"><img src="/${s.art}" width="1536" height="1024" loading="lazy" decoding="async" alt=""><span><small>Temporada 0${i+1} · ${s.genre}</small><strong>${s.name}</strong><span class="colecciones-seal">${s.seal} · ${pass?count+'/12 piezas':'12 piezas'}</span>${state?'<span class="colecciones-seal">'+state+'</span>':''}<b>${s.action} <i aria-hidden="true">↗</i></b></span></a>`;
     }).join('')+'</div>';
   }
   function discover() {
