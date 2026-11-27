@@ -42,6 +42,20 @@
   function ratio(part, total) {
     return valid(part) && valid(total) && total > 0 ? percent.format(part / total) : '—';
   }
+  function pairedShare(row) {
+    const known = row.solo + row.duo;
+    return known > 0 ? ratio(row.duo, known) + ' (' + format(row.duo) + ' de ' + format(known) + ')' : '—';
+  }
+  function averageElapsed(row) {
+    if (!row.completed || !valid(row.elapsedMs)) return '—';
+    const ms = row.elapsedMs / row.completed;
+    if (ms === 0) return '0 min';
+    if (ms < 60000) return '&lt; 1 min';
+    const minutes = Math.round(ms / 60000);
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return hours ? format(hours) + ' h' + (rest ? ' ' + rest + ' min' : '') : rest + ' min';
+  }
   function tile(label, value, note, accent = false) {
     return `<div class="mg-tile${accent ? ' mg-accent' : ''}"><dt>${label}</dt><dd>${value}</dd><dd class="mg-tile-note">${note}</dd></div>`;
   }
@@ -276,7 +290,7 @@
         ${tile('Finalización', ratio(t.cohortCompleted, t.sessionsStarted), 'Resueltas sobre iniciadas')}
         ${tile('Personas en partidas actualizadas', format(t.activePlayers), 'Participantes en esas actualizaciones del periodo')}
       </dl>
-      <div class="mg-table-wrap" tabindex="0" role="region" aria-label="Progreso de los casos"><table><caption class="mg-sr">Partidas por caso, con el estado actual de las iniciadas en el periodo</caption><thead><tr><th scope="col">Caso</th><th scope="col">Iniciadas</th><th scope="col">Resueltas</th><th scope="col">Finalización</th><th scope="col">A solas</th><th scope="col">En pareja</th></tr></thead><tbody>${rows.map(r => `<tr><th scope="row">${escape(r.title)}</th><td>${format(r.started)}</td><td>${format(r.completed)}</td><td>${ratio(r.completed, r.started)}</td><td>${format(r.solo)}</td><td>${format(r.duo)}</td></tr>`).join('')}</tbody></table></div></section>`;
+      <div class="mg-table-wrap" tabindex="0" role="region" aria-label="Progreso de los casos"><table><caption class="mg-sr">Partidas por caso, con el estado actual de las iniciadas en el periodo</caption><thead><tr><th scope="col">Caso</th><th scope="col">Iniciadas</th><th scope="col">Resueltas</th><th scope="col">Finalización</th><th scope="col">A solas</th><th scope="col">En pareja</th><th scope="col">Proporción en pareja con modo conocido</th></tr></thead><tbody>${rows.map(r => `<tr><th scope="row">${escape(r.title)}</th><td>${format(r.started)}</td><td>${format(r.completed)}</td><td>${ratio(r.completed, r.started)}</td><td>${format(r.solo)}</td><td>${format(r.duo)}</td><td>${pairedShare(r)}</td></tr>`).join('')}</tbody></table></div></section>`;
   }
   function renewals(data) {
     const groups = [['Segundo mes', data.retention?.second], ['Tercer mes', data.retention?.third]];
@@ -374,21 +388,41 @@
       cohort.eligible ? ratio(cohort.second,cohort.eligible) + ' · ' + format(cohort.second) + ' de ' + format(cohort.eligible) : 'Sin primeras partidas en este grupo';
     const group = measurable ? 'Primeras partidas del '+dateText(Math.max(cohort.from,board.since))+' al '+dateText(cohort.until-1)+' (UTC). ' : '';
     const coverage = valid(board.since) ? 'Los inicios se fechan desde el '+dateText(board.since)+'. ' : 'La fecha de inicio de medición aún no está disponible. ';
+    const playHeadings = '<th scope="col">Tiempo medio hasta el desenlace</th><th scope="col">Fichas en pareja</th><th scope="col">Llaves gastadas en el periodo</th>';
+    const playCells = row => `<td>${averageElapsed(row)}</td><td>${pairedShare(row)}</td><td>${format(row.keysSpent)}</td>`;
+    const totals = {completed:0, elapsedMs:0, solo:0, duo:0, keysSpent:0};
+    for (const season of seasons) {
+      for (const field of Object.keys(totals)) totals[field] += season[field];
+    }
     const transitions = board.transitions.map(t => metricRow(
       escape(seasons[t.from-1].name)+' a '+escape(seasons[t.from].name),
       t.eligible ? ratio(t.bought,t.eligible)+' · '+format(t.bought)+' de '+format(t.eligible) : 'Sin titulares elegibles'
     )).join('');
     return `<section class="mg-panel mg-block"><div class="mg-section-heading"><h2>Juego de pago en los cuatro tableros</h2><span>48 casos</span></div>
       <p class="mg-note">${coverage}En cada temporada se muestran las partidas guardadas que empezaron durante el periodo elegido y cuántas de ellas ya tienen desenlace.</p>
-      <dl class="mg-rows">${metricRow('Titulares que empezaron su primer caso en el periodo',format(board.firstPlayers))}</dl>
-      <div class="mg-table-wrap" tabindex="0" role="region" aria-label="Actividad por tablero"><table><thead><tr><th scope="col">Tablero</th><th scope="col">Titulares que jugaron</th><th scope="col">Partidas iniciadas</th><th scope="col">De ellas, resueltas</th><th scope="col">Titulares con cuota en curso hoy</th></tr></thead><tbody>${seasons.map(s => `<tr><th scope="row">${escape(s.name)}</th><td>${valid(board.since) ? format(s.activeHolders) : 'N/D'}</td><td>${format(s.started)}</td><td>${format(s.completed)}</td><td>${format(s.paidPeriodHolders)}</td></tr>`).join('')}</tbody></table></div>
+      <dl class="mg-rows">${metricRow('Titulares que empezaron su primer caso en el periodo',format(board.firstPlayers))}
+      ${metricRow('Tiempo medio hasta el desenlace',averageElapsed(totals))}
+      ${metricRow('Fichas en pareja con modo conocido',pairedShare(totals))}
+      ${metricRow('Llaves gastadas en ayudas durante el periodo',format(totals.keysSpent))}</dl>
+      <div class="mg-table-wrap" tabindex="0" role="region" aria-label="Actividad por tablero"><table><thead><tr><th scope="col">Tablero</th><th scope="col">Titulares que jugaron</th><th scope="col">Partidas iniciadas</th><th scope="col">De ellas, resueltas</th>${playHeadings}<th scope="col">Titulares con cuota en curso hoy</th></tr></thead><tbody>${seasons.map(s => `<tr><th scope="row">${escape(s.name)}</th><td>${valid(board.since) ? format(s.activeHolders) : 'N/D'}</td><td>${format(s.started)}</td><td>${format(s.completed)}</td>${playCells(s)}<td>${format(s.paidPeriodHolders)}</td></tr>`).join('')}</tbody></table></div>
       <p class="mg-note">Cada titular cuenta una vez por tablero, incluso si retomó una partida anterior. Las cuotas se atribuyen al tablero del bloque pagado.</p>
-      <details class="mg-details"><summary>Ver los 48 casos</summary><div class="mg-table-wrap" tabindex="0" role="region" aria-label="Casos de temporada"><table><thead><tr><th scope="col">Caso</th><th scope="col">Iniciadas</th><th scope="col">Resueltas</th></tr></thead><tbody>${seasons.map(s=>s.cases.map(c=>{
+      <p class="mg-note">El tiempo transcurrido incluye las pausas entre el inicio y el desenlace de las partidas resueltas. El juego activo carece de cronómetro. La proporción en pareja usa el último modo guardado de cada ficha iniciada en el periodo. Ambos participantes cuentan si conservan una ficha con modo conocido.</p>
+      <details class="mg-details"><summary>Ver los 48 casos</summary><div class="mg-table-wrap" tabindex="0" role="region" aria-label="Casos de temporada"><table><thead><tr><th scope="col">Caso</th><th scope="col">Iniciadas</th><th scope="col">Resueltas</th>${playHeadings}</tr></thead><tbody>${seasons.map(s=>s.cases.map(c=>{
         const id=(s.number-1)*12+c.number, name=names.find(item=>item.id===id)?.title;
-        return `<tr><th scope="row">T${s.number} · ${String(c.number).padStart(2,'0')}${name?' · '+escape(name):''}</th><td>${format(c.started)}</td><td>${format(c.completed)}</td></tr>`;
+        return `<tr><th scope="row">T${s.number} · ${String(c.number).padStart(2,'0')}${name?' · '+escape(name):''}</th><td>${format(c.started)}</td><td>${format(c.completed)}</td>${playCells(c)}</tr>`;
       }).join('')).join('')}</tbody></table></div></details>
+      ${hintCosts(board.hints)}
       <div class="mg-columns"><div><h3>Segundo caso en 14 días</h3><p><strong>${retention}</strong></p><p class="mg-note">${group}Porcentaje de titulares que resolvieron al menos una etapa de otro caso en las 336 horas posteriores a empezar el primero. Se excluyen los historiales reiniciados o con inicios anteriores sin fecha.</p></div>
       <div><h3>Compra de la siguiente temporada</h3><dl class="mg-rows">${transitions}</dl><p class="mg-note">Acumulado a día de hoy. De quienes conservan el sello completo y han agotado las tres cuotas de esa temporada, cuántos tienen un pago vigente o pasado para la siguiente. Se excluyen bloques revocados.</p></div></div></section>`;
+  }
+  function hintCosts(hints) {
+    if (!hints) return '';
+    const labels = {open:'Primera pista', second:'Segunda pista', solution:'Solución'};
+    const undated = Object.values(hints).reduce((sum, h) => sum + h.undated, 0);
+    return `<h3>Coste de las ayudas en llaves</h3>
+      <div class="mg-table-wrap"><table><thead><tr><th scope="col">Ayuda</th><th scope="col">Aperturas registradas</th><th scope="col">Llaves gastadas</th></tr></thead>
+      <tbody>${Object.entries(labels).map(([kind,label])=>`<tr><th scope="row">${label}</th><td>${format(hints[kind].uses)}</td><td>${format(hints[kind].keys)}</td></tr>`).join('')}</tbody></table></div>
+      <p class="mg-note">Se suman los cargos registrados durante el periodo, incluso en casos iniciados antes. Una pista compartida cuenta en el llavero de quien la abre. Las aperturas gratuitas cuentan con coste cero. Solo se conservan los movimientos posteriores al último reinicio de cada titular.${undated ? ' Aperturas históricas sin fecha o coste verificable, excluidas del periodo: ' + format(undated) + '.' : ''}</p>`;
   }
   function details(data) {
     const t = data.totals, o = data.optional, since = data.noticeSince ? dateText(data.noticeSince) : '';

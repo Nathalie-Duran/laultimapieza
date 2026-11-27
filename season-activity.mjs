@@ -2,6 +2,34 @@ import {seasonBlocks, SEASON_NAMES} from './progression.mjs';
 
 const DAY = 86400000;
 const sideFields = ['won', 'opened', 'second','solution'];
+const hintKinds = ['open', 'second', 'solution'];
+
+function caseMetrics() {
+  return {started:0, completed:0, elapsedMs:0, solo:0, duo:0, keysSpent:0};
+}
+
+function countWalletHints(row, seasons, hints, first, now) {
+  for (const kind of hintKinds) {
+    const hint = hints[kind];
+    const dated = new Set();
+    for (const entry of row.entries || []) {
+      if (entry?.kind !== kind || !Number.isInteger(entry.caseId) || entry.caseId < 1 || entry.caseId > seasons.length*12) continue;
+      if (dated.has(entry.caseId) || !Number.isFinite(entry.at) || !Number.isInteger(entry.amount) || entry.amount > 0) continue;
+      dated.add(entry.caseId);
+      if (entry.at < first || entry.at > now) continue;
+      const season = seasons[Math.floor((entry.caseId-1)/12)];
+      const spent = -entry.amount;
+      hint.uses++;
+      hint.keys += spent;
+      season.keysSpent += spent;
+      season.cases[(entry.caseId-1)%12].keysSpent += spent;
+    }
+    // Older wallets keep their unlocked hints even when no dated debit was recorded.
+    for (const id of new Set(row.unlockedHints?.[kind] || [])) {
+      if (!dated.has(id)) hint.undated++;
+    }
+  }
+}
 
 export function hasCaseActivity(data, scope, id) {
   const record = data.valdemarCaseProgress?.[scope]?.[id];
@@ -27,14 +55,16 @@ export function summarizeSeasonActivity(rows, {now, first, days, since}) {
   const until = Math.floor(now / DAY) * DAY - 14 * DAY;
   const from = until - days * DAY;
   const seasons = SEASON_NAMES.map((name, index) => ({
-    number: index + 1, name, started: 0, completed: 0, activeHolders:0, paidPeriodHolders:0,
-    cases: Array.from({length:12}, (_, local) => ({number: local+1, started:0, completed:0}))
+    number: index + 1, name, ...caseMetrics(), activeHolders:0, paidPeriodHolders:0,
+    cases: Array.from({length:12}, (_, local) => ({number: local+1, ...caseMetrics()}))
   }));
+  const hints = Object.fromEntries(hintKinds.map(kind => [kind, {uses:0, keys:0, undated:0}]));
   const transitions = SEASON_NAMES.slice(1).map((_, index) => ({from:index+1, eligible:0, bought:0}));
   const cohort = {from, until, eligible:0, second:0};
   let firstPlayers = 0;
   let olderStarts = 0;
   for (const row of rows) {
+    countWalletHints(row, seasons, hints, first, now);
     const starts = [];
     const activeBoards = new Set();
     let unknownFirst = Boolean(row.resetAt);
@@ -56,9 +86,16 @@ export function summarizeSeasonActivity(rows, {now, first, days, since}) {
       const item = season.cases[(id-1)%12];
       season.started++;
       item.started++;
+      if (record.mode === 'solo' || record.mode === 'duo') {
+        season[record.mode]++;
+        item[record.mode]++;
+      }
       if (record.choice && Number.isFinite(record.completedAt) && record.completedAt >= startedAt && record.completedAt <= now) {
         season.completed++;
         item.completed++;
+        const elapsed = record.completedAt - startedAt;
+        season.elapsedMs += elapsed;
+        item.elapsedMs += elapsed;
       }
     }
     if (starts.length && !unknownFirst) {
@@ -86,5 +123,5 @@ export function summarizeSeasonActivity(rows, {now, first, days, since}) {
       if (validBlocks.some(c => Math.ceil(c.number/3) === transition.from+1)) transition.bought++;
     }
   }
-  return {since, firstPlayers, olderStarts, seasons, cohort, transitions};
+  return {since, firstPlayers, olderStarts, seasons, cohort, transitions, hints};
 }
