@@ -41,7 +41,7 @@ test('Entrar desde el pase recupera su resumen y espera a la confirmación para 
   assert.equal(shop.opened(),1);
   assert.equal(shop.location.hash,'#planes?revisar=1');
   shop.login(1);
-  assert.match(shop.page.ClubAccess.plans(),/Revisa tu pase de Valdemar/);
+  assert.match(shop.page.ClubAccess.plans(),/Revisa tu pase de los cuatro tableros/);
   assert.equal(shop.requests.length,0);
   await shop.click(1);
   assert.match(shop.page.ClubAccess.plans(),/data-plan="four-boards-v1"/);
@@ -52,8 +52,8 @@ test('El enlace de revisión respeta tanto la temporada elegible como la preaper
   const active=await storefront();
   await active.click(1);
   active.login(2);
-  assert.doesNotMatch(active.page.ClubAccess.plans(),/Revisa tu pase de Valdemar/);
-  assert.match(active.page.ClubAccess.plans(),/Contratar el pase de El Tablero de Ámbar/);
+  assert.doesNotMatch(active.page.ClubAccess.plans(),/Revisa tu pase de los cuatro tableros/);
+  assert.match(active.page.ClubAccess.plans(),/Contratar el pase de los cuatro tableros/);
   const waiting=await storefront(false);
   await waiting.click(1);
   assert.equal(waiting.opened(),0);
