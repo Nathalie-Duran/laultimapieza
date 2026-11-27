@@ -28,7 +28,7 @@ async function storefront(salesOpen=true,partnerOffer){
       page.ClubAccess.set({partnerOffer:personalOffer,seasonAccess:{seasons:[],nextPurchase:{number:nextSeason,remainingCycles:3}}});
     },
     async click(season){
-      const button={dataset:{action:'billing-checkout',season:String(season)},disabled:false};
+      const button={dataset:{action:'billing-checkout',season:String(season),plan:'four-boards-v1'},disabled:false};
       const target={closest(selector){return selector==='[data-action]'?button:null;}};
       for(const fn of clickHandlers)await fn({target});
     }
@@ -44,7 +44,8 @@ test('Entrar desde el pase recupera su resumen y espera a la confirmación para 
   assert.match(shop.page.ClubAccess.plans(),/Revisa tu pase de Valdemar/);
   assert.equal(shop.requests.length,0);
   await shop.click(1);
-  assert.deepEqual(shop.requests,[{path:'/api/billing/checkout',season:1}]);
+  assert.match(shop.page.ClubAccess.plans(),/data-plan="four-boards-v1"/);
+  assert.deepEqual(shop.requests,[{path:'/api/billing/checkout',season:1,plan:'four-boards-v1'}]);
   assert.equal(shop.location.destination,'https://checkout.stripe.com/pay/test');
 });
 test('El enlace de revisión respeta tanto la temporada elegible como la preapertura',async()=>{
@@ -90,7 +91,7 @@ test('El primer cobro y la recontratación siempre muestran el precio íntegro',
     assert.match(quote,/próxima renovación/);
     assert.doesNotMatch(quote,/data-partner-offer|Tu próxima renovación tiene|14,9[78]/);
     await shop.click(1);
-    assert.deepEqual(shop.requests.at(-1),{path:'/api/billing/checkout',season:1});
+    assert.deepEqual(shop.requests.at(-1),{path:'/api/billing/checkout',season:1,plan:'four-boards-v1'});
   }
   shop.page.ClubAccess.set({ownAccess:true,hasCustomer:true,partnerOffer:{...policy,status:'eligible',eligible:true},
     seasonAccess:{seasons:[{number:1,paidBlocks:[1],completed:2,finishAccess:false}],nextPurchase:null}});

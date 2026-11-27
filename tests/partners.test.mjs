@@ -316,9 +316,11 @@ test('Dos cuentas comparten los pasos y el desenlace, conservan sus llaves y rec
   assert.equal((await h.game('eve')).hour.current,0);
   await assert.rejects(h.game('eve','/stage',stage(0)),error=>error.status>=400);
   await assert.rejects(h.game('bob','/stage',{index:1,choice:['b']}),error=>error.status>=400);
-  await h.game('alice','/open',{partnerId:id});
+  await h.game('alice','/open',{partnerId:id,quotedCost:1});
   assert.equal((await h.game('alice')).wallet.balance,0);
   assert.equal((await h.game('bob')).wallet.balance,1);
+  assert.deepEqual((await h.game('bob')).hints,(await h.game('alice')).hints);
+  assert.equal((await h.game('bob','/open',{partnerId:id})).wallet.balance,1);
   await h.stop('bob');
   await assert.rejects(h.game('bob','/stage',stage(1)),error=>error.status>=400);
   await h.fund('bob');
@@ -440,4 +442,35 @@ test('La exención de juego procede de la identidad comprobada y no concede la g
   await h.fund('bob');
   await h.startPair('curator',5,'bob');
   assert.ok([402,409].includes((await h.call('bob','/api/partners/play',{caseId:5,...flags})).status));
+});
+
+test('El inventario cooperativo verifica el papel, comparte objetos y acredita la misión una vez a ambos',async()=>{
+  const h=harness();
+  for(const uid of ['alice','bob']){await h.fund(uid,4);await h.finishFirstSeason(uid);}
+  const {id}=await h.startPair('alice',13,'bob');
+  await h.choose('bob',13);
+  const game=(uid,action,input)=>h.game(uid,action,input,13);
+  const play=(uid,operation,args={})=>game(uid,'/inventory',{index:0,partnerId:id,operation,...args});
+  await assert.rejects(play('alice','visit',{index:4}),{status:409});
+  await play('alice','visit');
+  await assert.rejects(play('alice','collect',{item:'B',role:'B'}),{status:400});
+  await assert.rejects(play('bob','combine',{items:['A','B']}),{status:400});
+  await Promise.all([play('alice','collect',{item:'A'}),play('bob','collect',{item:'B'})]);
+  for(const [uid,other] of [['alice','B'],['bob','A']]){
+    const dossier=await game(uid);
+    assert(!JSON.stringify(dossier.hour.inventory).includes('contenido-'+other+'-'));
+    assert.equal(dossier.hour.inventory.rooms[0].items.filter(item=>item.held).length,2);
+  }
+  const joined=await Promise.all([play('alice','combine',{items:['A','B']}),play('bob','combine',{items:['B','A']})]);
+  assert.equal(joined[0].inventory.rooms[0].links.length,1);
+  for(const uid of ['alice','bob']){
+    const {wallet,hour}=await game(uid);
+    assert.deepEqual(wallet.history.filter(row=>row.kind==='mission').map(row=>row.amount),[1]);
+    assert.equal(hour.inventory.rooms[0].assignment.complete,true);
+  }
+  await game('bob','/mode',{partnerId:id,mode:'solo'});
+  for(const uid of ['alice','bob']){
+    assert.equal((await game(uid)).hour.inventory.rooms[0].links.length,1);
+    await assert.rejects(play(uid,'combine',{items:['A','B']}),{code:'PAIR_CHANGED'});
+  }
 });

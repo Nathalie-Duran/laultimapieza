@@ -159,8 +159,8 @@ test('parallel puzzles share the keyring; ordered and unordered choices validate
   const wins=await Promise.all([act(13,'reward',proof),act(13,'reward',proof)]);
   assert.equal(wins[0].wallet.balance,2);assert.equal(wins[1].wallet.balance,2);assert.equal(wins[1].feedback,'PREMIO PRIVADO');
   assert.equal((await act(25,'reward',{proof:{choice:['x','y']}})).wallet.balance,3);
-  await act(25,'open');await act(25,'second');assert.deepEqual((await api.call('cases/25')).hints,['AYUDA PRIVADA','SEGUNDA AYUDA']);
-  assert.equal((await api.call('wallet')).wallet.balance,2);assert.equal((await api.call('seasons',undefined,true)).wallet.balance,1);
+  await act(25,'open',{quotedCost:1});await assert.rejects(act(25,'second'),{code:'HINT_PRICE_CHANGED'});await act(25,'second',{quotedCost:2});assert.deepEqual((await api.call('cases/25')).hints,['AYUDA PRIVADA','SEGUNDA AYUDA']);
+  assert.equal((await api.call('wallet')).wallet.balance,0);assert.equal((await api.call('seasons',undefined,true)).wallet.balance,1);
   for(const index of numbers(0,4)){const result=await act(36,'stage',{index,choice:['x','z']});assert.equal(result.hour.current,index+1);}
   assert.equal((await act(36,'deduce',{hypothesis:'h'})).progress.deduction,'RESOLUCION PRIVADA');
   assert.equal((await act(36,'ending',{choice:'c'})).progress.outcome,'FIN PRIVADO');
@@ -196,7 +196,7 @@ test('all 48 paid games require a real partner for duo and preserve personal che
   }
   const all=await api.call('seasons');assert.deepEqual(all.completed,numbers(1,36));assert.equal(all.wallet.gift,1);
   await api.call('cases/48/reward',{proof:{choice:['y','x']}});
-  await api.call('cases/48/open',{});
+  await api.call('cases/48/open',{quotedCost:1});
   const [step]=await Promise.all([api.call('cases/48/stage',{index:0,choice:['x','z']}),api.call('cases/48/mode',{mode:'solo'})]);
   const reloaded=await api.call('cases/48');assert.equal(reloaded.mode,'solo');assert.equal(reloaded.hour.current,step.hour.current);
   assert.equal(reloaded.hints.length,1);assert(reloaded.wallet.opened.includes(48));assert(reloaded.wallet.won.includes(48));
@@ -271,7 +271,7 @@ test('a personal reset clears the paid and authorized editorial progress, keys a
   const api=service(d);
   for(const scope of [false,true]){
     const initial=await api.call('seasons',undefined,scope);assert.deepEqual(initial.completed,[]);
-    assert.deepEqual(initial.wallet,{gift:0,balance:0,won:[],opened:[],second:[]});
+    assert.deepEqual(initial.wallet,{gift:0,balance:0,won:[],opened:[],second:[],solution:[],legacyEnvelopes:[],history:[]});
     assert.deepEqual((await api.call('partidas',undefined,scope)).games,[]);
     const read=await api.call('cases/1',undefined,scope);assert.equal(read.mode,null);assert.equal(read.hour.current,0);assert.deepEqual(read.hints,[]);assert.equal(read.progress.choice,null);
     assert.equal((await api.call('seasons',undefined,scope)).wallet.balance,0);
@@ -281,7 +281,7 @@ test('a personal reset clears the paid and authorized editorial progress, keys a
   await assert.rejects(api.call('cases/13/mode',{mode:'duo'}),{code:'PREVIOUS_SEASON_REQUIRED'});
   await assert.rejects(api.call('cases/37/mode',{mode:'duo'}),{code:'PREVIOUS_SEASON_REQUIRED'});
   await assert.rejects(api.call('cases/1/open',{}),{code:'NOT_ENOUGH_KEYS'});
-  const retried=await api.call('cases/36/reward',{proof:{choice:['y','x']}},true);assert.equal(retried.wallet.balance,1);
+  const retried=await api.call('cases/36/reward',{proof:{choice:['y','x']}},true);assert.equal(retried.wallet.balance,2);
   assert.equal((await api.call('seasons')).wallet.balance,0);
   const recovered=complete(structuredClone(api.data),numbers(1,12));
   assert.equal((await service(recovered).call('cases/13/reward',{proof:{choice:['y','x']}})).wallet.balance,1);
@@ -307,7 +307,7 @@ test('finishing after the last paid period grants only the fully paid world; no 
 test('separate opt-in checkout uses only the chosen season, reuses an open checkout and remains disabled without configuration',async()=>{
   const d=complete(memberAt(3),numbers(1,12));
   d.cycles.forEach(c=>{c.start-=40*day;c.end-=40*day;}); d.active=false;d.customer='customer';
-  let state=structuredClone(d),order,created=0,providerActive=false;
+  let state=structuredClone(d),order,created=0,expired=0,providerActive=false;
   const user={userId:'owner',email:'fixture@example.invalid'};
   const store={getMemberData:async()=>structuredClone(state),saveMemberData:async(_,v)=>{state=structuredClone(v);}};
   const env={BILLING_ENABLED:'true',STRIPE_SECRET_KEY:randomBytes(32).toString('hex'),STRIPE_WEBHOOK_SECRET:randomBytes(32).toString('hex'),STRIPE_PRICE_ID:'price',STRIPE_PORTAL_CONFIGURATION:'mock',BILLING_TERMS_URL:'mock',BILLING_PRIVACY_URL:'mock'};
@@ -320,6 +320,7 @@ test('separate opt-in checkout uses only the chosen season, reuses an open check
       created++;order=new URLSearchParams(opts.body);return Response.json({id:'local-fixture',url:'https://example.invalid/checkout',expires_at:Math.floor(now/1000)+3600});
     }
     if(path==='/v1/checkout/sessions/local-fixture')return Response.json({status:'open',url:'https://example.invalid/checkout'});
+    if(path==='/v1/checkout/sessions/local-fixture/expire'){expired++;return Response.json({status:'expired'});}
     throw Error('Unexpected mock route '+path);
   });
   await assert.rejects(billing.checkout(store,user,{}),{code:'SEASON_SELECTION_REQUIRED'});
@@ -327,6 +328,14 @@ test('separate opt-in checkout uses only the chosen season, reuses an open check
   assert.equal(created,0);
   await billing.checkout(store,user,{season:2});await billing.checkout(store,user,{season:2});assert.equal(created,1);
   assert.equal(order.get('subscription_data[metadata][lup_blocks]'),'4,5,6');assert.equal(order.get('subscription_data[metadata][lup_season]'),'2');
+  assert.equal(order.get('subscription_data[metadata][lup_plan]'),null);
+  assert.match(order.get('custom_text[submit][message]'),/La siguiente temporada se contrata por separado/);
+  await billing.checkout(store,user,{season:2,plan:'four-boards-v1'});
+  assert.equal(order.get('subscription_data[metadata][lup_blocks]'),'4,5,6,7,8,9,10,11,12');
+  assert.equal(order.get('subscription_data[metadata][lup_plan]'),'four-boards-v1');
+  assert.match(order.get('custom_text[submit][message]'),/Termina tras 9 cuotas/);
+  assert.match(order.get('custom_text[submit][message]'),/cancelar antes de renovar/);
+  assert.equal(expired,1);
   providerActive=true;await assert.rejects(billing.checkout(store,user,{season:2}),{code:'SUBSCRIPTION_IN_PROGRESS'});
   const noPayments=createBilling({},()=>{throw Error('Must never call Stripe');});
   await assert.rejects(noPayments.checkout(store,user,{season:2}),{code:'BILLING_UNAVAILABLE'});
@@ -343,6 +352,59 @@ test('separate opt-in checkout uses only the chosen season, reuses an open check
   assert.equal(order.get('subscription_data[metadata][lup_blocks]'),'10,11,12');
   assert.equal(order.get('subscription_data[metadata][lup_season]'),'4');
   assert.match(order.get('custom_text[submit][message]'),/Necrópolis del Sol Velado/);
+});
+
+test('el pase continuo conserva los meses abonados mientras el jugador termina el tablero anterior',async()=>{
+  const id='sub-journey',uid='reader';
+  const state={customer:'cus-journey'};
+  let schedule;
+  const nowSeconds=Math.floor(now/1000), month=30*86400;
+  const subscription={id,status:'active',metadata:{lup_uid:uid,lup_plan:'four-boards-v1',lup_season:'1',lup_blocks:numbers(1,12).join(',')},items:{data:[{price:{id:'price'}}]}};
+  const invoices=numbers(1,4).map((i)=>{
+    const start=nowSeconds-(4-i)*month-60;
+    return {id:'paid-'+i,billing_reason:i===1?'subscription_create':'subscription_cycle',amount_paid:2995,currency:'eur',lines:{data:[{price:{id:'price'},period:{start,end:start+month}}]}};
+  });
+  const store={async getMemberData(){return structuredClone(state);},async saveMemberData(_,data){Object.assign(state,data);}};
+  const config={BILLING_ENABLED:'true',STRIPE_SECRET_KEY:'test',STRIPE_WEBHOOK_SECRET:'test',STRIPE_PRICE_ID:'price',STRIPE_PORTAL_CONFIGURATION:'mock',BILLING_TERMS_URL:'mock',BILLING_PRIVACY_URL:'mock'};
+  const billing=createBilling(config,async(url,options)=>{
+    const path=new URL(url).pathname;
+    if(path==='/v1/subscriptions')return Response.json({data:[subscription]});
+    if(path==='/v1/invoices')return Response.json({data:[...invoices].reverse()});
+    if(path==='/v1/subscription_schedules')return Response.json({id:'sched',current_phase:{start_date:invoices[0].lines.data[0].period.start}});
+    if(path==='/v1/subscription_schedules/sched'){schedule=new URLSearchParams(options.body);return Response.json({id:'sched'});}
+    throw Error('Unexpected path '+path);
+  });
+  const first=await billing.membership(store,uid);
+  assert.equal(schedule.get('phases[0][duration][interval_count]'),'12');
+  assert.equal(schedule.get('end_behavior'),'cancel');
+  assert.deepEqual(first.seasonAccess.availableCases,numbers(1,12));
+  assert.deepEqual(first.seasonAccess.seasons[1].paidBlocks,[1]);
+  assert.deepEqual(state.cycles.map(c=>[c.worldBlock,c.plan,c.renewal]),numbers(1,4).map(i=>[i,'four-boards-v1',i>1]));
+  complete(state,numbers(1,12));
+  assert.deepEqual((await billing.membership(store,uid)).seasonAccess.availableCases,numbers(1,16));
+  state.revokedInvoices=['paid-4'];
+  assert.deepEqual((await billing.membership(store,uid)).seasonAccess.availableCases,numbers(1,12));
+  // A replacement invoice for the refunded month restores the same four slots.
+  invoices.push({...invoices[3],id:'replacement-4'});
+  assert.deepEqual((await billing.membership(store,uid)).seasonAccess.availableCases,numbers(1,16));
+  assert.equal(state.cycles.filter(c=>c.worldBlock===4).length,1);
+  // A delayed earlier period is new value, but cannot remap an existing month.
+  const earlier=structuredClone(invoices[1]);
+  earlier.id='late-old';earlier.lines.data[0].period={start:nowSeconds-4*month,end:nowSeconds-3*month};
+  invoices.push(earlier);
+  await billing.membership(store,uid);
+  assert.equal(state.cycles.find(c=>c.id==='late-old').worldBlock,5);
+  assert.equal(state.cycles.find(c=>c.id==='paid-1').worldBlock,1);
+  // Excess periods and duplicate receipts cannot grant more than the agreed blocks.
+  for(let i=1;i<=10;i++){
+    const extra=structuredClone(earlier);extra.id='extra-'+i;
+    extra.lines.data[0].period={start:nowSeconds+i*month,end:nowSeconds+(i+1)*month};invoices.push(extra);
+  }
+  await billing.membership(store,uid);
+  assert.equal(state.cycles.length,12);assert.equal(new Set(state.cycles.map(c=>c.worldBlock)).size,12);
+  subscription.status='canceled';assert.equal((await billing.membership(store,uid)).canPlay,true);
+  state.revokedInvoices.push('replacement-4');
+  assert.equal((await billing.membership(store,uid)).canPlay,false);
 });
 test('payment reconciliation pins opted-in receipts to their season, schedules finite passes and applies refunds to the original four games',async()=>{
   for(const [replacement,season] of [[false,2],[true,1],[false,4]]){
