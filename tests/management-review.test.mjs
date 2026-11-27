@@ -50,3 +50,40 @@ test('la ficha de soporte entrega indicadores y mantiene privados los identifica
   assert.doesNotMatch(JSON.stringify(account),/internal|private/);
   assert.equal(summarizeManagementAccount(row,1200).paidPeriod,false);
 });
+
+test('el tiempo transcurrido y la modalidad usan las fichas fechadas que empezaron en el periodo',()=>{
+  const row = progress => ({progress,cycles:[],sideIds:new Set()});
+  const rows = [
+    row({1:{startedAt:100,completedAt:300,choice:'a',mode:'duo'},2:{startedAt:99,completedAt:250,choice:'b',mode:'duo'},
+      13:{startedAt:190,completedAt:180,choice:'c',mode:'solo'},14:{startedAt:300,completedAt:300,choice:'a'}}),
+    row({1:{startedAt:120,completedAt:460,choice:'a',mode:'duo'}, 2:{startedAt:140,completedAt:501,choice:'b',mode:'solo'},
+      13:{updatedAt:210,mode:'duo'},15:{startedAt:500,completedAt:500,mode:'solo'}})
+  ];
+  const report=summarizeSeasonActivity(rows,{now:500,first:100,days:7,since:50});
+  const [first,second]=report.seasons;
+  assert.deepEqual([first.started,first.completed,first.elapsedMs,first.duo,first.solo],[3,2,540,2,1]);
+  assert.deepEqual([second.started,second.completed,second.elapsedMs,second.duo,second.solo],[3,1,0,0,2]);
+  assert.equal(first.cases[0].elapsedMs,540);
+  assert.equal(first.cases[0].duo,2);
+  assert.equal(second.cases[1].completed,1);
+  const absent=summarizeSeasonActivity(rows,{now:500,first:100,days:7,since:null}).seasons[0];
+  assert.deepEqual([absent.duo,absent.solo,absent.completed,absent.elapsedMs],[0,0,0,0]);
+});
+
+test('las ayudas suman débitos del periodo por llavero, incluidos costes cero y casos iniciados antes',()=>{
+  const entry=(kind,caseId,amount,at)=>({kind,caseId,amount,at});
+  const row = extra => ({progress:{},cycles:[],sideIds:new Set(),...extra});
+  const rows=[
+    row({unlockedHints:{open:[1,25,26],second:[1,2]},entries:[
+      entry('open',1,-1,100),entry('open',25,-1,99),entry('open',26,-1,null),entry('second',1,0,150),
+      entry('second',2,-2,501),entry('reward',8,2,200),entry('welcome',null,1,300)
+    ]}),
+    row({unlockedHints:{solution:[27]},entries:[entry('solution',27,-3,500),entry('solution',27,-3,500)]}),
+    row({unlockedHints:{open:[12],second:[12]}})
+  ];
+  const result=summarizeSeasonActivity(rows,{now:500,first:100,days:7,since:null});
+  assert.deepEqual(result.hints,{open:{uses:1,keys:1,undated:2},second:{uses:1,keys:0,undated:1},solution:{uses:1,keys:3,undated:0}});
+  assert.deepEqual(result.seasons.map(s=>s.keysSpent),[1,0,3,0]);
+  assert.equal(result.seasons[0].cases[0].keysSpent,1);
+  assert.equal(result.seasons[2].cases[2].keysSpent,3);
+});
