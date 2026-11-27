@@ -63,7 +63,7 @@
     const editorial = options.admin === true || options.role === 'admin';
     const availability = editorial ? 'Disponible con tu acceso editorial.' :
       allowed ? 'Incluida en tu acceso actual.' : options.canPlay ? `Se abre con el mes ${item.month} de tu pase.` :
-      `Incluida en el mes ${item.month} del pase de Valdemar.`;
+      `Incluida en el mes ${item.month} del recorrido por los cuatro tableros.`;
     const path = catalog.path(item.id);
     const primary = allowed ? `<a class="vdp-primary" href="/#valdemar-jugar?id=${item.id}">Abrir la investigación</a><a class="vdp-secondary" href="${path}">Ver la ficha</a>` :
       `<a class="vdp-primary" href="${path}">Ver la historia</a><a class="vdp-secondary" href="/#planes">Ver el pase</a>`;

@@ -110,7 +110,7 @@ function plans(){
  const checkout=state.ownAccess
    ? '<button class="button primary wide" data-action="billing-portal">Gestionar mi suscripción</button>'
    : (!access||offer)
-     ? `<button class="button primary wide" data-action="billing-checkout" data-season="${number}" data-plan="four-boards-v1">${reviewing?'Continuar al pago seguro':'Contratar el pase de '+name}</button>`
+     ? `<button class="button primary wide" data-action="billing-checkout" data-season="${number}" data-plan="four-boards-v1">${reviewing?'Continuar al pago seguro':'Contratar el pase de los cuatro tableros'}</button>`
      : `<a class="button primary wide" href="#${route}">Volver a ${name}</a>`;
  const terms=[['Condiciones',config.termsUrl],['Política de privacidad',config.privacyUrl]].filter(([,url])=>typeof url==='string'&&/^https:\/\//i.test(url)).map(([label,url])=>`<a href="${esc(url)}" rel="noopener" target="_blank">${label}</a>`).join(' · ');
  const portal=state.ownAccess && state.hasCustomer;
@@ -132,15 +132,15 @@ function plans(){
  const waitForOpening=!state.ownAccess&&!config.checkoutAvailable&&!held?.finishAccess;
  const openingLink=waitForOpening?openingAction():null;
  const target=openingLink?.target||'pass-review-title';
- const mainLabel=openingLink?.label||(state.ownAccess?'Ver mi suscripción':'Ver el pase de '+name);
+ const mainLabel=openingLink?.label||(state.ownAccess?'Ver mi suscripción':'Ver el pase de los cuatro tableros');
  const past=current?.finishAccess && current.completed===12 && number>current.number;
  return `<section class="pase-temporada" data-season="${number}">
    ${params.get('checkout')==='complete'?`<aside class="pase-ficha" role="status"><h2>${state.ownAccess?'Tu pase está activo':'Estamos comprobando tu pase'}</h2><p>${state.ownAccess?'Ya puedes abrir un caso. Si vais a investigar juntos, elegíos en vuestros perfiles y pulsad «En pareja» dentro del mismo juego.':'Tus juegos aparecerán en el perfil cuando se confirme el pago.'}</p><a class="button" href="/#perfil">Abrir mi perfil</a></aside>`:''}
    <header class="pase-escena">
      <img class="pase-fondo" src="${heroImage}" alt="" width="1536" height="1024" fetchpriority="high">
-     <div class="pase-apertura"><p class="pase-supra">Pase de temporada · ${name}</p>
-       <h1>${opening.lead} <em>${opening.em}</em></h1>
-       <p class="pase-premisa">${opening.scene}</p>
+     <div class="pase-apertura"><p class="pase-supra">${continuous?'Suscripción personal · 48 aventuras':'Pase de temporada · '+name}</p>
+       <h1>${continuous?'Un pase para <em>cuatro tableros</em>':opening.lead+' <em>'+opening.em+'</em>'}</h1>
+       <p class="pase-premisa">${continuous?'Empieza en Valdemar y continúa por el Tablero de Ámbar, Umbravía y la Necrópolis del Sol Velado. Cada mensualidad desbloquea cuatro aventuras para jugar a solas o en pareja.':opening.scene}</p>
        <div class="pase-acciones"><button type="button" class="pase-principal" data-action="page-section" data-target="${target}"${waitForOpening?' data-opening-action':''}>${mainLabel}</button>
          <button type="button" class="pase-demo" data-action="preview-open">Jugar la demo de Clínica Vallejo</button></div>
      </div>
@@ -155,7 +155,7 @@ function plans(){
    </section>
    <div class="pase-detalle" id="pase-detalle"><article class="pase-ficha">
      <p class="pase-supra">Pase personal · Suscripción mensual</p>
-     <h2 id="pass-review-title" tabindex="-1">${reviewing?'Revisa tu pase de '+name:'El pase de '+name}</h2>
+     <h2 id="pass-review-title" tabindex="-1">${reviewing?'Revisa tu pase de los cuatro tableros':continuous?'El pase de los cuatro tableros':'El pase de '+name}</h2>
      <p class="pase-incluye">Cada cuota abre cuatro investigaciones de unos 60 minutos. Juega a solas o comparte el caso con tu compañero. Cada uno sigue las pistas de su papel desde su propia cuenta.</p>
      <p class="pase-precio"><strong>29,95 €</strong> ${state.ownAccess?'por persona al mes · tarifa general':'primera cuota por persona'}</p>
      <p class="pase-estado">${config.checkoutAvailable||held?'IVA incluido.':'Precio previsto, IVA incluido. La suscripción abrirá próximamente.'}${state.ownAccess?'':' La renovación mensual a tarifa general es de 29,95 €.'}</p>
@@ -180,7 +180,7 @@ root.ClubAccess={...old,plans,enrollment:plans,banner(){if(typeof location!=='un
    return '<p><strong>'+name+'</strong> · '+paid+' · '+s.completed+' de 12 juegos terminados.</p><a class="button" href="#'+seasonRoutes[s.number-1]+'">Volver a '+name+'</a>';
  }).join('');
  const noticeLink='<p><a href="/#planes?gestion=aviso">Gestionar avisos de apertura</a> · <a href="/privacidad.html">Privacidad y datos</a></p>';
- const nextLink=!state.ownAccess&&next?'<a class="button" href="#planes">Ver el pase de '+seasonNames[next.number-1]+'</a>':'';
+ const nextLink=!state.ownAccess&&next?'<a class="button" href="#planes">Ver el pase de los cuatro tableros</a>':'';
  const period=state.periodEnd?'<p>Periodo abonado hasta el '+new Date(state.periodEnd).toLocaleDateString('es-ES')+'.</p>':'';
  const billing=state.hasCustomer?'<button class="button" data-action="billing-portal">Gestionar mi suscripción</button>':'';
  return '<section class="account-card"><span class="club-kicker">MI SUSCRIPCIÓN</span><h2>'+title+'</h2>'+progress+period+billing+nextLink+noticeLink+(!billing&&!nextLink&&!current?'<a class="button" href="#planes">Ver plan y disponibilidad</a>':'')+(!config.checkoutAvailable&&!current?interest():'')+(!config.checkoutAvailable&&!state.waitlist&&!current?'<button class="text-link" data-action="waitlist" data-enabled="false">Retirar los avisos asociados a mi correo verificado</button>':'')+'</section>';

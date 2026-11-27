@@ -44,7 +44,7 @@
   }
   function entry(item,opts,unlocked) {
     const href=unlocked?'/#valdemar-jugar?id='+item.id:'/#planes';
-    const label=unlocked?(opts.completed?.includes(item.id)?'Ver mi desenlace':'Abrir la investigación'):opts.canPlay?'Ver mi pase':'Ver el pase de Valdemar';
+    const label=unlocked?(opts.completed?.includes(item.id)?'Ver mi desenlace':'Abrir la investigación'):opts.canPlay?'Ver mi pase':'Ver el pase de los cuatro tableros';
     return `<a class="vd-cta" href="${href}">${label}</a>`;
   }
   function hotelCall(cta) {
@@ -60,7 +60,7 @@
     const item=get(id);
     if(!item)return '<section class="vd-section"><h1>Historia no encontrada</h1><a class="vd-textlink" href="/#casos">Volver a las doce historias</a></section>';
     const unlocked=access(item,opts);
-    const message=unlocked?(opts.fullyPaid?'Incluida en tu pase abonado de Valdemar.':'Incluida en tu acceso.'):opts.canPlay?`Se abre en el mes ${item.month} de tu pase.`:`Incluida en el mes ${item.month} del pase de temporada.`;
+    const message=unlocked?(opts.fullyPaid?'Incluida en tus bloques abonados de Valdemar.':'Incluida en tu acceso.'):opts.canPlay?`Se abre en el mes ${item.month} de tu pase.`:`Incluida en el mes ${item.month} del recorrido por los cuatro tableros.`;
     const cta=entry(item,opts,unlocked);
     const sample=item.id===2?`<button type="button" data-vd-start class="${unlocked?'vd-ghost':'vd-cta'}">Atender la llamada</button>`:'';
     const demo=`<a class="vd-ghost" href="/vallejo.html?caso=${number(item.id)}">Probar Clínica Vallejo gratis</a>`;
