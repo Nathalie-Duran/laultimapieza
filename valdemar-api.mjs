@@ -1,5 +1,6 @@
 import {secretArchive} from './secret-archive.mjs';
-import {creditSecretMission} from './valdemar-wallet.mjs';
+import {creditSecretMission,creditMansionMission,creditMansionEnding,purchaseMansionHint} from './valdemar-wallet.mjs';
+import {createMansionRules,startMansion} from './mansion-episode.mjs';
 import {useInventory, inspectInventory} from './expedition.mjs';
 import {readFile} from 'node:fs/promises';
 import {ApiError} from './auth-provider.mjs';
@@ -43,7 +44,7 @@ function visibleStory(story,role) {
 }
 
 function visibleProgress(record,story) {
-  const choice = record?.choice || null;
+  const choice = record?.choice === mansionEnding ? null : record?.choice || null;
   const deduced = record?.deduced === true;
   return {
     deduced, choice,
@@ -64,6 +65,13 @@ function caseHints(story,wallet,pair) {
 }
 
 const playModes = new Set(['solo','duo']);
+const mansionEnding = 'mansion-sealed';
+
+function hasOldStation(record, wallet) {
+  if (typeof record?.mansionLegacy === 'boolean') return record.mansionLegacy;
+  return Boolean(record?.mode || record?.hourStep || record?.deduced || record?.choice ||
+    ['won','opened','second','solution'].some(field=>wallet?.[field]?.includes(1)));
+}
 
 async function personalGames(data,scope,access,store,loadRelease,pairedCases) {
   const records=data.valdemarCaseProgress?.[scope] || {};
@@ -73,10 +81,14 @@ async function personalGames(data,scope,access,store,loadRelease,pairedCases) {
   for(let id=1;id<=WORLD_CASE_COUNT;id++){
     const record=records[id] || {};
     const mode=record.mode==='duo' && scope==='paid' && !pairedCases.includes(id)?'solo':playModes.has(record.mode)?record.mode:null;
-    const finished=Boolean(record.choice);
-    const current=finished?5:Math.max(0,Math.min(5,Number.isInteger(record.hourStep)?record.hourStep:0));
+    const mansion=id===1 && record.mansionEdition==='mansion';
+    const finished=mansion?Boolean(record.mansion?.completed):Boolean(record.choice && record.choice!==mansionEnding);
+    const total=mansion?15:5;
+    const current=mansion ? finished?15:(record.mansion?.current||1)-1
+      : finished?5:Math.max(0,Math.min(5,Number.isInteger(record.hourStep)?record.hourStep:0));
     if(mode || current || record.deduced || sideProgress.has(id)){
-      games.push({id,mode,current,total:5,finished,available:access.availableCases.includes(id),
+      games.push({id,mode,current,total,finished,available:access.availableCases.includes(id),
+        ...(mansion?{edition:'mansion',title:'El secreto de los dos mundos'}:id===1?{edition:'legacy',title:'Mundos cruzados · La estación'}:{}),
         ...(Number.isFinite(record.updatedAt)?{updatedAt:record.updatedAt}:{})});
     }
   }
@@ -86,6 +98,11 @@ async function personalGames(data,scope,access,store,loadRelease,pairedCases) {
     try{
       const release=await loadRelease(store);
       const story=releasedStory(release,latest.id);
+      if(latest.edition==='mansion'){
+        const view=mansionRules(story).inspectMansion(records[1],'solo');
+        latest.checkpoint={title:view.stage?.title||'La mansión',task:view.stage?.brief||'Continúa la investigación en la mansión.'};
+        return {games,access,career:seasonCareer(data,scope),archive:secretArchive(data,scope,access)};
+      }
       const stage=story?.hour?.stages?.[latest.current];
       if(stage && typeof stage.title==='string' && typeof stage.task==='string'){
         latest.checkpoint={title:stage.title,task:stage.task};
@@ -104,6 +121,11 @@ async function personalGames(data,scope,access,store,loadRelease,pairedCases) {
 
 function releasedStory(release,id) {
   return (id>CASE_ORDER.length ? release.nuevos : release.stories)?.find(item=>item.id===id);
+}
+
+function mansionRules(story){
+  if (!story?.mansionEdition) throw new ApiError(503,'La edición de la mansión está pendiente de activación.','VALDEMAR_RELEASE_PENDING');
+  return createMansionRules(story.mansionEdition);
 }
 
 function availableKeyChallenge(access,wallet,id,release) {
@@ -142,12 +164,15 @@ async function progressAction(store,uid,scope,story,action,input,pair) {
   const alreadyStarted = hasCaseActivity(data,scope,story.id);
   data.valdemarCaseProgress ||= {};
   const cases = data.valdemarCaseProgress[scope] ||= {};
-  const record = pair ? pair.progress : cases[story.id] ||= {};
+  const stored = pair ? pair.progress : cases[story.id] ||= {};
+  const keepMansionSeal = stored.choice === mansionEnding;
+  const record = keepMansionSeal ? {...stored,choice:null} : stored;
   async function save(event){
+    if(keepMansionSeal)Object.assign(stored,record,{choice:record.choice || mansionEnding});
     if(pair)return syncPairProgress(store,pair,event);
     recordCaseActivity(data,scope,story.id,alreadyStarted,event);
     if(scope==='paid')await store.touchNoticeActivity?.(uid);
-    if(event==='end')await notifyEnding(store,uid,data,scope,story.id);
+    if(event==='end' && !keepMansionSeal)await notifyEnding(store,uid,data,scope,story.id);
     await store.saveMemberData(uid,data);
   }
   if (action === 'inventory') {
@@ -181,27 +206,133 @@ async function progressAction(store,uid,scope,story,action,input,pair) {
   if (!record.deduced) throw new ApiError(409,'Resuelve primero la deducción del expediente.','DEDUCTION_REQUIRED');
   requireHourComplete(story,record);
   if (!story.choices.some(item => item.id === input.choice)) throw new ApiError(400,'Elige un desenlace disponible.');
-  if (record.choice && record.choice !== input.choice) {
+  if (record.choice && record.choice !== mansionEnding && record.choice !== input.choice) {
     throw new ApiError(409,'Esta historia ya tiene una decisión guardada en tu álbum.','ENDING_SAVED');
   }
-  if (!record.choice) {
+  if (!record.choice || record.choice === mansionEnding) {
     record.choice = input.choice;
     await save('end');
   }
   return {progress:visibleProgress(record,story)};
 }
 
+function copyMansionProgress(personal, shared) {
+  if (!shared) return;
+  const old = personal.mansion;
+  const keep = old && (old.completed || (!shared.completed && (old.current > shared.current ||
+    (old.current===shared.current && old.revision>shared.revision))));
+  const merged = structuredClone(keep ? old : shared);
+  merged.missions=[...new Set([...(old?.missions || []), ...shared.missions])];
+  personal.mansion = merged;
+}
+
+async function mansionSession({store,data,uid,scope,editorial,pair,mode,partner,waitingForPartner,input,method,access,loadRelease}) {
+  let purse=await valdemarWallet(store,uid,{editorial,seasonAccess:access,pair});
+  data=await store.getMemberData(uid);
+  const personal = data.valdemarCaseProgress?.[scope]?.[1];
+  const holder = pair ? pair.progress : personal;
+  const legacy = pair ? (holder.mansionLegacy ?? hasOldStation(personal,data.valdemarSeasonOne?.[scope])) : hasOldStation(personal,data.valdemarSeasonOne?.[scope]);
+  let edition = holder?.mansionEdition || (legacy ? 'choose' : 'mansion');
+  const needsRules=(edition==='mansion' || input?.op==='start') && mode && !waitingForPartner;
+  const rules=needsRules ? mansionRules(releasedStory(await loadRelease(store),1)) : null;
+  const role = partner?.role || (editorial && mode==='duo' ? input?.paper==='B'?'B':'A' : 'solo');
+  const view = record => {
+    const mansion=edition==='mansion' && rules ? rules.inspectMansion(record||{},role,input?.roomId) : null;
+    if(mansion){
+      mansion.balance=purse.balance;
+      const owned=data.valdemarSeasonOne?.[scope]?.mansionHints || [];
+      if(mansion.stage)mansion.stage.hintOptions=Object.entries(hintFees).map(([op,cost])=>{
+        const key=mansion.current+'/'+op;
+        const unlocked=owned.includes(key) || pair?.progress.mansionSharedHints?.includes(key);
+        return {op,cost,text:unlocked?rules.mansionHint(record||{},op,role):null};
+      });
+    }
+    const names=pair ? {A:pair.ownerName,B:pair.guestName} : {};
+    return {edition,legacy,mode,partner,names,waitingForPartner,editorialPreview:editorial===true,
+      mansionRevision:record?.mansion?.revision || 0,mansion};
+  };
+  if (method==='GET') return view(holder);
+  const op = input?.op;
+  if (op==='inspect') return view(holder);
+  if ((!mode || waitingForPartner) && !['start','legacy'].includes(op)) throw new ApiError(409,'Elige la modalidad antes de entrar en la mansión.','MODE_REQUIRED');
+  if (op==='legacy' && !legacy) throw new ApiError(409,'Esta cuenta carece de una partida anterior de la estación.','EDITION_UNAVAILABLE');
+  if (!['legacy','start','act','solve','hint'].includes(op)) throw new ApiError(400,'Elige una acción de la mansión.');
+  if (!['legacy','start'].includes(op) && edition!=='mansion') throw new ApiError(409,'Abre la mansión antes de continuar.','EDITION_REQUIRED');
+  const before = hasCaseActivity(data,scope,1);
+  const records = (data.valdemarCaseProgress ||= {})[scope] ||= {};
+  const record = pair ? pair.progress : records[1] ||= {};
+  const previousStage = record.mansion?.current || 1;
+  let result;
+  if (op==='legacy' || op==='start') {
+    edition = op==='legacy' ? 'legacy' : 'mansion';
+    const needsStart=op==='start' && !record.mansion;
+    if(needsStart)startMansion(record);
+    result = {changed:needsStart || record.mansionEdition !== edition || record.mansionLegacy===undefined};
+  } else if(op==='hint'){
+    if(input.stage!==(record.mansion?.current||1) || record.mansion?.completed)throw new ApiError(409,'Actualiza la etapa antes de abrir una ayuda.');
+    if(!Object.hasOwn(hintFees,input.tier))throw new ApiError(400,'Elige una ayuda disponible.');
+    const key=input.stage+'/'+input.tier;
+    const shared=pair && (pair.progress.mansionSharedHints ||= []);
+    const bought=!shared?.includes(key) && purchaseMansionHint(data,scope,input.stage,input.tier,input.quotedCost);
+    const share=shared && !shared.includes(key);
+    if(share)shared.push(key);
+    result={changed:Boolean(bought || share),correct:true,message:'Ayuda abierta.'};
+    if(result.changed){startMansion(record);record.mansion.revision++;}
+  } else result = rules.applyMansion(record,role,input);
+  if (result.changed) {
+    record.mansionEdition = edition;
+    record.mansionLegacy = legacy;
+    if (pair) await store.savePartner(pair);
+    const members = pair ? [pair.ownerId,pair.guestId].sort() : [uid];
+    for (const member of members) {
+      const memberScope = pair ? partnerScope(pair,member) : scope;
+      const account = member===uid ? data : await store.getMemberData(member);
+      const started = pair ? hasCaseActivity(account,memberScope,1) : before;
+      const cases = (account.valdemarCaseProgress ||= {})[memberScope] ||= {};
+      const saved = cases[1] ||= {};
+      if (pair) {
+        saved.mansionLegacy ??= hasOldStation(saved,account.valdemarSeasonOne?.[memberScope]);
+        saved.mansionEdition = edition;
+        saved.mode = 'duo';
+        copyMansionProgress(saved,record.mansion);
+      }
+      if (result.missionReward) creditMansionMission(account,memberScope,result.mission,result.missionReward);
+      if (result.completed) creditMansionEnding(account,memberScope);
+      if(pair && result.stageCompleted){
+        const stages=saved.mansionPairStages ||= [];
+        if(!stages.includes(result.stageCompleted))stages.push(result.stageCompleted);
+      }
+      const newlyClosed = result.completed && !saved.choice;
+      if (newlyClosed) saved.choice = mansionEnding;
+      recordCaseActivity(account,memberScope,1,started,newlyClosed?'end':'mansion');
+      if (!saved.firstAdvancedAt && previousStage===1 && record.mansion?.current>1) saved.firstAdvancedAt=saved.updatedAt;
+      if (memberScope==='paid') await store.touchNoticeActivity?.(member);
+      if (newlyClosed) await notifyEnding(store,member,account,memberScope,1);
+      await store.saveMemberData(member,account);
+    }
+  }
+  if (result.missionReward || result.completed || op==='hint')purse=await valdemarWallet(store,uid,{editorial,seasonAccess:access,pair});
+  const response={...view(record),...result};
+  if (result.missionReward || result.completed || op==='hint') response.wallet=purse;
+  return response;
+}
+
 export async function valdemarRequest({path,method,input,uid,editorial,withStore,billing,loadRelease=readValdemarRelease}) {
+  if(path==='/api/valdemar/mansion/arcade') {
+    const {mansionArcadeRequest}=await import('./mansion-arcade.mjs');
+    return mansionArcadeRequest({method,input,uid,editorial,withStore,billing});
+  }
   const walletRoute = path === '/api/valdemar/wallet';
   const seasonsRoute = path === '/api/valdemar/seasons';
   const gamesRoute = path === '/api/valdemar/partidas';
   const sealRoute = /^\/api\/valdemar\/seals\/([1-9]\d?)$/.exec(path);
-  const match = /^\/api\/valdemar\/cases\/([1-9]\d?)(?:\/(reward|open|second|solution|sample|deduce|ending|stage|mode|inventory|pair-state))?$/.exec(path);
+  const match = /^\/api\/valdemar\/cases\/([1-9]\d?)(?:\/(reward|open|second|solution|sample|deduce|ending|stage|mode|inventory|pair-state|mansion))?$/.exec(path);
   const id = match ? Number(match[1]) : null;
   if ((!walletRoute && !seasonsRoute && !gamesRoute && !sealRoute && !match) || id>WORLD_CASE_COUNT) throw new ApiError(404,'Esta historia no está disponible.');
   const newWorld = id > CASE_ORDER.length;
   const action = match?.[2] || 'read';
-  if (method !== (action==='read' || action==='pair-state' ? 'GET' : 'POST')) throw new ApiError(405,'Método no permitido.');
+  if(action==='mansion' && id!==1)throw new ApiError(404,'Esta mansión pertenece al primer caso.');
+  if (action==='mansion' ? !['GET','POST'].includes(method) : method !== (action==='read' || action==='pair-state' ? 'GET' : 'POST')) throw new ApiError(405,'Método no permitido.');
   return withValdemarTransaction(withStore, async store => {
     const reservation=id && store.getCasePartner ? await store.getCasePartner(uid,id,Date.now()) : null;
     const poll=action==='pair-state';
@@ -255,8 +386,9 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const record=pair?pair.progress:personal;
     const mode=pair?'duo':accepted || !editorial && personal?.mode==='duo'?'solo':playModes.has(personal?.mode)?personal.mode:null;
     if(poll)return pair
-      ? {partner,mode,waitingForPartner:false,sharedHintCount:record.sharedHints?.length||0,hour:{current:record.choice?5:record.hourStep||0,inventory:{revision:record.inventoryRevision||0}},progress:{deduced:record.deduced===true,choice:record.choice||null}}
+      ? {partner,mode,waitingForPartner:false,...(id===1?{mansionRevision:record.mansion?.revision||0,edition:record.mansionEdition}:{}),sharedHintCount:record.sharedHints?.length||0,hour:{current:record.choice?5:record.hourStep||0,inventory:{revision:record.inventoryRevision||0}},progress:{deduced:record.deduced===true,choice:record.choice||null}}
       : {partner:null,mode,waitingForPartner};
+    if(action==='mansion')return mansionSession({store,data,uid,scope,editorial,pair,mode,partner,waitingForPartner,input,method,access,loadRelease});
     if (action==='mode') {
       const mode=input?.mode;
       if (!playModes.has(mode)) throw new ApiError(400,'Elige jugar en solitario o en pareja.','INVALID_PLAY_MODE');
@@ -272,6 +404,10 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
         data.valdemarCaseProgress ||= {};
         const cases=data.valdemarCaseProgress[scope] ||= {};
         const saved=cases[id] ||= {};
+        if(id===1 && input.mansionEntry && !alreadyStarted) {
+          saved.mansionLegacy=false;
+          saved.mansionEdition='mansion';
+        }
         saved.mode=mode;
         recordCaseActivity(data,scope,id,alreadyStarted,'mode');
         await store.saveMemberData(uid,data);
@@ -314,7 +450,8 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     const keyChallenge=availableKeyChallenge(access,wallet,id,release);
     if (action !== 'read') return {wallet,hints,keyChallenge,hintOptions,sharedHintCount,...(newWorld && action==='reward' ? {feedback:story.side.success} : {})};
     const role=partner?.role;
-    const dossier = {story:visibleStory(story,role),hour:readHour(story,record,role),wallet,hints,progress:visibleProgress(record,story),
+    const legacyRecord=record?.choice===mansionEnding?{...record,choice:null}:record;
+    const dossier = {story:visibleStory(story,role),hour:readHour(story,legacyRecord,role),wallet,hints,progress:visibleProgress(legacyRecord,story),
       mode,partner,waitingForPartner,keyChallenge,hintOptions,sharedHintCount,parallelPrize:parallelPrize(id),editorialPreview:editorial===true};
     if (newWorld) return {...dossier,side:visibleSide(story.side,role)};
     const gameScript = await asset('valdemar-challenges-'+Math.ceil(id/4)+'.js');

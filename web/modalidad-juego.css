@@ -49,7 +49,7 @@
 }
 
 .vd-player[data-play-mode="pending"] .gm-enter,
-.vd-player[data-play-mode="pending"] > :is(.vd-tabs,.vd-pair,.vd-panel,.md-game-tabs,.md-game-panel) {display:none}
+.vd-player[data-play-mode="pending"] > :is(.vd-tabs,.vd-pair,.vd-panel,.md-game-tabs,.md-game-panel,.mansion-game-area) {display:none}
 .expedition-inventory :is(select,button) {max-inline-size:100%;min-block-size:2.75rem;white-space:normal}
 .expedition-inventory fieldset {min-inline-size:0}
 .expedition-inventory :is(label,blockquote,summary,p) {overflow-wrap:anywhere}

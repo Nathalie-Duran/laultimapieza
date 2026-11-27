@@ -2,7 +2,7 @@
   'use strict';
 
   const cases = [
-    ['Mundos cruzados', 'La estación', 'En 1996, una voz pide que guardéis una cinta para Ada. Treinta años después, ¿dónde debe buscarla?', 'Explora la estación antes de las obras.', 'Sigue en 2026 el rastro de los objetos que sobrevivieron.', 'Una cinta de casete sobre el banco verde de una estación bajo la lluvia.'],
+    ['El secreto de los dos mundos', 'La mansión de Valdemar', 'Ada os envía una fotografía de vuestra infancia. Reconocéis vuestras caras. Ninguno recuerda esa casa.', 'Explora la mansión habitada. Habla con Elías y pon en marcha los mecanismos de Ada.', 'Cruza su versión abandonada. Lee los rastros que han sobrevivido y envía objetos al otro lado.', 'La verja y la fachada de piedra de Valdemar bajo la tormenta.', '/mansion-room-1.webp'],
     ['Hotel Medianoche', 'El hotel', 'Llegan tres huéspedes con una llave cada uno. Las tres abren la habitación 14. ¿Cuál de ellos es el hermano de la mujer que llama desde dentro?', 'Desde recepción, escucha a los huéspedes y revisa las reservas.', 'En el turno de noche, atiende la centralita y consulta los planos.', 'Tres llaves y un timbre de latón sobre el mostrador del hotel.'],
     ['Cita en otra vida', 'El último tren', 'Llevas una carta que tu madre te pidió entregar. En el último tren, el pasajero de enfrente reconoce la letra de su padre. ¿Qué pasó en aquella cita de hace veinticinco años?', 'Llevas una carta que tu madre te pidió entregar.', 'Reconoces la letra de tu padre y conservas un billete sin usar.', 'Dos pasajeros frente a frente en el tren, con una carta entre ambos.'],
     ['Frecuencia 23:17', 'La emisora', 'Un padre y su hija llaman a una emisora desde años distintos. ¿A quién devolverías la llamada?', 'Escucha las dos emisiones desde la mesa de sonido.', 'Contrasta lo que oyes con las antiguas parrillas de programación.', 'Un micrófono junto a la mesa de sonido, con una onda amarilla en el monitor.'],
@@ -31,7 +31,7 @@
     return '<div class="vd-cards">'+items.filter(item=>item.month===month).map(item=>
       `<article class="vd-card"><a href="${path(item.id)}" aria-label="Ver ${esc(item.title)}">
         <div class="vd-photo"><img src="${item.image}" alt="" width="764" height="508" loading="lazy" decoding="async"><span class="vd-location">${esc(item.place)}</span></div>
-        <div class="vd-card-copy"><h3>${esc(item.title)}</h3><p>${esc(item.question)}</p><div class="vd-card-foot"><span>≈ 60 min · 1–2 personas</span><span class="vd-open" aria-hidden="true">→</span></div></div>
+        <div class="vd-card-copy"><h3>${esc(item.title)}</h3><p>${esc(item.question)}</p><div class="vd-card-foot"><span>${item.id===1?'75–90 min':'≈ 60 min'} · 1–2 personas</span><span class="vd-open" aria-hidden="true">→</span></div></div>
       </a></article>`
     ).join('')+'</div>';
   }
@@ -56,12 +56,42 @@
         <p class="vd-call-result" role="status" data-vd-call-result></p><div class="vd-call-next" data-vd-call-next hidden>${cta}</div></div>
       </details></section>`;
   }
+  function mansionCover(detailView=false,unlocked=false) {
+    const letter=detailView
+      ? '<button type="button" data-mansion-letter>Abrir la carta de Ada</button>'
+      : '<a href="/valdemar/01/?carta=1">Abrir la carta de Ada</a>';
+    const enter='<a href="/#valdemar-jugar?id=1">Entrar en la mansión</a>';
+    const alternate=detailView ? '<a href="/vallejo.html?caso=01">Jugar la demo de Clínica Vallejo</a>' : '<a href="/vallejo.html">Jugar la demo de Clínica Vallejo</a>';
+    return `<section class="mansion-entry mansion-entry-cover" aria-labelledby="mansion-entry-title">
+      <div class="mansion-entry-art"><img src="/mansion-room-1.webp" alt="La verja de hierro entreabierta da paso a la mansión de Valdemar." width="800" height="520" fetchpriority="high"></div>
+      <div class="mansion-entry-copy"><p class="mansion-entry-kicker">Valdemar · Episodio 01</p><h1 id="mansion-entry-title">El secreto de los dos mundos</h1>
+      <p>Ada os envía una foto de vuestra infancia tomada frente a una casa que ninguno recuerda. Cuando llegáis, uno encuentra luz en las ventanas. El otro las ve tapiadas.</p>
+      <div class="mansion-entry-actions">${unlocked?enter+letter:letter+alternate}</div>
+      <p class="mansion-entry-format">Aventura gráfica · 1–2 jugadores · 75–90 min estimados</p></div></section>`;
+  }
+  function mansionDetail(unlocked,message) {
+    return `<article class="mansion-public"><nav class="vd-route-links" aria-label="Explorar Valdemar"><a class="vd-back" href="/#casos?mes=1">Volver a los casos de Valdemar</a></nav>
+      ${mansionCover(true,unlocked)}
+      <details class="mansion-letter" id="carta-de-ada"><summary>El sobre de Ada <span>Prólogo gratuito</span></summary>
+        <div class="mansion-letter-inside"><div><p class="mansion-paper-label">Correspondencia privada</p><h2>«No confiéis en los relojes»</h2>
+        <p>Si estáis leyendo esto, significa que he fracasado. Debéis regresar a Valdemar. No confiéis en vuestros recuerdos. No confiéis en los relojes. Y, sobre todo, si escucháis mi voz detrás de una puerta, no la abráis.</p>
+        <p>Lo que ocurrió aquella noche no fue un accidente. Tenéis que encontrar la primera pieza.</p><p class="mansion-signature">A.</p>
+        <audio controls preload="none" aria-label="Escuchar la carta de Ada" src="/mansion-ada-letter.wav"></audio></div>
+        <figure class="mansion-postcard"><img src="/mansion-photo.webp" alt="Dos niños de la mano ante la verja de Valdemar. Una mano adulta asoma en el borde." width="640" height="420" loading="lazy"><figcaption>En el reverso, con tinta azul: «Antes de que se separara la casa».</figcaption></figure></div>
+        <div class="mansion-threshold"><h3>Al otro lado de la verja</h3><p>Examina la entrada desde los ojos de cada protagonista.</p>
+        <div class="mansion-era-controls" role="group" aria-label="Perspectiva"><button type="button" data-mansion-world="A" aria-pressed="true">La casa habitada</button><button type="button" data-mansion-world="B" aria-pressed="false">La casa abandonada</button></div>
+        <figure><img data-mansion-threshold-image src="/mansion-room-1.webp" width="800" height="520" alt="La entrada de la mansión habitada" loading="lazy"><figcaption data-mansion-threshold-note aria-live="polite">Hay luz en las ventanas. El guardián espera junto a la verja.</figcaption></figure>
+        <p>Cinco capítulos, ocho escenarios y quince pruebas os separan de la cámara de resonancia.</p>
+        <div class="mansion-era-controls"><a href="${unlocked?'/#valdemar-jugar?id=1':'/#planes'}">${unlocked?'Entrar en la mansión':'Ver el pase para continuar'}</a></div><small>${esc(message)}</small></div>
+      </details></article>`;
+  }
   function detail(id,opts={}) {
     const item=get(id);
     if(!item)return '<section class="vd-section"><h1>Historia no encontrada</h1><a class="vd-textlink" href="/#casos">Volver a las doce historias</a></section>';
     const unlocked=access(item,opts);
     const message=unlocked?(opts.fullyPaid?'Incluida en tus bloques abonados de Valdemar.':'Incluida en tu acceso.'):opts.canPlay?`Se abre en el mes ${item.month} de tu pase.`:`Incluida en el mes ${item.month} del recorrido por los cuatro tableros.`;
     const cta=entry(item,opts,unlocked);
+    if(item.id===1)return mansionDetail(unlocked,message);
     const sample=item.id===2?`<button type="button" data-vd-start class="${unlocked?'vd-ghost':'vd-cta'}">Atender la llamada</button>`:'';
     const demo=`<a class="vd-ghost" href="/vallejo.html?caso=${number(item.id)}">Probar Clínica Vallejo gratis</a>`;
     const actions=item.id===2?(unlocked?cta+sample:sample+cta.replace('class="vd-cta"','class="vd-ghost"')):cta;
@@ -72,5 +102,5 @@
       <section class="vd-brief"><div><h2>Los papeles de esta historia</h2><p>A solas puedes abrir las dos carpetas. Para compartir el caso, elegíos en vuestros perfiles y pulsad «En pareja» desde vuestras cuentas. El primero recibe el papel 1 y el segundo, el papel 2.</p><a class="vd-textlink" href="/#perfil">Ver mi compañero de juego</a></div><ol><li><strong>Papel 1</strong>${esc(item.roleA)}</li><li><strong>Papel 2</strong>${esc(item.roleB)}</li></ol></section>
       <p class="vd-method">Cruza audios, imágenes, documentos y archivos web. Los retos paralelos dan llaves para consultar pistas.</p></article>`;
   }
-  window.ValdemarCatalog=Object.freeze({items:Object.freeze(items),get,path,access,home,list,detail});
+  window.ValdemarCatalog=Object.freeze({items:Object.freeze(items),get,path,access,home,list,detail,mansionCover});
 })();

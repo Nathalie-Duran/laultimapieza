@@ -72,7 +72,7 @@
         <div class="vdp-still-top"><span class="vdp-plate">Caso ${num(item.id)}${recovered?' · Pieza recuperada':''}</span><nav class="vdp-neighbors" aria-label="Recorrer los lugares del plano">${nearby(places,item,month,-1)}${nearby(places,item,month,1)}</nav></div>
         <div class="vdp-caption"><p class="vdp-location">${esc(item.place)}</p><h2 class="vdp-title" id="vdp-title" data-vdp-focus="detail" tabindex="-1">${esc(item.title)}</h2></div>
       </header>
-      <div class="vdp-place-copy"><p class="vdp-question">${esc(item.question)}</p><ul class="vdp-format" aria-label="Formato del caso"><li>Mes ${item.month}</li><li>≈ 60 min</li><li>1–2 personas</li></ul><p class="vdp-access">${availability}</p><div class="vdp-actions">${primary}</div><button type="button" class="vdp-back-map" data-vdp-focus="return">Volver al plano</button></div></aside>`;
+      <div class="vdp-place-copy"><p class="vdp-question">${esc(item.question)}</p><ul class="vdp-format" aria-label="Formato del caso"><li>Mes ${item.month}</li><li>${item.id===1?'75–90 min':'≈ 60 min'}</li><li>1–2 personas</li></ul><p class="vdp-access">${availability}</p><div class="vdp-actions">${primary}</div><button type="button" class="vdp-back-map" data-vdp-focus="return">Volver al plano</button></div></aside>`;
   }
 
   function remember() {

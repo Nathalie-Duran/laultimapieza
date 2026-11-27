@@ -12,9 +12,12 @@ function countWalletHints(row, seasons, hints, first, now) {
   for (const kind of hintKinds) {
     const hint = hints[kind];
     const dated = new Set();
+    const counted = new Set();
     for (const entry of row.entries || []) {
       if (entry?.kind !== kind || !Number.isInteger(entry.caseId) || entry.caseId < 1 || entry.caseId > seasons.length*12) continue;
-      if (dated.has(entry.caseId) || !Number.isFinite(entry.at) || !Number.isInteger(entry.amount) || entry.amount > 0) continue;
+      const purchaseId=entry.id ?? entry.caseId;
+      if (counted.has(purchaseId) || !Number.isFinite(entry.at) || !Number.isInteger(entry.amount) || entry.amount > 0) continue;
+      counted.add(purchaseId);
       dated.add(entry.caseId);
       if (entry.at < first || entry.at > now) continue;
       const season = seasons[Math.floor((entry.caseId-1)/12)];

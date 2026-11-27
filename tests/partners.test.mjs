@@ -6,6 +6,7 @@ import {ApiError} from '../auth-provider.mjs';
 import {createGameApi} from '../game-api.mjs';
 import {valdemarRequest} from '../valdemar-api.mjs';
 import {worldSeasonAccess} from '../valdemar-wallet.mjs';
+import {mansionFixture} from './mansion-fixture.mjs';
 
 const origin='https://example.test';
 const config={apiKey:'fixture',projectId:'fixture',appId:'fixture',authDomain:'fixture.test'};
@@ -24,11 +25,93 @@ const story={
 function clues(section){
   return ['A','B','AB'].map(role=>({id:role,label:'Fuente '+role,kind:'text',role,body:'contenido-'+role+'-'+section}));
 }
+
+test('la ruta de la mansión distingue guardados nuevos, históricos y editoriales',async()=>{
+  const h=harness(), path='/api/valdemar/cases/1/mansion';
+  assert.equal((await h.call('eve',path)).status,402);
+  await h.fund('alice');
+  const shell=await h.ok('alice',path);
+  assert.equal(shell.edition,'mansion');assert.equal(shell.mansion,null);
+  await h.game('alice','/mode',{mode:'solo',mansionEntry:true});
+  const initial=await h.ok('alice',path);
+  assert.equal(initial.mansion.current,1);
+  assert.deepEqual(initial.mansion.stage.hintOptions.map(hint=>[hint.cost,hint.text]),[[1,null],[2,null],[3,null]]);
+  await assert.rejects(h.game('alice','/mansion',{op:'hint',stage:1,tier:'open',quotedCost:0}),{code:'HINT_PRICE_CHANGED'});
+  await assert.rejects(h.game('alice','/mansion',{op:'hint',stage:1,tier:'solution',quotedCost:3}),{code:'NOT_ENOUGH_KEYS'});
+  const [paid,retry]=await Promise.all([1,2].map(()=>h.ok('alice',path,{op:'hint',stage:1,tier:'open',quotedCost:1})));
+  assert.equal(paid.mansion.balance,0);assert.equal(retry.mansion.balance,0);
+  assert.ok(retry.mansion.stage.hintOptions[0].text);assert.equal(retry.mansion.stage.hintOptions[2].text,null);
+  assert.equal(retry.wallet.history.filter(entry=>entry.kind==='open').length,1);
+  const answers=mansionFixture.levels[0].solution;
+  await h.ok('alice',path,{op:'solve',stage:1,answers});
+  const personal=await h.ok('alice','/api/valdemar/partidas');
+  assert.equal(personal.games[0].total,15);assert.equal(personal.games[0].current,1);
+  assert.equal(personal.games[0].title,'El secreto de los dos mundos');
+  assert.equal(personal.games[0].checkpoint.title,mansionFixture.levels[1].title);
+  await h.fund('bob');
+  await h.game('bob','/stage',{index:0,choice:['b']});
+  assert.equal((await h.ok('bob',path)).edition,'choose');
+  await h.ok('bob',path,{op:'start'});await h.game('bob','/mode',{mode:'solo',mansionEntry:true});
+  await h.ok('bob',path,{op:'solve',stage:1,answers});
+  await h.ok('bob',path,{op:'legacy'});
+  assert.equal((await h.game('bob')).hour.current,1);
+  assert.equal((await h.ok('bob',path,{op:'start'})).mansion.current,2);
+  await h.game('editor','/mode',{mode:'duo',mansionEntry:true});
+  const editorial=await h.ok('editor',path,{op:'inspect',paper:'B'});
+  assert.equal(editorial.mansion.role,'B');assert.equal(editorial.mansion.current,1);
+  assert.equal(h.album('editor','paid')[1],undefined);
+});
+
+test('una pareja confirma las dos realidades, comparte cargos y cierra el álbum de ambos una sola vez',async()=>{
+  const h=harness(), path='/api/valdemar/cases/1/mansion';
+  for(const who of ['alice','bob'])await h.fund(who);
+  const {id:partnerId}=await h.startPair('alice',1,'bob');
+  await h.choose('bob',1);
+  const act=(who,input)=>h.ok(who,path,{partnerId,...input});
+  const a=await h.ok('alice',path),b=await h.ok('bob',path);
+  assert.equal(a.mansion.role,'A');assert.equal(b.mansion.role,'B');
+  assert.equal(a.legacy,false);assert.equal(b.legacy,false);
+  assert.deepEqual(a.names,{A:'alice',B:'bob'});
+  const hint={op:'hint',stage:1,tier:'open',quotedCost:1};
+  await act('alice',hint);const shared=await act('bob',hint);
+  assert.equal(shared.mansion.balance,1);
+  assert.ok(shared.mansion.stage.hintOptions[0].text);
+  assert((await h.ok('bob','/api/valdemar/cases/1/pair-state')).mansionRevision>0);
+  for(let stage=1;stage<=14;stage++){
+    const level=mansionFixture.levels[stage-1];
+    for(const action of level.actions || [])await act(action.role==='B'?'bob':'alice',{op:'act',stage,action:action.id});
+    const answer=await act(stage%2?'alice':'bob',{op:'solve',stage,answers:level.solution});
+    assert.equal(answer.mansion.current,stage+1);
+  }
+  const quest=mansionFixture.sideQuests.find(q=>q.id==='nox');
+  const mission={op:'solve',stage:15,mission:quest.id,answers:quest.solution};
+  assert.equal((await act('alice',mission)).missionReward,1);assert.equal((await act('bob',mission)).changed,false);
+  const panelAnswers=panel=>({panel,secuencia:mansionFixture.panelAnswers[panel]});
+  assert.equal((await act('alice',{op:'solve',stage:15,answers:panelAnswers('A')})).mansion.completed,false);
+  assert.equal((await h.call('alice',path,{partnerId,op:'solve',stage:15,paper:'B',answers:panelAnswers('B')})).httpStatus,403);
+  const closed=await act('bob',{op:'solve',stage:15,answers:panelAnswers('B')});
+  assert.equal(closed.mansion.completed,true);
+  assert.equal((await act('bob',{op:'solve',stage:15,answers:panelAnswers('B')})).changed,false);
+  for(const who of ['alice','bob']){
+    const data=await h.ok(who,'/api/valdemar/partidas');
+    assert.deepEqual(data.access.completed,[1]);assert.equal(data.games[0].finished,true);
+    assert.equal(data.career.pieces[0],1);
+    assert.equal(data.career.achievements.find(a=>a.name==='El despertar de Valdemar').progress,1);
+    assert.equal(data.career.rewards.find(a=>a.name==='Aventuras terminadas').count,1);
+    const bag=(await h.ok(who,'/api/valdemar/wallet')).wallet;
+    assert.equal(bag.history.filter(row=>row.kind==='mission').length,1);
+    assert.equal(bag.history.filter(row=>row.kind==='mansionEnding').length,1);
+    assert.equal(bag.balance,who==='alice'?2:3);
+  }
+  await h.game('alice','/mode',{partnerId,mode:'solo'});
+  assert.equal((await h.ok('bob',path)).mansion.completed,true);
+  assert.equal((await h.call('alice',path,{partnerId,op:'inspect'})).httpStatus,409);
+});
 const twoPapers={...story,id:13,evidenceCards:clues('expediente'),roles:['contenido-A-consigna','contenido-B-consigna'],
   side:{title:'Comparar las fuentes',mode:'multi',options:[],materials:clues('reto')},
   hour:{stages:story.hour.stages.map((stage,i)=>({...stage,materials:clues('etapa-'+i),
     corroboration:{prompt:'Contrasta dos fuentes',answer:['A','B']}}))}};
-const releases={stories:[story],samples:[],nuevos:[twoPapers]};
+const releases={stories:[{...story,mansionEdition:mansionFixture}],samples:[],nuevos:[twoPapers]};
 
 // Each request gets an isolated transaction. A failed acceptance must leave both seats available for retry.
 function harness(){
@@ -92,7 +175,7 @@ function harness(){
       return {seasonAccess,canPlay:member.active===true&&seasonAccess.availableCases.length>0};
     }
   };
-  const api=createGameApi({config,withStore,billing,stories:[],origins:[origin],isAdministrator:isGameEditor,verify:async request=>{
+  const api=createGameApi({config,withStore,billing,loadValdemarRelease:async()=>releases,stories:[],origins:[origin],isAdministrator:isGameEditor,verify:async request=>{
     const uid=request.headers.get('authorization');
     if(!['alice','bob','eve','editor','curator','lookalike'].includes(uid))throw new ApiError(401,'Inicia sesión.');
     return identity(uid);

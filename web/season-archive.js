@@ -20,7 +20,8 @@
   }
   function caseCard(game,featured=false) {
     const first = game.id <= 12;
-    const story = caseInfo(game.id);
+    const catalogStory = caseInfo(game.id);
+    const story = catalogStory && game.title ? {...catalogStory,title:game.title,...(game.edition==='legacy'?{image:'/valdemar-art-01.webp'}:{})} : catalogStory;
     if (!story) return null;
     const season=window.Colecciones.seasons[Math.floor((game.id-1)/12)];
     const item = element('li', null, featured?'sa-card sa-featured':'sa-card');

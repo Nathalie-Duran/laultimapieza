@@ -220,6 +220,21 @@ test('the personal index shows actual progress and side puzzles after expiry, wi
   api=service(old);assert((await api.call('partidas')).games.every(g=>g.available===false));
   assert.equal(api.loads,0);await assert.rejects(api.call('partidas',{}),{status:405});
 });
+
+test('retomar la estación después de cerrar la mansión conserva su etapa y el sello global',async()=>{
+  const data=memberAt(1);
+  data.valdemarCaseProgress={paid:{1:{mode:'solo',mansionLegacy:true,mansionEdition:'legacy',hourStep:2,
+    choice:'mansion-sealed',mansion:{current:15,completed:true,missions:[]}}}};
+  const api=service(data);
+  const index=await api.call('partidas');
+  assert.deepEqual(index.access.completed,[1]);
+  assert.equal(index.games[0].finished,false);assert.equal(index.games[0].current,2);
+  assert.equal(index.games[0].title,'Mundos cruzados · La estación');
+  const before=await api.call('cases/1');assert.equal(before.hour.current,2);assert.equal(before.progress.choice,null);
+  await api.call('cases/1/stage',{index:2,choice:['x','z']});
+  assert.equal((await api.call('cases/1')).hour.current,3);
+  assert.deepEqual((await api.call('seasons')).completed,[1]);
+});
 test('each of the four board seals counts distinct local endings only and guards its private epilogue after expiry or reset',async()=>{
   for(const number of numbers(1,4)){
     const base=(number-1)*12;

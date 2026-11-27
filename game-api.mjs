@@ -42,7 +42,7 @@ async function body(request,limit=16384) {
 }
 // Fail closed until a payment provider supplies verified, current entitlements.
 // No browser field, profile edit or local import can grant paid access.
-export function createGameApi({config,storageReady=true,verify,withStore,engine,stories,origins=[],authorizePlay=async()=>false,billing=null,isAdministrator=()=>false}) {
+export function createGameApi({config,storageReady=true,verify,withStore,engine,stories,origins=[],authorizePlay=async()=>false,billing=null,isAdministrator=()=>false,loadValdemarRelease}) {
   const rates=new Map();
   const noticeWindow={end:0,count:0};
   async function requireSubscription(store,uid,user,caseId){
@@ -114,7 +114,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       }
       if(path.startsWith('/api/valdemar/')){
         const {valdemarRequest}=await import('./valdemar-api.mjs');
-        return json(await valdemarRequest({path,method,input,uid,editorial:isAdministrator(user),withStore,billing}));
+        return json(await valdemarRequest({path,method,input,uid,editorial:isAdministrator(user),withStore,billing,loadRelease:loadValdemarRelease}));
       }
       if(path==='/api/admin/analytics'&&method==='GET'){
         if(!canManageSite(user))fail(403,'Esta vista está reservada a la propietaria.');

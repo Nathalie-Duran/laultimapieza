@@ -1,0 +1,20 @@
+.mansion-public{max-width:88rem;margin-inline:auto}.mansion-public>.vd-route-links{padding-block:.6rem}
+.mansion-entry-cover{grid-template-columns:minmax(0,1fr);min-height:clamp(27rem,49vw,43rem);margin-block:.5rem 2rem;align-content:end;border:1px solid #7e795e;border-radius:6px;position:relative;overflow:hidden}
+.mansion-entry-cover .mansion-entry-art{position:absolute;inset:0;min-height:0}
+.mansion-entry-cover .mansion-entry-art img{object-position:50% 47%}
+.mansion-entry-cover::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(9,16,18,.94) 0%,rgba(11,20,21,.78) 36%,rgba(11,20,21,.12) 76%),linear-gradient(0deg,rgba(11,17,20,.5),transparent 45%)}
+.mansion-entry-cover .mansion-entry-copy{position:relative;z-index:1;max-width:45rem;padding:clamp(1.4rem,5vw,4.75rem);color:#f7efdc}
+.mansion-entry-cover .mansion-entry-copy p:not(.mansion-entry-kicker){color:#e2e2d5}
+.mansion-entry-cover .mansion-entry-format{font-size:.86rem;margin:.95rem 0 0}
+.mansion-entry-cover .mansion-entry-actions :is(a,button){min-block-size:44px}
+.mansion-entry-cover .mansion-entry-actions :is(a,button):first-child,.mansion-era-controls a{background:#edd397;color:#242719;border:1px solid #e6c785;border-radius:4px;font-weight:700;padding:.72rem 1rem;text-decoration:none;cursor:pointer}
+.mansion-entry-cover .mansion-entry-actions :is(a,button):not(:first-child){color:#f4e6c8;background:rgba(10,18,20,.63);border:1px solid #a9a086;border-radius:4px;padding:.7rem 1rem;cursor:pointer}
+.mansion-letter{background:#12201f;border:1px solid #655f4c;color:#f6f0e1;border-radius:5px;max-width:80rem;margin:1.25rem auto 3rem;scroll-margin-top:5rem}
+.mansion-letter>summary{padding:1.1rem 1.5rem;cursor:pointer;font:bold 1.15rem/1.5 Georgia,serif}.mansion-letter>summary span{font:normal .85rem/1.5 system-ui;margin-left:.9rem;color:#d7c494}
+.mansion-letter-inside{padding:clamp(1.25rem,4vw,3.25rem);background:#e6dbbd;color:#322a1e;display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(1rem,4vw,4rem);align-items:center}
+.mansion-letter-inside :is(h2,p,figcaption){color:inherit}.mansion-letter-inside h2{font:normal clamp(1.9rem,4vw,3.5rem)/1.12 Georgia,serif;margin-block:.6rem 1.25rem}.mansion-letter-inside p{font:1.12rem/1.7 Georgia,serif;max-width:52ch}
+.mansion-letter-inside .mansion-signature{font:italic 2rem/1 Georgia,serif}.mansion-letter-inside .mansion-paper-label{font:600 .75rem/1.4 system-ui;letter-spacing:.13em;text-transform:uppercase}
+.mansion-letter audio{max-width:100%}.mansion-postcard{margin:0;padding:.6rem .6rem .95rem;background:#f8f0da;box-shadow:0 .5rem 1.5rem #241e1c44;transform:rotate(1deg)}.mansion-postcard img,.mansion-threshold img{width:100%;height:auto;display:block}.mansion-postcard figcaption{font:italic .97rem/1.45 Georgia,serif;margin:.65rem .45rem 0}
+.mansion-threshold{padding:clamp(1.25rem,4vw,3rem)}.mansion-threshold h3{font:normal 2rem Georgia,serif;color:#f4e6cb;margin:0}.mansion-threshold figure{margin:1rem 0}.mansion-threshold figcaption{display:block;padding:.7rem 0;color:#e5dbbf}.mansion-threshold img{max-height:28rem;object-fit:cover;object-position:center}.mansion-threshold small{display:block;margin-top:1rem;color:#c9cec0}
+.mansion-era-controls{display:flex;flex-wrap:wrap;gap:.6rem}.mansion-era-controls button{min-height:44px;padding:.6rem .95rem;background:#1a2827;color:#f6ebd4;border:1px solid #777c6d;border-radius:3px;cursor:pointer}.mansion-era-controls button[aria-pressed=true]{border-color:#ecd29a;box-shadow:inset 0 -3px #ecd29a}.mansion-public :focus-visible{outline:3px solid #f7c85c;outline-offset:3px}
+@media(max-width:680px){.mansion-entry-cover{min-height:32rem}.mansion-entry-cover::after{background:linear-gradient(0deg,#0d1718 3%,rgba(13,23,24,.89) 36%,rgba(13,23,24,.12) 77%)}.mansion-entry-cover .mansion-entry-art img{object-position:58% 30%}.mansion-entry-cover .mansion-entry-copy{padding:1.4rem}.mansion-letter-inside{grid-template-columns:1fr}.mansion-postcard{max-width:27rem;transform:none}.mansion-entry-cover .mansion-entry-copy h1{font-size:clamp(2rem,10vw,3.25rem)!important}}

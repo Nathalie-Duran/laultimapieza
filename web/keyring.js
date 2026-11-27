@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const titles={open:'Pista orientativa',second:'Pista detallada',solution:'Solución explicada',
-    reward:'Reto paralelo',challenge:'Desafío publicado',mission:'Misión secreta',renewal:'Renovación mensual',welcome:'Bienvenida'};
+    reward:'Reto paralelo',challenge:'Desafío publicado',mansionArcade:'Minijuego de la mansión',mansionEnding:'Desenlace de la mansión',mission:'Misión secreta',renewal:'Renovación mensual',welcome:'Bienvenida'};
   const keys=n=>n+(n===1?' llave':' llaves');
   function node(tag,label) {
     const element=document.createElement(tag);
