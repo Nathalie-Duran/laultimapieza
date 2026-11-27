@@ -227,7 +227,13 @@
     else if(item.kind==='ledger')content=evidenceTable(item);
     else if(item.kind==='visual')content=diagram(item);
     else content=el('p',item.body,'vhour-prose');
-    node.append(summary,content);
+    if(state.station && (item.id==='croquis'||item.id==='onda')){
+      const image=el('img',null,'vd-station-plate');
+      image.src=item.id==='croquis'?'/croquis-deposito.png':'/tiras-calibracion.png';
+      image.alt=item.label;
+      image.loading='lazy';
+      node.append(summary,image,fold('Leer la descripción de la lámina',content));
+    }else node.append(summary,content);
     node.addEventListener('toggle',()=>{if(!node.open && state.voice && node.contains(state.voice.button))stopVoice(state);});
     return node;
   }
@@ -507,7 +513,7 @@
     return wrap;
   }
   function mount(node,initial,controller) {
-    const state={voice:null};
+    const state={voice:null,station:controller.station};
     let hour=initial;
     const main=el('div',null,'vhour-chapter');
     let hotel;
@@ -551,7 +557,31 @@
             shelf.append(drawer);
           } else if(tool)shelf.append(tool);
         }
-        workbench.append(shelf,decision(stage,index,controller,(next,note)=>{controller.change(next);render(next,note,true);}));
+        const task=decision(stage,index,controller,(next,note)=>{controller.change(next);render(next,note,true);});
+        if(controller.station){
+          const cards=()=>Array.from(shelf.querySelectorAll('.vhour-material')).filter(card=>!card.hidden);
+          const inspect=(card)=>{
+            card.open=true;
+            const label=card.querySelector('summary');
+            label.focus({preventScroll:true});label.scrollIntoView({block:'start'});
+          };
+          const first=control('Abrir mi primera prueba',()=>{
+            const card=cards()[0];if(card)inspect(card);
+          },'vd-primary');
+          main.append(first);
+          for(const card of shelf.querySelectorAll('.vhour-material')){
+            const next=control('Continuar',()=>{
+              const list=cards(),target=list[list.indexOf(card)+1];
+              if(target)inspect(target);
+              else{const title=task.querySelector('h4');title.tabIndex=-1;title.focus();title.scrollIntoView({block:'start'});}
+            },'vd-station-next');
+            card.addEventListener('toggle',()=>{
+              if(card.open){next.textContent=cards().at(-1)===card?'Responder a la hipótesis':'Abrir la siguiente prueba';}
+            });
+            card.append(next);
+          }
+        }
+        workbench.append(shelf,task);
         main.append(workbench);
         if(focus){heading.focus({preventScroll:true});heading.scrollIntoView?.({block:'start',behavior:'instant'});}
       } else {

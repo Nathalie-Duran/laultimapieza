@@ -475,3 +475,14 @@
   min-block-size:2.8rem;padding:.65rem .8rem;border:1px solid #819989;border-radius:.3rem;
   background:#e6eee4;color:#284639;cursor:pointer;font:650 1rem/1.45 var(--sans,system-ui,sans-serif);
 }
+[data-vd-case="01"] .vd-station-plate{display:block;width:100%;height:auto;max-width:60rem;margin:1rem auto}
+[data-vd-case="01"] .vd-station-next{display:block;min-height:44px;margin:1rem 0;padding:.6rem 1rem}
+[data-vd-case="01"] .vhour-workbench{display:block}
+[data-vd-case="01"] .vhour-task{margin-top:1.25rem}
+[data-vd-case="01"] .vhour-chapter>button{margin:.35rem 0 1rem}
+[data-vd-case="01"][data-play-mode="pending"] .vd-station-start{display:none}
+[data-vd-case="01"] summary,[data-vd-case="01"] .vhour-task h4{scroll-margin-top:5rem}
+[data-vd-case="01"] .vd-station-duo{display:none}
+[data-vd-case="01"][data-play-mode="duo"] .vd-station-duo{display:block}
+[data-vd-case="01"][data-play-paper="A"] .vd-board table:nth-of-type(2),
+[data-vd-case="01"][data-play-paper="B"] .vd-board table:nth-of-type(1){display:none}

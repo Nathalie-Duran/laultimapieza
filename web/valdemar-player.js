@@ -133,7 +133,7 @@
     if(c.hotel)c.hotel.hidden=view!=='hotel';
     for(const [id,b] of c.viewButtons)b.setAttribute('aria-pressed',String(id===view));
     if(desk&&!c.deskMounted) {
-      if(c.id===1)c.station(c.evidence);
+      if(c.id===1){if(!c.data.hour)c.station(c.evidence);}
       else window.montarMesa(c.evidence,c.data.sample,answer=>request(c,'sample',{answer}));
       c.deskMounted=true;
     }
@@ -191,7 +191,7 @@
     if(c.data.hour && window.ValdemarHour){
       const hourNode=element('div');c.desk.append(hourNode);
       c.hourView=window.ValdemarHour.mount(hourNode,c.data.hour,{
-        hotelNode:c.hotel,role:c.data.partner?.role,
+        hotelNode:c.hotel,role:c.data.partner?.role,station:c.id===1,
         submit:(index,choice,sources)=>request(c,'stage',{index,choice,...(sources?{sources}:{})}),
         reload:async()=>{const latest=await request(c);c.data.progress=latest.progress;return latest.hour;},
         change:hour=>{c.data.hour=hour;renderEnding(c);},
@@ -199,6 +199,7 @@
         finish:()=>selectView(c,'ending',true)
       });
     }
+    if(c.id===1 && c.hourView)return;
     c.desk.append(buildDocuments(c),element('h3','Pruebas compartidas'),c.evidence);
     c.desk.append(button('Contrastar la deducción final',()=>selectView(c,'ending',true),'vd-primary'));
   }
@@ -308,6 +309,7 @@
     c.deskToggle.setAttribute('aria-controls',c.desk.id);
     c.deskToggle.setAttribute('aria-expanded','false');
     heading.append(element('h2',c.game.title),element('p',c.game.pitch,'vd-note'),c.deskToggle);
+    if(c.id===1)heading.append(element('p','Cada persona ve las vías de su época. Acordad una dirección en voz alta y pulsadla en las dos pantallas. Si os equivocáis, deshaced el movimiento en ambas.','vd-station-duo'));
     c.gamePanel.append(heading,c.board,c.rewardStatus,c.retryReward,c.restart,
       button('Consultar mi sobre',()=>selectView(c,'help',true),'vd-link'));
   }
@@ -390,6 +392,12 @@
     });
     description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title),c.modeControl.entry,element('p',story.question,'vd-question'));
     if(story.intro)description.append(element('p',story.intro,'vd-narrative'));
+    if(c.id===1 && c.data.hour){
+      description.append(button('Continuar mi investigación',()=>{
+        if(c.data.hour.stage){selectView(c,'desk');c.hourView.focusStage();}
+        else selectView(c,'ending',true);
+      },'vd-primary vd-station-start'));
+    }
     head.append(description,still);
     const nav=element('nav',null,'vd-tabs');nav.setAttribute('aria-label','Mesa de juego');
     c.viewButtons=new Map();
@@ -400,7 +408,7 @@
     if(c.data.hour?.hotel && window.ValdemarHour){c.hotel=element('section',null,'vd-panel vhour vhour-hotel-panel');c.hotel.tabIndex=-1;}
     buildDesk(c);buildGame(c);renderEnding(c);updateWallet(c,c.data);
     c.pair.append(c.gamePanel,c.desk);
-    c.frame.replaceChildren(head,nav,c.modeControl.change,c.pair,c.help,c.ending);
+    c.frame.replaceChildren(head,nav,...(c.id===1?[]:[c.modeControl.change]),c.pair,c.help,c.ending);
     if(c.hotel){
       c.hotel.append(button('Volver a la investigación',()=>selectView(c,'desk',true),'vd-primary'));
       c.frame.append(c.hotel);
