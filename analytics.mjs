@@ -350,7 +350,8 @@ export async function readAnalytics(query, {days, billingEnabled, stories}) {
     JSON_UNQUOTE(JSON_EXTRACT(m.data_json,'$.progressReset.at')) AS reset_at,
     JSON_EXTRACT(m.data_json,'$.cycles') AS cycles
     FROM lup_member_data m WHERE (JSON_EXTRACT(m.data_json,'$.valdemarCaseProgress.paid') IS NOT NULL
-      OR JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid') IS NOT NULL)
+      OR JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid') IS NOT NULL
+      OR JSON_LENGTH(JSON_EXTRACT(m.data_json,'$.cycles')) > 0)
       AND NOT EXISTS (SELECT 1 FROM lup_editorial_users e WHERE e.user_id=m.user_id)`);
   const seasonActivity = summarizeSeasonActivity(seasonRows.map(row => ({
     progress:jsonValue(row.progress,{}), resetAt:timestamp(row.reset_at),

@@ -19,7 +19,12 @@ export async function createRuntimeApi(env=process.env) {
   const api=createGameApi({config,storageReady:databaseConfigured(env),verify:createIdentityVerifier(config),withStore,billing,authorizePlay:billing.canPlay,isAdministrator,
     engine:context.GameEngine,stories:context.STORIES,
     origins:(env.APP_ORIGINS||'https://laultimapieza.es,https://www.laultimapieza.es,https://yxkiqfgt3l.c35.airoapp.ai,https://yxkiqfgt3l.preview.c35.airoapp.ai').split(',').map(s=>s.trim()).filter(Boolean)});
-  api.processMail=()=>mailer.process(withStore);
+  api.processMail=async()=>{
+    if(!mailer.enabled)return;
+    await withStore(store=>store.queueActivePublications());
+    await withStore(store=>store.queueDueReminders());
+    await mailer.process(withStore);
+  };
   let pricingBusy=false,backfillComplete=false;
   api.processPartnerOffers=async()=>{
     if(pricingBusy||!databaseConfigured(env))return;

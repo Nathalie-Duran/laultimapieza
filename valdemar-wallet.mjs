@@ -4,6 +4,11 @@ import { hasCaseActivity,recordCaseActivity } from './season-activity.mjs';
 
 export const WORLD_CASE_COUNT = SEASON_NAMES.length*12;
 const CASES_PER_BLOCK = 4;
+export const hintFees = Object.freeze({open:1,second:2,solution:3});
+const hintFields = {open:'opened',second:'second',solution:'solution'};
+
+// Cases in the final block of each board use the advanced reward.
+export function parallelPrize(id) { return (id-1)%12 >= 8 ? 2 : 1; }
 
 function createWallet() {
   return { welcomes: [], won: [], opened: [], second: [] };
@@ -13,6 +18,37 @@ function walletRecord(data, editorial) {
   data.valdemarSeasonOne ||= {};
   const scope = editorial ? 'editorial' : 'paid';
   return data.valdemarSeasonOne[scope] ||= createWallet();
+}
+
+function ledger(wallet) {
+  if (!wallet.entries) {
+    wallet.legacyEnvelopes = [...wallet.opened];
+    const historic = (kind,id,amount,caseId=null) => ({kind,id,amount,caseId,at:null});
+    wallet.entries = [
+      ...wallet.welcomes.slice(wallet.clearedWelcomes||0).map(id=>historic('welcome',id,1)),
+      ...wallet.won.map(id=>historic('reward',id,1,id)),
+      ...wallet.opened.map(id=>historic('open',id,-1,id)),
+      ...wallet.second.map(id=>historic('second',id,0,id))
+    ];
+  }
+  return wallet.entries;
+}
+
+function addEntry(wallet,kind,id,amount,caseId=null,at=Date.now()) {
+  const entries=ledger(wallet);
+  if(entries.some(row=>row.kind===kind && row.id===id))return false;
+  entries.push({kind,id,amount,caseId,at});
+  return true;
+}
+
+export function creditSecretMission(data,scope,id,amount) {
+  if(!Number.isInteger(id)||id<1||id>WORLD_CASE_COUNT||![1,2,3].includes(amount))throw new Error('Premio de misión no válido.');
+  return addEntry(walletRecord(data,scope==='editorial'),'mission',id,amount,id);
+}
+
+export function creditPublishedChallenge(data,scope,challengeId,caseId,advanced=false) {
+  if(typeof challengeId!=='string'||!challengeId||!Number.isInteger(caseId)||caseId<1||caseId>WORLD_CASE_COUNT)throw new Error('Reto publicado no válido.');
+  return addEntry(walletRecord(data,scope==='editorial'),'challenge',challengeId,advanced?2:1,caseId);
 }
 
 // The caller owns the locked member record and commits the classic and Valdemar reset together.
@@ -25,7 +61,8 @@ export function resetValdemarProgress(data,{editorial=false,now=Date.now()}={}) 
     const wallet=walletRecord(data,scope==='editorial');
     const welcomes=[...new Set([...wallet.welcomes,...(scope==='paid'?subscriptions:['editorial'])])];
     // Retain the identities of previously granted welcomes across repeated resets and billing sync.
-    data.valdemarSeasonOne[scope]={...createWallet(),welcomes,clearedWelcomes:welcomes.length};
+    const ignoredRenewals=scope==='paid' ? [...new Set((data.cycles||[]).filter(c=>c.start<=now && c.renewal).map(renewalPeriod))] : [];
+    data.valdemarSeasonOne[scope]={...createWallet(),welcomes,clearedWelcomes:welcomes.length,ignoredRenewals};
   }
 }
 
@@ -37,6 +74,8 @@ function currentPaidSubscription(data, now) {
   );
   return paidPeriod ? data.subscription : null;
 }
+
+function renewalPeriod(cycle) { return cycle.subscription+'/'+cycle.start; }
 
 export function worldSeasonAccess(data,{editorial=false,now=Date.now(),active=Boolean(currentPaidSubscription(data,now)),purchaseHeld=false}={}) {
   const paid = seasonBlocks(data.cycles || [],now).filter(c=>!c.revoked && c.start<=now);
@@ -63,7 +102,7 @@ export function worldSeasonAccess(data,{editorial=false,now=Date.now(),active=Bo
     completed.push(...finished);
     previousReady = previousReady && finished.length===12;
   }
-  return {availableCases,completed,seasons,nextPurchase};
+  return {availableCases,completed,seasons,nextPurchase,billingPlan:data.billingPlan||'season'};
 }
 
 // Called in the same locked member transaction as the verified Stripe update.
@@ -72,27 +111,41 @@ export function creditValdemarWelcome(data, now = Date.now()) {
   const subscription = currentPaidSubscription(data, now);
   if (!subscription) return false;
   const wallet = walletRecord(data, false);
-  if (wallet.welcomes.includes(subscription)) return false;
-  wallet.welcomes.push(subscription);
-  return true;
+  let changed=false;
+  if (!wallet.welcomes.includes(subscription)) {
+    addEntry(wallet,'welcome',subscription,1,null,now);
+    wallet.welcomes.push(subscription);
+    changed=true;
+  }
+  for(const cycle of data.cycles||[]){
+    if(cycle.plan==='four-boards-v1' && cycle.renewal && cycle.id && !cycle.revoked && cycle.start<=now &&
+        !wallet.ignoredRenewals?.includes(renewalPeriod(cycle))) {
+      changed=addEntry(wallet,'renewal',renewalPeriod(cycle),1,null,cycle.start)||changed;
+    }
+  }
+  return changed;
 }
 
 function snapshot(wallet) {
   const gift = Math.max(0,wallet.welcomes.length-(wallet.clearedWelcomes||0));
+  const entries=ledger(wallet);
   return {
     gift,
-    balance: gift + wallet.won.length - wallet.opened.length,
+    balance: entries.reduce((sum,row)=>sum+row.amount,0),
     won: [...wallet.won],
     opened: [...wallet.opened],
-    second: [...wallet.second]
+    second: [...wallet.second],
+    solution:[...(wallet.solution||[])],
+    legacyEnvelopes:[...wallet.legacyEnvelopes],
+    history:entries.map(({kind,caseId,amount,at})=>({kind,caseId,amount,at}))
   };
 }
 
 // Caller supplies the authenticated owner and server-verified editorial role,
 // checks access, and verifies the challenge before allowing "reward".
 // getMemberData SELECTs FOR UPDATE and saveMemberData uses the same connection.
-export async function valdemarWallet(store, ownerUid, { editorial = false, seasonAccess, summaryOnly = false }, op = 'read', caseId) {
-  if (!['read', 'reward', 'open', 'second'].includes(op) ||
+export async function valdemarWallet(store, ownerUid, { editorial = false, seasonAccess, summaryOnly = false, pair, checkPrice=false, quotedCost }, op = 'read', caseId) {
+  if (!['read', 'reward', 'open', 'second','solution'].includes(op) ||
       (op !== 'read' && (!Number.isInteger(caseId) || caseId < 1 || caseId > WORLD_CASE_COUNT))) {
     throw new ApiError(400, 'Elige una acción y una historia de la temporada.');
   }
@@ -113,30 +166,33 @@ export async function valdemarWallet(store, ownerUid, { editorial = false, seaso
   const wallet = walletRecord(data, editorial);
   const scope = editorial ? 'editorial' : 'paid';
   const alreadyStarted = op !== 'read' && hasCaseActivity(data,scope,caseId);
+  ledger(wallet);
   if (editorial && !wallet.welcomes.length) {
+    addEntry(wallet,'welcome','editorial',1);
     wallet.welcomes.push('editorial');
     changed = true;
   }
   if (op === 'reward' && !wallet.won.includes(caseId)) {
+    addEntry(wallet,'reward',caseId,parallelPrize(caseId),caseId);
     wallet.won.push(caseId);
     recordCaseActivity(data,scope,caseId,alreadyStarted,'reward',now);
     changed = true;
   }
-  if (op === 'open' && !wallet.opened.includes(caseId)) {
-    if (snapshot(wallet).balance < 1) {
-      throw new ApiError(409, 'Gana una llave en un reto paralelo para abrir este sobre.', 'NOT_ENOUGH_KEYS');
+  if (Object.hasOwn(hintFields,op) && !pair?.progress?.sharedHints?.includes(op)) {
+    const purchased=wallet[hintFields[op]] ||= [];
+    if (!purchased.includes(caseId)) {
+      const price=op==='second' && wallet.legacyEnvelopes.includes(caseId) ? 0 : hintFees[op];
+      if (snapshot(wallet).balance < price)throw new ApiError(409,'Te faltan llaves para esta pista. Puedes ganarlas en los retos paralelos.','NOT_ENOUGH_KEYS');
+      if(checkPrice && price && price!==quotedCost)throw new ApiError(409,'Actualiza la página para consultar el precio actual de esta pista.','HINT_PRICE_CHANGED');
+      addEntry(wallet,op,caseId,price ? -price : 0,caseId);
+      purchased.push(caseId);
+      recordCaseActivity(data,scope,caseId,alreadyStarted,op,now);
+      changed=true;
     }
-    wallet.opened.push(caseId);
-    recordCaseActivity(data,scope,caseId,alreadyStarted,'open',now);
-    changed = true;
-  }
-  if (op === 'second' && !wallet.second.includes(caseId)) {
-    if (!wallet.opened.includes(caseId)) {
-      throw new ApiError(409, 'Abre primero el sobre de esta historia.', 'ENVELOPE_CLOSED');
+    if(pair) {
+      (pair.progress.sharedHints ||= []).push(op);
+      await store.savePartner(pair);
     }
-    wallet.second.push(caseId);
-    recordCaseActivity(data,scope,caseId,alreadyStarted,'second',now);
-    changed = true;
   }
   if (changed) await store.saveMemberData(ownerUid, data);
   return snapshot(wallet);

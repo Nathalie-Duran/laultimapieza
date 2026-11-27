@@ -156,3 +156,23 @@
   }
   .management .mg-goal-values > div { min-width: 0; max-width: 100%; }
 }
+.mg-review, .mg-review [data-mg-review-fields], .mg-review label {
+  display: grid;
+  gap: .6rem;
+}
+.mg-review { max-width: 42rem; }
+.mg-review select, .mg-review textarea, .mg-review input {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  color: var(--mg-paper);
+  background: var(--mg-panel);
+  border: 1px solid var(--mg-rule);
+  border-radius: .4rem;
+  padding: .65rem;
+}
+.mg-review textarea { resize: vertical; }
+.mg-review [hidden] { display: none; }
+.mg-review fieldset { display: grid; min-width: 0; gap: .75rem; margin: .75rem 0; border: 1px solid var(--mg-rule); }
+.mg-review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.mg-review-actions a { color: var(--mg-gold); }

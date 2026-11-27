@@ -5,6 +5,7 @@ import { checkPuzzle } from './progression.mjs';
 import { adminMembership, canManageSite } from './admin-access.mjs';
 import { worldSeasonAccess } from './valdemar-wallet.mjs';
 import { mailKey } from './mail-service.mjs';
+import {noticePreferences,validateNoticePrefs} from './play-notices.mjs';
 import {checkRetiredSession, resetPersonalProgress} from './progress-reset.mjs';
 import {partnerRequest} from './partner-api.mjs';
 
@@ -31,10 +32,10 @@ function visibleSession(session){
   }
   return visible;
 }
-async function body(request) {
+async function body(request,limit=16384) {
   if(!(request.headers.get('content-type')||'').startsWith('application/json')) fail(415,'La petición debe contener JSON.');
   const raw=await request.text();
-  if(Buffer.byteLength(raw)>16384) fail(413,'La petición es demasiado grande.');
+  if(Buffer.byteLength(raw)>limit) fail(413,'La petición es demasiado grande.');
   let result;try{result=JSON.parse(raw);}catch{fail(400,'La petición no es válida.');}
   if(!result||typeof result!=='object'||Array.isArray(result)) fail(400,'La petición no es válida.');
   return result;
@@ -90,7 +91,18 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       const now=Date.now(),rate=rates.get(uid);
       if(rate&&rate.until>now){if(++rate.count>180)fail(429,'Espera unos segundos antes de continuar.');}
       else {if(rates.size>10000)rates.clear();rates.set(uid,{count:1,until:now+60000});}
-      const input=method==='GET'?null:await body(request);
+      const input=method==='GET'?null:await body(request,path==='/api/admin/challenges'&&canManageSite(user)?65536:16384);
+      if(path==='/api/me/play-notices'){
+        if(user.emailVerified!==true)fail(403,'Confirma tu correo para gestionar estos avisos.');
+        if(method==='GET')return json(await withStore(async store=>{
+          const row=await store.getNoticePrefs(uid);
+          return {preferences:noticePreferences(row?.email===user.email?row:null)};
+        }));
+        if(method!=='PUT')fail(405,'Método no permitido.');
+        if(!origin||!origins.includes(origin))fail(403,'Abre las preferencias desde tu cuenta.');
+        const prefs=validateNoticePrefs(input);
+        return json(await withStore(async store=>({preferences:await store.putNoticePrefs(uid,user.email,prefs)})));
+      }
       if(path==='/api/partners'||path.startsWith('/api/partners/')){
         return json(await partnerRequest({path,method,input,user,withStore,billing,editorial:isAdministrator(user)===true}));
       }
@@ -108,8 +120,43 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         if(!canManageSite(user))fail(403,'Esta vista está reservada a la propietaria.');
         const days=Number(url.searchParams.get('days')||30);
         if(![7,30,90].includes(days))fail(400,'Elige 7, 30 o 90 días.');
-        const report=await withStore(async store=>{await store.markEditorial(uid);return store.analytics({days,billingEnabled:billing?.configured===true,stories});});
+        const report=await withStore(async store=>{
+          const data=await store.analytics({days,billingEnabled:billing?.configured===true,stories});
+          return {...data,caseReviews:await store.readCaseReviews(uid)};
+        });
         return json(report);
+      }
+      if(path==='/api/admin/case-review'){
+        if(!canManageSite(user)||!origin||!origins.includes(origin))fail(403,'Esta operación está reservada a la propietaria.');
+        if(method!=='PUT')fail(405,'Método no permitido.');
+        const {saveCaseReview}=await import('./case-review.mjs');
+        return json(await withStore(store=>saveCaseReview(store,uid,input)));
+      }
+      if(path==='/api/admin/accounts/search'){
+        if(!canManageSite(user)||!origin||!origins.includes(origin))fail(403,'Esta consulta está reservada a la propietaria.');
+        if(method!=='POST')fail(405,'Método no permitido.');
+        const name=typeof input.name==='string' ? input.name.trim() : '';
+        if(!name || name.length>32)fail(400,'Escribe el nombre de perfil completo.');
+        return json(await withStore(store=>store.lookupManagementAccounts(name)));
+      }
+      if(path==='/api/admin/challenges'){
+        if(!canManageSite(user))fail(403,'Esta edición está reservada a la propietaria.');
+        if(method==='GET')return json(await withStore(async store=>({items:await store.listChallenges()})));
+        if(method!=='PUT')fail(405,'Método no permitido.');
+        if(!origin||!origins.includes(origin))fail(403,'Abre el panel desde la web.');
+        const {validateChallenge}=await import('./published-challenges.mjs');
+        const value=validateChallenge(input);
+        return json(await withStore(async store=>{
+          const result=await store.saveChallenge(value);
+          if(value.status==='published')await store.queuePublication?.(value.id);
+          return result;
+        }));
+      }
+      if(path==='/api/published-challenges'){
+        if(!['GET','POST'].includes(method))fail(405,'Método no permitido.');
+        if(method==='POST'&&(!origin||!origins.includes(origin)))fail(403,'Abre el desafío desde la web.');
+        const {playPublished}=await import('./published-challenges.mjs');
+        return json(await withStore(store=>playPublished(store,{uid,billing,editorial:isAdministrator(user),input})));
       }
       const result=await withStore(async store=>{
         const profile=await store.ensureProfile(user);
@@ -134,6 +181,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         if(path==='/api/me/progress/reset'&&method==='POST')
           return resetPersonalProgress(store,uid,input,isAdministrator(user),user.emailVerified===true?user.email:'');
         if(path==='/api/bootstrap'&&method==='GET'){
+          if(user.emailVerified===true)await store.visitForNotices?.(uid,user.email);
           if(isAdministrator(user)&&store.markEditorial)await store.markEditorial(uid);
           if(billing?.refreshOfferIdentity)await billing.refreshOfferIdentity(store,user,isAdministrator(user)===true);
           const sessions=await store.listSessions(uid);

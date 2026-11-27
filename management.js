@@ -292,6 +292,78 @@
       return metricRow(label, group.eligible > 0 ? ratio(group.renewed, group.eligible) + ' · ' + fraction : fraction);
     }).join('')}</dl><p class="mg-note">${note}</p></section>`;
   }
+  const reviewLabels = {pending:'Pendiente', reviewing:'En revisión', ready:'Revisado'};
+  function accountLookupPanel() {
+    return `<section class="mg-panel mg-block"><h2>Consultar una cuenta</h2>
+      <form class="mg-review" data-mg-account><label>Nombre de perfil completo<input name="name" required maxlength="32" autocomplete="off"></label>
+      <div><button type="submit" class="mg-refresh">Buscar perfil</button></div>
+      <p role="status" class="mg-note" aria-live="polite"></p><div data-mg-results></div></form></section>`;
+  }
+  async function lookupAccounts(form) {
+    if (!permitted() || form.dataset.searching) return;
+    const submit = form.querySelector('button'), status = form.querySelector('[role="status"]'), results = form.querySelector('[data-mg-results]');
+    submit.disabled = true;
+    form.dataset.searching = '1';
+    results.replaceChildren();
+    status.textContent = 'Buscando perfiles…';
+    try {
+      const data = await root.GameAccountBridge.request('/api/admin/accounts/search',{name:form.elements.name.value},'POST');
+      if (!permitted() || !form.isConnected) return;
+      status.textContent = data.more ? 'Se muestran las diez altas más recientes con ese nombre.' :
+        data.accounts.length ? 'Perfiles encontrados: '+format(data.accounts.length)+'.' : 'Ningún perfil coincide con ese nombre.';
+      const seasons = report?.seasonActivity?.seasons || [];
+      results.innerHTML = data.accounts.map(account => `<article><h3>${escape(account.name)}</h3><p>Alta el ${dateText(account.registeredAt)} · ${account.paidPeriod ? 'Con cuota vigente' : 'Sin cuota vigente'} según el último pago registrado.</p>
+        <div class="mg-table-wrap"><table><thead><tr><th>Tablero</th><th>Bloques pagados</th><th>Casos disponibles</th><th>Casos resueltos</th></tr></thead><tbody>${account.boards.map(board=>
+          `<tr><th scope="row">${escape(seasons[board.number-1]?.name || 'Tablero '+board.number)}</th><td>${format(board.blocks)}</td><td>${format(board.available)}</td><td>${format(board.completed)}</td></tr>`).join('')}</tbody></table></div></article>`).join('');
+    } catch (error) {
+      if (permitted() && form.isConnected) status.textContent = error.message || 'No se ha podido consultar el perfil.';
+    } finally {
+      delete form.dataset.searching;
+      submit.disabled = false;
+    }
+  }
+  function caseName(id) {
+    const list = id <= 12 ? root.ValdemarCatalog?.items : root.MundosCatalogo;
+    return list?.find(item => item.id === id)?.title || 'Caso ' + ((id-1)%12+1);
+  }
+  function reviewFields(id, data) {
+    const review = data.caseReviews?.[id];
+    return `<label>Estado editorial<select name="status">${Object.entries(reviewLabels).map(([key, label]) =>
+      `<option value="${key}" ${key === (review?.status || 'pending') ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
+      <label>Nota interna<textarea name="note" maxlength="500" rows="3">${escape(review?.note || '')}</textarea></label>
+      <div class="mg-review-actions"><a href="#${id <= 12 ? 'valdemar' : 'mundos'}-jugar?id=${id}">Abrir caso</a>
+      <button class="mg-refresh" type="submit">Guardar revisión</button></div>
+      <p class="mg-note" role="status" aria-live="polite">${review?.updatedAt ? 'Última revisión el '+dateText(review.updatedAt, updatedFormat)+' (hora de Madrid).' : ''}</p>`;
+  }
+  function reviewPanel(data) {
+    if (!data.seasonActivity || !data.caseReviews) return '';
+    const options = data.seasonActivity.seasons.map(s => `<optgroup label="${escape(s.name)}">${s.cases.map(c => {
+      const id = (s.number-1)*12+c.number;
+      return `<option value="${id}">${String(c.number).padStart(2,'0')} · ${escape(caseName(id))}</option>`;
+    }).join('')}</optgroup>`).join('');
+    return `<section class="mg-panel mg-block"><h2>Revisión de contenidos</h2><p class="mg-note">Guarda las incidencias de las pruebas, los audios y las pistas de cada caso. Estas notas solo aparecen en gestión.</p>
+      <form class="mg-review" data-mg-review><label>Caso<select name="caseId">${options}</select></label><div data-mg-review-fields>${reviewFields(1, data)}</div></form></section>`;
+  }
+  async function saveReview(form) {
+    const previousReport = report;
+    if (!permitted() || !previousReport || form.dataset.saving) return;
+    const id = Number(form.elements.caseId.value);
+    const input = {caseId:id,status:form.elements.status.value,note:form.elements.note.value,version:previousReport.caseReviews[id]?.version || 0};
+    const status = form.querySelector('[role="status"]');
+    form.dataset.saving = '1';
+    for (const field of form.elements) field.disabled = true;
+    try {
+      const review = await root.GameAccountBridge.request('/api/admin/case-review',input,'PUT');
+      if (report !== previousReport || !permitted() || !form.isConnected) return;
+      previousReport.caseReviews[id] = review;
+      status.textContent = 'Revisión guardada.';
+    } catch (error) {
+      if (permitted() && form.isConnected) status.textContent = error.message || 'No se ha podido guardar la revisión.';
+    } finally {
+      delete form.dataset.saving;
+      for (const field of form.elements) field.disabled = false;
+    }
+  }
   function boardReport(data) {
     const board = data.seasonActivity;
     if (!board) return '';
@@ -308,7 +380,9 @@
     )).join('');
     return `<section class="mg-panel mg-block"><div class="mg-section-heading"><h2>Juego de pago en los cuatro tableros</h2><span>48 casos</span></div>
       <p class="mg-note">${coverage}En cada temporada se muestran las partidas guardadas que empezaron durante el periodo elegido y cuántas de ellas ya tienen desenlace.</p>
-      <dl class="mg-rows">${metricRow('Titulares que empezaron su primer caso en el periodo',format(board.firstPlayers))}${seasons.map(s => metricRow(escape(s.name), format(s.started)+' iniciadas · '+format(s.completed)+' resueltas')).join('')}</dl>
+      <dl class="mg-rows">${metricRow('Titulares que empezaron su primer caso en el periodo',format(board.firstPlayers))}</dl>
+      <div class="mg-table-wrap" tabindex="0" role="region" aria-label="Actividad por tablero"><table><thead><tr><th scope="col">Tablero</th><th scope="col">Titulares que jugaron</th><th scope="col">Partidas iniciadas</th><th scope="col">De ellas, resueltas</th><th scope="col">Titulares con cuota en curso hoy</th></tr></thead><tbody>${seasons.map(s => `<tr><th scope="row">${escape(s.name)}</th><td>${valid(board.since) ? format(s.activeHolders) : 'N/D'}</td><td>${format(s.started)}</td><td>${format(s.completed)}</td><td>${format(s.paidPeriodHolders)}</td></tr>`).join('')}</tbody></table></div>
+      <p class="mg-note">Cada titular cuenta una vez por tablero, incluso si retomó una partida anterior. Las cuotas se atribuyen al tablero del bloque pagado.</p>
       <details class="mg-details"><summary>Ver los 48 casos</summary><div class="mg-table-wrap" tabindex="0" role="region" aria-label="Casos de temporada"><table><thead><tr><th scope="col">Caso</th><th scope="col">Iniciadas</th><th scope="col">Resueltas</th></tr></thead><tbody>${seasons.map(s=>s.cases.map(c=>{
         const id=(s.number-1)*12+c.number, name=names.find(item=>item.id===id)?.title;
         return `<tr><th scope="row">T${s.number} · ${String(c.number).padStart(2,'0')}${name?' · '+escape(name):''}</th><td>${format(c.started)}</td><td>${format(c.completed)}</td></tr>`;
@@ -333,7 +407,8 @@
     const content = el.querySelector('.mg-content');
     saveGoalField(el);
     content.innerHTML = summary(data) + monthlyGoal(data) + comparison(data) + chart(data)
-      + boardReport(data) + '<div class="mg-columns mg-block">' + activation(data) + renewals(data) + '</div>' + activity(data) + details(data);
+      + boardReport(data) + reviewPanel(data) + (root.EditorialChallenges?.adminView() || '') + accountLookupPanel() + '<div class="mg-columns mg-block">' + activation(data) + renewals(data) + '</div>' + activity(data) + details(data);
+    root.EditorialChallenges?.adminMount();
     const goal = el.querySelector('[data-mg-target]');
     goal.dataset.lastHandled = goal.value;
     const onGoalInput = () => {
@@ -399,8 +474,22 @@
         } else if (button.matches('[data-mg-refresh],[data-mg-retry]') && !loading) load();
         else if (button.matches('[data-mg-export]') && report) downloadDaily(report, el);
       });
+      el.addEventListener('submit', event => {
+        if (event.target.matches('[data-mg-account]')) {
+          event.preventDefault();
+          lookupAccounts(event.target);
+          return;
+        }
+        if (!event.target.matches('[data-mg-review]')) return;
+        event.preventDefault();
+        saveReview(event.target);
+      });
       el.addEventListener('change', event => {
         if (!permitted()) { clear(); return; }
+        if (event.target.matches('[data-mg-review] [name="caseId"]') && report) {
+          event.target.form.querySelector('[data-mg-review-fields]').innerHTML = reviewFields(Number(event.target.value),report);
+          return;
+        }
         if (!event.target.matches('[data-mg-chart]') || !Object.hasOwn(charts, event.target.value) || !report) return;
         selectedChart = event.target.value;
         el.querySelector('.mg-chart-body').innerHTML = chartBody(report);
