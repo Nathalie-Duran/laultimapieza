@@ -618,12 +618,22 @@
       }
     }
     render(hour);
-    return {update:next=>render(next),updateInventory:value=>{hour.inventory=value;hotel?.update(value.hotel);inventory?.update(value,hour.current);},pause:()=>stopVoice(state),focusStage(){
+    function focusStage(){
       const heading=main.querySelector('h3');
       if(!heading)return;
       heading.focus({preventScroll:true});
       heading.scrollIntoView({block:'start',behavior:'instant'});
-    }};
+    }
+    return {
+      update:next=>render(next),
+      updateInventory:value=>{hour.inventory=value;hotel?.update(value.hotel);inventory?.update(value,hour.current);},
+      pause:()=>stopVoice(state),
+      focusStage,
+      enter(){
+        if(!hour.stage){controller.finish();return;}
+        if(!inventory?.startExploring())focusStage();
+      }
+    };
   }
   window.ValdemarHour={mount,proofShelf,decision,stopVoice,filterByRole};
 })();

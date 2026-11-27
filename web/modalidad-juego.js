@@ -20,24 +20,31 @@
     let paper=partner?.role==='B'?'B':'A';
     let disposed=false,pending=false,loading=false,waiting=Boolean(data.waitingForPartner && !partner),timer;
     
-    const views=[];
-    const entry=element('section','gm-entry'),change=element('section','gm-change');
+    const entry=element('section','gm-entry');
     const panel=element('div','gm-panel'),roles=element('div','gm-roles'),tools=element('div','gm-tools');
     const status=element('p','gm-status');status.setAttribute('role','status');status.tabIndex=-1;
+    const roleLine=element('p','gm-role-line');
+    const group=element('div','gm-options');
+    entry.setAttribute('aria-label','Cómo quieres jugar');
+    group.setAttribute('role','group');group.setAttribute('aria-label','Modalidad de la partida');
+    const solo=button('En solitario',soloChoice),duo=button('En pareja',duoChoice);
+    const preview=editorial?button('Revisión editorial de los dos papeles',previewChoice):null;
+    group.append(solo,duo);
+    entry.append(element('h2','gm-label','Cómo quieres jugar'),group);
+    if(preview){preview.className+=' gm-preview';entry.append(preview);}
     panel.append(roles,tools,status);
+    entry.append(roleLine,panel);
     const partnerName=partner?.name||'Tu pareja';
     function display(message='') {
       frame.dataset.playMode=waiting?'pending':mode||'pending';frame.dataset.playPaper=waiting?'':mode==='duo'?paper:'all';
       frame.dataset.pairWaiting=String(waiting);
-      for(const {solo,duo,preview,roleLine} of views){
-        solo.setAttribute('aria-pressed',String(mode==='solo'&&!waiting));
-        duo.setAttribute('aria-pressed',String(Boolean(partner)||waiting));
-        solo.disabled=duo.disabled=pending;
-        if(preview){preview.setAttribute('aria-pressed',String(mode==='duo'));preview.disabled=pending;}
-        if(roleLine)roleLine.textContent=waiting?'Esperando a tu compañero':mode==='duo'
-          ?(editorial?'Vista editorial · Papel ':'Tu papel ')+(paper==='A'?'1':'2')+(partner?' · '+partnerName+' lleva el papel '+(paper==='A'?'2':'1'):'')
-          :'';
-      }
+      solo.setAttribute('aria-pressed',String(mode==='solo'&&!waiting));
+      duo.setAttribute('aria-pressed',String(Boolean(partner)||waiting));
+      solo.disabled=duo.disabled=pending;
+      if(preview){preview.setAttribute('aria-pressed',String(mode==='duo'&&!waiting));preview.disabled=pending;}
+      roleLine.textContent=!waiting&&mode==='duo'
+        ?(editorial?'Vista editorial · Papel ':'Tu papel ')+(paper==='A'?'1':'2')+(partner?' · '+partnerName+' lleva el papel '+(paper==='A'?'2':'1'):'')
+        :'';
       if(message)status.textContent=message;
     }
     function tasks() {
@@ -54,8 +61,7 @@
       window.ValdemarHour.filterByRole(frame,mode==='duo'?paper:'');
       onPaper?.(mode==='duo'?paper:'');
     }
-    function movePanel(box) {
-      if(panel.parentElement!==box)box.append(panel);
+    function clearTools() {
       tools.replaceChildren();status.textContent='';
     }
     function showPairTools() {
@@ -92,9 +98,9 @@
       }catch(error){if(!disposed)display(error.message||'No se ha podido guardar la modalidad.');}
       finally{if(!disposed){pending=false;display();}}
     }
-    function soloChoice(box) {
+    function soloChoice() {
       if(pending||disposed)return;
-      movePanel(box);
+      clearTools();
       if(!partner){
         if(waiting||mode!=='solo')return setMode('solo');
         else{tasks();display('Puedes consultar las pistas de ambos papeles.');}
@@ -105,7 +111,7 @@
         confirm.disabled=back.disabled=true;
         try{await setMode('solo');}finally{confirm.disabled=back.disabled=false;}
       });
-      const back=button('Seguir en pareja',()=>{movePanel(box);showPairTools();views.find(view=>view.box===box)?.duo.focus();});
+      const back=button('Seguir en pareja',()=>{clearTools();showPairTools();duo.focus();});
       actions.append(confirm,back);
       tools.append(element('p','gm-description','Si dejas la partida en pareja, cada persona conservará lo que ya habéis resuelto.'),actions);confirm.focus();
     }
@@ -140,9 +146,9 @@
       }
       tools.append(profileLink('Elegir mi compañero desde el perfil'));
     }
-    async function duoChoice(box) {
+    async function duoChoice() {
       if(pending||disposed)return;
-      movePanel(box);
+      clearTools();
       if(partner){tasks();showPairTools();display();return;}
       pending=true;roles.replaceChildren();display('Comprobando este juego…');
       try {
@@ -164,26 +170,14 @@
         if(!disposed){display(error.message||'No se ha podido guardar tu elección.');tools.append(profileLink('Ver mi compañero'));}
       }finally{if(!disposed){pending=false;display();}}
     }
-    function previewChoice(box) {
+    function previewChoice() {
       if(!editorial||partner||pending||disposed)return;
       if(waiting){display('Para revisar los papeles, retira primero tu elección pasando a solitario.');return;}
-      movePanel(box);
+      clearTools();
       if(mode!=='duo')return setMode('duo');
       tasks();showPairTools();display();
     }
-    function choices(box,title) {
-      box.setAttribute('aria-label',title);
-      const group=element('div','gm-options');group.setAttribute('role','group');group.setAttribute('aria-label','Modalidad de la partida');
-      const solo=button('En solitario',()=>soloChoice(box)),duo=button('En pareja',()=>duoChoice(box));
-      group.append(solo,duo);box.append(element('h2','gm-label',title),group);
-      const preview=editorial?button('Revisión editorial de los dos papeles',()=>previewChoice(box)):null;
-      if(preview){preview.className+=' gm-preview';box.append(preview);}
-      const roleLine=box===change?element('p','gm-role-line'):null;
-      if(roleLine)box.append(roleLine);
-      views.push({box,solo,duo,preview,roleLine});
-    }
-    choices(entry,'Cómo quieres jugar');choices(change,'Modalidad de la partida');
-    entry.append(panel);tasks();if(waiting)showWaiting();else showPairTools();display();
+    tasks();if(waiting)showWaiting();else showPairTools();display();
     const observer=new MutationObserver(records=>{
       for(const record of records)for(const node of record.addedNodes) {
         if(node.nodeType===1 && (node.matches('.vhour-shelf')||node.querySelector('.vhour-shelf'))){
@@ -208,7 +202,7 @@
         if(!disposed && partner)display(error.message||'No se ha podido actualizar la partida. Volveremos a intentarlo.');
       } finally {loading=false;}
     }
-    return {entry,change,get mode(){return mode;},
+    return {entry,get mode(){return mode;},
       mount(){
         applyPapers();observer.observe(frame,{childList:true,subtree:true});
         document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);setPolling();

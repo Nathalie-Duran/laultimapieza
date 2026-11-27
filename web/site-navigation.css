@@ -243,3 +243,20 @@ details.archive-memories[open],
     order: 6;
   }
 }
+
+@media (max-width: 760px) {
+  .mobile-nav,
+  .postal-visitor .mobile-nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: .125rem;
+    padding-inline: .25rem;
+  }
+  .mobile-nav a,
+  .postal-visitor .mobile-nav a {
+    min-width: 0;
+    min-height: 44px;
+    font-size: clamp(.68rem, 3vw, .83rem);
+    text-align: center;
+  }
+  .postal-visitor .mobile-nav [aria-hidden="true"] { display: none; }
+}

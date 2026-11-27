@@ -374,11 +374,11 @@
     });
     description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title),c.modeControl.entry,element('p',story.question,'vd-question'));
     if(story.intro)description.append(element('p',story.intro,'vd-narrative'));
-    if(c.id===1 && c.data.hour){
-      description.append(button('Continuar mi investigación',()=>{
-        if(c.data.hour.stage){selectView(c,'desk');c.hourView.focusStage();}
-        else selectView(c,'ending',true);
-      },'vd-primary vd-station-start'));
+    if(c.data.hour){
+      description.append(button('Ir a mi investigación',()=>{
+        selectView(c,'desk');
+        c.hourView.enter();
+      },'vd-primary gm-enter'));
     }
     head.append(description,still);
     const nav=element('nav',null,'vd-tabs');nav.setAttribute('aria-label','Mesa de juego');
@@ -390,7 +390,7 @@
     if(c.data.hour?.hotel && window.ValdemarHour){c.hotel=element('section',null,'vd-panel vhour vhour-hotel-panel');c.hotel.tabIndex=-1;}
     buildDesk(c);buildGame(c);renderEnding(c);updateWallet(c,c.data);
     c.pair.append(c.gamePanel,c.desk);
-    c.frame.replaceChildren(head,nav,...(c.id===1?[]:[c.modeControl.change]),c.pair,c.help,c.ending);
+    c.frame.replaceChildren(head,nav,c.pair,c.help,c.ending);
     if(c.hotel){
       c.hotel.append(button('Volver a la investigación',()=>selectView(c,'desk',true),'vd-primary'));
       c.frame.append(c.hotel);
@@ -399,8 +399,9 @@
     const ending=Boolean(c.data.progress?.choice || (c.resume && c.data.hour && !c.data.hour.stage));
     c.routeSection=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
     const sideRequested=c.routeSection==='reto';
-    selectView(c,sideRequested?'game':ending?'ending':'desk',sideRequested || ending && c.resume);
-    if(c.resume && !ending && !sideRequested)c.hourView?.focusStage();
+    const pending=c.frame.dataset.playMode==='pending';
+    selectView(c,sideRequested?'game':ending?'ending':'desk',sideRequested || c.resume && (ending || pending));
+    if(c.resume && !ending && !sideRequested && !pending)c.hourView?.enter();
   }
   function showFailure(c,e) {
     c.modeControl?.destroy();
