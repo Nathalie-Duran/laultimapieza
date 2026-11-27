@@ -40,7 +40,7 @@
   function returnRoute(hash=location.hash){
     if(/^#valdemar-jugar\?id=(?:[1-9]|1[0-2])$/.test(hash) || /^#mundos-jugar\?id=(?:1[3-9]|[23]\d|4[0-8])$/.test(hash))return hash;
     if(/^#planes\?(revisar=[1-4]|gestion=aviso)$/.test(hash))return hash;
-    if(/^#perfil(?:\?seccion=(?:cuenta|pareja)(?:&juego=(?:[1-9]|[1-3]\d|4[0-8]))?)?$/.test(hash))return hash;
+    if(/^#perfil(?:\?seccion=(?:cuenta|pareja|archivo-secreto)(?:&juego=(?:[1-9]|[1-3]\d|4[0-8]))?)?$/.test(hash))return hash;
     return '#perfil';
   }
   const options=()=>({url:location.origin+'/'+returnRoute(),handleCodeInApp:false});

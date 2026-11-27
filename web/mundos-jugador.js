@@ -90,43 +90,21 @@
     c.tab=tab;
     for(const [k,panel] of Object.entries(c.panels))panel.hidden=k!==tab;
     for(const [k,btn] of Object.entries(c.controls))btn.setAttribute('aria-pressed',String(k===tab));
+    if(focus && c.frame.dataset.playMode==='pending'){
+      c.modeControl.entry.querySelector('button')?.focus();return;
+    }
     if(focus){const p=c.panels[tab];p.focus({preventScroll:true});p.scrollIntoView({block:'start',behavior:'instant'});}
   }
   function updateWallet(c,data) {
-    if(data.wallet)c.data.wallet=data.wallet;
-    if(Array.isArray(data.hints))c.data.hints=data.hints;
+    window.Keyring.update(c.data,data);
     const n=c.data.wallet.balance;
     c.balance.textContent=n+(n===1?' llave':' llaves');
   }
   function refreshHelp(c) {
-    const h=c.panels.help,{hints=[],wallet}=c.data;
-    const id=c.item.id,opened=wallet.opened.includes(id);
-    const eyebrow=el('p',worlds.edition(c.item.world).notebook,'md-caption');
-    h.replaceChildren(eyebrow,el('h2','Sobre de ayuda'));
-    const status=live();
-    async function claim(control,op) {
-      if(control.disabled)return;
-      control.disabled=true;
-      try{updateWallet(c,await request(c,op,{}));refreshHelp(c);c.panels.help.focus({preventScroll:true});}
-      catch(e){
-        if(!active(c))return;
-        if(e.status===409)try{
-          const latest=await request(c);updateWallet(c,latest);refreshHelp(c);
-          (c.panels.help.querySelector('[role="status"]')||status).textContent=e.message;return;
-        }catch{}
-        control.disabled=false;status.textContent=e.message;
-      }
-    }
-    if(opened){
-      for(const [i,hint] of hints.entries())h.append(el('h3',i?'Segunda orientación':'Primera orientación'),el('p',hint,'md-hint'));
-      if(hints.length<2){const b=button('Leer la segunda orientación',()=>claim(b,'second'),'md-cta');h.append(b);}
-    } else {
-      h.append(el('p','Una llave abre las dos orientaciones de este caso. Puedes seguir investigando y volver cuando las necesites.'));
-      if(wallet.balance>0){const b=button('Abrir el sobre · 1 llave',()=>claim(b,'open'),'md-cta');h.append(b);}
-      else if(!wallet.won.includes(id))h.append(button('Ganar una llave en el reto paralelo',()=>select(c,'side',true),'md-cta'));
-      else h.append(link('Explorar otras historias',worlds.route(c.item.world,id),'md-cta'));
-    }
-    h.append(status);
+    const h=c.panels.help;
+    h.replaceChildren(el('p',worlds.edition(c.item.world).notebook,'md-caption'),el('h2','Pistas del caso'));
+    window.Keyring.render(h,{id:c.item.id,data:c.data,buttonClass:'md-action',play:()=>select(c,'side',true),
+      buy:async (op,quotedCost)=>{updateWallet(c,await request(c,op,{quotedCost}));refreshHelp(c);h.focus({preventScroll:true});}});
   }
   function concludeForm(c,options,prompt,label,action) {
     const form=el('form',null,'md-resolve-form'), group=el('fieldset'), status=live();
@@ -173,11 +151,11 @@
       target.append(el('h3',name||'Tu decisión'),el('p',progress.outcome),window.SellosTemporada.afterCase(c.item.id,c.bridge,c.endingAccess),link(worlds.edition(c.item.world).returnLabel,worlds.route(c.item.world,c.item.id),'md-cta'));
     } else target.append(concludeForm(c,story.choices,'¿Cómo queréis cerrar esta historia? La decisión quedará guardada.','Guardar desenlace','ending'));
   }
-  function renderSide(c,feedback) {
+  function renderSide(c,feedback,replay=false) {
     const target=c.panels.side,side=c.data.side;
-    target.replaceChildren(el('p','Reto paralelo · Una llave','md-caption'),el('h2',side.title));
-    if(c.data.wallet.won.includes(c.item.id)){
-      target.append(live(feedback||'Reto resuelto. Ya ganaste la llave de este caso.'),button('Consultar el sobre de ayuda',()=>select(c,'help',true),'md-cta'));
+    target.replaceChildren(el('p','Reto paralelo · '+c.data.parallelPrize+(c.data.parallelPrize===1?' llave':' llaves'),'md-caption'),el('h2',side.title));
+    if(!replay && c.data.wallet.won.includes(c.item.id)){
+      target.append(live(feedback||'Reto resuelto. Ya ganaste la llave de este caso.'),button('Consultar mis pistas',()=>select(c,'help',true),'md-cta'),button('Repetir el reto sin premio adicional',()=>renderSide(c,'',true)));
       return;
     }
     target.append(el('p',side.brief,'md-question'));
@@ -193,7 +171,7 @@
             if(error.status===422)return {correct:false,feedback:error.message};throw error;
           }
         }
-      },(_data,note)=>{window.ValdemarHour.stopVoice(c.sideVoice);renderSide(c,note);target.focus({preventScroll:true});}
+      },(_data,note)=>{window.ValdemarHour.stopVoice(c.sideVoice);renderSide(c,replay?'Reto resuelto de nuevo. El premio ya está en tu historial.':note);target.focus({preventScroll:true});}
     ));
     target.append(work);
   }
@@ -208,7 +186,7 @@
     c.modeControl=window.ModalidadJuego.create(frame,story,c.data.mode,mode=>request(c,'mode',{mode}),null,{
       caseId:item.id,partner:c.data.partner,data:c.data,partners:(path,body)=>c.bridge.request(path,body),
       readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
-      onState:state=>window.ModalidadJuego.syncProgress(c.data,state,c.hour,()=>renderEnd(c)),reopen:()=>reopen(c)
+      onState:state=>{const advanced=window.ModalidadJuego.syncProgress(c.data,state,c.hour,()=>renderEnd(c));updateWallet(c,state);refreshHelp(c);return advanced;},reopen:()=>reopen(c)
     });
     copy.append(top,el('p',worlds.nameOf(item.world)+' · '+item.place,'md-caption'),el('h1',story.title),c.modeControl.entry,el('p',story.question,'md-game-question'),el('p',story.intro,'md-game-prose'));
     header.append(copy,figure);
@@ -226,6 +204,11 @@
     frame.replaceChildren(header,nav,c.modeControl.change,...Object.values(c.panels));
     c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
       role:c.data.partner?.role,
+      inventory:async input=>{
+          const result=await request(c,'inventory',input);
+          if(result.wallet)updateWallet(c,result);
+          return result;
+        },
       submit:(index,choice,sources)=>request(c,'stage',{index,choice,...(sources?{sources}:{})}),
       reload:async()=>{const result=await request(c);c.data.progress=result.progress;return result.hour;},
       change:hour=>{c.data.hour=hour;renderEnd(c);},
@@ -245,14 +228,21 @@
     c.observer=new MutationObserver(enhance);
     c.observer.observe(frame,{childList:true,subtree:true});
     const ending=Boolean(c.data.progress.choice || (c.resume && !c.data.hour.stage));
-    select(c,ending?'end':'main',ending && c.resume);
-    if(c.resume && !ending)c.hour.focusStage();
+    c.routeSection=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
+    const sideRequested=c.routeSection==='reto';
+    select(c,sideRequested?'side':ending?'end':'main',sideRequested || ending && c.resume);
+    if(c.resume && !ending && !sideRequested)c.hour.focusStage();
   }
   function mountGame(id,bridge,resume=false) {
     const host=document.getElementById('md-game-host'),item=worlds.story(id);
     if(!host || !item || !bridge)return;
     if(current?.item.id===item.id && current.bridge===bridge && current.signed===bridge.isSignedIn()){
-      if(current.frame.parentElement!==host)host.replaceChildren(current.frame);return;
+      if(current.frame.parentElement!==host)host.replaceChildren(current.frame);
+      const section=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
+      if(current.panels && section!==current.routeSection){
+        current.routeSection=section;select(current,section==='reto'?'side':'main',true);
+      }
+      return;
     }
     clear();
     const c={item,bridge,resume,signed:bridge.isSignedIn(),frame:el('div',null,'md-game vd-player')};current=c;

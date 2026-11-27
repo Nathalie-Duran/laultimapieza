@@ -70,7 +70,7 @@
       <div class="vd-description"><p class="vd-label">Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}${unlocked?'':demo}</div><p class="vd-availability">${message}</p></div></header>
       ${item.id===2?hotelCall(cta):''}
       <section class="vd-brief"><div><h2>Los papeles de esta historia</h2><p>A solas puedes abrir las dos carpetas. Para compartir el caso, elegíos en vuestros perfiles y pulsad «En pareja» desde vuestras cuentas. El primero recibe el papel 1 y el segundo, el papel 2.</p><a class="vd-textlink" href="/#perfil">Ver mi compañero de juego</a></div><ol><li><strong>Papel 1</strong>${esc(item.roleA)}</li><li><strong>Papel 2</strong>${esc(item.roleB)}</li></ol></section>
-      <p class="vd-method">Cruza audios, imágenes, documentos y archivos web. La primera vez que superes el reto paralelo de esta historia ganarás una llave. Puedes usarla para abrir un sobre de ayuda.</p></article>`;
+      <p class="vd-method">Cruza audios, imágenes, documentos y archivos web. Los retos paralelos dan llaves para consultar pistas.</p></article>`;
   }
   window.ValdemarCatalog=Object.freeze({items:Object.freeze(items),get,path,access,home,list,detail});
 })();
