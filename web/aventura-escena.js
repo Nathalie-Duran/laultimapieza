@@ -470,6 +470,86 @@
       written(ok){failed ||= ok===false;pending=Math.max(0,pending-1);save.textContent=pending?'Guardando…':failed?'Última acción sin confirmar':ok===null?'Respuesta comprobada':'Progreso guardado';}};
   }
   function hotelNavigation(frame,onSelect){return panelNavigation(frame,onSelect);}
+  function configureInvestigationDesk(frame,navigation,options,onSelect){
+    const objectsTitle=({3:'Objetos del tren',4:'Objetos de la cabina'})[options.id]||'Objetos del escenario';
+    const shell=navigation.shell, tabs=shell.querySelector('.case-nav');
+    const status=shell.querySelector('.case-progress');
+    const guide=shell.querySelector('.case-instrucciones');
+    const dock=el('aside','mj-objective-dock'),host=el('div');
+    const mesa=window.MesaDeJuego.mount(host,{family:options.world,title:options.story.title});
+    dock.setAttribute('aria-label','Objetivo de la aventura');
+    frame.dataset.investigationDesk='true';
+    shell.classList.add('mansion-game','investigation-desk');
+    shell.prepend(dock);
+    mesa.dockObjective(dock);
+    tabs.className='mansion-tabs vd-block-tools';
+    const buttonFor=key=>tabs.querySelector('[data-case-go="'+key+'"]');
+    for(const key of ['escenario','inventario','evidencias','pistas'])tabs.append(buttonFor(key));
+    const controls=el('nav','hotel-related');
+    controls.setAttribute('aria-label','Acciones de la partida');
+    for(const key of ['resolver','desenlace','extra'])controls.append(buttonFor(key));
+    for(const tab of tabs.children)tab.className='mansion-tab';
+    status.hidden=true;
+    shell.append(host,controls);
+    const bind=navigation.bind;
+    navigation.bind=(key,node)=>{
+      bind(key,node);
+      shell.insertBefore(node,controls);
+      if(key==='evidencias')node.classList.add('hotel-evidencias','hm-evidence-shelf');
+    };
+    const scenario=shell.querySelector('.case-scenario');
+    scenario.classList.add('investigation-scenario');
+    const chapter=el('header','mansion-header');
+    const chapterTitle=el('p','mansion-eyebrow');
+    const shortcuts=el('div','mansion-worlds');
+    shortcuts.append(button('Consultar evidencias',()=>onSelect('evidencias',true),'mansion-world-choice'),
+      button('Resolver la etapa',()=>onSelect('resolver',true),'mansion-world-choice'));
+    chapter.append(chapterTitle,shortcuts);
+    const layout=el('div','mansion-panel investigation-layout');
+    const stageArea=el('section','mansion-stage');
+    const photo=scenario.querySelector('.ae-stage');
+    stageArea.append(photo);
+    const sidebar=el('aside','mansion-objective mansion-scene-tools');
+    const objects=el('div','mansion-examine');
+    const task=scenario.querySelector('.case-consigna');
+    task.classList.add('mansion-paper-task');
+    sidebar.append(el('h3','mansion-tools-heading',objectsTitle),task,objects,guide);
+    layout.append(stageArea,sidebar);
+    scenario.prepend(chapter,layout);
+    const markers=photo.querySelector('.ae-markers');
+    function syncObjects(){
+      objects.replaceChildren();
+      for(const marker of markers.querySelectorAll('button')){
+        const label=marker.querySelector('.ae-marker-label')?.textContent||marker.textContent;
+        const item=button('',()=>marker.click(),'mansion-marker mansion-find');
+        const thumbnail=el('img','mansion-find-photo');
+        thumbnail.src=photo.querySelector('img').src;
+        thumbnail.alt='';
+        thumbnail.style.objectPosition=marker.style.getPropertyValue('--x')+' '+marker.style.getPropertyValue('--y');
+        item.append(thumbnail,el('span','mansion-find-label',label));
+        objects.append(item);
+      }
+    }
+    const sceneObserver=new MutationObserver(syncObjects);
+    sceneObserver.observe(markers,{childList:true,subtree:true,characterData:true});
+    syncObjects();
+    let hour=options.read().hour;
+    function refresh(){
+      const stage=hour.stage;
+      chapterTitle.textContent=stage?'Capítulo '+(['I','II','III','IV','V'][hour.current]||String(hour.current+1))+' · '+stage.title:'Investigación completada';
+      shortcuts.lastElementChild.hidden=!stage;
+      mesa.update({progress:hour.current+'/'+hour.stages.length+' pruebas resueltas'+(stage?' · '+stage.title:''),
+        objective:stage?(stage.task||stage.brief||options.story.question):'Abre el desenlace para cerrar el caso.',
+        saved:status.querySelector('.case-save')?.textContent||'',help:false,tools:[],tutorial:'',next:null});
+    }
+    const progress=navigation.progress,destroy=navigation.destroy;
+    navigation.progress=value=>{hour=value;progress(value);refresh();};
+    const observer=new MutationObserver(refresh);
+    observer.observe(status,{childList:true,subtree:true,characterData:true});
+    navigation.destroy=()=>{observer.disconnect();sceneObserver.disconnect();mesa.destroy();destroy();};
+    guide.classList.add('hotel-instrucciones');
+    refresh();
+  }
   function caseNavigation(frame,onSelect,options){
     frame.dataset.caseUi='true';
     const scenes=caseScene(frame,options),navigation=panelNavigation(frame,onSelect,options);
@@ -477,6 +557,7 @@
     const progress=navigation.progress,destroy=navigation.destroy;
     navigation.progress=hour=>{progress(hour);scenes.update(hour);};
     navigation.destroy=()=>{scenes.destroy();destroy();};
+    if(options.id>=3)configureInvestigationDesk(frame,navigation,options,onSelect);
     return navigation;
   }
   window.AventuraEscena=Object.freeze({mount,mountExplorer,challengeHeader,hotelNavigation,caseNavigation});
