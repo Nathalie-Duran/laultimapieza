@@ -62,12 +62,16 @@
   }
   async function request(c,action,payload) {
     if(!active(c))throw Error('Vuelve a abrir tu cuenta para continuar.');
+    const tracking=payload!==undefined&&c.scene;
+    if(tracking)c.scene.writing();
     try {
       const body=payload===undefined?undefined:{...payload,partnerId:c.data?.partner?.id||null};
       const result=await c.bridge.request('/api/valdemar/cases/'+c.item.id+(action?'/'+action:''),body);
       if(!active(c))throw Error('Has salido de esta investigación.');
+        if(tracking)c.scene.written(result?.correct===false?null:true);
       return result;
     } catch(error) {
+        if(tracking&&active(c))c.scene.written(false);
       if(c===current){
         if(error.code==='PAIR_CHANGED')reopen(c);
         else if(error.code==='CASE_NOT_RELEASED')showAccess(c,error.message,402);
@@ -91,6 +95,7 @@
   }
   function select(c,tab,focus=false) {
     if(!active(c))return;
+      if(tab==='side'&&c.tab&&tab!==c.tab)c.scene?.rememberExtra(c.tab);
     if(tab!==c.tab){c.hour?.pause();if(c.sideVoice)window.ValdemarHour.stopVoice(c.sideVoice);}
     c.tab=tab;
     c.frame.dataset.openExtra=String(tab==='side');
@@ -203,9 +208,11 @@
       readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
       onState:state=>{const advanced=window.ModalidadJuego.syncProgress(c.data,state,c.hour,()=>renderEnd(c));updateWallet(c,state);refreshHelp(c);return advanced;},reopen:()=>reopen(c)
     });
-    c.scene=window.AventuraEscena.mount(header,{world:item.world,id:item.id,frame,story,image:'/mundo-'+item.id+'.webp',
+    c.scene=window.AventuraEscena.mount(header,{world:item.world,id:item.id,frame,story,resumed:c.resume,image:'/mundo-'+item.id+'.webp',
       place:item.place,alt:item.place,toolbar:top,modeControl:c.modeControl,read:()=>c.data,playerName:()=>c.bridge.playerName?.(),
       actions:(kind,id)=>{
+        if(kind==='restore'){select(c,id);return c.panels[id];}
+        if(kind==='hints'){select(c,'help',true);return;}
         if(kind==='scene'){select(c,'main');return;}
         if(kind==='ending'){select(c,'end',true);return;}
         select(c,'main');c.hour.open(kind,id);
@@ -222,6 +229,11 @@
       c.quiet=button('Lectura silenciosa',()=>quiet(c,!c.silent),'md-muted-toggle');nav.append(c.quiet);
     }
     frame.replaceChildren(header,nav,...Object.values(c.panels));
+    c.scene.attach();
+    const roomReward=async()=>{
+      try{const value=await request(c);if(active(c)){updateWallet(c,value);refreshHelp(c);}}catch{}
+    };
+    for(const event of ['season-room-reward','mansion-arcade-reward','editorial-challenge-solved'])frame.addEventListener(event,roomReward);
     header.insertAdjacentHTML('afterend',window.RetosTemporada?.salaDeAventura(item.id)||'');
     c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
       role:c.data.partner?.role,
@@ -229,6 +241,7 @@
       sceneRoute:item.world==='expedicion',sceneBack:target=>c.scene.returnFrom(target),
       inventory:async input=>{
           const result=await request(c,'inventory',input);
+          c.scene?.inventory(result.inventory);
           if(result.wallet)updateWallet(c,result);
           return result;
         },
@@ -254,8 +267,9 @@
     c.routeSection=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
     const sideRequested=c.routeSection==='reto';
     const pending=c.frame.dataset.playMode==='pending';
-    select(c,sideRequested?'side':ending?'end':'main',sideRequested || c.resume && (ending || pending));
-    if(c.resume && !ending && !sideRequested && !pending)c.scene.focus();
+    const hintsRequested=c.routeSection==='pistas';
+    select(c,sideRequested?'side':hintsRequested?'help':ending?'end':'main',sideRequested||hintsRequested||c.resume&&(ending||pending));
+    if(c.resume&&!ending&&!sideRequested&&!hintsRequested&&!pending)c.scene.focus();
   }
   function mountGame(id,bridge,resume=false) {
     const host=document.getElementById('md-game-host'),item=worlds.story(id);
@@ -264,7 +278,7 @@
       if(current.frame.parentElement!==host)host.replaceChildren(current.frame);
       const section=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
       if(current.panels && section!==current.routeSection){
-        current.routeSection=section;select(current,section==='reto'?'side':'main',true);
+          current.routeSection=section;select(current,section==='reto'?'side':section==='pistas'?'help':'main',true);
       }
       return;
     }

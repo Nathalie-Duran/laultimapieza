@@ -56,6 +56,31 @@ test('las ediciones diarias, semanales y estacionales siguen el calendario de Ma
   assert.equal(schedule(b,'weekly').schedule.startsOn,'2026-03-30');
 });
 
+test('el calendario entrega el objetivo y dos pruebas consultables de cada paso sin revelar la respuesta',async()=>{
+  const seen=new Set();
+  for(const date of ['2026-10-28','2026-10-29','2026-10-30','2026-10-31','2026-12-24']){
+    const now=at(date+'T12:00Z');
+    const store={getMemberData:async()=>({})};
+    const billing={membership:async()=>({seasonAccess:{availableCases:[1]}})};
+    const visible=await playPublished(store,{uid:'lector',billing,calendar:true,now});
+    for(const row of calendarEditions(now)){
+      seen.add(row.title);
+      const projection=visible.items.find(item=>item.id===row.id);
+      assert.deepEqual(projection.materials,row.materials);
+      for(const stage of [row,...row.steps]){
+        assert.match(stage.objective,/^¿.+\?$/);
+        assert.equal(stage.materials.length,2);
+        for(const material of stage.materials){
+          assert.deepEqual(Object.keys(material).sort(),['label','photo','text']);
+          assert.ok(material.label&&material.text);
+          assert.match(material.photo,/^\/[a-z0-9-]+\.webp$/);
+        }
+      }
+    }
+  }
+  assert.equal(seen.size,7);
+});
+
 test('el calendario admite pausas, verifica cada prueba, premia una vez y conserva las llaves al caducar',async()=>{
   const now=at('2026-10-31T12:00Z');
   let data={};

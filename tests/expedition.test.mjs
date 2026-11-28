@@ -19,8 +19,11 @@ test('un cruce contextual de dos carpetas revela el hallazgo también al retomar
   act('B','combine',{items:['placa','plano']});
   assert.equal(view(record,'A').fieldNote.finding,fieldLink.finding);
   assert.equal(view(record,'A').items.find(x=>x.id==='placa').detail,undefined);
+  assert.equal(view(record,'A').items.find(x=>x.id==='placa').role,'B');
   const oldRecord={inventory:{0:{items:['plano','placa'],links:[['plano','placa']]}}};
   assert.equal(view(oldRecord,null).fieldNote.finding,fieldLink.finding);
+  assert.deepEqual(view(oldRecord,null).items.filter(item=>item.held).map(item=>item.role),['A','B']);
+  assert.equal(view(oldRecord,null).items.find(item=>item.id==='lista').held,false);
   const personal={};mergeInventory(personal,record);
   assert.equal(view(personal,null).fieldNote.finding,fieldLink.finding);
 });

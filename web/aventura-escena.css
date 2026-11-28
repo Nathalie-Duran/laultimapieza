@@ -80,3 +80,8 @@
 @media(forced-colors:active){
   .ae-marker,.ae-glyph,.ae-objective {border-color:ButtonText;}
 }
+.vd-player[data-adventure-world]:is([data-play-mode=solo],[data-play-mode=duo]) :is(.vd-tabs,.md-game-tabs) :is([data-view=desk],[data-view=help],[data-md-tab=main],[data-md-tab=help]) { display:none; }
+.inventory-folders {display:flex;flex-wrap:wrap;gap:.35rem;margin:.7rem 0}
+.inventory-folders button {min-height:44px}
+.inventory-folders button[aria-pressed=true] {box-shadow:inset 0 -3px currentColor}
+.vd-player:has(> .mj-objective-dock:not([hidden])) :is(.vhour-task,.vhour-material,.expedition-inventory,.ae-marker,.md-game-panel,.vd-panel):focus-within {scroll-margin-block-start:8.5rem}

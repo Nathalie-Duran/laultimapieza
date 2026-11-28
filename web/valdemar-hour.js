@@ -86,6 +86,7 @@
         const voices = window.speechSynthesis.getVoices().filter(v => /^es(?:[-_]|$)/i.test(v.lang));
         const spanish = voices.find(v=>v.localService)||voices[0];
         if (spanish) voice.voice = spanish;
+        window.GamePreferences?.audioVoice(voice);
         const reset = () => {button.textContent='Escuchar lectura';pressed(button,false);};
         const entry = {button,reset,voice};
         state.voice = entry;playingStates.add(state);
@@ -105,7 +106,7 @@
     }
     if(!transcriptShown){
       const source = fold('Leer la transcripción',el('p',body,'vhour-prose'));
-      source.open = !available;
+      source.dataset.gameTranscript=''; source.open = !available || window.GamePreferences?.transcripts===true;
       node.append(source);
     }
     return node;
@@ -562,7 +563,7 @@
         main.append(el('p',(controller.sceneBack?'':'Etapa '+(index+1)+' de '+stages.length+' · ')+stage.minutes+' min orientativos','vhour-kicker'));
         const heading=head('h3',controller.sceneBack?'Pruebas de la etapa':stage.title);
         main.append(heading);
-        if(!controller.sceneBack)main.append(el('p',stage.brief,'vhour-lead'));
+        if(stage.brief&&stage.brief!==stage.task)main.append(el('p',stage.brief,'vhour-lead'));
         if(hotel && controller.visitHotel && !controller.sceneBack)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
         const workbench=el('div',null,'vhour-workbench');
         workbench.dataset.stage=String(index+1);

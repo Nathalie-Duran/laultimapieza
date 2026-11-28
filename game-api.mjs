@@ -92,7 +92,17 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       const now=Date.now(),rate=rates.get(uid);
       if(rate&&rate.until>now){if(++rate.count>180)fail(429,'Espera unos segundos antes de continuar.');}
       else {if(rates.size>10000)rates.clear();rates.set(uid,{count:1,until:now+60000});}
-      const input=method==='GET'?null:await body(request,path==='/api/admin/challenges'&&canManageSite(user)?65536:16384);
+      const author=/^\/api\/(admin\/)?aventuras(?:\/([a-z][a-z0-9-]{1,62}))?$/.exec(path);
+      const input=method==='GET'?null:await body(request,(path==='/api/admin/challenges'||author?.[1])&&canManageSite(user)?65536:16384);
+      if(author){
+        if(author[1]&&!canManageSite(user))fail(403,'Esta edición está reservada a la propietaria.');
+        if(method!=='GET'&&(!origin||!origins.includes(origin)))fail(403,'Abre la aventura desde la web.');
+        await import('./web/motor-aventuras.js');
+        const engine=globalThis.MotorAventuras;
+        const {authorAdmin,authorPlay}=await import('./aventuras-autor.mjs');
+        if(author[1])return json(await withStore(store=>authorAdmin(store,author[2],method,input,engine)));
+        return json(await authorPlay({id:author[2],method,input,params:url.searchParams,uid,editorial:isAdministrator(user),billing,withStore,engine}));
+      }
       if(path==='/api/billing/cancellation'&&billing){
         if(!['GET','POST'].includes(method))fail(405,'Método no permitido.');
         if(method==='POST'){
@@ -131,7 +141,9 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         if(![7,30,90].includes(days))fail(400,'Elige 7, 30 o 90 días.');
         const report=await withStore(async store=>{
           const data=await store.analytics({days,billingEnabled:billing?.configured===true,stories});
-          return {...data,caseReviews:await store.readCaseReviews(uid)};
+          const trials=await store.trialReport?.(Date.parse(data.from+'T00:00:00Z'),Date.parse(data.generatedAt));
+          const operations=await store.adminOperations?.(Date.now());
+          return {...data,caseReviews:await store.readCaseReviews(uid),...(trials?{trials}: {}),...(operations?{operations}: {})};
         });
         return json(report);
       }
@@ -198,7 +210,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           const membership=editorialData
             ? {...adminMembership(),hasCustomer:Boolean(editorialData.customer),renewal:cancellationSummary(editorialData),seasonAccess:worldSeasonAccess(editorialData,{editorial:true}),
               ...(billing?.partnerOffer?{partnerOffer:await billing.partnerOffer(store,uid,null,true)}:{})}
-            : billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
+            : billing?await billing.membership(store,uid,{includeRenewalDate:true}):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
           membership.canManage=canManageSite(user);membership.ownAccess=membership.canPlay;membership.guestOwners=[];
           return {profile,sessions,journey:await readJourney(store,stories,uid,sessions),activeSessionId:profile.activeSessionId||null,membership};
         }

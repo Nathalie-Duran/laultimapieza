@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { creditSecretMission, creditPublishedChallenge, creditValdemarWelcome, valdemarWallet, withValdemarTransaction } from '../valdemar-wallet.mjs';
+import { creditAdventureEnding,creditMansionArcade,creditSeasonArcade,markRoomCooperation,creditSecretMission, creditPublishedChallenge, creditValdemarWelcome, valdemarWallet, withValdemarTransaction } from '../valdemar-wallet.mjs';
 
 const owner = 'owner';
 const options = { editorial: false };
@@ -44,6 +44,39 @@ test('confirmed subscription receives one welcome regardless of renewal and sync
   d.cycles.push({ ...d.cycles[0], id:'in_new', subscription:d.subscription });
   assert.equal(creditValdemarWelcome(d), true);
   assert.equal(creditValdemarWelcome(d), false);
+});
+
+test('los 48 finales históricos conservan su ámbito, fecha y el único premio previo de Ada',async()=>{
+  const paid=Object.fromEntries(Array.from({length:48},(_,i)=>[i+1,{choice:'final',completedAt:1234+i}]));
+  paid[1]={mansion:{completed:true},choice:'mansion-sealed'};
+  const data={valdemarCaseProgress:{paid,editorial:{2:{choice:'final'},3:{mode:'duo'},4:{deduced:true}}}};
+  assert.equal(creditAdventureEnding(data,'paid',1,{mansion:true}),true);
+  assert.equal(creditAdventureEnding(data,'paid',1),false);
+  const db=memory(data);
+  const read=editorial=>db.run(store=>valdemarWallet(store,owner,{editorial,summaryOnly:true,seasonAccess:{availableCases:[]}}));
+  const wallets=await Promise.all([read(false),read(false)]);
+  for(const wallet of wallets){
+    assert.equal(wallet.balance,48);
+    assert.equal(wallet.history.filter(row=>row.kind==='mansionEnding').length,1);
+    assert.equal(wallet.history.find(row=>row.caseId===48).at,1281);
+  }
+  const editor=await read(true);
+  assert.deepEqual(editor.history.filter(row=>row.kind==='adventureEnding').map(row=>row.caseId),[2]);
+  assert.equal(editor.history.find(row=>row.kind==='adventureEnding').at,null);
+});
+
+test('una victoria individual y su posterior resolución cooperativa conservan un premio por persona',()=>{
+  const member={};
+  for(const [caseId,id] of [[1,'archivo'],[13,'luces'],[25,'negativos'],[37,'sello']]){
+    assert.equal(markRoomCooperation(member,'paid',caseId,id),false);
+    const credit=()=>caseId===1?creditMansionArcade(member,'paid',id,1):creditSeasonArcade(member,'paid',caseId,id,1);
+    assert.equal(credit(),true);assert.equal(credit(),false);
+    assert.equal(markRoomCooperation(member,'paid',caseId,id),true);
+    assert.equal(markRoomCooperation(member,'paid',caseId,id),false);
+    assert.equal(markRoomCooperation(member,'editorial',caseId,id),false);
+  }
+  assert.equal(member.valdemarSeasonOne.paid.entries.length,4);
+  assert.ok(member.valdemarSeasonOne.paid.entries.every(row=>row.cooperative));
 });
 
 test('paid wallet backfills old purchases, is idempotent under concurrent actions, and preserves help', async () => {

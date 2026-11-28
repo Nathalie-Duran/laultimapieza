@@ -13,7 +13,7 @@
     duo:'Cada persona consulta su carpeta desde su propia cuenta. Describe lo que ves y escucha qué añade la otra carpeta.',
     archivo:'En los expedientes de Marta y Tomás podéis repartiros la lectura en una pantalla. El marcador se conserva en el mismo navegador.',
     clasico:'Sigue la escena y revisa el expediente antes de votar. En una partida compartida, cada participante registra su decisión.',
-    sala:'Cada sala tiene seis minijuegos independientes. Elige una estación, examina sus objetos y prueba tu solución. La primera vez que la resuelves, ganas las llaves indicadas.',
+    sala:'Cada sala tiene seis estaciones. Puedes resolverlas a solas o abrir «Jugar en pareja» con dos cuentas vinculadas. Cada persona recibe las llaves de la estación la primera vez que la resuelve.',
     temporada:'Puedes investigar con las dos carpetas en solitario o emparejar dos cuentas con acceso al mismo juego.'
   };
 
@@ -36,7 +36,7 @@
       </ol></section>
       <section class="how-reference" aria-labelledby="how-return-title"><h2 id="how-return-title">Seguir otro día</h2>
         <p>La demo guarda el avance en este navegador. Para retomar un juego de temporada, entra en la misma cuenta y abre <a href="/#archivo">Mis partidas</a>. Espera a que el juego confirme tu última acción antes de salir.</p>
-        <details><summary>¿Para qué sirven los retos extra?</summary><p>En <a href="/#casos">Juegos</a> eliges la investigación principal. En <a href="/#desafios">Retos extra</a> puedes visitar una sala de seis minijuegos, resolver una prueba vinculada a una aventura o seguir el calendario común. La primera vez que completas cada prueba, ganas llaves para pedir pistas.</p></details>
+        <details><summary>¿Para qué sirven los retos extra?</summary><p>En <a href="/#desafios">Retos extra</a> encontrarás las salas de seis minijuegos, el reto propio de cada aventura y el calendario común. Las llaves que consigas sirven para pedir pistas en tus juegos de temporada. La cinta 87 tiene pistas gratuitas y guarda un recuerdo en tu navegador.</p><p>Si abres una sala desde una aventura, pulsa «Volver a mi aventura» para recuperar la mesa que estabas usando. En pareja, abrid la misma estación y elegid «Jugar en pareja». Cada uno confirma su observación antes de comprobar juntos la solución.</p></details>
       </section>
       <section class="how-reference" aria-labelledby="how-start-title"><h2 id="how-start-title">${member?'Tu próxima investigación':'Tu primera noche en Valdemar'}</h2>${offer}<nav class="how-start" aria-label="Elegir una partida"><a href="${action.href}">${action.label}</a><a href="/cinta-87.html" data-action="preview-open">Probar La cinta 87 sin cuenta</a></nav></section>
     </article>`;
@@ -57,7 +57,7 @@
   function open(trigger,options={}){
     const doc=trigger?.ownerDocument||document;
     const existing=doc.querySelector('dialog.how-quick[open]');
-    if(existing){existing.querySelector('button')?.focus();return;}
+    if(existing){existing.querySelector('.how-quick-actions button')?.focus();return;}
     const dlg=doc.createElement('dialog');dlg.className='how-quick';dlg.setAttribute('aria-labelledby','how-quick-title');
     const heading=appendText(dlg,'h2','Cómo se juega');heading.id='how-quick-title';
     const detail=typeof options.text==='string'?options.text.trim():'';
@@ -69,6 +69,9 @@
     const steps=Array.isArray(options.steps)?options.steps.filter(step=>typeof step==='string'&&step.trim()):[];
     const list=doc.createElement('ol');dlg.append(list);
     for(const step of steps.length?steps:defaults)appendText(list,'li',step);
+    const preferences=doc.createElement('details');preferences.className='how-sound-settings';
+    appendText(preferences,'summary','Ajustar sonido y transcripciones');
+    preferences.append(doc.createElement('game-audio-preferences'));dlg.append(preferences);
     const actions=doc.createElement('div');actions.className='how-quick-actions';dlg.append(actions);
     const back=appendText(actions,'button','Volver al juego');back.type='button';back.autofocus=true;back.addEventListener('click',()=>dlg.close());
     const more=appendText(actions,'a','Guía completa (otra pestaña)');more.href=guidePath;more.target='_blank';more.rel='noopener';

@@ -119,7 +119,7 @@
         this.signed=signed;
         this.preview=!signed;
         if(signed){
-          try { this.games=(await window.GameAccountBridge.request(endpoint)).games; }
+          try { const response=await window.GameAccountBridge.request(endpoint);this.games=response.games;this.coop=response.coop??null; }
           catch(error){if(error.status!==403 && error.status!==402)throw error;this.preview=true;}
         }
         if(this.preview)this.games=(await import('./mansion-arcade-catalog.js')).mansionArcadeCatalog;
@@ -138,8 +138,8 @@
       const earned=solved.reduce((sum,g)=>sum+g.prize,0);
       const progress=this.preview?'':`<section class="ma87-progress" aria-label="Tu progreso en la sala"><strong>${solved.length} de ${this.games.length} estaciones resueltas</strong><progress aria-label="Estaciones resueltas" max="${this.games.length}" value="${solved.length}"></progress><span>${keyCount(earned)} de las ${total} disponibles</span></section>`;
       const tiles=this.games.map(g=>{
-        const detail=stationDetails[g.id];
-        return `<button type="button" class="ma87-station" data-act="detail" data-value="${esc(g.id)}" aria-haspopup="dialog"><img loading="lazy" alt="" src="/sala-${esc(g.id)}.webp"><span><small>${esc(detail.kind)}</small><strong>${esc(g.title)}</strong><small>${g.solved?'Resuelta · premio recibido':keyCount(g.prize)+' al resolver'}</small></span></button>`;
+        const detail=stationDetails[g.id],shared=this.coop?.stations?.[g.id];
+        return `<button type="button" class="ma87-station" data-act="detail" data-value="${esc(g.id)}" aria-haspopup="dialog"><img loading="lazy" alt="" src="/sala-${esc(g.id)}.webp"><span><small>${esc(detail.kind)}</small><strong>${esc(g.title)}</strong><small>${shared?.partnerJoined&&!shared.joined&&shared.phase!=='solved'?'Tu pareja te espera':g.solved?'Resuelta · premio recibido':keyCount(g.prize)+' al resolver'}</small></span></button>`;
       }).join('');
       const explore=this.shared?'':'<button type="button" data-act="stations">Explorar las estaciones</button>';
       return `<section class="ma87-lobby"><header class="ma87-hero"><img class="ma87-scene" src="/sala-de-ada.webp" alt=""><div class="ma87-intro"><p>Casa de Ada · Código Valdemar</p>${this.heading()}<p>Hay seis mesas preparadas. Puedes descifrar los sellos de la archivera, reparar un reloj o seguir las acequias hasta el jardín. Elige por dónde empezar.</p>${explore}</div></header>${this.shared?'<div data-ma-mesa></div>':''}${progress}<section class="ma87-section"><h2 tabindex="-1" data-stations>Las seis estaciones</h2><p>Gana hasta ocho llaves para pedir pistas en las aventuras. Cada estación entrega sus llaves la primera vez que la resuelves.</p><div class="ma87-stations">${tiles}</div></section>${back}</section>`;
@@ -192,6 +192,13 @@
             steps:game?['Examina el material de la mesa.','Manipula los objetos y comprueba tu propuesta.','Puedes volver a las estaciones al terminar.']:[]},
           tools:game&&!complete?[leave]:[],next:!game?goToStations:complete?leave:null});
       }
+      if(game&&window.EstacionCompartida){
+        const slot=document.createElement('div');this.querySelector('.reto-cabecera').after(slot);
+        window.EstacionCompartida.mount(slot,{room:this,id:game.id,endpoint,
+          onSolved:()=>{game.solved=true;this.states[game.id].complete=true;this.notice='Habéis resuelto la estación. El premio de cada persona queda registrado en su cuenta.';this.show();this.dispatchEvent(new CustomEvent('mansion-arcade-reward',{bubbles:true,detail:{awarded:0}}));},
+          onReplay:()=>{this.states[game.id]=initial[game.id]();this.notice='';this.show();}
+        });
+      }
       if(focusTitle)this.querySelector('h1,h2')?.focus();
     }
     backToStations(){const old=this.current;this.current=null;this.show();this.focusControl('detail',old);}
@@ -218,7 +225,8 @@
       const status=this.querySelector('[data-ma-feedback]');
       status.textContent='Comprobando…';
       try {
-        const result=await window.GameAccountBridge.request(endpoint,{id,attempt:attempt[id](this.states[id])},'POST');
+        const proposal=attempt[id](this.states[id]);
+        const result=await (this.coopControl?this.coopControl.solve(proposal):window.GameAccountBridge.request(endpoint,{id,attempt:proposal},'POST'));
         if(result.correct){
           this.games.find(g=>g.id===id).solved=true;
           this.states[id].complete=true;

@@ -1,6 +1,7 @@
 // Administrative reports contain aggregates only. The caller must authorize the verified
 // owner before invoking this function and supply a consistent transaction snapshot.
 import {summarizeSeasonActivity} from './season-activity.mjs';
+import {seasonCareer} from './season-career.mjs';
 const DAY = 86400000;
 const OPTIONAL = ['demo_start', 'demo_receipt', 'demo_solved', 'demo_complete', 'demo_hint', 'plans_view', 'ref_visit', 'ref_demo', 'ref_notice'];
 const FINANCIAL = ['subscriptionStarts', 'subscriptionEnds', 'paidCents'];
@@ -222,6 +223,7 @@ async function readBilling(query, billingEnabled, byDay, selectedDays, now) {
       AND (JSON_EXTRACT(m.data_json,'$.cycles') IS NOT NULL OR JSON_EXTRACT(m.data_json,'$.billingHistory') IS NOT NULL
            OR JSON_EXTRACT(m.data_json,'$.subscription') IS NOT NULL)`);
   let activeSubscriptions = 0, scheduledCancellations = 0, hasEvidence = false, partial = false;
+  let mrrCents=0,recurring=0,mrrComplete=true,lifetimeCents=0,payers=0;
   let voluntaryEnds = 0, seasonEnds = 0, otherEnds = 0;
   let incompleteLifecycle = false, missingCurrentSchedule = false, missingPaidPeriods = false;
   const retentionCycles = [];
@@ -229,6 +231,16 @@ async function readBilling(query, billingEnabled, byDay, selectedDays, now) {
     const cycles = jsonValue(row.cycles, []);
     const history = Object.values(jsonValue(row.billing_history, {}));
     const active = String(row.paid_active) === 'true' && timestamp(row.period_end) > now;
+    const settled=[...new Map(cycles.filter(c=>c.id&&!c.revoked&&timestamp(c.paidAt)!==null&&timestamp(c.paidAt)<=now&&Number.isSafeInteger(c.amountPaid)&&c.amountPaid>0).map(c=>[c.id,c])).values()];
+    if(settled.length){payers++;lifetimeCents+=settled.reduce((sum,c)=>sum+c.amountPaid,0);}
+    if(active){
+      const sub=history.find(h=>h.id===row.current_subscription);
+      if(!sub?.status)mrrComplete=false;
+      else if(sub.status==='active'){
+        const current=settled.filter(c=>c.subscription===sub.id&&timestamp(c.start)<=now&&timestamp(c.end)>now);
+        if(current.length===1){mrrCents+=current[0].amountPaid;recurring++;}else mrrComplete=false;
+      }
+    }
     const paidIds = new Set();
     const invoices = new Set();
     if (active) activeSubscriptions++;
@@ -300,6 +312,8 @@ async function readBilling(query, billingEnabled, byDay, selectedDays, now) {
   const retention = renewalCohorts(retentionCycles, available && !missingPaidPeriods, selectedDays, now);
   return {
     retention,
+    economics:{mrrCents:available&&mrrComplete?mrrCents:null,arpuCents:available&&mrrComplete&&recurring?Math.round(mrrCents/recurring):null,
+      lifetimeCents:available&&!partial&&payers?Math.round(lifetimeCents/payers):null,recurring:available&&mrrComplete?recurring:null},
     activeSubscriptions: available ? activeSubscriptions : null,
     scheduledCancellations: available && !missingCurrentSchedule ? scheduledCancellations : null,
     voluntaryEnds: available && !incompleteLifecycle ? voluntaryEnds : null,
@@ -356,14 +370,33 @@ export async function readAnalytics(query, {days, billingEnabled, stories}) {
       OR JSON_EXTRACT(m.data_json,'$.valdemarSeasonOne.paid') IS NOT NULL
       OR JSON_LENGTH(JSON_EXTRACT(m.data_json,'$.cycles')) > 0)
       AND NOT EXISTS (SELECT 1 FROM lup_editorial_users e WHERE e.user_id=m.user_id)`);
+  const standards=seasonCareer({},'paid');
+  const skills=Object.fromEntries(standards.skills.map(s=>[s.name,0]));
+  const medals=Object.fromEntries(standards.achievements.map(a=>[a.name,0]));
+  const extraWins=new Map();
+  let knownBalances=0,keys=0;
   const seasonActivity = summarizeSeasonActivity(seasonRows.map(row => {
     const unlockedHints = {open:jsonValue(row.opened,[]), second:jsonValue(row.second_hints,[]), solution:jsonValue(row.solution_hints,[])};
+    const progress=jsonValue(row.progress,{}),won=jsonValue(row.won,[]),entries=jsonValue(row.wallet_entries,null);
+    const career=seasonCareer({valdemarCaseProgress:{paid:progress},valdemarSeasonOne:{paid:{won,entries}}},'paid');
+    for(const s of career.skills)skills[s.name]+=s.points;
+    for(const a of career.achievements)if(a.progress>=a.goal)medals[a.name]++;
+    if(Array.isArray(entries)){
+      knownBalances++;keys+=entries.reduce((sum,e)=>sum+(Number.isSafeInteger(e?.amount)?e.amount:0),0);
+      for(const e of entries){
+        if(!['challenge','mansionArcade','seasonArcade','calendarChallenge','reward'].includes(e?.kind)||e.at<first||e.at>now||!Number.isFinite(e.at)||e.amount<=0)continue;
+        const code=e.kind+'/'+(e.caseId||0),row=extraWins.get(code)||{kind:e.kind,caseId:e.caseId||0,solved:0};
+        row.solved++;extraWins.set(code,row);
+      }
+    }
     return {
-      progress:jsonValue(row.progress,{}), resetAt:timestamp(row.reset_at), cycles:jsonValue(row.cycles,[]),
-      entries:jsonValue(row.wallet_entries,[]), unlockedHints,
+      progress, resetAt:timestamp(row.reset_at), cycles:jsonValue(row.cycles,[]),
+      entries:entries||[], unlockedHints,
       sideIds:new Set([...jsonValue(row.won,[]), ...unlockedHints.open, ...unlockedHints.second, ...unlockedHints.solution])
     };
   }),{now,first,days,since:timestamp(seasonCoverage?.started_at)});
+  const rewards={keys,knownBalances,skills,medals,
+    rules:standards.rewards.map(({name,unit})=>({name,unit})),extraWins:[...extraWins.values()].sort((a,b)=>b.solved-a.solved)};
   const billing = await readBilling(query, billingEnabled, byDay, selectedDays, now);
   const daily = [...selectedDays.values()];
   const totals = {};
@@ -383,7 +416,7 @@ export async function readAnalytics(query, {days, billingEnabled, stories}) {
     billingEnabled: !!billingEnabled, noticeSince,
     stock: {accounts, notices, activeSubscriptions: billing.activeSubscriptions,
       scheduledCancellations: billing.scheduledCancellations},
-    totals, daily, cases: games.cases, seasonActivity, optional, retention: billing.retention, comparison, month, activation,
+    totals, daily, cases: games.cases, seasonActivity, rewards, optional, retention: billing.retention, economics:billing.economics, comparison, month, activation,
     coverage: {noticePartial: began === null || began > first, billingPartial: billing.partial,
       undatedSessions: games.undatedSessions}
   };

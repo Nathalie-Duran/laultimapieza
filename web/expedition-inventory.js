@@ -12,7 +12,7 @@
     status.tabIndex = -1;
     node.append(summary, body, status);
     let model, current, selectedRoom, busy = false;
-    let picks = [];
+    let picks = [], folder='all';
 
     function element(tag, label) {
       const item = document.createElement(tag);
@@ -146,10 +146,22 @@
         }
         body.append(mission);
       }
-      for (const item of room.items.filter(item => !item.held && item.canCollect)) {
+      const papers=room.items.some(item=>item.role==='A'||item.role==='B');
+      if(papers){
+        const fixed=model.role==='A'||model.role==='B';
+        const folders=element('div','');folders.className='inventory-folders';folders.setAttribute('role','group');folders.setAttribute('aria-label','Carpetas de objetos');
+        const options=fixed?[[model.role,'Mi carpeta'],['all','Mesa compartida']]:[['A','Papel 1'],['B','Papel 2'],['all','Mesa de comparación']];
+        for(const [key,title] of options){
+          const pick=button(title,()=>{folder=key;picks=[];render();});
+          pick.setAttribute('aria-pressed',String(folder===key));folders.append(pick);
+        }
+        body.append(folders);
+      }
+      const visibleItems=room.items.filter(item=>!papers||folder==='all'||!item.role||item.role==='AB'||item.role===folder);
+      for (const item of visibleItems.filter(item => !item.held && item.canCollect)) {
         body.append(button('Recoger ' + item.label, () => act({operation:'collect', item:item.id}, 'Prueba guardada.')));
       }
-      const held = room.items.filter(item => item.held);
+      const held = visibleItems.filter(item => item.held);
       if (!held.length) {
         body.append(element('p', room.items.length ? 'Recoge una prueba para guardarla en tu inventario.' : 'Tu compañero puede recoger las pruebas de este lugar.'));
         return;
@@ -204,6 +216,7 @@
     }
 
     function update(value, index) {
+      if(!model||model.role!==value.role)folder=value.role==='A'||value.role==='B'?value.role:'all';
       if (current !== index || !value.rooms.some(room => room.index === selectedRoom)) {
         selectedRoom = Math.min(index, value.rooms.length - 1);
         picks = [];

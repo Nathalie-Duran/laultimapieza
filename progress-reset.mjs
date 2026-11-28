@@ -69,6 +69,7 @@ export async function resetPersonalProgress(store, uid, input, editorial, email=
   resetValdemarProgress(data,{editorial});
   // Replay from stage one, retaining first-win receipts and historical counts.
   for(const scope of editorial?['paid','editorial']:['paid']){
+    if(data.authorAdventures)delete data.authorAdventures[scope];
     for(const result of Object.values(data.editorialMiniProgress?.[scope]||{}))result.completed=[];
   }
   data.progressReset={

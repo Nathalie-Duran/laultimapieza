@@ -10,6 +10,7 @@ function harness(){
   const document={activeElement:{},body:{}};
   class Element {
     constructor(){this.nodes=new Map();}
+    hasAttribute(){return false;}
     querySelector(key){if(!this.nodes.has(key))this.nodes.set(key,{});return this.nodes.get(key);}
     querySelectorAll(){return [];}
     dispatchEvent(value){events.push(value);}

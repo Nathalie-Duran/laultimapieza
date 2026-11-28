@@ -20,8 +20,12 @@
     let state=options.state?.mansion||options.state,role=options.role||state?.role;
     const paired=role==='A'||role==='B';
     let world=paired?role:'A',tab='scene',disposed=false,busy=false,requestId=0,activeDevice=false,selectedEvidence=null;
-    let openMission=null,missionSource=null,roomId=state?.explore?.id||state?.stage?.room||rooms[0],notice='',noticeError=false;
+    let openMission=null,missionSource=null,roomId=state?.explore?.id||state?.stage?.room||rooms[0],notice='',noticeError=false,saveText=options.resumed?'Partida recuperada':'';
     let explore=state?.explore?.id===roomId?state.explore:null;
+    const perspectiveKey=options.playerId&&!paired?'lup.mansion.perspectiva.'+encodeURIComponent(options.playerId):null;
+    if(perspectiveKey){
+      try{const previous=JSON.parse(sessionStorage.getItem(perspectiveKey));if(previous?.stage===state?.current&&previous.world==='B')world='B';}catch{}
+    }
     const drafts=new Map(),seen=new Map(),audioPlayers=new Set();
     let pendingHint=null;
     const root=el('section','mansion-game'), header=el('header','mansion-header'),tabs=el('div','mansion-tabs');
@@ -31,7 +35,8 @@
     tabs.setAttribute('aria-label','Cuaderno de la mansión');panel.setAttribute('role','tabpanel');panel.id='mansion-content';
     const mesaHost=el('div','mansion-objective mj-mansion-host');
     const shared=window.MesaDeJuego?.mount(mesaHost,{family:'mansion',title:state?.title||'El secreto de los dos mundos'});
-    root.append(header,tabs,panel,message);host.replaceChildren(root);
+    const dock=el('aside','mj-objective-dock');dock.hidden=true;dock.setAttribute('aria-label','Objetivo de la aventura');
+    root.append(header,dock,tabs,panel,message);host.replaceChildren(root);shared?.dockObjective?.(dock);
     const arcade=el('details','mansion-arcade-drawer');
     const summary=el('summary','season-room-door','Sala de juegos de Ada · 6 minijuegos');
     const room=window.RetosTemporada?.puertaSala('mapa',true);
@@ -93,17 +98,18 @@
     async function act(input,after){
       if(busy||disposed)return;
       const id=++requestId;
-      busy=true;root.setAttribute('aria-busy','true');say('');
+      busy=true;root.setAttribute('aria-busy','true');say('');saveText='Guardando…';shared?.update({saved:saveText});
       try {
         const result=await options.act(input);
         if(disposed||id!==requestId)return;
         apply(result,true);
         const failed=result?.correct===false;
+        saveText=failed?'Respuesta comprobada':'Progreso guardado';
         say(result?.message||result?.feedback||'',failed);
         if(!failed)after?.(result);
         draw();
         if(notice)message.focus({preventScroll:true});
-      }catch(err){if(!disposed&&id===requestId){say(err?.message||'No se ha podido guardar. Puedes volver a intentarlo.',true);message.focus();}}
+      }catch(err){if(!disposed&&id===requestId){saveText='Última acción sin confirmar';shared?.update({saved:saveText});say(err?.message||'No se ha podido guardar. Puedes volver a intentarlo.',true);message.focus();}}
       finally{if(!disposed&&id===requestId){busy=false;root.removeAttribute('aria-busy');}}
     }
     async function travel(id){
@@ -125,8 +131,9 @@
       header.append(details);
       if(shared){
         const stage=state.stage;
-        shared.update({progress:completed+'/15 pruebas resueltas'+(stage?.title?' · '+stage.title:''),
-          objective:stage?.brief||'',help:{context:paired?'duo':'solo',
+        shared.update({progress:completed+'/15 pruebas resueltas'+(stage?.title?' · '+stage.title:''),saved:saveText,
+          objective:stage?.brief||'Revisa la fotografía final y lee el desenlace que has guardado.',
+          tutorial:stage&&completed===0?'Abre un objeto marcado en la fotografía y lee lo que observas. '+(paired?'Compara ese detalle con lo que ve tu pareja en la otra casa.':'Cambia de casa para ver la misma habitación desde el otro papel.')+' Después abre el mecanismo y prueba tu deducción.':'',help:{context:paired?'duo':'solo',
             text:paired?'Cada persona observa una realidad de la casa. Comparad lo que ocurre en la misma habitación.':'Puedes alternar entre la casa habitada y la abandonada para comparar la misma habitación.',
             steps:['Abre los puntos de la fotografía para examinar los objetos.','Consulta las evidencias y opera el mecanismo de la sala.','Usa el mapa para volver a las habitaciones abiertas.']},
           next:stage&&tab==='scene'&&stage.room!==roomId?{label:'Ir al objetivo',run:()=>travel(stage.room)}:null});
@@ -137,7 +144,9 @@
       else for(const id of ['A','B']){
         const control=button(labels[id],()=>{
           if(world===id||busy)return;
-          stopAudio();world=id;selectedEvidence=null;observe(state.stage?.evidence);observe(explore?.evidence);draw();
+          stopAudio();world=id;selectedEvidence=null;
+          try{if(perspectiveKey)sessionStorage.setItem(perspectiveKey,JSON.stringify({stage:state.current,world}));}catch{}
+          observe(state.stage?.evidence);observe(explore?.evidence);draw();
           header.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
         },'mansion-world-choice');
         control.setAttribute('aria-pressed',String(world===id));worlds.append(control);
@@ -166,14 +175,14 @@
               if(ch==='/'||ch===' '){time+=unit*(ch==='/'?4:2);continue;}
               const duration=unit*(ch==='.'?1:3),osc=ctx.createOscillator(),gain=ctx.createGain();
               osc.frequency.value=620;gain.gain.setValueAtTime(.0001,time);gain.gain.exponentialRampToValueAtTime(.10,time+.009);
-              gain.gain.exponentialRampToValueAtTime(.0001,time+duration);osc.connect(gain);gain.connect(ctx.destination);
+              gain.gain.exponentialRampToValueAtTime(.0001,time+duration);osc.connect(gain);gain.connect(window.GamePreferences?.audioOutput(ctx)||ctx.destination);
               osc.start(time);osc.stop(time+duration+.01);time+=duration+unit;
             }
           }catch{say('Puedes consultar la transcripción de la señal.',true);}
         }));
       }else if(window.speechSynthesis&&window.SpeechSynthesisUtterance&&item.text){
         group.append(button('Escuchar lectura',()=>{
-          stopAudio();const speech=new window.SpeechSynthesisUtterance(item.text);speech.lang='es-ES';
+          stopAudio();const speech=new window.SpeechSynthesisUtterance(item.text);speech.lang='es-ES';window.GamePreferences?.audioVoice(speech);
           speaking=true;speech.onend=()=>{speaking=false;};window.speechSynthesis.speak(speech);
         }));
       }
@@ -317,8 +326,8 @@
     }
     function drawBag(){
       panel.append(el('h3',null,'Inventario'));
-      const items=state.inventory||[],cards=el('div','mansion-cards');
-      if(!items.length)cards.append(el('p',null,'Todavía no has recogido objetos.'));
+      const items=(state.inventory||[]).filter(item=>!labels[item.world]||item.world===world),cards=el('div','mansion-cards');
+      if(!items.length)cards.append(el('p',null,'Todavía no hay objetos en esta carpeta. Explora la habitación y examina sus puntos marcados.'));
       for(const item of items){
         const card=el('article','mansion-card');card.append(el('h4',null,item.title));
         if(labels[item.world])card.append(el('small',null,labels[item.world]));
@@ -378,7 +387,7 @@
     }
     function destroy(){disposed=true;requestId++;stopAudio();shared?.destroy();root.remove();}
     if(state){observe(state.stage?.evidence);draw();}
-    return {update,destroy};
+    return {update,destroy,openHints(){switchTab('hints');builtTabs.get('hints').focus();}};
   }
   window.MansionGame=Object.freeze({mount});
 })();

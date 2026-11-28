@@ -21,6 +21,18 @@ function fixture(){
   const find=cls=>host.nodes().find(node=>node.className===cls);
   return {window,host,find};
 }
+test('el objetivo persiste en una sola ubicación al pasar de la investigación al reto y volver',()=>{
+  const {window,host,find}=fixture(),dock=new host.constructor('aside');
+  const view=window.MesaDeJuego.mount(host,{objective:'Contrasta los recibos',tutorial:'Examina el primer recibo.',progress:'Etapa 1',saved:'Guardando…'});
+  const goal=find('mj-goal'),tutorial=find('mj-tutorial');
+  view.dockObjective(dock);
+  assert.ok(dock.nodes().includes(goal));assert.equal(find('mj-goal'),undefined);assert.equal(dock.hidden,false);
+  assert.ok(tutorial.open);tutorial.open=false;
+  view.update({saved:'Progreso guardado'});assert.equal(tutorial.open,false);
+  assert.equal(dock.nodes().find(n=>n.className==='mj-save').textContent,'Progreso guardado');
+  view.dockObjective(null);view.update({tutorial:'',saved:'',objective:'Examina las piezas del reto'});
+  assert.equal(find('mj-goal'),goal);assert.equal(dock.hidden,true);assert.equal(tutorial.hidden,true);
+});
 test('el contexto común conserva sus controles al cambiar la etapa y utiliza solo acciones disponibles',()=>{
   const {window,host,find}=fixture(),calls=[];
   const view=window.MesaDeJuego.mount(host,{family:'umbravia',title:'Casa de prueba',progress:'Etapa 1',objective:'Orienta el croquis',

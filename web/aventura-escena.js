@@ -8,6 +8,13 @@
   };
   const points=[[30,54],[66,43],[51,68],[75,63]];
   const formats={audio:'Escuchar',ledger:'Examinar',testimony:'Leer',visual:'Examinar',web:'Consultar',text:'Leer'};
+  const objectives={Elegid:'Elegir',Elige:'Elegir',Ordenad:'Ordenar',Ordena:'Ordenar',Seleccionad:'Seleccionar',Identificad:'Identificar',Escoged:'Escoger',Escoge:'Escoger',Señalad:'Señalar',Reconstruid:'Reconstruir',Guardad:'Guardar',Colocad:'Colocar',Seguid:'Seguir'};
+  function stageObjective(phase,firstProof){
+    const task=phase.task?.trim();
+    if(!task)return firstProof?'Examina «'+firstProof.label+'» y contrasta lo que encuentres con las demás pruebas.':'Contrasta las pruebas y resuelve la decisión de esta etapa.';
+    if(task.startsWith('¿')&&task.endsWith('?'))return 'Averigua '+task[1].toLocaleLowerCase('es')+task.slice(2,-1)+'.';
+    return task.replace(/^\S+/,word=>objectives[word]||word);
+  }
   function el(tag,cls,text){const node=document.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=text;return node;}
   function button(label,run,cls){const node=el('button',cls,label);node.type='button';node.addEventListener('click',run);return node;}
   function challengeHeader({id,world,title,photo,caseTitle,embedded=false}){
@@ -71,12 +78,28 @@
     const mesaHost=el('div','ae-mesa');
     const shared=window.MesaDeJuego?.mount(mesaHost,{family:world,title:story.title});
     const mesaHome=el('div','ae-mesa-home');
+    const dock=el('aside','mj-objective-dock');dock.hidden=true;dock.setAttribute('aria-label','Objetivo de la aventura');
+    const examined=new Set();
     if(shared){mesaHome.append(mesaHost);caption.replaceChildren(place);host.replaceChildren(toolbar,heading,stage,party,setup,mesaHome,instrument);}
     else host.replaceChildren(toolbar,heading,stage,party,setup,objective,tools,instrument);
     if(story.intro||story.question)host.append(briefing);
-    let lastMode,signature,currentHour,light=false,lastPoint,secondaryPanel=null,sceneContext={};
+    let lastMode,signature,currentHour,light=false,lastPoint,secondaryPanel=null,sceneContext={},area='scene',extraOrigin=null;
+    let writes=0,saveText=options.resumed?'Partida recuperada':'',saveIssue=false;
     host.addEventListener('click',event=>{const point=event.target.closest?.('button');if(point&&host.contains(point))lastPoint=point;},true);
     const back=button('Volver al escenario',()=>{
+      if(secondaryPanel?.matches('.md-game-side,.vd-game')&&window.location?.hash){
+        const query=new URLSearchParams(window.location.hash.split('?')[1]);
+        const source=Number(query.get('desde'));
+        if(query.get('volver')==='pistas'&&Number.isInteger(source)&&source>=1&&source<=48&&source!==options.id){
+          window.location.hash=(source<=12?'valdemar-jugar':'mundos-jugar')+'?id='+source+'&seccion=pistas&retomar=1';return;
+        }
+      }
+      if(secondaryPanel?.matches('.md-game-side,.vd-game')&&extraOrigin){
+        const source=extraOrigin;extraOrigin=null;const panel=actions('restore',source.view);
+        const target=source.trigger?.isConnected&&!source.trigger.closest('[hidden]')?source.trigger:
+          [...(panel?.querySelectorAll('button,a,summary')||[])].find(el=>el.textContent===source.label&&!el.closest('[hidden]'))||panel;
+        if(target){target.focus({preventScroll:true});target.scrollIntoView({block:'nearest'});return;}
+      }
       actions('scene');
       const point=lastPoint?.isConnected&&host.contains(lastPoint)&&!lastPoint.closest('details:not([open])')?lastPoint:markers.querySelector('button');
       point?.focus({preventScroll:true});(point||stage).scrollIntoView({block:'center'});
@@ -85,6 +108,14 @@
       if(!target)return;
       if(shared){
         secondaryPanel=target.closest?.('.md-game-side,.vd-game,.md-game-help,.vd-help,.md-game-end,.vd-ending,.vhour-hotel-panel')||null;
+        if(secondaryPanel?.matches('.md-game-help,.vd-help'))area='hints';
+        else if(target.closest?.('.expedition-inventory'))area='bag';
+        else if(target.closest?.('.vhour-material,.vhour-journal')){
+          area='evidence';
+          const card=target.closest('.vhour-material');
+          if(card?.dataset.material)examined.add((currentHour||read().hour)?.current+'|'+card.dataset.material);
+        }
+        else if(!secondaryPanel)area='scene';
         syncMesa();
       }
       const sideNav=target.querySelector?.('.reto-cabecera-nav');
@@ -96,23 +127,33 @@
     function syncMesa(){
       if(!shared)return;
       const sideOpen=secondaryPanel?.matches('.md-game-side,.vd-game')===true;
+      back.textContent=sideOpen?'Volver a mi investigación':'Volver al escenario';
       const waiting=sideOpen&&frame.dataset.playMode==='pending';
-      const ficha=sideOpen?window.RetosTemporada?.ficha(options.id):null;
+      const ficha=sideOpen?options.extra||window.RetosTemporada?.ficha(options.id):null;
       const headerTitle=waiting&&ficha?ficha.title:story.title;
       if(caseTitle.textContent!==headerTitle)caseTitle.textContent=headerTitle;
       const context=waiting?'Reto de aventura · '+ancestry:ancestry;
       if(contextLabel.textContent!==context)contextLabel.textContent=context;
       const section=frame.dataset.playMode==='pending'?null:secondaryPanel;
+      const ready=['solo','duo'].includes(frame.dataset.playMode);
+      shared.dockObjective?.(dock.parentElement&&ready&&!sideOpen?dock:null);
+      const canNavigate=ready&&!sideOpen;
+      const controls=canNavigate?[['scene','Escenario'],['bag','Inventario'],['evidence','Evidencias'],['hints','Pistas']].map(([kind,label])=>({
+        id:kind,label,selected:area===kind,run:()=>{
+          actions(kind);if(kind==='scene'){const pin=markers.querySelector('button');pin?.focus({preventScroll:true});(pin||stage).scrollIntoView({block:'center'});}
+        }
+      })):[];
       if(!section){
         if(mesaHost.parentElement!==mesaHome)mesaHome.append(mesaHost);
-        shared.update(waiting?{...sceneContext,objective:'Elige cómo jugar para abrir el reto.',help:{context:'reto',text:ficha?.action||''}}:sceneContext);return;
+        const next=ready?nextStep():null;
+        shared.update(waiting?{...sceneContext,tools:[],tutorial:'',saved:'',next:null,objective:'Elige cómo jugar para abrir el reto.',help:{context:'reto',text:ficha?.action||''}}:{...sceneContext,next,tools:controls,saved:ready?saveText:''});return;
       }
       if(mesaHost.parentElement!==section){
         const hero=section.querySelector('.reto-cabecera');
         if(hero && hero.parentElement===section)section.insertBefore(mesaHost,hero.nextSibling);
         else section.prepend(mesaHost);
       }
-      const data=read(),base={...sceneContext,tools:[],objective:'',next:null};
+      const data=read(),base={...sceneContext,tools:controls,saved:sideOpen?'':saveText,tutorial:'',next:null};
       if(section.matches('.md-game-side,.vd-game')){
         const complete=data.wallet?.won?.includes(options.id);
         const side=data.side;
@@ -123,10 +164,10 @@
           objective:complete?'':side?.brief||pitch||'',help:{context:'reto',text:side?.task||'Examina el tablero y utiliza sus controles para resolver el reto.',
           steps:['Consulta la consigna del reto.','Prueba una respuesta o manipula las piezas.','Al terminar puedes volver a la investigación.']}});
       }else if(section.matches('.md-game-help,.vd-help')){
-        shared.update({...base,progress:'Consulta de pistas'});
+        shared.update({...base,progress:'Pistas · '+(sceneContext.progress||story.title)});
       }else if(section.matches('.vhour-hotel-panel')){
         shared.update({...base,progress:'Hotel Medianoche',objective:'Examina el hotel y contrasta las pruebas con los testimonios.'});
-      }else shared.update({...base,progress:data.progress?.choice?'Desenlace guardado':sceneContext.progress,objective:currentHour?.stage?'Termina las etapas de la investigación para abrir el desenlace.':''});
+      }else shared.update({...base,progress:data.progress?.choice?'Desenlace guardado':sceneContext.progress,objective:currentHour?.stage?'Termina las etapas de la investigación para abrir el desenlace.':sceneContext.objective});
     }
     function marker(text,name,info,slot){
       const control=button('',()=>actions(name,info),'ae-marker');
@@ -134,6 +175,15 @@
       control.style.setProperty('--x',points[slot][0]+'%');control.style.setProperty('--y',points[slot][1]+'%');
       const icon=el('span','ae-glyph',slot===0?style.symbol:['','⌕','◈','↗'][slot]);icon.setAttribute('aria-hidden','true');
       control.append(icon,el('span','ae-marker-label',text));return control;
+    }
+    function nextStep(){
+      const data=read(),hour=currentHour||data.hour,phase=hour?.stage;
+      if(!phase)return {label:data.progress?.choice?'Leer mi desenlace':'Abrir la deducción final',run:()=>actions('ending')};
+      const room=hour.inventory?.rooms?.find(room=>room.index===hour.current);
+      if(room&&!room.visited)return {label:'Explorar '+room.place,run:()=>actions('inspect')};
+      const paper=frame.dataset.playPaper;
+      const next=(phase.materials||[]).find(item=>(paper!=='A'&&paper!=='B'||!item.role||item.role==='AB'||item.role===paper||item.role===(paper==='A'?1:2))&&!examined.has(hour.current+'|'+item.id));
+      return next?{label:'Examinar '+next.label,run:()=>actions('material',next.id)}:{label:'Resolver la etapa',run:()=>actions('decision')};
     }
     function update(hour){
       if(hour)currentHour=hour;
@@ -174,7 +224,8 @@
       progress.textContent=phase?'Etapa '+(state.current+1)+' de '+total:'Investigación completada';
       place.textContent=phase?.place||options.place||phase?.title||story.title;
       goalLabel.textContent=phase?.title||'Objetivo actual';
-      goal.textContent=phase?(phase.brief===phase.task?'':phase.brief||''):data.progress?.choice?'Releer el desenlace guardado.':data.progress?.deduced?'Decidir cómo cerrar la historia.':'Contrastar la deducción final.';
+      const firstProof=visible[0];
+      goal.textContent=phase?stageObjective(phase,firstProof):data.progress?.choice?'Relee tu desenlace o vuelve a Mis partidas.':data.progress?.deduced?'Elige cómo cerrar la historia y guarda tu desenlace.':'Contrasta la deducción final con las pruebas recogidas.';
       goal.hidden=!goal.textContent;
       if(shared){
         const ready=mode!=='pending';
@@ -184,7 +235,8 @@
           objective:ready?goal.textContent:'Elige la modalidad para abrir el escenario.',
           help:{context:together?'duo':'temporada',text:'Los puntos del escenario abren el lugar, sus pruebas y la decisión de esta etapa.',
             steps:['Examina las pruebas de tu carpeta.','Reúne los objetos en el inventario y contrasta lo que has observado.','Resuelve la etapa para abrir la siguiente estancia.']},
-          tools:ready?[{id:'bag',label:style.bag,run:()=>actions('bag')},{id:'evidence',label:'Evidencias',run:()=>actions('evidence')}]:[]
+          tutorial:ready&&phase&&state.current===0?'Empieza por «'+(firstProof?.label||style.inspect)+'» en la imagen. '+(together?'Describe tu hallazgo a tu pareja y escucha qué aporta su carpeta.':'Consulta las pruebas de ambos papeles en Evidencias.')+' Cuando tengas una explicación, abre la decisión de la etapa.':'',
+          next:null
         };
         syncMesa();
       }
@@ -229,7 +281,12 @@
     }
     const observer=new MutationObserver(()=>update());
     observer.observe(frame,{attributes:true,attributeFilter:['data-play-mode','data-play-paper']});
-    return {update,returnFrom,focus(){markers.querySelector('button')?.focus({preventScroll:true});host.scrollIntoView({block:'start'});},destroy(){observer.disconnect();explorer.destroy();shared?.destroy();}};
+    return {update,returnFrom,attach(){if(shared){frame.prepend(dock);syncMesa();}},
+      inventory(snapshot){const hour=currentHour||read().hour;if(hour&&snapshot&&snapshot.revision>=(hour.inventory?.revision||0)){hour.inventory=snapshot;syncMesa();}},
+      rememberExtra(view){if(view&&document.activeElement&&frame.contains(document.activeElement))extraOrigin={view,trigger:document.activeElement,label:document.activeElement.textContent};},
+      writing(){writes++;if(writes===1)saveIssue=false;saveText='Guardando…';syncMesa();},
+      written(ok){if(ok===false)saveIssue=true;writes=Math.max(0,writes-1);saveText=writes?'Guardando…':saveIssue?'Última acción sin confirmar':ok===null?'Respuesta comprobada':'Progreso guardado';syncMesa();},
+      focus(){markers.querySelector('button')?.focus({preventScroll:true});host.scrollIntoView({block:'start'});},destroy(){observer.disconnect();explorer.destroy();shared?.destroy();}};
   }
   window.AventuraEscena=Object.freeze({mount,mountExplorer,challengeHeader});
 })();

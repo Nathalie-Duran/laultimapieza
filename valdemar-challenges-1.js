@@ -218,7 +218,7 @@
           const osc=current.createOscillator(), gain=current.createGain(), t=start+beat*.31;
           osc.frequency.value=[0,330,495,660][level]; gain.gain.setValueAtTime(0,t);
           gain.gain.linearRampToValueAtTime(.12,t+.012); gain.gain.exponentialRampToValueAtTime(.001,t+.20);
-          osc.connect(gain); gain.connect(current.destination); osc.start(t); osc.stop(t+.22);
+          osc.connect(gain); gain.connect(window.GamePreferences?.audioOutput(current)||current.destination); osc.start(t); osc.stop(t+.22);
         });
         window.setTimeout(() => { if (audio===current) {current.close().catch(()=>{}); audio=null;} },2700);
       } catch { notice='Puedes completar la señal comparando las dos filas numéricas.'; draw(); }

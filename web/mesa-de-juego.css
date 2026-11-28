@@ -9,6 +9,19 @@
 }
 .mesa-juego [hidden],.mesa-juego[hidden] { display:none !important }
 .mesa-juego,.mesa-juego * { box-sizing:border-box }
+.mj-objective-dock { position:sticky; top:var(--partida-top,0px); z-index:6; box-sizing:border-box; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:.12rem .8rem; padding:.56rem clamp(.7rem,2.2vw,1.6rem); background:#172b25; border-block:1px solid #7b8b70; border-inline-start:3px solid #dabc86; color:#fff8e3; box-shadow:0 2px 5px #0b160e35; font:400 1rem/1.35 var(--sans,system-ui,sans-serif) }
+.mj-objective-dock[hidden],.mj-objective-dock [hidden] {display:none!important}
+.mj-objective-dock .mj-progress { grid-area:1/1; margin:0; color:#efd59e; font-size:.78rem; font-weight:650; line-height:1.3 }
+.mj-objective-dock .mj-objective {grid-area:2/1/3/-1;margin:0;color:inherit}
+.mj-objective-dock .mj-label {margin-right:.45em;color:#dfcfab;font-size:.82rem;font-weight:650}
+.mj-objective-dock .mj-goal {display:inline;margin:0;color:#fff8e3;font:inherit}
+.mj-objective-dock .mj-save {grid-area:1/2}
+.mj-save {color:#d7e4d3;font:600 .76rem/1.35 var(--sans,system-ui,sans-serif)}
+.mesa-juego .mj-tutorial {flex-basis:100%;padding:0;margin:0;color:#f4e6c0;font:inherit}
+.mj-tutorial summary {width:fit-content;max-width:100%;min-height:44px;align-content:center;cursor:pointer;color:#ffdda0;text-decoration:underline;text-underline-offset:.2rem}
+.mj-tutorial .mj-lesson {margin:0 0 .25rem;max-width:75ch;color:#f5eedf}
+.mesa-juego .mj-tool[aria-pressed=true] {border-color:#f0ce8b;box-shadow:inset 0 -3px #d8b778}
+@media(max-height:380px){.mj-objective-dock{position:relative;top:auto}}
 .mesa-juego[data-family="umbravia"] { --mj-dark:#1c302b }
 .mesa-juego[data-family="necropolis"] { --mj-dark:#382d25 }
 .mesa-juego[data-family="expedicion"] { --mj-dark:#203738 }

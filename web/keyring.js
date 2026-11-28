@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const titles={open:'Pista orientativa',second:'Pista detallada',solution:'Solución explicada',
-    reward:'Reto paralelo',challenge:'Desafío publicado',calendarChallenge:'Desafío del calendario',mansionArcade:'Minijuego de la mansión',seasonArcade:'Minijuego de la sala de temporada',mansionEnding:'Desenlace de la mansión',mission:'Misión secreta',renewal:'Renovación mensual',welcome:'Bienvenida'};
+    reward:'Reto de aventura',challenge:'Reto publicado',calendarChallenge:'Desafío del calendario',mansionArcade:'Minijuego de la sala de Ada',seasonArcade:'Minijuego de la sala de temporada',mansionEnding:'Primer desenlace de la mansión',adventureEnding:'Primer desenlace de la aventura',mission:'Misión secreta',renewal:'Renovación mensual',welcome:'Bienvenida'};
   const keys=n=>n+(n===1?' llave':' llaves');
   function node(tag,label) {
     const element=document.createElement(tag);
@@ -11,11 +11,17 @@
   function history(wallet) {
     const details=node('details'),list=node('ol');
     details.append(node('summary','Historial de llaves'));
-    for(const entry of [...(wallet.history||[])].reverse()) {
+    const movements=[...(wallet.history||[])].reverse().sort((a,b)=>(b.at||0)-(a.at||0));
+    for(const entry of movements) {
       const value=(entry.amount>0?'+':'')+entry.amount;
-      const context=entry.caseId?' · Caso '+entry.caseId:'';
+      const id=entry.caseId,season=window.Colecciones?.seasons?.[Math.floor((id-1)/12)];
+      let context='';
+      if(id && entry.kind!=='calendarChallenge'){
+        const room=entry.kind==='mansionArcade'||entry.kind==='seasonArcade';
+        context=room && season?' · '+season.name:' · '+(season?season.name+' · Aventura '+((id-1)%12+1):'Aventura '+id);
+      }
       const when=entry.at?' · '+new Date(entry.at).toLocaleDateString('es-ES'):'';
-      list.append(node('li',value+' · '+titles[entry.kind]+context+when));
+      list.append(node('li',value+' · '+(titles[entry.kind]||'Movimiento de llaves')+context+when));
     }
     details.append(list.childElementCount?list:node('p','Aún no tienes movimientos.'));
     return details;
@@ -55,8 +61,13 @@
     if(!data.wallet.won.includes(id)){
       body.append(button('Jugar el reto de aventura · +'+keys(data.parallelPrize),play));
     } else if(data.keyChallenge) {
-      const next=node('a','Ganar llaves en '+data.keyChallenge.title);
-      next.href=data.keyChallenge.href;next.className=buttonClass;body.append(next);
+      const offer=data.keyChallenge;
+      const title=(offer.room&&window.Colecciones?.sala?.(offer.room)?.title)||(offer.id&&window.RetosTemporada?.ficha(offer.id)?.title)||offer.title;
+      const next=node('a','Ganar llaves en '+title);
+      next.href=offer.href;next.className=buttonClass;
+      if(offer.room)next.dataset.visitRoom=offer.room;
+      if(offer.calendar)next.dataset.visitCalendar='true';
+      body.append(next);
     }
     body.append(status,history(data.wallet));
   }

@@ -243,3 +243,7 @@
   .management .mg-range button { padding-inline: .6rem; }
   .management .mg-review-counts dt { font-size: .8rem; }
 }
+.mg-workshop{display:grid;gap:1rem}.mg-workshop form,.mg-workshop label{display:grid;gap:.5rem}
+.mg-workshop label{margin:.6rem 0}.mg-workshop input,.mg-workshop select,.mg-workshop textarea{width:100%;max-width:100%;min-height:44px;padding:.55rem;font:inherit;color:inherit;background:var(--panel,#18221f);border:1px solid #8c9187;border-radius:.35rem}
+.mg-workshop pre{white-space:pre-wrap;overflow-wrap:anywhere}.mg-workshop summary{cursor:pointer;padding:.65rem 0}
+.mg-workshop-actions{display:flex;flex-wrap:wrap;gap:.6rem}.mg-workshop [hidden]{display:none}

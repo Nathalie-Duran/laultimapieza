@@ -1,4 +1,22 @@
 sala-temporada { display:block; min-width:0 }
+estacion-compartida {display:block; min-width:0; margin:.75rem 0; text-align:start}
+.estacion-pareja {border:1px solid #829686; border-radius:.4rem; background:#162c29; color:#f5eddc}
+.estacion-pareja>summary,.estacion-pareja button,.estacion-pareja a,.estacion-pareja label {min-height:44px}
+.estacion-pareja>summary {padding:.75rem 1rem; cursor:pointer; color:#f6dfa7; font-weight:700}
+.estacion-pareja>div {padding:.1rem 1rem .7rem}
+.estacion-pareja p,.estacion-pareja ul {color:#f5eddc; margin:.6rem 0; line-height:1.55}
+.estacion-pareja h4,.estacion-pareja legend {color:#fff0c8; font-weight:700}
+.estacion-pareja fieldset {display:grid; gap:.3rem; min-width:0; margin:.5rem 0; border:1px solid #8b9682; padding:.5rem .8rem}
+.estacion-pareja label {display:flex; align-items:center; gap:.5rem; color:#fff0dd; cursor:pointer}
+.estacion-pareja label input {flex:none; width:1.1rem; height:1.1rem}
+.estacion-pareja a {display:inline-flex; align-items:center; color:#ffdc94}
+.estacion-pareja button {padding:.55rem .8rem; margin:.2rem .35rem .2rem 0; color:#1e3027; background:#efd39c; border:1px solid #d4b778; border-radius:.25rem; cursor:pointer}
+.estacion-pareja :is(button,summary,input,a):focus-visible {outline:3px solid #ffdf98; outline-offset:3px}
+.estacion-pareja [data-coop-status]:empty {margin:0}
+.sala-en-partida {box-sizing:border-box; width:min(96vw,66rem); max-width:96vw; max-height:90dvh; overflow:auto; overscroll-behavior:contain; padding:clamp(.6rem,2vw,1.25rem); color:#f4ebd6; background:#101c1b; border:1px solid #b99f70; border-radius:.5rem}
+.sala-en-partida::backdrop {background:rgb(4 10 10 / .85)}
+.sala-volver-partida {position:sticky; top:0; z-index:2; display:inline-flex; align-items:center; min-height:44px; padding:.5rem .85rem; margin:0 0 .55rem; color:#17261e; background:#efd29b; border:1px solid #fce1a7; border-radius:.25rem; cursor:pointer; font-weight:700}
+.sala-volver-partida:focus-visible {outline:3px solid white;outline-offset:2px}
 sala-temporada .sala-al-juego { display:inline-flex; align-items:center; min-height:44px; color:#f4ce8c; text-underline-offset:.2em }
 .sala-estacion .sala-material,.sala-estacion .sala-operacion { margin:clamp(.9rem,2.5vw,1.75rem) 0; padding:0; background:transparent }
 .sala-estacion :is(.sala-material,.sala-operacion) h2 { color:#213c32; margin:0 0 .55rem; font:500 clamp(1.35rem,2.3vw,1.85rem)/1.15 var(--serif,Georgia,serif) }
