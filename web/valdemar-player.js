@@ -500,15 +500,16 @@
     const mesa=window.MesaDeJuego.mount(host,{family:'valdemar',title:c.data.story.title});
     dock.setAttribute('aria-label','Objetivo de la aventura');
     c.frame.dataset.hotelUi='true';
-    shell.classList.add('hotel-partida');
+    shell.classList.add('mansion-game','radio-desk');
     shell.prepend(dock);
     mesa.dockObjective(dock);
-    tabs.className='hotel-tabs';
+    tabs.className='mansion-tabs vd-block-tools';
     const buttonFor=key=>tabs.querySelector('[data-case-go="'+key+'"]');
     for(const key of ['escenario','inventario','evidencias','pistas'])tabs.append(buttonFor(key));
     const controls=element('nav',null,'hotel-related');
     controls.setAttribute('aria-label','Acciones de la partida');
     for(const key of ['resolver','desenlace','extra'])controls.append(buttonFor(key));
+    for(const tab of tabs.children)tab.className='mansion-tab';
     status.hidden=true;
     shell.append(host,controls);
     const bind=navigation.bind;
@@ -518,10 +519,46 @@
       if(key==='evidencias')node.classList.add('hotel-evidencias','hm-evidence-shelf');
     };
     const scenario=shell.querySelector('.case-scenario');
-    scenario.classList.add('vd-panel');
+    scenario.classList.add('radio-scenario');
+    const chapter=element('header',null,'mansion-header');
+    const chapterTitle=element('p',null,'mansion-eyebrow');
+    const shortcuts=element('div',null,'mansion-worlds');
+    shortcuts.append(button('Consultar evidencias',()=>selectView(c,'evidencias',true),'mansion-world-choice'),
+      button('Resolver la etapa',()=>selectView(c,'resolver',true),'mansion-world-choice'));
+    chapter.append(chapterTitle,shortcuts);
+    const layout=element('div',null,'mansion-panel radio-layout');
+    const stageArea=element('section',null,'mansion-stage');
+    const photo=scenario.querySelector('.ae-stage');
+    stageArea.append(photo);
+    const sidebar=element('aside',null,'mansion-objective mansion-scene-tools');
+    const objects=element('div',null,'mansion-examine');
+    const task=scenario.querySelector('.case-consigna');
+    task.classList.add('mansion-paper-task');
+    sidebar.append(element('h3','Objetos de la cabina','mansion-tools-heading'),task,objects,guide);
+    layout.append(stageArea,sidebar);
+    scenario.prepend(chapter,layout);
+    const markers=photo.querySelector('.ae-markers');
+    function syncObjects(){
+      objects.replaceChildren();
+      for(const marker of markers.querySelectorAll('button')){
+        const label=marker.querySelector('.ae-marker-label')?.textContent||marker.textContent;
+        const item=button('',()=>marker.click(),'mansion-marker mansion-find');
+        const thumbnail=element('img',null,'mansion-find-photo');
+        thumbnail.src=photo.querySelector('img').src;
+        thumbnail.alt='';
+        thumbnail.style.objectPosition=marker.style.getPropertyValue('--x')+' '+marker.style.getPropertyValue('--y');
+        item.append(thumbnail,element('span',label,'mansion-find-label'));
+        objects.append(item);
+      }
+    }
+    const sceneObserver=new MutationObserver(syncObjects);
+    sceneObserver.observe(markers,{childList:true,subtree:true,characterData:true});
+    syncObjects();
     let hour=c.data.hour;
     function refresh(){
       const stage=hour.stage;
+      chapterTitle.textContent=stage?'Capítulo '+(['I','II','III','IV','V'][hour.current]||String(hour.current+1))+' · '+stage.title:'Investigación completada';
+      shortcuts.lastElementChild.hidden=!stage;
       mesa.update({progress:hour.current+'/'+hour.stages.length+' pruebas resueltas'+(stage?' · '+stage.title:''),
         objective:stage?(stage.task||stage.brief||c.data.story.question):'Abre el desenlace para cerrar el caso.',
         saved:status.querySelector('.case-save')?.textContent||'',help:false,tools:[],tutorial:'',next:null});
@@ -530,7 +567,7 @@
     navigation.progress=value=>{hour=value;progress(value);refresh();};
     const observer=new MutationObserver(refresh);
     observer.observe(status,{childList:true,subtree:true,characterData:true});
-    navigation.destroy=()=>{observer.disconnect();mesa.destroy();destroy();};
+    navigation.destroy=()=>{observer.disconnect();sceneObserver.disconnect();mesa.destroy();destroy();};
     guide.classList.add('hotel-instrucciones');
     refresh();
   }
