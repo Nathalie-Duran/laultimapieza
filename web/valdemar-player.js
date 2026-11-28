@@ -207,7 +207,7 @@
     if(c.data.hour && window.ValdemarHour){
       const hourNode=element('div');c.desk.append(hourNode);
       c.hourView=window.ValdemarHour.mount(hourNode,c.data.hour,{
-        hotelNode:c.hotel,role:c.data.partner?.role,station:c.id===1,
+        caseId:c.id,hotelNode:c.hotel,role:c.data.partner?.role,station:c.id===1,
         onScene:(hour,main)=>{c.scene?.update(hour);if(c.view==='desk')c.scene?.returnFrom(main);},
         sceneRoute:Boolean(c.scene),sceneBack:c.scene?target=>c.scene.returnFrom(target):null,
         inventory:async input=>{
@@ -663,7 +663,8 @@
           }
           c.data=c.episode;
         }
-        c.data=await request(c);await loadEngines(c);
+        c.data=await request(c);
+        await Promise.all([loadEngines(c),window.ArchivoObjetos?.open(id)]);
         if(sessionLive(c))build(c);
       }catch(e){if(valid(c))showFailure(c,e);}
       finally{c.frame.removeAttribute('aria-busy');}

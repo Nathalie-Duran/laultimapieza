@@ -1,0 +1,90 @@
+.hm-desk,.hm-viewer {
+  --hm-brass:#e5bd78;--hm-edge:#766447;--hm-paper:#f3e8c9;--hm-ink:#26231f;
+  color:#f8efd9;background:#192324;border:1px solid var(--hm-edge);border-radius:.55rem;
+  overflow:hidden;min-width:0;color-scheme:dark;
+}
+.hm-desk *,.hm-viewer * {box-sizing:border-box}
+.hm-desk {container-type:inline-size}
+.hm-desk button,.hm-viewer button {font:inherit;line-height:1.4;cursor:pointer}
+.hm-desk button:focus-visible,.hm-viewer button:focus-visible {outline:3px solid #fff4b5;outline-offset:2px;z-index:1}
+.hm-desk button:disabled {cursor:default}
+.hm-desk [hidden] {display:none!important}
+.hm-desk .hm-object {display:block;aspect-ratio:1;width:100%;height:auto;object-fit:cover;pointer-events:none}
+.hm-desk-head {display:grid;grid-template-columns:clamp(5.2rem,24%,10rem) minmax(0,1fr);align-items:stretch;background:#241e18;color:#fff3d2;border-bottom:1px solid #927751}
+.hm-desk-head .hm-object {height:100%;min-height:6rem}
+.hm-desk-caption {align-self:center;padding:clamp(.75rem,2vw,1.3rem)}
+.hm-desk h5,.hm-desk h6,.hm-viewer h6 {font-family:Georgia,'Times New Roman',serif;color:inherit;margin:0}
+.hm-desk h5 {font-size:clamp(1.2rem,2vw,1.7rem);line-height:1.08}
+.hm-desk-caption p {font-size:.95rem;line-height:1.45;margin:.5rem 0 0}
+.hm-jacks,.hm-contacts,.hm-tray,.hm-people,.hm-files {display:grid;gap:.55rem;padding:.75rem}
+.hm-jacks,.hm-tray {grid-template-columns:repeat(3,minmax(0,1fr))}
+.hm-jacks {background:linear-gradient(#27312e,#151b19);border-bottom:1px solid #706749}
+.hm-jack {position:relative;padding:.6rem .45rem;border:1px solid #75664c;border-radius:.4rem;background:#1b211e;color:#f9ebcd;text-align:center;overflow-wrap:anywhere}
+.hm-jack:before {content:'';display:block;width:1rem;height:1rem;margin:0 auto .25rem;border-radius:50%;background:#0c100f;border:3px solid #b59562;box-shadow:inset 0 2px 2px #000}
+.hm-jack[data-connected=true]:before {background:#bddaac;border-color:#e1c087}
+.hm-jack-number,.hm-jack-label {display:block}
+.hm-jack-number {font-weight:750;color:#efd09a}
+.hm-jack-label {font-size:.84rem;line-height:1.3;margin-top:.25rem}
+.hm-desk [aria-pressed=true],.hm-year[aria-pressed=true] {box-shadow:inset 0 0 0 2px var(--hm-brass);border-color:var(--hm-brass)}
+.hm-contacts {grid-template-columns:minmax(0,1fr)}
+@container(min-width:30rem){.hm-contacts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container(min-width:44rem){
+  .hm-contacts{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .hm-desk-head{background-image:linear-gradient(90deg,#241e18 16%,#241e18ef 44%,#241e183b 100%),url('/valdemar-hotel-lobby.webp');background-size:cover;background-position:center 48%}
+  .hm-desk-caption p{max-width:38rem}
+}
+.hm-contact,.hm-exhibit,.hm-interview {border:1px solid #74684d;color:#fff1d0;background:#222a26;border-radius:.32rem}
+.hm-contact {display:grid;grid-template-columns:3rem minmax(0,1fr);gap:.55rem;align-items:center;text-align:left;padding:.3rem .5rem .3rem .3rem}
+.hm-contact .hm-object {border-radius:.2rem}
+.hm-erase {margin:0 .75rem .6rem;background:transparent;border:1px solid #9f957d;color:#fff0ce;padding:.55rem .8rem;border-radius:.3rem}
+.hm-erase:disabled {opacity:.65}
+.hm-desk .hm-visit {display:block;text-align:left;margin:.75rem .75rem 0;padding:.6rem .95rem;border:1px solid #d9b675;border-radius:.3rem;color:#30281c;background:#efd199;font-weight:700}
+.hm-desk .hm-meter {max-width:none;border-top:1px solid #554d3b;background:#18201c;color:#efcc90;font-weight:700;margin:0!important;padding:.65rem .9rem;line-height:1.45}
+.hm-files {grid-template-columns:repeat(auto-fit,minmax(min(100%,13.2rem),1fr));background:#1b211f}
+.hm-file {min-width:0;padding:.6rem;background:linear-gradient(120deg,#f6edda,#e3d4b4);color:var(--hm-ink);border-top:4px solid #b68c53;border-radius:.2rem}
+.hm-file-cap {display:grid;grid-template-columns:2.85rem minmax(0,1fr) auto;gap:.5rem;align-items:center}
+.hm-file-cap .hm-object {border-radius:.2rem}
+.hm-file-cap h6,.hm-interview-page h6 {font-size:1rem;line-height:1.2}
+.hm-file-count {font:700 .8rem/1.2 system-ui;color:#514330}
+.hm-desk .hm-slip {display:block;position:relative;width:100%;margin:.4rem 0 0;border:1px solid #847658;border-radius:.18rem;background:#fff8e9;color:#261f16;padding:.55rem .6rem .55rem 1.65rem;text-align:left;font-size:.93rem}
+.hm-slip:before {content:'';position:absolute;left:.5rem;top:.85rem;width:.52rem;height:.52rem;border:1px solid #675332;border-radius:50%}
+.hm-desk .hm-slip[aria-pressed=true] {color:#163c31;border-color:#255443;box-shadow:inset 3px 0 #245443;background:#eef1db}
+.hm-slip[aria-pressed=true]:before {background:#275b46;box-shadow:0 0 0 2px #d2dfbd}
+.hm-slip:disabled {opacity:.7}
+.hm-tray {padding-bottom:.35rem}
+.hm-exhibit {display:flex;flex-direction:column;align-items:center;gap:.3rem;padding:.35rem .35rem .55rem;font-size:.9rem!important}
+.hm-exhibit .hm-object {width:clamp(2.8rem,100%,5.8rem);border-radius:.2rem}
+.hm-people {grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))}
+.hm-interview {text-align:left;padding:.65rem .75rem}
+.hm-interview strong {display:block;color:#edcf93;margin-bottom:.25rem}
+.hm-interview-page {border:1px solid #9e8461;background:var(--hm-paper);color:var(--hm-ink);padding:.65rem .8rem;margin:0 .75rem .75rem}
+.hm-stub {border-bottom:1px solid #c6b799;display:flex;gap:.6rem;align-items:baseline;font-size:.9rem;margin:.38rem 0!important;line-height:1.4}
+.hm-stub strong {min-width:2.7rem}
+.vhour-format-photo.hm-photo {background-size:cover;background-position:center}
+.vhour-hotel [data-hotel-object] + .vhour-clipping {display:flow-root}
+.vhour-hotel [data-hotel-object] + .vhour-clipping:before {content:'';float:left;width:clamp(5rem,28%,10rem);aspect-ratio:1;box-shadow:0 2px 5px #0005;margin:0 .8rem .4rem 0;background-size:cover;background-position:center;border-radius:.2rem}
+.vhour-hotel [data-hotel-object=plano] + .vhour-clipping:before {background-image:url('/hotel-medianoche-planta.webp')}
+.vhour-hotel [data-hotel-object=recibo] + .vhour-clipping:before {background-image:url('/hotel-medianoche-registro.webp')}
+.vhour-hotel [data-hotel-object=recorte] + .vhour-clipping:before {background-image:url('/hotel-medianoche-recorte.webp')}
+.hm-evidence-viewer {margin:.7rem 0;color:#f4e4bf}
+.hm-evidence-viewer summary {width:fit-content;cursor:pointer;text-decoration:underline;text-underline-offset:.2em;padding:.55rem .1rem}
+.hm-evidence-detail {max-width:38rem}
+.hm-evidence-detail .hm-object {width:100%;height:auto;display:block;border:1px solid #aa8d56;border-radius:.25rem}
+.hm-receipt {max-width:26rem;display:grid;gap:.6rem;padding:clamp(1rem,5vw,2.2rem);transform:rotate(-.4deg);background:repeating-linear-gradient(0deg,#f0e4c7 0 28px,#cfbfa2 28px 29px);border:6px double #a28f67;color:#3b3124;font:1rem/1.5 Georgia,serif}
+.hm-receipt strong {font-size:1.35rem}.hm-receipt i {display:block;border-bottom:1px solid #78694f;font-size:.84rem}.hm-receipt i:last-child {margin-left:1.1rem}
+.hm-viewer {margin:.65rem 0;padding:.7rem;background:#192c2f}
+.hm-viewer h6 {font-size:1.1rem}
+.hm-years {display:flex;gap:.5rem;margin:.55rem 0}
+.hm-year {background:#263c3b;border:1px solid #8a8567;border-radius:.3rem;padding:.55rem .85rem;color:#f6f2d9}
+.hm-plan {border:1px solid #c1d4c2;display:flex;gap:8%;padding:1rem 6%;background-color:#244146;background-image:linear-gradient(#7097923b 1px,transparent 1px),linear-gradient(90deg,#7097923b 1px,transparent 1px);background-size:1rem 1rem}
+.hm-door {flex:1;min-height:3.6rem;display:grid;place-items:center;border:double 4px #c6dbc9;color:#f4f8df;font:700 1.1rem/1 Georgia}
+.hm-door[data-closed=true] {background:repeating-linear-gradient(-45deg,transparent 0 6px,#b9cbb241 6px 8px);border-style:dashed;text-decoration:line-through}
+.hm-plan-text {margin:.55rem 0 0!important;font-size:.92rem;line-height:1.45}
+@media(max-width:36rem) {
+  .hm-desk-caption{padding:.65rem}.hm-jacks,.hm-tray,.hm-contacts,.hm-people,.hm-files{padding:.5rem;gap:.35rem}
+  .hm-jack{padding:.45rem .2rem}.hm-jack-label{font-size:.75rem}.hm-desk-head .hm-object{min-height:5rem}
+}
+@media(forced-colors:active) {
+  .hm-desk [aria-pressed=true],.hm-viewer [aria-pressed=true]{outline:3px double Highlight}
+  .hm-slip[aria-pressed=true]:before{background:Highlight}
+}
