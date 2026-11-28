@@ -4,6 +4,7 @@ import { readJourney, solveJourney } from './season-journey.mjs';
 import { checkPuzzle } from './progression.mjs';
 import { adminMembership, canManageSite } from './admin-access.mjs';
 import { worldSeasonAccess } from './valdemar-wallet.mjs';
+import { cancellationSummary } from './subscription-cancellation.mjs';
 import { mailKey } from './mail-service.mjs';
 import {noticePreferences,validateNoticePrefs} from './play-notices.mjs';
 import {checkRetiredSession, resetPersonalProgress} from './progress-reset.mjs';
@@ -193,8 +194,9 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           if(isAdministrator(user)&&store.markEditorial)await store.markEditorial(uid);
           if(billing?.refreshOfferIdentity)await billing.refreshOfferIdentity(store,user,isAdministrator(user)===true);
           const sessions=await store.listSessions(uid);
-          const membership=isAdministrator(user)
-            ? {...adminMembership(),seasonAccess:worldSeasonAccess(await store.getMemberData(uid),{editorial:true}),
+          const editorialData=isAdministrator(user)?await store.getMemberData(uid):null;
+          const membership=editorialData
+            ? {...adminMembership(),hasCustomer:Boolean(editorialData.customer),renewal:cancellationSummary(editorialData),seasonAccess:worldSeasonAccess(editorialData,{editorial:true}),
               ...(billing?.partnerOffer?{partnerOffer:await billing.partnerOffer(store,uid,null,true)}:{})}
             : billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
           membership.canManage=canManageSite(user);membership.ownAccess=membership.canPlay;membership.guestOwners=[];
