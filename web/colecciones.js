@@ -27,7 +27,7 @@
     const playing=['valdemar-jugar','mundos-jugar'].includes(route);
     const season=map||((playing||route==='valdemar')&&seasons[Math.floor((caseId-1)/12)]);
     if(!season)return '';
-    let href='/#tableros?mundo='+season.board,label='Temporadas';
+    let href='/#tableros?mundo='+season.board,label='Mapa de temporadas';
     if(playing&&query.get('seccion')==='reto'){
       href='/#desafios?mundo='+season.board;label='Retos extra';
     }else if(!map||query.get('seccion')==='ficha'){
@@ -52,6 +52,15 @@
   }
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c =>
     ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+  function illustratedMap({primary=false,home=false,letter=false}={}) {
+    const heading=primary?'h1':'h2';
+    const pins=seasons.map((season,i)=>`<a class="universe-pin universe-pin-${i+1}" href="/#${season.board}" aria-label="Explorar ${esc(season.name)}"><span class="universe-pin-light" aria-hidden="true"></span><span><small>${esc(season.genre)}</small><strong>${esc(season.name)}</strong></span></a>`).join('');
+    return `<section class="universe-front" aria-labelledby="universe-heading"><div class="universe-front-copy">
+      <${heading} id="universe-heading">Mapa de temporadas</${heading}><p>Elige un destino del mapa para explorar sus doce juegos.</p>
+      ${home?'<a class="universe-progress" href="/#tableros">Ver el recorrido de las cuatro temporadas <span aria-hidden="true">→</span></a>':''}
+      ${letter?`<div class="universe-front-first"><span>Primer juego · Código Valdemar</span><h3>El secreto de los dos mundos</h3><p>Ada os envía una foto de vuestra infancia. Reconocéis vuestras caras, pero ninguno recuerda esa casa.</p><a class="universe-door" href="/valdemar/01/?carta=1">Abrir la carta de Ada <span aria-hidden="true">→</span></a></div>`:''}</div>
+      <nav class="universe-chart" aria-label="Explorar las cuatro temporadas"><img src="/atlas-cuatro-mundos.webp" width="1520" height="855" alt="" ${primary?'fetchpriority="high"':'loading="lazy"'}>${pins}</nav></section>`;
+  }
   const two = value => String(value).padStart(2,'0');
   const placeHref = (season,local) => '/#'+season.board+'?lugar='+local;
   function territoryData(index,access) {
@@ -127,7 +136,7 @@
       const active=first.number===number;
       return `<button type="button" class="atlas-territory" id="atlas-territory-${number}" data-atlas-board="${season.board}" role="tab" aria-controls="atlas-panel-${number}" aria-selected="${active}" tabindex="${active?0:-1}"><img src="/${season.art}" alt="" width="1536" height="1024" decoding="async"><span><small>${two(number)} · ${esc(season.genre)}</small><strong>${esc(season.name)}</strong></span></button>`;
     }).join('');
-    return `<season-atlas class="colecciones-atlas atlas-universe"><header><h1>Temporadas</h1><p>Cada temporada reúne 12 juegos. Elige una para explorar su mapa y ver tu progreso.</p></header><div class="atlas-territories" role="tablist" aria-label="Temporadas disponibles">${tabs}</div>${territories.map(data=>territoryPanel(data,data===first)).join('')}</season-atlas>`;
+    return `<season-atlas class="colecciones-atlas atlas-universe">${illustratedMap({primary:true})}<header><h2>Recorrido por temporada</h2><p>Consulta los juegos, el sello y los retos de la temporada que elijas.</p></header><div class="atlas-territories" role="tablist" aria-label="Temporadas disponibles">${tabs}</div>${territories.map(data=>territoryPanel(data,data===first)).join('')}</season-atlas>`;
   }
   if(window.customElements && !window.customElements.get('season-atlas')) {
     window.customElements.define('season-atlas',class extends HTMLElement {
@@ -204,6 +213,11 @@
       '<p class="extras-unlock">'+(open?'Esta aventura está abierta en tu cuenta.':'Este reto se puede jugar cuando tengas acceso a «'+esc(game.title)+'».')+'</p>'+
       '<nav class="extras-actions" aria-label="Opciones del reto">'+(open||game.id===1?'<a class="extras-primary" href="'+play+'">'+(game.id===1?'Abrir la sala de Ada':'Jugar al reto')+'</a>':'<a class="extras-primary" href="/#planes">Ver la suscripción</a>')+'<a href="'+story+'">Ver la aventura</a></nav></div></article>'+balance+'</section>';
   }
+  function calendarLink(season) {
+    const origin=season?'&amp;mundo='+season.board:'';
+    return '<a class="extras-calendar" href="/#desafios?seccion=calendario'+origin+'"><img src="/prueba-documento.webp" alt="" width="96" height="96">'+
+      '<span><strong>Abrir el calendario <span aria-hidden="true">→</span></strong><small>Reto diario y misión semanal de las cuatro temporadas</small></span></a>';
+  }
   function challenges(access) {
     const games=[...window.ValdemarCatalog.items,...window.MundosCatalogo];
     const available=new Set(access?.availableCases||[]);
@@ -216,7 +230,8 @@
       return '<section class="colecciones-atlas adventure-challenges reto-local reto-sala"><nav class="reto-migas" aria-label="Ruta de la sala">'+back+'<a href="/#desafios?mundo=mapa">Retos de Código Valdemar</a></nav><mansion-arcade></mansion-arcade>'+balance+'</section>';
     }
     if(section==='calendario'){
-      return '<section class="colecciones-atlas adventure-challenges reto-local reto-agenda"><nav class="reto-migas" aria-label="Navegación del calendario">'+back+'</nav>'+window.EditorialChallenges.view(true)+balance+'</section>';
+      const returnLink=territory?'<a class="reto-regreso" href="/#desafios?mundo='+territory.board+'">Volver a los retos de '+esc(territory.name)+'</a>':back;
+      return '<section class="colecciones-atlas adventure-challenges reto-local reto-agenda"><nav class="reto-migas" aria-label="Navegación del calendario">'+returnLink+'</nav>'+window.EditorialChallenges.view(true)+balance+'</section>';
     }
     if(territory){
       const index=seasons.indexOf(territory),stops=games.filter(game=>Math.floor((game.id-1)/12)===index);
@@ -226,7 +241,7 @@
       const intro=index===0?'En la primera aventura te espera la sala de Ada con seis minijuegos. Cada una de las otras once aventuras tiene su propio reto.':'Cada una de las doce aventuras tiene su propio reto. Puedes jugarlo cuando tengas acceso a la aventura correspondiente.';
       const guidance=signed?'<p class="extras-access">'+(count===0?'Puedes ver las fichas. Esta temporada aún no está abierta en tu cuenta.':count===12?'Tienes acceso a las doce aventuras.':'Tienes acceso a '+count+' de las doce aventuras.')+'</p>':'';
       return '<section class="colecciones-atlas adventure-challenges reto-local extras-hall"><nav class="reto-migas" aria-label="Ruta de la temporada">'+back+'<a href="/#tableros?mundo='+territory.board+'">Mapa de '+esc(territory.name)+'</a></nav>'+
-        '<header class="extras-season-head"><div><h1>Retos de '+esc(territory.name)+'</h1><p class="extras-intro">'+intro+'</p>'+guidance+'</div>'+
+        '<header class="extras-season-head"><div><h1>Retos de '+esc(territory.name)+'</h1><p class="extras-intro">'+intro+'</p>'+guidance+calendarLink(territory)+'</div>'+
         '<img src="/extras-'+territory.board+'.webp" alt="" width="760" height="360" decoding="async"></header>'+
         '<ol class="extras-list" aria-label="Retos por aventura">'+stops.map(game=>extraCard(game,available.has(game.id))).join('')+'</ol>'+balance+'</section>';
     }
@@ -241,10 +256,10 @@
         '<div class="extras-tile-body"><p class="extras-origin">'+countText+'</p><h2 id="extra-season-'+first+'">'+esc(season.name)+'</h2><p class="extras-task">'+esc(description)+'</p>'+
         '<div class="extras-tile-foot">'+(status?'<span class="extras-access">'+status+'</span>':'')+'<strong class="extras-link-label">Ver retos <span aria-hidden="true">→</span></strong></div></div></a></li>';
     }).join('');
-    return '<section class="colecciones-atlas adventure-challenges extras-hall"><header class="extras-home-head"><div><h1>Retos extra</h1><p class="extras-intro">Elige una temporada para descubrir sus juegos opcionales. La primera vez que superas un reto ganas llaves para pedir pistas en tus aventuras.</p></div>'+
-      '<div class="reto-acciones extras-actions">'+(signed?'<a href="/#archivo">Volver a mis partidas</a>':'<a href="/#planes">Ver la suscripción</a><button type="button" data-action="auth-login">Entrar</button>')+'</div></header>'+
+    return '<section class="colecciones-atlas adventure-challenges extras-hall"><header class="extras-home-head"><div><h1>Retos extra</h1><p class="extras-intro">Elige una temporada para descubrir sus juegos opcionales. La primera vez que superas un reto ganas llaves para pedir pistas en tus aventuras.</p>'+
+      '<div class="reto-acciones extras-actions">'+(signed?'<a href="/#archivo">Volver a mis partidas</a>':'<a href="/#planes">Ver la suscripción</a><button type="button" data-action="auth-login">Entrar</button>')+'</div></div>'+calendarLink()+'</header>'+
       '<ul class="extras-seasons" aria-label="Elige una temporada">'+boards+'</ul>'+
-      '<aside class="extras-calendar" aria-labelledby="extra-calendar"><img src="/prueba-documento.webp" alt="" width="360" height="240" loading="lazy"><div><h2 id="extra-calendar">Calendario de retos</h2><p>Una prueba diaria y una misión semanal. Se abren con la primera aventura de Código Valdemar.</p></div><a class="extras-primary" href="/#desafios?seccion=calendario">Abrir el calendario</a></aside><challenge-keyring></challenge-keyring></section>';
+      '<challenge-keyring></challenge-keyring></section>';
   }
   function seals(access,editorial=false) {
     return '<section class="colecciones-resumen"><h2>'+(editorial?'Temporadas y sellos de la edición':'Mis sellos de temporada')+'</h2><ul>'+seasons.map((s,i)=>{
@@ -252,5 +267,5 @@
       return `<li><a href="/#${s.board}?seccion=sello">${s.seal}</a><small>${s.name} · ${editorial?'12 juegos':(pass?.completed||0)+'/12 piezas'}</small></li>`;
     }).join('')+'</ul></section>';
   }
-  window.Colecciones=Object.freeze({seasons:Object.freeze(seasons),catalogBoard,catalogRoute,breadcrumb,menu,discover,boards,seals,challenges});
+  window.Colecciones=Object.freeze({seasons:Object.freeze(seasons),catalogBoard,catalogRoute,breadcrumb,menu,discover,illustratedMap,boards,seals,challenges});
 })();

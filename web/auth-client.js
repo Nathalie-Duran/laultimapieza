@@ -38,6 +38,7 @@
   ready.catch(()=>{});
   async function persistence(remember){await ready;if(!auth)unavailable();await sdk.setPersistence(auth,remember?sdk.browserLocalPersistence:sdk.browserSessionPersistence);}
   function returnRoute(hash=location.hash){
+    if(hash==='#suscripcion'||hash==='#suscripcion?seccion=baja')return hash;
     if(/^#valdemar-jugar\?id=(?:[1-9]|1[0-2])$/.test(hash) || /^#mundos-jugar\?id=(?:1[3-9]|[23]\d|4[0-8])$/.test(hash))return hash;
     if(/^#planes\?(revisar=[1-4]|gestion=aviso)$/.test(hash))return hash;
     if(/^#perfil(?:\?seccion=(?:cuenta|pareja|archivo-secreto)(?:&juego=(?:[1-9]|[1-3]\d|4[0-8]))?)?$/.test(hash))return hash;
