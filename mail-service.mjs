@@ -1,11 +1,11 @@
 import {createHash} from 'node:crypto';
+import {SEASON_NAMES} from './progression.mjs';
 import {noticeTypes} from './play-notices.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const mailKey=(type,id)=>createHash('sha256').update(type+':'+id).digest('hex');
 function invitationMessage({caseId, inviterName, caseTitle}) {
-  const seasonNames = ['Valdemar', 'El Tablero de Ámbar', 'Umbravía', 'La Necrópolis del Sol Velado'];
   const id = Number(caseId);
-  const season = Number.isInteger(id) && id >= 1 && id <= 48 ? seasonNames[Math.floor((id-1)/12)] : '';
+  const season = Number.isInteger(id) && id >= 1 && id <= 48 ? SEASON_NAMES[Math.floor((id-1)/12)] : '';
   const game = caseTitle || (season ? `el caso ${String((id-1)%12+1).padStart(2,'0')} de ${season}` : 'un caso de La Última Pieza');
   const subject = 'Tienes una invitación para jugar a La Última Pieza';
   const paragraphs = [
@@ -28,7 +28,7 @@ export function messageTemplate(type,data){
     inactivity:'Tu investigación te espera'};
   if(Object.hasOwn(optionalSubjects,type)){
     const id=Number(data.caseId);
-    const season=['Valdemar','El Tablero de Ámbar','Umbravía','La Necrópolis del Sol Velado'][Math.floor((id-1)/12)];
+    const season=SEASON_NAMES[Math.floor((id-1)/12)];
     const title=season?'el caso '+((id-1)%12+1)+' de '+season:'tu caso';
     const subject=optionalSubjects[type], body={
       case_finished:'Has guardado el desenlace de '+title+'. Su pieza ya forma parte de tu colección.',

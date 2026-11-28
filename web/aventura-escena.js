@@ -1,10 +1,10 @@
 (() => {
   'use strict';
   const boards={
-    valdemar:{title:'Valdemar',symbol:'◇',inspect:'Inspeccionar el lugar',bag:'Inventario'},
-    expedicion:{title:'Expedición Ámbar',symbol:'✧',inspect:'Explorar la escala',bag:'Mochila de expedición'},
-    umbravia:{title:'Umbravía',symbol:'◐',inspect:'Alumbrar el lugar',bag:'Objetos del camino'},
-    necropolis:{title:'Necrópolis',symbol:'◉',inspect:'Examinar el enclave',bag:'Inventario de campo'}
+    valdemar:{title:'Código Valdemar',symbol:'◇',inspect:'Inspeccionar el lugar',bag:'Inventario'},
+    expedicion:{title:'La ruta prohibida',symbol:'✧',inspect:'Explorar la escala',bag:'Mochila de expedición'},
+    umbravia:{title:'El tercer jugador',symbol:'◐',inspect:'Alumbrar el lugar',bag:'Objetos del camino'},
+    necropolis:{title:'La ira de Ra',symbol:'◉',inspect:'Examinar el enclave',bag:'Inventario de campo'}
   };
   const points=[[30,54],[66,43],[51,68],[75,63]];
   const formats={audio:'Escuchar',ledger:'Examinar',testimony:'Leer',visual:'Examinar',web:'Consultar',text:'Leer'};

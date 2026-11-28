@@ -18,7 +18,7 @@ test('el atlas público abre Valdemar y conserva las doce paradas oficiales de c
   assert.equal((html.match(/role="tab"/g)||[]).length,4);
   assert.equal((html.match(/role="tabpanel"/g)||[]).length,4);
   assert.equal((html.match(/data-atlas-state="preview"/g)||[]).length,48);
-  assert.match(html,/Empieza en Valdemar<\/span><h2><a href="\/valdemar\/01\/">El secreto de los dos mundos/);
+  assert.match(html,/Primera aventura<\/span><h2><a href="\/valdemar\/01\/">El secreto de los dos mundos/);
   for(const season of catalog.seasons) {
     assert.ok(html.includes('src="/'+season.art+'"'));
     for(let i=1;i<=12;i++)assert.ok(html.includes('href="/#'+season.board+'?lugar='+i+'"'));
@@ -35,7 +35,7 @@ test('los bloques abonados y las piezas ganadas permanecen separados incluso con
   assert.match(html,/<div class="atlas-next" data-atlas-next="1"><span>Siguiente aventura disponible<\/span><h2><a href="\/#valdemar-jugar\?id=5">/);
   assert.match(html,/href="\/#mapa\?lugar=6" data-atlas-state="done"/);
   assert.match(html,/href="\/#mapa\?lugar=1" data-atlas-state="closed"/);
-  assert.match(html,/Termina los doce pasos del tablero anterior<\/span><h2><a href="\/#mapa">Volver a Valdemar/);
+  assert.match(html,/Termina los doce pasos del tablero anterior<\/span><h2><a href="\/#mapa">Volver a Código Valdemar/);
   assert.equal((html.match(/data-atlas-state="open"/g)||[]).length,3);
 });
 

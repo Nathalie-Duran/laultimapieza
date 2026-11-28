@@ -381,7 +381,7 @@
     c.balance.setAttribute('aria-live','polite');
     headlinks.append(link('Ver en el plano','#mapa?lugar='+c.id,'vd-link'),link('Todas las historias',c.catalog,'vd-link'),c.balance);
     const description=element('div',null,'vd-intro-copy');
-    description.append(headlinks,element('p','Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title));
+    description.append(headlinks,element('p','Código Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title));
     attachModeControl(c,description,story,mode=>request(c,'mode',{mode}),paper=>c.showModePaper?.(paper),{
       caseId:c.id,partner:c.data.partner,data:c.data,partners:(path,body)=>c.bridge.request(path,body),
       readState:async()=>{
@@ -445,7 +445,7 @@
   function buildMansion(c) {
     const data=c.data;
     const header=element('header',null,'vd-intro-copy');
-    header.append(link('Volver al catálogo',c.catalog,'vd-link'),element('p','Valdemar · Caso 01','vd-eyebrow'),
+    header.append(link('Volver al catálogo',c.catalog,'vd-link'),element('p','Código Valdemar · Caso 01','vd-eyebrow'),
       element('h1','El secreto de los dos mundos'));
     const game=element('section');
     let paper=c.data.partner?.role || (data.editorialPreview && data.mode==='duo'?'A':'solo');
@@ -517,7 +517,7 @@
     c.modeControl?.destroy();
     c.mansionView?.destroy();
     c.hourView?.pause();pauseAudio(c.frame);
-    c.frame.replaceChildren(element('h1','La mesa de Valdemar'),element('p',errorMessage(e)));
+    c.frame.replaceChildren(element('h1','La mesa de Código Valdemar'),element('p',errorMessage(e)));
     if(!c.bridge.isSignedIn() || e?.status===401){
       const login=element('button','Entrar','vd-primary');
       login.type='button';login.dataset.action='auth-login';c.frame.append(login);

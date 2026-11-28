@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {readFile,access} from 'node:fs/promises';
 import {test} from 'node:test';
 import {createContext,runInContext} from 'node:vm';
+import {SEASON_NAMES} from '../progression.mjs';
+import {messageTemplate} from '../mail-service.mjs';
 
 async function publicSite(){
   const page=createContext({location:{hash:'#casos'},URLSearchParams});
@@ -11,6 +13,40 @@ async function publicSite(){
   }
   return page;
 }
+
+test('la miga de los cuatro mapas vuelve al territorio activo y su nombre se conserva en el selector y el h1',async()=>{
+  const page=await publicSite();
+  for(const season of page.Colecciones.seasons){
+    const route=season.board;
+    page.location.hash='#'+route;
+    const crumb=page.Colecciones.mapBreadcrumb(route),menu=page.Colecciones.menu(route);
+    assert.ok(crumb.includes('href="/#tableros?mundo='+route+'"'));
+    assert.ok(crumb.includes(' Tableros</a>'));
+    assert.ok(!crumb.includes(season.name));
+    assert.ok(menu.includes('href="/#'+route+'" aria-current="page"'));
+    const map=route==='mapa'?page.ValdemarPlano.view({}):page.Mundos.view(route);
+    const heading=map.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1];
+    assert.ok(heading?.includes(season.name));
+  }
+  assert.equal(page.Colecciones.mapBreadcrumb('casos'),'');
+});
+
+test('cada nombre editorial coincide en el catálogo, el mapa, el pase y la invitación al primer caso de su tablero',async()=>{
+  const page=await publicSite();
+  const names=['Código Valdemar','La ruta prohibida','El tercer jugador','La ira de Ra'];
+  assert.deepEqual(SEASON_NAMES,names);
+  for(const [index,season] of page.Colecciones.seasons.entries()){
+    const name=names[index];
+    assert.equal(season.name,name);
+    page.location.hash=page.Colecciones.catalogRoute(season.board).replace(/^\//,'');
+    assert.ok(page.ValdemarCatalog.list({}).includes('<h1>'+name+'</h1>'));
+    const map=index?page.Mundos.view(season.board):page.ValdemarPlano.view({});
+    assert.ok(map.includes(name));
+    const mail=messageTemplate('case_invitation',{caseId:index*12+1});
+    assert.ok(mail.text.includes(name));
+    assert.ok(mail.html.includes(name));
+  }
+});
 
 test('los doce bloques presentan exactamente los 48 destinos, con sus ilustraciones y sus fichas',async()=>{
   const page=await publicSite(),ids=new Set(),assets=new Set();

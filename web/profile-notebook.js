@@ -101,9 +101,9 @@
       heading = pieces || (online && userId) ? 'Elige tu siguiente misterio' : 'Tu primera investigación';
       description = canPlay
         ? 'Elige un caso del catálogo. Puedes seguir las dos pistas a solas o investigar con un cómplice.'
-        : 'Investiga la caja 87-V de la Clínica Vallejo en dos sesiones, a solas o en pareja.';
+        : 'Reconstruye la última emisión de Radio Valdemar, a solas o en pareja en el mismo dispositivo.';
       actions = canPlay ? browse('Elegir un caso') :
-        '<button type="button" class="button primary" data-action="preview-open">Jugar a Clínica Vallejo</button>' + plans(false);
+        '<a class="button primary" href="/cinta-87.html" data-action="preview-open">Jugar a La cinta 87</a>' + plans(false);
     } else if (!mayOpen(session)) {
       kicker = sessionState(session);
       heading = title(session, stories);
@@ -225,7 +225,7 @@
     const {owned, canPlay} = model;
     const ongoing = owned.filter(session => !finished(session)), complete = owned.filter(finished);
     const groups = group(ongoing, 'En curso', model, true) + group(complete, 'Terminadas', model, !ongoing.length);
-    const firstCase = canPlay ? browse('Elegir un caso') : '<button type="button" class="button primary" data-action="preview-open">Jugar a Clínica Vallejo</button>';
+    const firstCase = canPlay ? browse('Elegir un caso') : '<a class="button primary" href="/cinta-87.html" data-action="preview-open">Jugar a La cinta 87</a>';
     const seasons = input.online && input.userId && window.customElements?.get('season-archive');
     const locked=owned.some(session=>!model.mayOpen(session));
     const seasonList = seasons ? '<season-archive'+(owned.length?' data-with-classic':'')+(ongoing.some(model.mayOpen)?' data-classic-ongoing':'')+

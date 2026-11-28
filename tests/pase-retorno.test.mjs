@@ -159,6 +159,9 @@ test('La ayuda separa la elección mutua del papel y de la renovación',async()=
   const shop=await storefront(false);
   shop.location.hash='#planes?seccion=preguntas';
   const html=shop.page.ClubAccess.plans();
+  assert.match(html,/En la demo La cinta 87 os turnáis con un mismo dispositivo y podéis jugar sin cuenta/);
+  assert.match(html,/En las aventuras del pase, cada persona entra con su propia cuenta/);
+  assert.match(html,/<summary>¿Cómo se reparten los papeles en las aventuras del pase\?/);
   assert.match(html,/un solo compañero a la vez/);
   assert.match(html,/primero que pulsa «En pareja» en ese caso lleva el papel 1/);
   assert.match(html,/pulsa «En pareja», recibe el papel 2/);

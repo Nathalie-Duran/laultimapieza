@@ -366,7 +366,7 @@ test('separate opt-in checkout uses only the chosen season, reuses an open check
   await billing.checkout(store,user,{season:4});
   assert.equal(order.get('subscription_data[metadata][lup_blocks]'),'10,11,12');
   assert.equal(order.get('subscription_data[metadata][lup_season]'),'4');
-  assert.match(order.get('custom_text[submit][message]'),/Necrópolis del Sol Velado/);
+  assert.match(order.get('custom_text[submit][message]'),/La ira de Ra/);
 });
 
 test('el pase continuo conserva los meses abonados mientras el jugador termina el tablero anterior',async()=>{

@@ -90,11 +90,19 @@
     jardin:'Queda una boca sin conectar o un bancal seco. Recorre las acequias desde el aljibe.',
     espejo:'El reflejo sigue siendo extraño. Compara cada objeto con el de la columna opuesta.'
   };
+  const stationDetails={
+    archivo:{kind:'Criptografía',text:'Sobre el escritorio hay dos tiras selladas. Gira el alfabeto de la archivera y anota las palabras que aparecen bajo cada sello.'},
+    relojero:{kind:'Lógica mecánica',text:'El reloj se ha detenido con tres piezas fuera de su sitio. Lee las proporciones que grabó el relojero y reconstruye el mecanismo.'},
+    museo:{kind:'Observación',text:'La conservadora necesita cerrar el inventario. Acércate a las vitrinas, examina cada objeto y marca las piezas que describen sus notas.'},
+    cartas:{kind:'Deducción narrativa',text:'Ada ha dejado una carta en pedazos. Sigue los objetos que pasan de un fragmento a otro para recuperar el relato y leer su mensaje.'},
+    jardin:{kind:'Orientación espacial',text:'El agua espera en el aljibe. Examina las bocas de las acequias y gira los tramos móviles hasta que el riego alcance los dos bancales.'},
+    espejo:{kind:'Percepción visual',text:'El salón y su reflejo se parecen a primera vista. Compara ambos lados del cristal y señala los objetos que el espejo ha cambiado.'}
+  };
 
   class MansionArcade extends HTMLElement {
     heading(title){
       const dedicated=Boolean(this.closest('.reto-sala')),tag=dedicated?'h1':'h2';
-      return '<'+tag+' tabindex="-1">'+esc(title||(dedicated?'Sala de juegos de la mansión':'Minijuegos de la mansión'))+'</'+tag+'>';
+      return '<'+tag+' tabindex="-1">'+esc(title||'La sala de juegos de Ada')+'</'+tag+'>';
     }
     connectedCallback() {
       if(this.bound)return;
@@ -108,6 +116,7 @@
       this.innerHTML='<section class="ma-panel">'+this.heading()+'<p role="status">Abriendo la sala de juegos…</p></section>';
       try {
         const signed=window.GameAccountBridge?.isSignedIn()===true;
+        this.signed=signed;
         this.preview=!signed;
         if(signed){
           try { this.games=(await window.GameAccountBridge.request(endpoint)).games; }
@@ -123,17 +132,48 @@
       const target=[...this.querySelectorAll('[data-act]')].find(el=>el.dataset.act===act && (value===undefined||el.dataset.value===String(value)));
       target?.focus();
     }
+    lobby(back){
+      const total=this.games.reduce((sum,g)=>sum+g.prize,0);
+      const solved=this.games.filter(g=>g.solved===true);
+      const earned=solved.reduce((sum,g)=>sum+g.prize,0);
+      const progress=this.preview?'':`<section class="ma87-progress" aria-label="Tu progreso en la sala"><strong>${solved.length} de ${this.games.length} estaciones resueltas</strong><progress aria-label="Estaciones resueltas" max="${this.games.length}" value="${solved.length}"></progress><span>${keyCount(earned)} de las ${total} disponibles</span></section>`;
+      const tiles=this.games.map(g=>{
+        const detail=stationDetails[g.id];
+        return `<button type="button" class="ma87-station" data-act="detail" data-value="${esc(g.id)}" aria-haspopup="dialog"><img loading="lazy" alt="" src="/sala-${esc(g.id)}.webp"><span><small>${esc(detail.kind)}</small><strong>${esc(g.title)}</strong><small>${g.solved?'Resuelta · premio recibido':keyCount(g.prize)+' al resolver'}</small></span></button>`;
+      }).join('');
+      return `<section class="ma87-lobby"><header class="ma87-hero"><img class="ma87-scene" src="/sala-de-ada.webp" alt=""><div class="ma87-intro"><p>Casa de Ada · Código Valdemar</p>${this.heading()}<p>Hay seis mesas preparadas. Puedes descifrar los sellos de la archivera, reparar un reloj o seguir las acequias hasta el jardín. Elige por dónde empezar.</p><button type="button" data-act="stations">Explorar las estaciones</button></div></header>${progress}<section class="ma87-section"><h2 tabindex="-1" data-stations>Las seis estaciones</h2><p>Gana hasta ocho llaves para pedir pistas en las aventuras. Cada estación entrega sus llaves la primera vez que la resuelves.</p><div class="ma87-stations">${tiles}</div></section>${back}</section>`;
+    }
+    showDetail(id){
+      const game=this.games.find(g=>g.id===id);
+      if(!game||!stationDetails[id]||this.querySelector('dialog[open]'))return;
+      const detail=stationDetails[id],dialog=document.createElement('dialog');
+      dialog.className='ma87-detail';
+      dialog.setAttribute('aria-label',game.title);
+      const access=this.preview?`<p class="ma87-access">${this.signed?'Tu cuenta necesita acceso al primer caso de Código Valdemar para jugar.':'Puedes jugar con el pase desde el primer caso de Código Valdemar.'}</p>`:'';
+      const action=this.preview?`<a href="/#planes" class="ma87-primary">Ver el pase</a>${this.signed?'':'<button type="button" data-act="detail-login" data-action="auth-login">Entrar con mi cuenta</button>'}`:
+        `<button type="button" class="ma87-primary" data-act="open" data-value="${esc(id)}">${game.solved?'Volver a jugar':'Jugar a esta estación'}</button>`;
+      dialog.innerHTML=`<img src="/sala-${esc(id)}.webp" alt=""><div class="ma87-detail-copy"><small>${esc(detail.kind)}</small><h2 tabindex="-1">${esc(game.title)}</h2><p>${esc(detail.text)}</p><p>${game.solved?'Estación resuelta · recompensa recibida.':'Recompensa de la primera resolución · '+keyCount(game.prize)+'.'}</p>${access}<div class="ma87-actions">${action}<button type="button" data-act="close-detail">Volver a la sala</button></div></div>`;
+      this.append(dialog);
+      dialog.addEventListener('close',()=>{
+        dialog.remove();
+        if(!this.current&&dialog.dataset.restoreFocus!=='no')this.focusControl('detail',id);
+      },{once:true});
+      dialog.addEventListener('click',event=>{
+        if(event.target!==dialog)return;
+        const r=dialog.getBoundingClientRect();
+        if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();
+      });
+      dialog.showModal();
+      dialog.querySelector('h2')?.focus();
+    }
     show(focusTitle=false) {
       const game=this.games.find(g=>g.id===this.current);
       const back=this.hasAttribute('embedded')?'<button type="button" class="ma-back" data-act="return">Volver a la aventura</button>':'';
       if(!game) {
-        this.innerHTML=`<section class="ma-panel">${this.heading()}
-          <p class="ma-intro">Seis pruebas independientes en la casa de Ada. Puedes ganar hasta ocho llaves en total.${this.hasAttribute('embedded')?' Tu aventura continúa en la misma estancia cuando vuelvas.':''}</p>
-          ${this.preview?'<p class="ma-access">La sala se abre al tener acceso al primer caso de Valdemar. <a href="/#planes">Ver el pase</a></p>':''}
-          <div class="ma-cards">${this.games.map(g=>`<article><h3>${esc(g.title)}</h3><p>${esc(g.description)}</p><small>${g.solved?'Resuelto · recompensa recibida':keyCount(g.prize)+' al resolverlo'}</small>${this.preview?'':`<button type="button" data-act="open" data-value="${esc(g.id)}">${g.solved?'Volver a jugar':'Jugar'}<span class="ma-sr"> a ${esc(g.title)}</span></button>`}</article>`).join('')}</div>${back}</section>`;
+        this.innerHTML=this.lobby(back);
       } else {
-        this.innerHTML=`<section class="ma-panel">${this.heading(game.title)}
-          ${screens[game.id](this.states[game.id])}<div class="ma-actions"><button type="button" class="ma-check" data-act="check" ${this.busy?'disabled':''}>${checks[game.id]}</button>
+        this.innerHTML=`<section class="ma-panel ma87-panel">${this.heading(game.title)}
+          ${screens[game.id](this.states[game.id])}<div class="ma-actions ma87-actions"><button type="button" class="ma-check" data-act="check" ${this.busy?'disabled':''}>${checks[game.id]}</button>
           <button type="button" data-act="back">Sala de minijuegos</button>${back}</div><p role="status" aria-live="polite">${esc(this.notice)}</p></section>`;
       }
       if(focusTitle)this.querySelector('h1,h2')?.focus();
@@ -179,6 +219,13 @@
       const btn=event.target.closest('button[data-act]');
       if(!btn || !this.contains(btn) || btn.disabled)return;
       const {act,value}=btn.dataset, state=this.states[this.current];
+      if(act==='stations'){this.querySelector('[data-stations]')?.focus();return;}
+      if(act==='detail'){this.showDetail(value);return;}
+      if(act==='close-detail'||act==='detail-login'){
+        const dialog=this.querySelector('dialog[open]');
+        if(dialog){if(act==='detail-login')dialog.dataset.restoreFocus='no';dialog.close();}
+        return;
+      }
       if(act==='retry'){this.load();return;}
       if(act==='return'){
         const panel=this.closest('details');
@@ -187,12 +234,14 @@
         return;
       }
       if(act==='open'){
+        if(this.preview||!this.games.some(game=>game.id===value)||!Object.hasOwn(initial,value))return;
+        this.querySelector('dialog[open]')?.close?.();
         this.current=value;
         if(!this.states[value] || this.states[value].complete)this.states[value]=initial[value]();
         this.notice='';this.show(true);return;
       }
       if(act==='back'){
-        const old=this.current;this.current=null;this.show();this.focusControl('open',old);return;
+        const old=this.current;this.current=null;this.show();this.focusControl('detail',old);return;
       }
       if(act==='check'){this.check();return;}
       this.notice='';

@@ -34,20 +34,21 @@ function invitationPath(s){return '/caso/'+encodeURIComponent(s.id)+'/';}
 
 function shareBox(s,path){if(!s)return '';const url='https://www.laultimapieza.es'+(path||invitationPath(s))+'?via=invitacion';const message='Mira el avance de «'+s.title+'». '+url;return `<details class="case-share"><summary>Compartir el avance del caso</summary><div><a href="https://wa.me/?text=${encodeURIComponent(message)}" target="_blank" rel="noopener noreferrer">Compartir por WhatsApp ↗</a><button type="button" data-copy-invite="${esc(url)}">Copiar enlace al avance</button></div><p role="status" aria-live="polite"></p></details>`;}
 
-function invitation(s,m){if(!s||s.id==='habitacion-309')return catalog(m);const i=s.episode-1;const month=s.season===1?Math.ceil(s.episode/4):0;const hook=s.season===1&&openingQuestions[i];return `<article class="invite-page"><div class="invite-content"><a class="text-link" href="${month?'#archivo-clasico?mes='+month:'#archivo-clasico'}">${month?'Ver el mes '+month+' del archivo clásico':'Ver el archivo clásico'}</a><p class="ui-kicker">${month?'ARCHIVO CLÁSICO · MES '+month:'CASO ADICIONAL'} · ${s.id==='cartas-medianoche'?'≈60':month?'30–45':'15–25'} MIN · 1–2 PERSONAS</p><h1>${esc(s.title)}</h1>${hook?`<p class="invite-question">${esc(hook)}</p>`:''}<p class="invite-description">${esc(s.description)}</p>${m.canPlay?callToPlay(s,m):`<button class="button primary" data-action="preview-open">Jugar a Clínica Vallejo gratis</button><a class="text-link" href="#planes">Ver el pase de los cuatro tableros</a>`}${shareBox(s)}${m.referred?`<details class="invite-privacy"><summary>Privacidad de esta visita</summary><label><input type="checkbox" data-invite-counts ${root.InvitationCounts?.enabled?'checked':''}> Permitir contadores anónimos de la visita, el inicio de la demo y la solicitud de aviso. Opcional.</label></details>`:''}</div><figure class="invite-poster"><img src="${sceneImage(s)||invitationPath(s)+'portada.png'}" width="1200" height="630" alt="" fetchpriority="high"></figure></article>`;}
+function invitation(s,m){if(!s||s.id==='habitacion-309')return catalog(m);const i=s.episode-1;const month=s.season===1?Math.ceil(s.episode/4):0;const hook=s.season===1&&openingQuestions[i];return `<article class="invite-page"><div class="invite-content"><a class="text-link" href="${month?'#archivo-clasico?mes='+month:'#archivo-clasico'}">${month?'Ver el mes '+month+' del archivo clásico':'Ver el archivo clásico'}</a><p class="ui-kicker">${month?'ARCHIVO CLÁSICO · MES '+month:'CASO ADICIONAL'} · ${s.id==='cartas-medianoche'?'≈60':month?'30–45':'15–25'} MIN · 1–2 PERSONAS</p><h1>${esc(s.title)}</h1>${hook?`<p class="invite-question">${esc(hook)}</p>`:''}<p class="invite-description">${esc(s.description)}</p>${m.canPlay?callToPlay(s,m):`<a class="button primary" href="/cinta-87.html" data-action="preview-open">Jugar gratis a La cinta 87</a><a class="text-link" href="#planes">Ver el pase de los cuatro tableros</a>`}${shareBox(s)}${m.referred?`<details class="invite-privacy"><summary>Privacidad de esta visita</summary><label><input type="checkbox" data-invite-counts ${root.InvitationCounts?.enabled?'checked':''}> Permitir contadores anónimos de la visita, el inicio de la demo y la solicitud de aviso. Opcional.</label></details>`:''}</div><figure class="invite-poster"><img src="${sceneImage(s)||invitationPath(s)+'portada.png'}" width="1200" height="630" alt="" fetchpriority="high"></figure></article>`;}
 const sceneCovers = new Set(["cartas-medianoche","ultima-funcion","archivo-ausencias","marea-quieta","habitacion-309","frecuencia-17","jardin-invierno","retrato-prestado","mesa-13","tren-detenido","ciudad-invisible","ultimo-coro","ultima-invitacion"]);
 function sceneImage(s){return s && sceneCovers.has(s.id) ? '/' + s.id + '.jpg' : '';}
 
 function coverStory() {
  return `<section class="front-demo" aria-labelledby="vh-title">
-   <img src="/vallejo-mesa-87v.webp" width="1536" height="1024" loading="lazy" alt="">
-   <div><p class="cover-caption">Demo sin cuenta</p><h2 id="vh-title">Clínica Vallejo</h2>
-   <p>El médico desapareció en 1987. Abre la caja 87-V y averigua qué ocurrió en la Sala 7.</p>
-   <button type="button" class="button" data-action="preview-open" data-home-demo>${demoAction()}</button></div>
+   <img src="/cinta87-mesa.webp" width="1536" height="1024" loading="lazy" alt="">
+   <div><p class="cover-caption">Demo sin cuenta</p><h2 id="vh-title">La cinta 87</h2>
+   <p>La noche en que cerró Radio Valdemar quedó una grabación sin identificar. Escucha sus pulsos y sigue el rastro en el archivo.</p>
+   <a class="button" href="/cinta-87.html" data-action="preview-open" data-home-demo>${demoAction()}</a></div>
  </section>`;
 }
 
 function demoAction(){
+ if(root.CasePreview?.isComplete?.())return 'Revisar mi desenlace';
  return root.CasePreview?.hasProgress?.()?'Continuar la demo':'Jugar la demo gratis';
 }
 root.addEventListener?.('case-preview-progress',()=>{
@@ -179,11 +180,11 @@ if(root.customElements&&!root.customElements.get('home-resume')){
 function home(m){
  const latest=m.userId?classicReturn(m):null;
  const returning=m.userId&&m.canPlay?`<home-resume data-classic-time="${latest?.time||0}">${returnCard(latest)}</home-resume>`:'';
- const territories=[['mapa','Valdemar','Misterio'],['expedicion','El Tablero de Ámbar','Expedición'],['umbravia','Umbravía','Suspense'],['necropolis','La Necrópolis del Sol Velado','Antiguo Egipto']];
+ const territories=[['mapa','Código Valdemar','Misterio'],['expedicion','La ruta prohibida','Expedición'],['umbravia','El tercer jugador','Suspense'],['necropolis','La ira de Ra','Antiguo Egipto']];
  const atlas=`<section class="universe-front" aria-labelledby="universe-heading"><div class="universe-front-copy">
  <h1 id="universe-heading">El mapa de los cuatro mundos</h1>
  <p>Elige un territorio del mapa para descubrir sus doce aventuras.</p>
- ${m.canPlay?'':`<div class="universe-front-first"><span>Primera aventura · Valdemar</span><h2>El secreto de los dos mundos</h2>
+ ${m.canPlay?'':`<div class="universe-front-first"><span>Primera aventura · Código Valdemar</span><h2>El secreto de los dos mundos</h2>
  <p>Ada os envía una foto de vuestra infancia. Reconocéis vuestras caras, pero ninguno recuerda esa casa.</p>
  <a class="universe-door" href="/valdemar/01/?carta=1">Abrir la carta de Ada <span aria-hidden="true">→</span></a></div>`}</div>
  <nav class="universe-chart" aria-label="Explorar los cuatro tableros"><img src="/atlas-cuatro-mundos.webp" width="1520" height="856" alt="" fetchpriority="high">
@@ -202,7 +203,7 @@ function card(s,m){
 
 function catalog(m){
  const cases=season(m),month=[1,2,3].includes(m.catalogMonth)?m.catalogMonth:1;
- return `<section class="season-catalog"><header><p class="cover-caption">Archivo clásico · Doce noches</p><h1>El archivo de las primeras historias</h1><p>Elige un mes para abrir sus cuatro expedientes.</p><a class="text-link" href="/#tableros">Ir a los cuatro tableros</a><a class="text-link" href="/#mapa-clasico">Ver el plano de las doce piezas</a></header><nav class="month-nav" aria-label="Casos por mes">${[1,2,3].map(n=>`<a href="#archivo-clasico?mes=${n}" ${n===month?'aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><div class="shelf-grid" aria-label="Cuatro casos del mes ${month}">${cases.slice((month-1)*4,month*4).map(s=>card(s,m)).join('')}</div><a class="text-link classic-demo-link" href="/vallejo.html">Demo gratuita de Clínica Vallejo</a></section>`;
+ return `<section class="season-catalog"><header><p class="cover-caption">Archivo clásico · Doce noches</p><h1>El archivo de las primeras historias</h1><p>Elige un mes para abrir sus cuatro expedientes.</p><a class="text-link" href="/#tableros">Ir a los cuatro tableros</a><a class="text-link" href="/#mapa-clasico">Ver el plano de las doce piezas</a></header><nav class="month-nav" aria-label="Casos por mes">${[1,2,3].map(n=>`<a href="#archivo-clasico?mes=${n}" ${n===month?'aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><div class="shelf-grid" aria-label="Cuatro casos del mes ${month}">${cases.slice((month-1)*4,month*4).map(s=>card(s,m)).join('')}</div><a class="text-link classic-demo-link" href="/cinta-87.html">Demo gratuita de La cinta 87</a></section>`;
 }
 
 function classicStation(s,m){

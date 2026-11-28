@@ -96,7 +96,7 @@ test('el resumen de cada aventura usa su propio expediente y respeta las llaves 
 
 test('el cuaderno solo sugiere aventuras disponibles y muestra el papel de las parejas confirmadas',async()=>{
   const window={ValdemarCatalog:{get:id=>({title:'Caso '+id,question:'Prueba',image:'/imagen.webp'})},
-    Colecciones:{seasons:[{name:'Valdemar',seal:'Reliquia',board:'mapa'}]}};
+    Colecciones:{seasons:[{name:'Código Valdemar',seal:'Reliquia',board:'mapa'}]}};
   runInNewContext(await readFile(new URL('../web/profile-notebook.js',import.meta.url),'utf8'),{window,Intl});
   const notes=window.PlayerNotebook, games=[{id:2,mode:'duo',finished:false,available:true,current:1,total:5,checkpoint:{task:'Encuentra el registro'}},
     {id:1,mode:'duo',finished:true,available:false},{id:3,mode:'duo',finished:false,available:false}];
@@ -123,7 +123,7 @@ test('la portada del cuaderno da prioridad a la partida pendiente más reciente 
   const access={availableCases:[2,3],completed:[]},games=[{id:2,mode:'solo',current:2,total:5,available:true,checkpoint:{task:'Localiza el registro'}}];
   let recent={time:50,href:'#valdemar-jugar?id=2&retomar=1',image:'/portada.webp',title:'Caso dos'};
   const window={customElements:{define:(key,value)=>elements.set(key,value),get:key=>elements.get(key)},ExperienceUI:{seasonReturn:()=>recent},
-    ValdemarCatalog:{get:id=>({title:'Caso '+id,question:'Pregunta del caso',image:'/portada.webp'})},Colecciones:{seasons:[{name:'Valdemar'}]},
+    ValdemarCatalog:{get:id=>({title:'Caso '+id,question:'Pregunta del caso',image:'/portada.webp'})},Colecciones:{seasons:[{name:'Código Valdemar'}]},
     GameAccountBridge:{isSignedIn:()=>true,request:async()=>({games,access,career:{level:1,xp:0,nextLevelXp:500,pieces:[0,0,0,0]}})}};
   class HTMLElement{}
   runInNewContext(await readFile(new URL('../web/profile-notebook.js',import.meta.url),'utf8'),{window,HTMLElement,document:{activeElement:null},Intl});

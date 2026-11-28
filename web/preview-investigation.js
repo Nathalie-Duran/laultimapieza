@@ -475,7 +475,7 @@
     if (section === 0) count('demo_solved');
     if (section === 1) count('demo_complete');
     updateNav();
-    note(section === 0 ? 'Expediente de Marta abierto. Ha llegado un segundo correo del Archivo.' : 'Expediente abierto. Has llegado al final de la demo.');
+    note(section === 0 ? 'Expediente de Marta abierto. Ha llegado un segundo correo del Archivo.' : 'Expediente abierto. Has terminado el archivo de Marta y Tomás.');
   }
   function continueSession(st) {
     if (!st.unlocked.has(st.sessions[0].id)) return;
@@ -622,26 +622,26 @@
   }
   function setupDOM(host, st) {
     host.innerHTML = `<div class="vp-shell">
-      <header class="vp-header"><div><p class="vp-eyebrow" data-vp-caption></p><h2 id="scene-title">Clínica Vallejo</h2></div><label class="vp-play-mode"><span>Cómo jugar</span><select aria-label="Modalidad de la demo"><option value="solo">En solitario</option><option value="duo">En pareja</option></select></label><button type="button" class="vp-close" data-action="scene-close" aria-label="Cerrar la demo">Cerrar</button></header>
+      <header class="vp-header"><div><p class="vp-eyebrow" data-vp-caption></p><h2 id="scene-title">Archivo de Marta y Tomás</h2></div><label class="vp-play-mode"><span>Cómo jugar</span><select aria-label="Modalidad del archivo"><option value="solo">En solitario</option><option value="duo">En pareja</option></select></label><button type="button" class="vp-close" data-action="scene-close" aria-label="Volver a La cinta 87">Cerrar</button></header>
       <div class="vp-work"><section class="vp-intake vp-table" aria-labelledby="vp-intake-title">
       <header class="vp-intake-intro vp-table-hero"><img class="vp-table-cover" src="/vallejo-mesa-87v.webp" width="1000" height="500" alt=""><div class="vp-table-copy"><p class="vp-eyebrow" data-vp-table-kicker></p><h3 class="vp-intake-title" id="vp-intake-title" tabindex="-1"></h3><p class="vp-intake-description"></p><nav class="vp-intake-sessions" aria-label="Mesas disponibles" hidden></nav><button class="vp-intake-start vp-table-start" type="button"></button></div></header>
       <div class="vp-evidence-grid vp-table-materials" aria-label="Pruebas de la mesa" role="group"></div></section>
       <aside class="vp-side" id="vp-documentos" aria-label="Documentos del expediente"><div class="vp-side-head"><h3>Documentos</h3><button type="button" class="vp-side-close" aria-label="Cerrar la lista de documentos">Cerrar</button></div><div class="vp-sessions"></div><ol class="vp-doc-list"></ol></aside>
       <section class="vp-desk" aria-label="Lector de documentos"><div class="vp-document-head"><button type="button" class="vp-table-return vp-back-table">Volver a la mesa</button><button type="button" class="vp-shelf-toggle" aria-controls="vp-documentos" aria-expanded="false">Documentos</button><h3 class="vp-doc-title" tabindex="-1"></h3><button type="button" class="vp-zoom" hidden>Ampliar imagen</button><button type="button" class="vp-adjust" hidden>Invertir</button><button type="button" class="vp-brighten" hidden>Subir brillo</button><button type="button" class="vp-mirror" hidden>Espejo</button><a class="vp-open-original vp-separate" target="_blank" rel="noopener" hidden>Abrir aparte</a></div><div class="vp-reader"></div>
-      <div class="vp-help"><aside class="vp-delivery" hidden aria-label="Nuevo correo"><strong>03:41 · Correo del Archivo</strong><p>Hay una cinta dañada en la carpeta de Marta. El Archivo acaba de enviarte una copia.</p></aside><section class="vp-finale" hidden aria-labelledby="vp-finale-title"><h3 id="vp-finale-title">Expediente de Tomás abierto</h3><p>Has terminado la investigación de la Clínica Vallejo.</p><div class="vp-season-actions"></div><div class="case-share vp-share-demo"><button type="button" data-copy-invite="https://www.laultimapieza.es/vallejo.html?via=invitacion">Copiar enlace a la demo</button><p role="status" aria-live="polite"></p></div></section>
+      <div class="vp-help"><aside class="vp-delivery" hidden aria-label="Nuevo correo"><strong>03:41 · Correo del Archivo</strong><p>Hay una cinta dañada en la carpeta de Marta. El Archivo acaba de enviarte una copia.</p></aside><section class="vp-finale" hidden aria-labelledby="vp-finale-title"><h3 id="vp-finale-title">Expediente de Tomás abierto</h3><p>Has terminado los expedientes de Marta y Tomás.</p><div class="vp-season-actions"></div><div class="case-share vp-share-demo"><button type="button" data-copy-invite="https://www.laultimapieza.es/cinta-87.html?via=invitacion">Compartir la demo La cinta 87</button><p role="status" aria-live="polite"></p></div></section>
       <details class="vp-pair" hidden><summary>Consultar los dos documentos</summary><p><span></span> <a target="_blank" rel="noopener"></a></p></details>
       <details class="vp-hints" hidden><summary>Pistas de esta prueba</summary><div class="vp-hints-body"><ol class="vp-hint-list"></ol><button type="button" class="vp-hint-table" hidden>Ver la tabla de Vigenère</button><button type="button" class="vp-hint-more">Revelar la primera pista</button><small class="vp-hint-status"></small></div></details></div></section></div>
-      <footer class="vp-footer"><details class="vp-privacy"><summary>Opciones</summary><div class="vp-options"><p data-save-info></p><label><input type="checkbox" data-vp-consent> Permitir contadores anónimos de uso de la demo, incluida la apertura del pase al terminar. Si llegué por invitación, también se contarán mi visita y mi solicitud de aviso. Opcional.</label><details class="vp-restart"><summary>Empezar de nuevo</summary><p>Se borrará el progreso de Clínica Vallejo guardado en este navegador.</p><button type="button" class="vp-reset">Reiniciar la demo</button></details></div></details>
+      <footer class="vp-footer"><details class="vp-privacy"><summary>Opciones</summary><div class="vp-options"><p data-save-info></p><label><input type="checkbox" data-vp-consent> Permitir contadores anónimos de uso del archivo, incluida la apertura del pase al terminar. Si llegué por invitación, también se contarán mi visita y mi solicitud de aviso. Opcional.</label><details class="vp-restart"><summary>Empezar de nuevo</summary><p>Se borrará el progreso del archivo de Marta y Tomás guardado en este navegador.</p><button type="button" class="vp-reset">Reiniciar el archivo</button></details></div></details>
       <div class="vp-footer-actions"><button class="vp-prev" type="button">Anterior</button><button class="vp-next" type="button">Siguiente</button><button class="vp-proceed vp-next-session" type="button" hidden>Leer el segundo correo</button></div></footer><p class="vp-live" role="status" aria-live="polite"></p></div>`;
     const q = selector => host.querySelector(selector);
     q('.vp-privacy').addEventListener('toggle',()=>{
-      q('[data-save-info]').textContent = memoryOnly ? 'Esta demo se conserva mientras mantengas la pestaña abierta.' : 'Tu demo se guarda en este navegador. Al volver, continuarás desde la última pista que consultaste.';
+      q('[data-save-info]').textContent = memoryOnly ? 'Esta lectura se conserva mientras mantengas la pestaña abierta.' : 'Tu lectura se guarda en este navegador. Al volver, continuarás desde la última pista que consultaste.';
     });
     q('.vp-play-mode select').value=st.playMode;
     q('.vp-play-mode select').addEventListener('change',event=>{
       st.playMode=event.target.value==='duo'?'duo':'solo';
       updateNav();
-      note(st.playMode==='duo'?'Compartid esta pantalla para jugar a la demo. El papel 1 consulta el Archivo y el papel 2 examina las pruebas. Contad al otro lo que habéis encontrado.':'En solitario. Puedes consultar los dos grupos de pistas.');
+      note(st.playMode==='duo'?'Compartid esta pantalla para investigar los expedientes. El papel 1 consulta el Archivo y el papel 2 examina las pruebas. Contad al otro lo que habéis encontrado.':'En solitario. Puedes consultar los dos grupos de pistas.');
     });
     Object.assign(st, { shell: q('.vp-shell'), sessionCaption: q('[data-vp-caption]'), side: q('.vp-side'), shelfToggle: q('.vp-shelf-toggle'), sideList: q('.vp-doc-list'), sessionList: q('.vp-sessions'), heading: q('.vp-doc-title'), reader: q('.vp-reader'), zoom: q('.vp-zoom'), status: q('.vp-live'), previous: q('.vp-prev'), next: q('.vp-next'), nextSession: q('.vp-next-session'), offer: q('.vp-finale') });
     Object.assign(st, { adjust: q('.vp-adjust'), bright: q('.vp-brighten'), mirror: q('.vp-mirror'), separate: q('.vp-separate'), pairInfo: q('.vp-pair'), pairText: q('.vp-pair span'), pairLink: q('.vp-pair a'), hintBox: q('.vp-hints'), hintList: q('.vp-hint-list'), hintStatus: q('.vp-hint-status'), hintMore: q('.vp-hint-more'), hintTable: q('.vp-hint-table') });
@@ -656,11 +656,8 @@
     const cases = seasonLink('casos', member ? 'Elegir mi siguiente aventura' : 'Explorar las aventuras',true);
     q('.vp-season-actions').append(cases);
     q('.vp-close').addEventListener('click', event => { event.stopPropagation(); suspend(); });
-    if (returnCase) {
-      q('.vp-close').textContent = 'Volver a la historia';
-      q('.vp-close').setAttribute('aria-label',returnCase.label);
-      q('.vp-close').title = returnCase.label;
-    }
+    q('.vp-close').textContent = 'Volver a La cinta 87';
+    q('.vp-close').setAttribute('aria-label','Volver a la demo La cinta 87');
     q('.vp-reset').addEventListener('click', () => {
       const round = (readSave()?.round || 0) + 1;
       const trigger = st.trigger;
@@ -731,6 +728,12 @@
     host.querySelectorAll('audio').forEach(player => player.pause());
     host.close();
     notifyProgress();
+    if(document.body.dataset.vallejoStandalone && popEntry && new URLSearchParams(root.location.search).get('archivo')==='1'){
+      const next=new URL(root.location.href);
+      next.searchParams.delete('archivo');
+      root.location.replace(next.href);
+      return;
+    }
     if (returnCase && popEntry) {
       const referer = document.referrer ? new URL(document.referrer) : null;
       if (root.history.length > 1 && referer?.origin === root.location.origin && referer.pathname === returnCase.path) root.history.back();
@@ -800,20 +803,21 @@
     else showTable(st);
     count('demo_start');
   }
+  const archiveRoute=document.body?.dataset.vallejoStandalone==='true'&&new URLSearchParams(root.location.search).get('archivo')==='1';
+  root.VallejoArchive = {open,close,hasProgress};
+  if(!archiveRoute)return;
   document.addEventListener('click', event => {
-    const trigger = event.target.closest?.('[data-action="preview-open"]');
-    if (trigger) open(trigger.dataset.vpFormat,trigger);
+    const trigger = event.target.closest?.('[data-archivo-abrir]');
+    if(trigger)open(trigger.dataset.vpFormat,trigger);
   });
   root.addEventListener?.('popstate',()=>{
     if (document.body.dataset.vallejoStandalone) return;
     if (ownsHistoryEntry()) open(undefined,state?.trigger);
     else if (dialog()?.open) suspend(false);
   });
-  root.CasePreview = { open, close, hasProgress };
   if (returnCase) {
     const back = document.querySelector('.v87-paused .vp-back');
-    back.href = returnCase.path;
-    back.textContent = returnCase.label;
+    if(back){back.href = returnCase.path;back.textContent = returnCase.label;}
   }
-  if (document.body?.dataset.vallejoStandalone === 'true' || ownsHistoryEntry()) open();
+  open();
 })(window);

@@ -39,7 +39,7 @@ function daily(day,draw){
     }
     case 2:{
       const long=2+draw%4,short=2+n,beats=2*long+short;
-      return ['El eco de las escaleras',numberQuestion('El farol de Umbravía repite '+long+' destellos largos y '+short+' cortos. Cada largo ocupa dos pulsos y cada corto uno. ¿Cuántos pulsos ocupa el mensaje?',beats,' pulsos','Cuenta dos pulsos por cada destello largo y uno por cada corto.',draw)];
+      return ['El eco de las escaleras',numberQuestion('El farol del pueblo repite '+long+' destellos largos y '+short+' cortos. Cada largo ocupa dos pulsos y cada corto uno. ¿Cuántos pulsos ocupa el mensaje?',beats,' pulsos','Cuenta dos pulsos por cada destello largo y uno por cada corto.',draw)];
     }
     default:
       return ['La sombra del disco',question('En el patio del templo, la muesca apunta al '+compass[bearing]+'. Gira el disco '+quarter+(quarter===1?' cuarto de vuelta':' cuartos de vuelta')+' en el sentido de las agujas del reloj. ¿Hacia dónde apunta ahora?',compass,side,'Recorre norte, este, sur y oeste en el sentido indicado.',draw)];

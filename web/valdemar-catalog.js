@@ -44,11 +44,11 @@
     }).join('')+'</div>';
   }
   function home() {
-    return `<section class="vd-section vd-home" aria-labelledby="shelf-title"><header class="vd-head"><div><p class="vd-label">Valdemar · Primer mes</p><h2 id="shelf-title" tabindex="-1">Cuatro historias para tu próxima noche.</h2></div><nav class="vd-route-links" aria-label="Explorar Valdemar"><a class="vd-textlink" href="/#casos">Ver las 12 historias</a><a class="vd-textlink" href="/#mapa">Plano secreto</a></nav></header>${cards(1)}</section>`;
+    return `<section class="vd-section vd-home" aria-labelledby="shelf-title"><header class="vd-head"><div><p class="vd-label">Código Valdemar · Primer mes</p><h2 id="shelf-title" tabindex="-1">Cuatro historias para tu próxima noche.</h2></div><nav class="vd-route-links" aria-label="Explorar Código Valdemar"><a class="vd-textlink" href="/#casos">Ver las 12 historias</a><a class="vd-textlink" href="/#mapa">Plano secreto</a></nav></header>${cards(1)}</section>`;
   }
   function list(opts={}) {
     const collections=window.Colecciones;
-    const season=collections?.catalogBoard?.()||{name:'Valdemar',board:'mapa',genre:'Misterio',action:'Desplegar el plano'};
+    const season=collections?.catalogBoard?.()||{name:'Código Valdemar',board:'mapa',genre:'Misterio',action:'Desplegar el plano'};
     const world=season.board;
     const month=[1,2,3].includes(Number(opts.month))?Number(opts.month):1;
     const first=(month-1)*4+1;
@@ -59,9 +59,8 @@
     if(opts.admin||window.ClubAccess?.state?.role==='admin')inWorld.forEach(item=>allowed.add(item.id));
     else if(world==='mapa'&&!seasonAccess)items.filter(item=>access(item,opts)).forEach(item=>allowed.add(item.id));
     const map=world==='mapa'?'mapa?mes='+month:world+'?lugar='+first;
-    const headings={mapa:'Los expedientes de Valdemar',expedicion:'Las expediciones de Ámbar',umbravia:'Los archivos de Umbravía',necropolis:'Las cámaras del Sol Velado'};
     const monthLink=n=>collections?.catalogRoute?.(world,n)||'/#casos?mes='+n;
-    return `<section class="vd-section vd-list" data-catalog-world="${world}"><header class="vd-head"><div><p class="vd-label">${esc(season.genre)} · 1–2 participantes · ≈ 60 min</p><h1>${headings[world]}</h1></div><nav class="vd-route-links" aria-label="Explorar el territorio"><a class="vd-textlink" href="/#${map}">${esc(season.action)} ↗</a><a class="vd-textlink" href="/#tableros?mundo=${world}">Mapa de los cuatro tableros</a></nav></header>
+    return `<section class="vd-section vd-list" data-catalog-world="${world}"><header class="vd-head"><div><p class="vd-label">${esc(season.genre)} · 1–2 participantes · ≈ 60 min</p><h1>${esc(season.name)}</h1></div><nav class="vd-route-links" aria-label="Explorar el territorio"><a class="vd-textlink" href="/#${map}">${esc(season.action)} ↗</a><a class="vd-textlink" href="/#tableros?mundo=${world}">Mapa de los cuatro tableros</a></nav></header>
       <nav class="vd-months" aria-label="Bloque de la temporada">${[1,2,3].map(n=>`<a href="${esc(monthLink(n))}"${month===n?' aria-current="page"':''}>Bloque ${n} <small>${number((n-1)*4+1)}–${number(n*4)}</small></a>`).join('')}</nav>
       ${cards(month,{games,done,allowed})}
       ${world==='mapa'?'<p class="vd-foot"><a href="/#archivo-clasico">Visitar el archivo de casos anteriores</a></p>':''}</section>`;
@@ -85,16 +84,16 @@
       ? '<button type="button" data-mansion-letter>Abrir la carta de Ada</button>'
       : '<a href="/valdemar/01/?carta=1">Abrir la carta de Ada</a>';
     const enter='<a href="/#valdemar-jugar?id=1">Entrar en la mansión</a>';
-    const alternate=detailView ? '<a href="/vallejo.html?caso=01">Jugar la demo de Clínica Vallejo</a>' : '<a href="/vallejo.html">Jugar la demo de Clínica Vallejo</a>';
+    const alternate=detailView ? '<a href="/cinta-87.html?caso=01">Jugar la demo de La cinta 87</a>' : '<a href="/cinta-87.html">Jugar la demo de La cinta 87</a>';
     return `<section class="mansion-entry mansion-entry-cover" aria-labelledby="mansion-entry-title">
       <div class="mansion-entry-art"><img src="/mansion-room-1.webp" alt="La verja de hierro entreabierta da paso a la mansión de Valdemar." width="800" height="520" fetchpriority="high"></div>
-      <div class="mansion-entry-copy"><p class="mansion-entry-kicker">Valdemar · Episodio 01</p><h1 id="mansion-entry-title">El secreto de los dos mundos</h1>
+      <div class="mansion-entry-copy"><p class="mansion-entry-kicker">Código Valdemar · Episodio 01</p><h1 id="mansion-entry-title">El secreto de los dos mundos</h1>
       <p>Ada os envía una foto de vuestra infancia tomada frente a una casa que ninguno recuerda. Cuando llegáis, uno encuentra luz en las ventanas. El otro las ve tapiadas.</p>
       <div class="mansion-entry-actions">${unlocked?enter+letter:letter+alternate}</div>
       <p class="mansion-entry-format">Aventura gráfica · 1–2 jugadores · 75–90 min estimados</p></div></section>`;
   }
   function mansionDetail(unlocked,message) {
-    return `<article class="mansion-public"><nav class="vd-route-links" aria-label="Explorar Valdemar"><a class="vd-back" href="/#casos?mes=1">Volver a los casos de Valdemar</a></nav>
+    return `<article class="mansion-public"><nav class="vd-route-links" aria-label="Explorar Código Valdemar"><a class="vd-back" href="/#casos?mes=1">Volver a los casos de Código Valdemar</a></nav>
       ${mansionCover(true,unlocked)}
       <details class="mansion-letter" id="carta-de-ada"><summary>El sobre de Ada <span>Prólogo gratuito</span></summary>
         <div class="mansion-letter-inside"><div><p class="mansion-paper-label">Correspondencia privada</p><h2>«No confiéis en los relojes»</h2>
@@ -113,21 +112,21 @@
     const item=get(id);
     if(!item)return '<section class="vd-section"><h1>Historia no encontrada</h1><a class="vd-textlink" href="/#casos">Volver a las doce historias</a></section>';
     const unlocked=access(item,opts);
-    const message=unlocked?(opts.fullyPaid?'Incluida en tus bloques abonados de Valdemar.':'Incluida en tu acceso.'):opts.canPlay?`Se abre en el mes ${item.month} de tu pase.`:`Incluida en el mes ${item.month} del recorrido por los cuatro tableros.`;
+    const message=unlocked?(opts.fullyPaid?'Incluida en tus bloques abonados de Código Valdemar.':'Incluida en tu acceso.'):opts.canPlay?`Se abre en el mes ${item.month} de tu pase.`:`Incluida en el mes ${item.month} del recorrido por los cuatro tableros.`;
     const cta=entry(item,opts,unlocked);
     if(item.id===1)return mansionDetail(unlocked,message);
     const sample=item.id===2?`<button type="button" data-vd-start class="${unlocked?'vd-ghost':'vd-cta'}">Atender la llamada</button>`:'';
-    const demo=unlocked?'':`<a class="vd-textlink" href="/vallejo.html?caso=${number(item.id)}">Probar gratis la demo de Clínica Vallejo</a>`;
+    const demo=unlocked?'':`<a class="vd-textlink" href="/cinta-87.html?caso=${number(item.id)}">Probar gratis la demo de La cinta 87</a>`;
     const actions=item.id===2?(unlocked?cta+sample:sample+cta.replace('class="vd-cta"','class="vd-ghost"')):cta;
     const adjacent=[get(item.id-1),get(item.id+1)].filter(Boolean).map(other=>
       `<a href="${path(other.id)}"><span>${other.id<item.id?'Expediente anterior':'Expediente siguiente'}</span><strong>${esc(other.title)}</strong></a>`
     ).join('');
-    return `<article class="vd-detail"><nav class="vd-route-links" aria-label="Explorar Valdemar"><a class="vd-back" href="/#casos?mes=${item.month}">Volver al mes ${item.month}</a><a class="vd-back" href="/#mapa?mes=${item.month}&amp;lugar=${item.id}">Situar en el plano</a></nav>
+    return `<article class="vd-detail"><nav class="vd-route-links" aria-label="Explorar Código Valdemar"><a class="vd-back" href="/#casos?mes=${item.month}">Volver al mes ${item.month}</a><a class="vd-back" href="/#mapa?mes=${item.month}&amp;lugar=${item.id}">Situar en el plano</a></nav>
       <header class="vd-feature"><figure><img src="${item.image}" width="764" height="508" alt="${esc(item.coverAlt)}" fetchpriority="high"><figcaption>${esc(item.place)}</figcaption></figure>
-      <div class="vd-description"><p class="vd-label">Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}</div>${unlocked?'':'<p class="vd-availability">'+esc(message)+'</p>'}</div></header>
+      <div class="vd-description"><p class="vd-label">Código Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}</div>${unlocked?'':'<p class="vd-availability">'+esc(message)+'</p>'}</div></header>
       ${item.id===2?hotelCall(cta):''}
       <section class="vd-brief"><div><h2>Los dos papeles</h2><details class="vd-modes-help"><summary>Cómo repartirse las pistas</summary><p>A solas puedes abrir ambas carpetas. En pareja, elegíos en vuestros perfiles y pulsad «En pareja» en el caso. Cada uno recibe una carpeta.</p><a class="vd-textlink" href="/#perfil">Ver mi compañero de juego</a></details></div><ol><li><strong>Papel 1</strong>${esc(item.roleA)}</li><li><strong>Papel 2</strong>${esc(item.roleB)}</li></ol></section>
-      <nav class="vd-case-steps" aria-label="Otros expedientes de Valdemar">${adjacent}</nav>${demo}</article>`;
+      <nav class="vd-case-steps" aria-label="Otros expedientes de Código Valdemar">${adjacent}</nav>${demo}</article>`;
   }
   window.ValdemarCatalog=Object.freeze({items:Object.freeze(items),get,path,access,home,list,detail,mansionCover});
 })();

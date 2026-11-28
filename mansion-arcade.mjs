@@ -62,7 +62,7 @@ export async function mansionArcadeRequest({method,input,uid,editorial,withStore
     const membership = editorial ? null : await billing?.membership(store,uid);
     const data = await store.getMemberData(uid);
     const access = !editorial && membership?.seasonAccess || worldSeasonAccess(data,{editorial,active:membership?.canPlay===true});
-    if (!access.availableCases.includes(1)) throw new ApiError(403,'Necesitas acceso al primer caso de Valdemar para jugar en la mansión.','MANSION_ACCESS_REQUIRED');
+    if (!access.availableCases.includes(1)) throw new ApiError(403,'Necesitas acceso al primer caso de Código Valdemar para jugar en la mansión.','MANSION_ACCESS_REQUIRED');
     const scope = editorial ? 'editorial' : 'paid';
     if (method === 'GET') {
       const entries = data.valdemarSeasonOne?.[scope]?.entries || [];

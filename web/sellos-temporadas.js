@@ -1,10 +1,10 @@
 (() => {
   'use strict';
   const seals=[
-    {world:'mapa',name:'Rosa de los Doce Rumbos',season:'Valdemar',color:'#71c6c3',ink:'#173f4c',motif:'brújula'},
-    {world:'expedicion',name:'Medallón de Ámbar',season:'El Tablero de Ámbar',color:'#d99d51',ink:'#2f5744',motif:'medallón de latón y malaquita'},
-    {world:'umbravia',name:'Farol de Umbravía',season:'Umbravía',color:'#abe0a5',ink:'#254746',motif:'farol de vidrio verde'},
-    {world:'necropolis',name:'Disco del Sol Velado',season:'La Necrópolis del Sol Velado',color:'#e5b861',ink:'#254968',motif:'disco solar de oro y lapislázuli'}
+    {world:'mapa',name:'Rosa de los Doce Rumbos',season:'Código Valdemar',color:'#71c6c3',ink:'#173f4c',motif:'brújula'},
+    {world:'expedicion',name:'Medallón de Ámbar',season:'La ruta prohibida',color:'#d99d51',ink:'#2f5744',motif:'medallón de latón y malaquita'},
+    {world:'umbravia',name:'Farol del pueblo',season:'El tercer jugador',color:'#abe0a5',ink:'#254746',motif:'farol de vidrio verde'},
+    {world:'necropolis',name:'Disco del Sol Velado',season:'La ira de Ra',color:'#e5b861',ink:'#254968',motif:'disco solar de oro y lapislázuli'}
   ];
   const esc=s=>String(s??'').replace(/[<>&"']/g,k=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[k]));
   const number=n=>String(n).padStart(2,'0');

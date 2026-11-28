@@ -94,3 +94,76 @@ test('los controles de las seis salas respetan la confirmación del servidor y r
   click('return');
   assert.deepEqual(events,['mansion-arcade-reward','mansion-arcade-close']);
 });
+
+test('la sala ofrece seis fichas a visitantes y reserva el jugador y el progreso para las cuentas con acceso',async t=>{
+  const captures=new Map(),calls=[];
+  let focused='';
+  class Dialog {
+    constructor(){this.events=new Map();this.dataset={};}
+    setAttribute(name,value){this[name]=value;}
+    addEventListener(name,listener){this.events.set(name,listener);}
+    showModal(){this.open=true;}
+    close(){this.open=false;this.events.get('close')?.();}
+    remove(){this.removed=true;}
+    querySelector(){return {focus:()=>{focused='dialog';}};}
+  }
+  class Room {
+    closest(selector){return selector==='.reto-sala'?{}:null;}
+    contains(){return true;}
+    hasAttribute(){return false;}
+    append(dialog){this.dialog=dialog;}
+    querySelector(selector){return selector==='dialog[open]' && this.dialog?.open?this.dialog:null;}
+    querySelectorAll(){return ids.map(value=>({dataset:{act:'detail',value},focus(){focused=value;}}));}
+  }
+  const page={GameAccountBridge:{isSignedIn:()=>false,request:async()=>{calls.push('guest');}}};
+  const globals={window:page,document:{createElement:tag=>{assert.equal(tag,'dialog');return new Dialog();}},
+    HTMLElement:Room,customElements:{get:id=>captures.get(id),define:(id,C)=>captures.set(id,C)}};
+  for(const [name,value] of Object.entries(globals)){
+    const original=Object.getOwnPropertyDescriptor(globalThis,name);
+    Object.defineProperty(globalThis,name,{value,configurable:true});
+    t.after(()=>{if(original)Object.defineProperty(globalThis,name,original);else delete globalThis[name];});
+  }
+  // Import the native component so the visitor takes its public-catalog import path.
+  await import('../web/mansion-arcade.js');
+  const Component=captures.get('mansion-arcade'),room=new Component();
+  room.states={};
+  const click=(act,value)=>room.clickControl({target:{closest:()=>({dataset:{act,value}})}});
+  await room.load();
+  assert.match(room.innerHTML,/<h1[^>]*>La sala de juegos de Ada/);
+  assert.match(room.innerHTML,/class="ma87-scene"[^>]+sala-de-ada\.webp/);
+  assert.deepEqual([...room.innerHTML.matchAll(/data-act="detail" data-value="([^"]+)"/g)].map(m=>m[1]),ids);
+  assert.doesNotMatch(room.innerHTML,/class="ma87-progress"|data-act="open"/);
+  for(const id of ids){
+    click('detail',id);
+    const dialog=room.dialog;
+    assert.equal(dialog.open,true);
+    assert.equal(focused,'dialog');
+    assert.ok(dialog.innerHTML.includes('/sala-'+id+'.webp'));
+    assert.match(dialog.innerHTML,/href="\/#planes"/);
+    assert.match(dialog.innerHTML,/data-action="auth-login"/);
+    assert.doesNotMatch(dialog.innerHTML,/data-act="open"|data-field=/);
+    click('close-detail');
+    assert.equal(dialog.removed,true);
+    assert.equal(focused,id);
+    click('open',id);
+    assert.equal(room.current,undefined);
+  }
+  assert.deepEqual(calls,[]);
+  const games=room.games.map(g=>({...g,solved:g.id==='cartas'||g.id==='jardin'}));
+  page.GameAccountBridge={isSignedIn:()=>true,request:async url=>{calls.push(url);return {games};}};
+  await room.load();
+  assert.match(room.innerHTML,/2 de 6 estaciones resueltas/);
+  assert.match(room.innerHTML,/3 llaves[^<]*8/);
+  click('detail','cartas');
+  assert.match(room.dialog.innerHTML,/data-act="open"[^>]+>Volver a jugar/);
+  assert.doesNotMatch(room.dialog.innerHTML,/href="\/#planes"/);
+  room.dialog.close();
+  assert.equal(focused,'cartas');
+  page.GameAccountBridge.request=async url=>{calls.push(url);throw Object.assign(Error('Acceso caducado'),{status:403});};
+  await room.load();
+  click('detail','jardin');
+  assert.match(room.dialog.innerHTML,/href="\/#planes"/);
+  assert.doesNotMatch(room.dialog.innerHTML,/data-act="open"|data-action="auth-login"/);
+  assert.doesNotMatch(room.innerHTML,/class="ma87-progress"/);
+  assert.deepEqual(calls,[path,path]);
+});
