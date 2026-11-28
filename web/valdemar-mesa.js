@@ -82,6 +82,37 @@
     return uri;
   }
 
+  // Índices de las etapas que utilizan el material de campo del encargo.
+  const fieldSources = {
+    4: { index: 2, kinds: ['audio', 'visual', 'text'] },
+    5: { index: 2, kinds: ['audio', 'visual'] },
+    6: { index: 0, kinds: ['audio', 'visual', 'web'] },
+    7: { index: 0, kinds: ['audio', 'visual', 'web'] },
+    8: { index: 0, kinds: ['audio', 'visual', 'web'] }
+  };
+
+  function materials(caseId,index,sample) {
+    const selection=fieldSources[caseId];
+    if (!sample || !selection || selection.index!==index || Number(sample.id)!==Number(caseId)) return [];
+    const result=[];
+    for (const kind of selection.kinds) {
+      const item={id:'anexo-'+kind,role:'AB',kind};
+      if (kind==='audio' && sample.sound?.length && sample.transcript) {
+        Object.assign(item,{label:sample.soundTitle,body:sample.transcript,clip:recording(sample.sound)});
+      } else if (kind==='visual' && sample.panels?.length) {
+        const descriptions=sample.panels.map(panel=>panel.label+' · '+panel.detail);
+        Object.assign(item,{label:sample.pictureTitle,body:[...descriptions,sample.pictureAlt].filter(Boolean).join('\n')});
+      } else if (kind==='text' && sample.note) {
+        Object.assign(item,{label:sample.noteTitle,body:sample.note});
+      } else if (kind==='web' && sample.rows?.length) {
+        const rows=sample.rows.map(row=>[row.name,row.place,row.detail].join(' | '));
+        Object.assign(item,{label:sample.siteTitle,body:rows.join('\n')});
+      }
+      if (item.label && item.body) result.push(item);
+    }
+    return result;
+  }
+
   function el(type, text, className) {
     const element = document.createElement(type);
     if (text != null) element.textContent = text;
@@ -118,6 +149,35 @@
     const symbol = svgEl('path',{d:icons[normalize(icon)] || icons.carta,fill:'none',stroke:'#233e38','stroke-width':'1.8','stroke-linecap':'round','stroke-linejoin':'round',transform:'translate(43,8) scale(1.8)'});
     svg.append(bg,grid,symbol);
     return svg;
+  }
+
+  function illustrate({caseId,index,shelf,controller}) {
+    const sample=controller.sample;
+    if (!sample || fieldSources[caseId]?.index!==index || Number(sample.id)!==Number(caseId)) return;
+    const card=shelf.querySelector('[data-material="anexo-visual"]');
+    const body=card?.querySelector('.ve-content, .vhour-plate');
+    if (!body || !sample.panels?.length) return;
+    const strip=el('div');
+    strip.style.display='grid';
+    strip.style.gridTemplateColumns='repeat(auto-fit,minmax(min(100%,10rem),1fr))';
+    strip.style.gap='1rem';
+    for (const [n,panel] of sample.panels.entries()) {
+      const frame=el('figure');
+      frame.style.margin='0';
+      const drawing=illustration(panel.icon,panel.label,n);
+      drawing.setAttribute('aria-hidden','true');
+      drawing.setAttribute('width','100%');
+      const caption=el('figcaption');
+      caption.append(el('strong',panel.label),el('p',panel.detail));
+      frame.append(drawing,caption);
+      strip.append(frame);
+    }
+    body.replaceChildren(strip);
+    if (sample.pictureAlt) {
+      const description=el('details');
+      description.append(el('summary','Leer la descripción de la lámina'),el('p',sample.pictureAlt));
+      body.append(description);
+    }
   }
 
   function exhibit(kind, title) {
@@ -259,6 +319,7 @@
     .mesa-medios :focus-visible{outline:3px solid #ae7e3b;outline-offset:3px}
     .mesa-medios .estado{min-height:1.4em;margin:.4rem 0;line-height:1.5}
   `;
+  window.ValdemarMesa = {materials,illustrate};
   window.montarMesa = function montarMesa(host,p,checkAnswer) {
     const id='mesa-'+(++serial);
     const section=el('section',null,'mesa-medios');

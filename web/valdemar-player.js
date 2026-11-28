@@ -61,7 +61,7 @@
     previous.scene?.destroy();
     previous.legacyExtra?.destroy();
     previous.legacyExplorer?.destroy();
-    previous.hotelNavigation?.destroy();
+    previous.navigation?.destroy();
     previous.mansionView?.destroy();
     previous.hourView?.pause();
     pauseAudio(previous.frame);
@@ -74,7 +74,7 @@
   async function request(c, action, payload) {
     if (!sessionLive(c)) throw new Error('Inicia sesión para seguir jugando.');
     const body=payload===undefined?undefined:{...payload,partnerId:c.data?.partner?.id||null};
-    const tracking=body!==undefined&&(c.hotelNavigation||c.scene);
+    const tracking=body!==undefined&&(c.navigation||c.scene);
     if(tracking)tracking.writing();
     let result;
     try {
@@ -127,11 +127,11 @@
   }
   function selectView(c,view,focus=false) {
     if(!valid(c) || c.blocked) return;
-    if(c.hotelNavigation){
+    if(c.navigation){
       const key={desk:'evidencias',hotel:'escenario',help:'pistas',game:'extra',ending:'desenlace'}[view]||view;
-      if(!c.hotelNavigation.show(key,focus))return;
-      if(c.view!==view){c.hourView?.pause();pauseAudio(c.frame);}
-      c.view=view;c.frame.dataset.openExtra=String(key==='extra');
+      if(!c.navigation.show(key,focus))return;
+      if(c.view!==key){c.hourView?.pause();pauseAudio(c.frame);}
+      c.view=key;c.frame.dataset.openExtra=String(key==='extra');
       if(key==='pistas')renderHelp(c);
       if(key==='extra'&&!c.gameMounted)mountGame(c);
       return;
@@ -144,13 +144,9 @@
     }
     c.view=view;
     c.frame.dataset.openExtra=String(view==='game');
-    const game=view==='game', together=game && c.withDesk, desk=view==='desk'||together;
+    const game=view==='game', desk=view==='desk';
     if(!desk)pauseAudio(c.desk);
     c.desk.hidden=!desk;c.gamePanel.hidden=!game;c.pair.hidden=!desk&&!game;
-    c.pair.classList.toggle('vd-with-desk',Boolean(together));
-    c.deskToggle.setAttribute('aria-expanded',String(Boolean(together)));
-    c.deskToggle.textContent=together?'Ocultar el expediente':'Consultar expediente junto al reto';
-    c.returnToBoard.hidden=!together;
     c.help.hidden=view!=='help';c.ending.hidden=view!=='ending';
     if(c.hotel)c.hotel.hidden=view!=='hotel';
     for(const [id,b] of c.viewButtons)b.setAttribute('aria-pressed',String(id===view));
@@ -209,11 +205,8 @@
     const story=c.data.story;
     c.desk=element('section',null,'vd-panel vd-desk');c.desk.tabIndex=-1;
     c.desk.id='vd-expediente-'+c.id;
-    c.returnToBoard=button('Volver al reto',()=>{
-      c.deskToggle.focus({preventScroll:true});c.gamePanel.scrollIntoView({block:'start'});
-    },'vd-link');
     c.evidence=element('div',null,'vd-evidence');
-    c.desk.append(c.returnToBoard,element('h2','Mesa de investigación'));
+    c.desk.append(element('h2','Mesa de investigación'));
     if(c.data.hour && window.ValdemarHour){
       const hourNode=element('div');c.desk.append(hourNode);
       c.hourView=window.ValdemarHour.mount(hourNode,c.data.hour,{
@@ -257,7 +250,7 @@
     const backLabel={game:'Volver al reto',hotel:'Volver a la recepción',ending:'Volver a la resolución',desk:'Volver al expediente'}[from];
     if(c.id===2)window.HotelCuaderno?.hints(body,c.data);
     envelope.append(element('h2',c.id===2?'Sobre de la gobernanta':'Sobre de ayuda'),body);
-    if(!c.hotelNavigation)envelope.append(button(backLabel,()=>selectView(c,from,true),'vd-link'));
+    if(!c.navigation)envelope.append(button(backLabel,()=>selectView(c,from,true),'vd-link'));
     help.replaceChildren(envelope);
     if(c.view==='help')c.scene?.returnFrom(help);
   }
@@ -316,18 +309,8 @@
       id:c.id,world:'valdemar',title,caseTitle:c.data.story.title,embedded:!c.scene||c.id<=4,
       photo:meta?.photo||(c.id===1?'/tren-detenido.jpg':'/valdemar-art-'+String(c.id).padStart(2,'0')+'.webp')
     });
-    c.deskToggle=button('Consultar expediente junto al reto',()=>{
-      c.withDesk=!c.withDesk;
-      if(!c.withDesk)c.hourView?.pause();
-      selectView(c,'game');
-      if(c.withDesk){
-        c.desk.focus({preventScroll:true});c.desk.scrollIntoView({block:'start'});
-      }
-    },'vd-desk-toggle');
-    c.deskToggle.setAttribute('aria-controls',c.desk.id);
-    c.deskToggle.setAttribute('aria-expanded','false');
     c.gamePanel.append(heading);
-    if(!c.scene&&!c.hotelNavigation){
+    if(!c.scene&&!c.navigation){
       const links=heading.querySelector('.reto-cabecera-nav');
       links.append(button('Volver al escenario',()=>selectView(c,'desk',true),'ae-back'));
       if(window.MesaDeJuego){
@@ -336,10 +319,9 @@
       }else {const help=element('gameplay-help');help.setAttribute('context','reto');links.append(help);}
     }
     if(!c.legacyExtra)c.gamePanel.append(element('p',c.game.pitch,'vd-note'));
-    if(!c.hotelNavigation)c.gamePanel.append(c.deskToggle);
     if(c.id===1)c.gamePanel.append(element('p','Cada persona ve las vías de su época. Acordad una dirección en voz alta y pulsadla en las dos pantallas. Si os equivocáis, deshaced el movimiento en ambas.','vd-station-duo'));
     c.gamePanel.append(c.board,c.rewardStatus,c.retryReward,c.restart);
-    if(!c.hotelNavigation)c.gamePanel.append(button('Consultar mi sobre',()=>selectView(c,'help',true),'vd-link'));
+    if(!c.navigation)c.gamePanel.append(button('Consultar mi sobre',()=>selectView(c,'help',true),'vd-link'));
   }
   function decisionButtons(items,legend,submitLabel,submit,primary=true) {
     const form=element('form',null,'vd-decision');
@@ -403,11 +385,12 @@
     c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,save,onPaper,options);
     host.append(c.modeControl.entry);
   }
-  function blockEntry(c,{title,question,photo,alt,mode,modeHelp,choice,locked}={}) {
+  function blockEntry(c,{title,question,photo,alt,mode,modeHelp,locked}={}) {
     const number=String(c.id).padStart(2,'0'),item=window.ValdemarCatalog?.get(c.id)||{};
+    const block=Math.ceil(c.id/4);
     const entry=element('header',null,'vd-block-entry'),nav=element('nav',null,'vd-block-links');
     nav.setAttribute('aria-label','Navegación del juego');
-    nav.append(link('Volver a la ficha','/valdemar/'+number+'/'),link('Ver en el plano','/#mapa?mes=1&lugar='+c.id));
+    nav.append(link('Volver a la ficha','/valdemar/'+number+'/'),link('Ver en el plano','/#mapa?mes='+block+'&lugar='+c.id));
     if(c.balance)nav.append(c.balance);
     const content=element('div',null,'vd-block-cover'),copy=element('div',null,'vd-block-copy');
     const photoNode=element('img',null,'vd-block-photo');
@@ -415,7 +398,7 @@
     photoNode.alt=alt||item.coverAlt||'';photoNode.width=768;photoNode.height=512;photoNode.decoding='async';
     const heading=element('h1',title||item.title||'Código Valdemar');heading.tabIndex=-1;
     const pitch=element('p',question||item.question,'vd-block-pitch');
-    copy.append(element('p','Código Valdemar · Bloque 1 · Juego '+number,'vd-block-label'),heading,pitch);
+    copy.append(element('p','Código Valdemar · Bloque '+block+' · Juego '+number,'vd-block-label'),heading,pitch);
     if(mode){
       const setup=element('details',null,'vd-block-mode'),summary=element('summary');
       const description=element('p',modeHelp||'A solas, investigas con los dos papeles. En pareja, cada persona abre su carpeta desde su cuenta y compartís los hallazgos.','vd-block-mode-note');
@@ -434,25 +417,42 @@
       sync();c.entryObserver=new MutationObserver(sync);
       c.entryObserver.observe(c.frame,{attributes:true,attributeFilter:['data-play-mode']});
     }else entry.dataset.state='entry';
-    if(choice)copy.append(choice);
     if(locked)copy.append(locked);
     content.append(photoNode,copy);entry.append(nav,content);
     c.frame.dataset.blockEntry='true';
     return entry;
   }
-  function buildHotel(c){
+  function initialView(c,section){
+    if(section==='reto')return 'extra';
+    if(['pistas','extra','inventario','escenario','evidencias'].includes(section))return section;
+    if(section==='resolver'&&c.data.hour.stage)return 'resolver';
+    if(!c.data.hour.stage)return 'desenlace';
+    return 'evidencias';
+  }
+  function buildAdventure(c,catalogItem){
     const story=c.data.story;
-    c.frame.dataset.hotelUi='true';c.frame.dataset.adventureWorld='valdemar';
-    const navigation=window.AventuraEscena.hotelNavigation(c.frame,(key,focus)=>selectView(c,key,focus));
-    c.hotelNavigation=navigation;
+    const hotel=c.id===2&&Boolean(c.data.hour.hotel);
+    c.frame.dataset.adventureWorld='valdemar';
+    const select=(key,focus)=>selectView(c,key,focus);
+    const actions=(kind,id)=>{
+      const key={inspect:'inventario',material:'evidencias',journal:'evidencias',decision:'resolver',ending:'desenlace'}[kind];
+      if(!key)return;
+      select(key,true);
+      if(['inspect','material','journal'].includes(kind))c.hourView?.open(kind,id);
+    };
+    const navigation=hotel?window.AventuraEscena.hotelNavigation(c.frame,select):
+      window.AventuraEscena.caseNavigation(c.frame,select,{world:'valdemar',id:c.id,story,
+        image:catalogItem?.image||'/valdemar-art-'+String(c.id).padStart(2,'0')+'.webp',place:catalogItem?.place,
+        alt:coverDescriptions[c.id-1],read:()=>c.data,actions,playerName:()=>c.bridge.playerName?.()});
+    c.navigation=navigation;
     const screen=(key,cls)=>{const node=element('section',null,'vd-panel '+cls);navigation.bind(key,node);return node;};
-    c.hotel=screen('escenario','vhour vhour-hotel-panel');
-    c.desk=screen('evidencias','vhour hotel-evidencias');
-    const problem=screen('resolver','vhour hotel-resolver'),bag=screen('inventario','vhour hotel-inventario');
+    if(hotel){c.frame.dataset.hotelUi='true';c.hotel=screen('escenario','vhour vhour-hotel-panel');}
+    c.desk=screen('evidencias',hotel?'vhour hotel-evidencias':'vhour');
+    const problem=screen('resolver',hotel?'vhour hotel-resolver':'vhour'),bag=screen('inventario',hotel?'vhour hotel-inventario':'vhour');
     c.help=screen('pistas','vd-help');c.ending=screen('desenlace','vd-ending');
     const reading=element('div');c.desk.append(reading);
-    const papers=element('details',null,'hotel-registro');
-    papers.append(element('summary','Registro inicial y declaraciones de los huéspedes'));
+    const papers=element('details',null,hotel?'hotel-registro':'case-registro');
+    papers.append(element('summary',hotel?'Registro inicial y declaraciones de los huéspedes':'Documentos del caso'));
     const file=element('div',null,'vd-papers');papers.append(file);c.desk.append(papers);
     function baseFiles(role){
       file.replaceChildren();
@@ -462,7 +462,7 @@
       }
     }
     buildGame(c);navigation.bind('extra',c.gamePanel);
-    if(c.data.sample&&typeof window.montarMesa==='function'){
+    if(hotel&&c.data.sample&&typeof window.montarMesa==='function'){
       const service=element('details',null,'hotel-registro'),material=element('div');
       service.append(element('summary','Prueba opcional · El armario de ropa blanca'),material);
       service.addEventListener('toggle',()=>{
@@ -471,17 +471,22 @@
       c.gamePanel.append(service);
     }
     const query=new URLSearchParams(location.hash.split('?')[1]),source=Number(query.get('desde'));
-    if(query.get('volver')==='pistas'&&Number.isInteger(source)&&source>=1&&source<=48&&source!==2){
+    if(query.get('volver')==='pistas'&&Number.isInteger(source)&&source>=1&&source<=48&&source!==c.id){
       c.gamePanel.append(link('Volver a las pistas de la otra aventura','#'+(source<=12?'valdemar-jugar':'mundos-jugar')+'?id='+source+'&seccion=pistas&retomar=1','vd-link'));
     }
     const entry=blockEntry(c,{title:story.title,mode:c.modeControl});
     c.frame.replaceChildren(entry,navigation.shell);
     let lastIndex=c.data.hour.current,role=c.data.partner?.role||null;
     const controller={
-      caseId:2,role,hotelNode:c.hotel,hotelScreens:{reading,problem,bag},visitHotel:()=>selectView(c,'hotel',true),
+      caseId:c.id,role,sample:c.data.sample,
+      ...(hotel?{hotelNode:c.hotel,hotelScreens:{reading,problem,bag},visitHotel:()=>select('escenario',true)}:{screens:{reading,problem,bag}}),
       finish:()=>selectView(c,'ending',true),
       inventory:async input=>{
-        const result=await request(c,'inventory',input);if(result.wallet)updateWallet(c,result);return result;
+        const result=await request(c,'inventory',input);
+        if(result.inventory&&result.inventory.revision>=(c.data.hour.inventory?.revision||0))c.data.hour.inventory=result.inventory;
+        if(result.wallet)updateWallet(c,result);
+        if(!hotel)navigation.progress(c.data.hour);
+        return result;
       },
       submit:(index,choice,sources)=>request(c,'stage',{index,choice,...(sources?{sources}:{})}),
       reload:async()=>{const latest=await request(c);c.data.progress=latest.progress;c.data.hour=latest.hour;return latest.hour;},
@@ -491,7 +496,7 @@
         if(hour.current!==lastIndex){
           const wasInvestigating=['resolver','evidencias'].includes(navigation.active);
           lastIndex=hour.current;
-          if(wasInvestigating)selectView(c,hour.stage?'desk':'ending',true);
+          if(wasInvestigating)selectView(c,hour.stage?'evidencias':'desenlace',true);
         }
       }
     };
@@ -502,10 +507,11 @@
       role=next;controller.role=next;baseFiles(next);c.hourView?.update(c.data.hour);
     };
     c.hourView=window.ValdemarHour.mount(element('div'),c.data.hour,controller);
-    c.legacyExplorer=window.AventuraEscena.mountExplorer(c.hotel,c.frame,c.id);
+    if(hotel)c.legacyExplorer=window.AventuraEscena.mountExplorer(c.hotel,c.frame,c.id);
     renderEnding(c);updateWallet(c,c.data);c.modeControl.mount();
-    selectView(c,query.get('seccion')==='reto'?'game':query.get('seccion')==='pistas'?'help':c.data.hour.stage?'desk':'ending');
-    if(navigation.active==='evidencias')navigation.enter();
+    c.routeSection=query.get('seccion');
+    selectView(c,initialView(c,c.routeSection));
+    if(navigation.active==='evidencias'||navigation.active==='escenario')navigation.enter();
     const refreshRewards=async()=>{try{const latest=await request(c);if(valid(c))updateWallet(c,latest);}catch{}};
     for(const name of ['season-room-reward','mansion-arcade-reward','editorial-challenge-solved'])c.frame.addEventListener(name,refreshRewards);
   }
@@ -514,20 +520,9 @@
     const number=String(c.id).padStart(2,'0');
     const catalogItem=c.id===1 && c.episode?.legacy?{image:'/valdemar-art-01.webp',place:'La estación'}:window.ValdemarCatalog?.get(c.id);
     c.frame.dataset.vdCase=number;
-    const common=c.id<=4&&Boolean(c.data.hour);
-    const head=element(common?'section':'header',null,'vd-intro');
-    const cover=element('img',null,'vd-cover');
-    cover.addEventListener('error',()=>{cover.alt='';cover.src='/'+covers[c.id-1]+'.jpg';},{once:true});
-    cover.src=catalogItem?.image || '/valdemar-art-'+number+'.webp';cover.alt=coverDescriptions[c.id-1];
-    cover.width=764;cover.height=508;cover.decoding='async';
-    const still=element('figure',null,'vd-still');
-    still.append(cover);
-    if(catalogItem?.place)still.append(element('figcaption',catalogItem.place));
-    const headlinks=element('div',null,'vd-headlinks');c.balance=element('span','','vd-balance');
+    c.balance=element('span','','vd-balance');
     c.balance.setAttribute('aria-live','polite');
-    headlinks.append(link('Ver en el plano','#mapa?lugar='+c.id,'vd-link'),link('Todas las historias',c.catalog,'vd-link'),c.balance);
     const description=element('div',null,'vd-intro-copy');
-    description.append(headlinks,element('p','Código Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title));
     attachModeControl(c,description,story,mode=>request(c,'mode',{mode}),paper=>c.showModePaper?.(paper),{
       caseId:c.id,partner:c.data.partner,data:c.data,partners:(path,body)=>c.bridge.request(path,body),
       readState:async()=>{
@@ -537,9 +532,21 @@
       },readDossier:()=>request(c),
       onState:state=>{const advanced=window.ModalidadJuego.syncProgress(c.data,state,c.hourView,()=>renderEnding(c));updateWallet(c,state);return advanced;},reopen:()=>reopen(c)
     });
-    if(c.id===2&&c.data.hour?.hotel){buildHotel(c);return;}
+    if(c.id>=2){buildAdventure(c,catalogItem);return;}
+    if(c.episode?.edition!=='legacy')throw Error('No se ha podido recuperar la partida guardada.');
+    const common=c.id<=4&&Boolean(c.data.hour);
+    const head=element(common?'section':'header',null,'vd-intro');
+    const cover=element('img',null,'vd-cover');
+    cover.addEventListener('error',()=>{cover.alt='';cover.src='/'+covers[c.id-1]+'.jpg';},{once:true});
+    cover.src=catalogItem?.image || '/valdemar-art-'+number+'.webp';cover.alt=coverDescriptions[c.id-1];
+    cover.width=764;cover.height=508;cover.decoding='async';
+    const still=element('figure',null,'vd-still');
+    still.append(cover);
+    if(catalogItem?.place)still.append(element('figcaption',catalogItem.place));
+    const headlinks=element('div',null,'vd-headlinks');
+    headlinks.append(link('Ver en el plano','#mapa?lugar='+c.id,'vd-link'),link('Todas las historias',c.catalog,'vd-link'),c.balance);
+    description.prepend(headlinks,element('p','Código Valdemar · Historia '+number,'vd-eyebrow'),element('h1',story.title));
     description.append(element('p',story.question,'vd-question'));
-    if(c.episode?.legacy)(c.data.hour?headlinks:description).append(editionButton(c,'Abrir El secreto de los dos mundos','start'));
     if(story.intro)description.append(element('p',story.intro,'vd-narrative'));
     if(c.data.hour){
       description.append(button('Ir a mi investigación',()=>{
@@ -579,8 +586,7 @@
     if(common){
       const legacy=c.id===1&&c.episode?.legacy;
       c.frame.prepend(blockEntry(c,{title:story.title,question:legacy?story.question:undefined,
-        photo:legacy?'/tren-detenido.jpg':undefined,alt:legacy?'El andén de la estación':undefined,mode:c.modeControl,
-        choice:legacy?editionButton(c,'Abrir El secreto de los dos mundos','start'):null}));
+        photo:legacy?'/tren-detenido.jpg':undefined,alt:legacy?'El andén de la estación':undefined,mode:c.modeControl}));
     }
     if(c.id===1&&c.scene)head.insertAdjacentHTML('afterend',window.RetosTemporada?.puertaSala('mapa')||'');
     const roomReward=async()=>{
@@ -603,13 +609,6 @@
       else if(c.scene)c.scene.focus();else c.hourView?.enter();
     }
   }
-  function editionButton(c,label,op) {
-    return button(label,()=>run(c,'edition',async()=>{
-      await request(c,'mansion',{op});
-      reopen(c);
-    },error=>c.bridge.toast?.(errorMessage(error))),'vd-primary');
-  }
-
   function buildMansion(c) {
     const data=c.data,arcadeHost=element('div',null,'vd-room-entry');
     c.frame.dataset.vdCase='01';
@@ -668,22 +667,14 @@
         c.mansionView?.update(latest.mansion);return true;
       },reopen:()=>reopen(c)
     });
-    let choice;
-    if(data.edition==='choose'){
-      choice=element('div',null,'vd-block-legacy');
-      choice.append(element('h2','Tu partida de la estación'),element('p','Puedes retomar el expediente de la estación o empezar a explorar la mansión. Tu progreso se guarda por separado.'),
-        editionButton(c,'Continuar Mundos cruzados · La estación','legacy'),editionButton(c,'Empezar El secreto de los dos mundos','start'));
-    }else {
-      if(data.legacy)choice=editionButton(c,'Retomar Mundos cruzados · La estación','legacy');
-      if(data.mansion){
-        game.className='mansion-game-area';
-        if(!window.MansionGame?.mount)throw Error('La mansión no se ha cargado. Vuelve a abrir la partida.');
-        mountGame(data.mansion);
-      }
+    if(data.mansion){
+      game.className='mansion-game-area';
+      if(!window.MansionGame?.mount)throw Error('La mansión no se ha cargado. Vuelve a abrir la partida.');
+      mountGame(data.mansion);
     }
     if(!arcadeHost.firstElementChild)arcadeHost.innerHTML=window.RetosTemporada?.puertaSala('mapa')||'';
     const header=blockEntry(c,{
-      title:'El secreto de los dos mundos',mode:data.edition==='choose'?null:c.modeControl,choice,
+      title:'El secreto de los dos mundos',mode:c.modeControl,
       modeHelp:'A solas, cambia de casa para comparar lo que encuentres. En pareja, cada persona explora su propia versión de la mansión desde su cuenta. Contad qué veis y usad las pistas del otro para mover vuestro mecanismo.'
     });
     c.frame.replaceChildren(header,game,arcadeHost);
@@ -694,10 +685,10 @@
     c.modeControl?.destroy();
     c.entryObserver?.disconnect();
     c.legacyExplorer?.destroy();
-    c.hotelNavigation?.destroy();
+    c.navigation?.destroy();
     c.mansionView?.destroy();
     c.hourView?.pause();pauseAudio(c.frame);
-    const common=c.id>=1&&c.id<=4;
+    const common=c.id>=1&&c.id<=12;
     const notice=element('div',null,'vd-entry-notice');
     const guest=common&&!c.bridge.isSignedIn();
     notice.append(element('p',guest?'Entra con tu cuenta para jugar o retomar tu partida guardada.':errorMessage(e)));
@@ -719,11 +710,14 @@
     const id=Number(value),host=document.getElementById('valdemar-player');
     if(!host || !bridge)return;
     const account=identity(bridge);
-    if(active?.id===id && active.bridge===bridge && active.identity===account){
+    const resume=options.resume===true;
+    const sameEntry=id!==1||active?.resume===resume||active?.episode?.edition==='mansion';
+    if(active?.id===id && active.bridge===bridge && active.identity===account && sameEntry){
       if(host!==active.frame.parentElement)host.replaceChildren(active.frame);
       const section=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
       if(active.gamePanel && section!==active.routeSection){
-        active.routeSection=section;selectView(active,section==='reto'?'game':section==='pistas'?'help':'desk',true);
+        active.routeSection=section;
+        selectView(active,active.navigation?initialView(active,section):section==='reto'?'game':section==='pistas'?'help':'desk',true);
       }else if(active.openArcade&&section!==active.routeSection){
         active.routeSection=section;if(section==='reto')active.openArcade();else if(section==='pistas')active.mansionView?.openHints();
       }
@@ -731,7 +725,7 @@
     }
     clear();
     const catalog=options.catalogHref?.startsWith('#')?options.catalogHref:'#casos';
-    const c={id,bridge,identity:account,catalog,resume:options.resume===true,freshMode:options.freshMode===true,frame:element('div',null,'vd-player'),pending:new Set()};active=c;
+    const c={id,bridge,identity:account,catalog,resume,freshMode:options.freshMode===true,frame:element('div',null,'vd-player'),pending:new Set()};active=c;
     host.replaceChildren(c.frame);
     if(!Number.isInteger(id)||id<1||id>12){c.frame.append(element('p','Este expediente no existe.'),link('Volver al catálogo',catalog));return;}
     if(!sessionLive(c)){showFailure(c,{status:401});return;}
@@ -740,14 +734,26 @@
       try{
         if(id===1){
           c.episode=await request(c,'mansion');
-          if(c.episode.edition!=='legacy'){
+          c.data=c.episode;
+          // La ficha abre la mansión. Al retomar se respeta la historia guardada.
+          if(c.episode.edition==='choose'||(!c.resume&&c.episode.edition==='legacy')){
+            const op=c.resume?'legacy':'start';
+            c.episode=await request(c,'mansion',{op});
             c.data=c.episode;
+          }
+          if(c.episode.edition!=='legacy'){
             if(sessionLive(c))buildMansion(c);
             return;
           }
-          c.data=c.episode;
         }
         c.data=await request(c);
+        if(id>=2){
+          const hour=c.data.hour;
+          if(!hour?.stages?.length||!Number.isInteger(hour.current)||hour.current<0||hour.current>hour.stages.length||
+            (hour.current<hour.stages.length&&!hour.stage)||(id===2&&!hour.hotel)){
+            throw Error('No se ha podido cargar la etapa de esta aventura. Vuelve a intentarlo para retomar tu partida.');
+          }
+        }
         await Promise.all([loadEngines(c),window.ArchivoObjetos?.open(id)]);
         if(sessionLive(c))build(c);
       }catch(e){if(valid(c))showFailure(c,e);}

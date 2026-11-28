@@ -123,7 +123,40 @@ async function personalGames(data,scope,access,store,loadRelease,pairedCases) {
 }
 
 function releasedStory(release,id) {
-  return (id>CASE_ORDER.length ? release.nuevos : release.stories)?.find(item=>item.id===id);
+  const story = (id>CASE_ORDER.length ? release.nuevos : release.stories)?.find(item=>item.id===id);
+  if (id>=4 && id<=8 && story?.hour?.stages) {
+    const stages=story.hour.stages.map((stage,index)=>{
+      if (!stage.brief?.includes('Pruebas compartidas')) return stage;
+      let brief=stage.brief.replace(/En (?:las )?Pruebas compartidas/g,'En Evidencias');
+      if (id===5 && index===2) {
+        brief=brief.replace('el audio del poste y la matrícula con el libro de salidas. Después usad el registro de turnos para separar',
+          '«Prueba del embarcadero» y «Fotografías del amarre» con «Registro de servicios de la lonja» para separar');
+      }
+      if (id===7 && index===0) {
+        brief=brief.replace('con el inventario.','con «Fotoclub de Valdemar · Inventario de préstamos».');
+      }
+      if (id===8 && index===2) {
+        brief=brief.replace('La primera grabación, la de Pruebas compartidas, empezaba más adelante, en el banco.',
+          'La primera grabación empezaba más adelante, en el banco. Para escucharla de nuevo, abre el «Cuaderno de etapas resueltas» en Evidencias y busca «Paseo desde el banco» dentro de «La excursión sin nombre».');
+      }
+      return {...stage,brief};
+    });
+    return {...story,hour:{...story.hour,stages}};
+  }
+  if (id!==9 || !story?.hour?.stages[2]?.task?.includes('Pruebas compartidas')) return story;
+  const sample = release.samples?.find(item => item.id === id);
+  if (!sample?.transcript || !sample.panels?.length) return story;
+  const stages = story.hour.stages.slice();
+  const stage = stages[2];
+  // Keep saved step numbers, source IDs and validation. Each investigator receives
+  // the original observation for their own instrument through the normal dossier.
+  const materials = stage.materials.map(item => {
+    if (item.id==='impulsos') return {...item,body:item.body+'\nEnsayo registrado · '+sample.transcript};
+    if (item.id==='caja') return {...item,body:[item.body,...sample.panels.map(view=>view.label+' · '+view.detail)].join('\n')};
+    return item;
+  });
+  stages[2] = {...stage,materials,task:'Escucha el ensayo en «Cuaderno de continuidad» y gira el pulsador en «Placa de los bornes». Compara la cadencia y el grabado. ¿A qué borne corresponde ese ramal?'};
+  return {...story,hour:{...story.hour,stages}};
 }
 
 function mansionRules(story){
@@ -489,6 +522,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       mode,partner,waitingForPartner,keyChallenge,hintOptions,sharedHintCount,parallelPrize:parallelPrize(id),editorialPreview:editorial===true};
     if (newWorld) return {...dossier,side:visibleSide(story.side,role)};
     const gameScript = await asset('valdemar-challenges-'+Math.ceil(id/4)+'.js');
-    return {...dossier,sample:visibleSample(sample),gameScript,stationScript:id===1 ? release.stationScript : null};
+    // Case 9's two readings are delivered separately in its role-filtered evidence.
+    return {...dossier,sample:id===9 && story.hour ? null : visibleSample(sample),gameScript,stationScript:id===1 ? release.stationScript : null};
   });
 }

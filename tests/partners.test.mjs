@@ -111,7 +111,34 @@ const twoPapers={...story,id:13,evidenceCards:clues('expediente'),roles:['conten
   side:{title:'Comparar las fuentes',mode:'multi',options:[],materials:clues('reto')},
   hour:{stages:story.hour.stages.map((stage,i)=>({...stage,materials:clues('etapa-'+i),
     corroboration:{prompt:'Contrasta dos fuentes',answer:['A','B']}}))}};
-const releases={stories:[{...story,mansionEdition:mansionFixture}],samples:[],nuevos:[twoPapers]};
+const circuitCase={...story,id:9,hour:{stages:story.hour.stages.map((stage,i)=>i!==2?stage:{...stage,
+  task:'Examina en Pruebas compartidas los dos registros.',
+  materials:[{id:'impulsos',label:'Cuaderno de continuidad',kind:'ledger',role:'A',body:'Mediciones de taller'},
+    {id:'caja',label:'Placa de los bornes',kind:'visual',role:'B',body:'Catálogo de grabados'}]})}};
+const circuitSample={id:9,transcript:'Cadencia de ensayo.',panels:[{label:'Reverso',detail:'Marca de ensayo.'}]};
+const releases={stories:[{...story,mansionEdition:mansionFixture},circuitCase],samples:[circuitSample],nuevos:[twoPapers]};
+
+test('el circuito del caso 9 se retoma con sus dos observaciones repartidas entre los expedientes',async()=>{
+  const h=harness(),pair=(await h.startPair('editor',9,'curator')).id;
+  await h.choose('curator',9);
+  const game=(uid,path='',input)=>h.game(uid,path,input?{...input,partnerId:pair}:undefined,9);
+  for(const index of [0,1])await game('editor','/stage',{index,choice:['b']});
+  for(const [uid,id,observed,privateToPartner] of [
+    ['editor','impulsos','Cadencia de ensayo.','Marca de ensayo.'],
+    ['curator','caja','Marca de ensayo.','Cadencia de ensayo.']
+  ]){
+    const dossier=await game(uid);
+    assert.equal(dossier.sample,null);
+    assert.equal(dossier.hour.current,2);
+    assert.match(dossier.hour.stage.task,/Cuaderno de continuidad.*Placa de los bornes/);
+    const [item]=dossier.hour.stage.materials;
+    assert.equal(item.id,id);
+    assert.ok(item.body.includes(observed));
+    assert.ok(!JSON.stringify(dossier.hour).includes(privateToPartner));
+  }
+  assert.equal((await game('curator','/stage',{index:2,choice:['b']})).hour.current,3);
+  assert.ok((await game('editor')).hour.journal[2].materials[0].body.includes(circuitSample.transcript));
+});
 
 // Each request gets an isolated transaction. A failed acceptance must leave both seats available for retry.
 function harness(){

@@ -179,6 +179,34 @@
     });
     panel.setAttribute('role','img');panel.setAttribute('aria-label','Salida en reposo');sheet.append(b,panel);
   }
+  function continuityBench(parent,lines,item){
+    const prefix='Ensayo registrado · ';
+    const record=lines.find(line=>line.startsWith(prefix));
+    if(record){
+      const figure=el('figure','ve-wire-test'),audio=el('audio');
+      audio.controls=true;audio.preload='none';audio.src='/valdemar-timbre-ramal.wav';
+      audio.setAttribute('aria-label','Reproducir la prueba del circuito conservado');
+      const transcript=el('details'),summary=el('summary','','Leer la transcripción');
+      transcript.append(summary,el('p','',record.slice(prefix.length)));
+      figure.append(el('figcaption','','Prueba del circuito conservado'),audio,transcript);parent.append(figure);
+    }
+    ledgers(parent,lines.filter(line=>line!==record),item,9);
+  }
+  function inspectButton(parent,lines){
+    const views=lines.filter(line=>line.includes(' · ')).map(line=>line.split(' · '));
+    if(!views.length){sheets(parent,lines);return;}
+    const [site,...faces]=views;
+    notes(parent,[site.join(' · ')]);
+    const figure=el('figure','ve-inspection'),face=el('div','ve-porcelain'),caption=el('figcaption');
+    face.setAttribute('aria-hidden','true');figure.append(face,caption);parent.append(figure);
+    selectButtons(parent,faces.map(view=>view[0]),i=>{
+      const [label,detail]=faces[i];
+      face.dataset.view=i===0?'front':'back';
+      face.textContent=i===1 && /luna/i.test(detail)?'☾':'';
+      caption.textContent=label+' · '+detail;
+    });
+    sheets(parent,lines.filter(line=>!line.includes(' · ')));
+  }
   function sumDesk(parent,rows,caseId){
     const budget=el('details','ve-budget'),summary=el('summary','','Calculadora del expediente'),total=status(),tray=controls(),sums=new Map();
     for(const row of rows){
@@ -204,7 +232,9 @@
       const body=el('div','ve-content'),original=[...card.children].filter(n=>n!==summary),lines=lineArray(item.body);
       if(item.kind==='audio'||item.kind==='testimony'||item.clip){body.append(...original);annotateRecording(body);}
       else {
-        if(caseId===8&&item.id==='cuadricula')orientation(body,item.body);
+        if(caseId===9&&item.id==='impulsos')continuityBench(body,lines,item);
+        else if(caseId===9&&item.id==='caja')inspectButton(body,lines);
+        else if(caseId===8&&item.id==='cuadricula')orientation(body,item.body);
         else if(caseId===7&&item.id==='franjas')crop(body,lines);
         else if(caseId===10&&item.id==='espejo')foldBook(body,lines);
         else if(caseId===10&&item.id==='puestos')seats(body,lines);

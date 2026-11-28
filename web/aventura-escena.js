@@ -92,7 +92,7 @@
     const jump=readingTable?button('Ver la prueba',()=>actions('evidence'),'ae-jump-proof'):null;
     if(jump){jump.hidden=true;dock.append(jump);dock.className+=' ae-proof-dock';}
     if(story.intro||story.question)host.append(briefing);
-    let lastMode,signature,currentHour,light=false,lastPoint,secondaryPanel=null,sceneContext={},area='scene',extraOrigin=null;
+    let lastMode,signature,currentHour,lastPoint,secondaryPanel=null,sceneContext={},area='scene',extraOrigin=null;
     let entryFocus=null;
     function cancelEntryFocus(){
       entryFocus?.abort();
@@ -205,13 +205,6 @@
         shared.update({...base,progress:'Hotel Medianoche',objective:'Examina el hotel y contrasta las pruebas con los testimonios.'});
       }else shared.update({...base,progress:data.progress?.choice?'Desenlace guardado':sceneContext.progress,objective:currentHour?.stage?'Termina las etapas de la investigación para abrir el desenlace.':sceneContext.objective});
     }
-    function marker(text,name,info,slot){
-      const control=button('',()=>actions(name,info),'ae-marker');
-      control.dataset.action=name;
-      control.style.setProperty('--x',points[slot][0]+'%');control.style.setProperty('--y',points[slot][1]+'%');
-      const icon=el('span','ae-glyph',slot===0?style.symbol:['','⌕','◈','↗'][slot]);icon.setAttribute('aria-hidden','true');
-      control.append(icon,el('span','ae-marker-label',text));return control;
-    }
     function nextStep(){
       const data=read(),hour=currentHour||data.hour,phase=hour?.stage;
       if(!phase)return {label:data.progress?.choice?'Leer mi desenlace':'Abrir la deducción final',run:()=>actions('ending')};
@@ -282,45 +275,11 @@
         };
         syncMesa();
       }
-      if(world==='expedicion'||world==='valdemar'){
-        const list=el('ol','ae-route');
-        for(const [index,step] of (state.stages||[]).entries()){
-          const item=el('li'),text=step.place||step.title;
-          if(index<state.current&&(state.journal||[]).some(note=>note.index===index)){
-            item.append(button(text,()=>actions('journal',index),'ae-stop'));
-          }else if(index===state.current&&phase){const active=button(text,()=>actions('inspect'),'ae-stop');active.setAttribute('aria-current','step');item.append(active);}
-          else {const future=el('span','ae-stop',text);future.setAttribute('aria-label',text+' · etapa futura');item.append(future);}
-          list.append(item);
-        }
-        instrumentBody.append(list);
-      }else if(world==='umbravia'){
-        const toggle=button('',()=>{
-          light=!light;stage.dataset.lit=String(light);toggle.setAttribute('aria-pressed',String(light));
-          toggle.textContent=light?'Apagar el farol':'Encender el farol';
-        },'ae-action ae-lantern');
-        toggle.textContent=light?'Apagar el farol':'Encender el farol';toggle.setAttribute('aria-pressed',String(light));
-        instrumentBody.append(toggle,el('p',null,'Mueve el puntero sobre la imagen o recorre sus puntos con el tabulador para dirigir la luz.'));
-      }else if(world==='necropolis'&&visible.length){
-        let selected=0;
-        const rim=el('div','ae-disc'),dial=el('span','ae-disc-face','◎'),output=el('output','ae-disc-label');
-        function turn(offset){selected=(selected+offset+visible.length)%visible.length;dial.style.transform='rotate('+selected*360/visible.length+'deg)';output.textContent=(selected+1)+' / '+visible.length+' · '+visible[selected].label;}
-        dial.setAttribute('aria-hidden','true');output.setAttribute('aria-live','polite');
-        rim.append(dial,output,button('Girar a la izquierda',()=>turn(-1),'ae-action'),button('Girar a la derecha',()=>turn(1),'ae-action'),
-          button('Examinar el indicio seleccionado',()=>actions('material',visible[selected].id),'ae-action'));turn(0);instrumentBody.append(rim);
-      }else instrumentBody.append(el('p',null,'Las pruebas ya resueltas están en el cuaderno de la investigación.'));
-      if(!phase){markers.append(marker(data.progress?.choice?'Tu desenlace':'Abrir la resolución','ending',null,0));return;}
-      markers.append(marker(style.inspect,'inspect',null,0));
-      for(const [i,item] of visible.slice(0,2).entries())markers.append(marker((formats[item.kind]||'Examinar')+' · '+item.label,'material',item.id,i+1));
-      markers.append(marker('Resolver la etapa','decision',null,3));
+      drawScene({world,stage,markers,instrumentBody,actions,visible,state,phase,style,data});
     }
     update();
     const explorer=mountExplorer(host,frame,options.id);
-    if(world==='umbravia'){
-      function lightAt(x,y){stage.style.setProperty('--light-x',x+'%');stage.style.setProperty('--light-y',y+'%');}
-      stage.addEventListener('pointermove',event=>{if(!light)return;const box=stage.getBoundingClientRect();if(box.width&&box.height)lightAt((event.clientX-box.x)*100/box.width,(event.clientY-box.y)*100/box.height);});
-      markers.addEventListener('focusin',event=>{if(!light)return;const target=event.target.closest('button');if(!target)return;const box=stage.getBoundingClientRect(),spot=target.getBoundingClientRect();
-        if(box.width&&box.height)lightAt((spot.x+spot.width/2-box.x)*100/box.width,(spot.y+spot.height/2-box.y)*100/box.height);});
-    }
+    enableLamp(world,stage,markers);
     const observer=new MutationObserver(()=>update());
     observer.observe(frame,{attributes:true,attributeFilter:['data-play-mode','data-play-paper']});
     return {update,returnFrom,present(table){
@@ -340,23 +299,122 @@
         target?.focus({preventScroll:true});(entry||host).scrollIntoView({block:'start',behavior:'instant'});
       },destroy(){cancelEntryFocus();observer.disconnect();explorer.destroy();shared?.destroy();}};
   }
-  function hotelNavigation(frame,onSelect){
-    const shell=el('div','hotel-partida'),nav=el('nav','hotel-nav'),status=el('p','hotel-progress');
-    nav.setAttribute('aria-label','Investigar en Hotel Medianoche');
+  function drawScene({world,stage,markers,instrumentBody,actions,visible,state,phase,style,data}){
+    function marker(text,name,info,slot){
+      const control=button('',()=>actions(name,info),'ae-marker');
+      control.dataset.action=name;
+      control.style.setProperty('--x',points[slot][0]+'%');control.style.setProperty('--y',points[slot][1]+'%');
+      const icon=el('span','ae-glyph',slot===0?style.symbol:['','⌕','◈','↗'][slot]);icon.setAttribute('aria-hidden','true');
+      control.append(icon,el('span','ae-marker-label',text));return control;
+    }
+    if(world==='expedicion'||world==='valdemar'){
+      const list=el('ol','ae-route');
+      for(const [index,step] of (state.stages||[]).entries()){
+        const item=el('li'),text=step.place||step.title;
+        if(index<state.current&&(state.journal||[]).some(note=>note.index===index)){
+          item.append(button(text,()=>actions('journal',index),'ae-stop'));
+        }else if(index===state.current&&phase){const active=button(text,()=>actions('inspect'),'ae-stop');active.setAttribute('aria-current','step');item.append(active);}
+        else {const future=el('span','ae-stop',text);future.setAttribute('aria-label',text+' · etapa futura');item.append(future);}
+        list.append(item);
+      }
+      instrumentBody.append(list);
+    }else if(world==='umbravia'){
+      const toggle=button('',()=>{
+        const light=stage.dataset.lit!=='true';stage.dataset.lit=String(light);toggle.setAttribute('aria-pressed',String(light));
+        toggle.textContent=light?'Apagar el farol':'Encender el farol';
+      },'ae-action ae-lantern');
+      toggle.textContent=stage.dataset.lit==='true'?'Apagar el farol':'Encender el farol';toggle.setAttribute('aria-pressed',String(stage.dataset.lit==='true'));
+      instrumentBody.append(toggle,el('p',null,'Mueve el puntero sobre la imagen o recorre sus puntos con el tabulador para dirigir la luz.'));
+    }else if(world==='necropolis'&&visible.length){
+      let selected=0;
+      const rim=el('div','ae-disc'),dial=el('span','ae-disc-face','◎'),output=el('output','ae-disc-label');
+      function turn(offset){selected=(selected+offset+visible.length)%visible.length;dial.style.transform='rotate('+selected*360/visible.length+'deg)';output.textContent=(selected+1)+' / '+visible.length+' · '+visible[selected].label;}
+      dial.setAttribute('aria-hidden','true');output.setAttribute('aria-live','polite');
+      rim.append(dial,output,button('Girar a la izquierda',()=>turn(-1),'ae-action'),button('Girar a la derecha',()=>turn(1),'ae-action'),
+        button('Examinar el indicio seleccionado',()=>actions('material',visible[selected].id),'ae-action'));turn(0);instrumentBody.append(rim);
+    }else instrumentBody.append(el('p',null,'Las pruebas ya resueltas están en el cuaderno de la investigación.'));
+    if(!phase){markers.append(marker(data.progress?.choice?'Tu desenlace':'Abrir la resolución','ending',null,0));return;}
+    markers.append(marker(style.inspect,'inspect',null,0));
+    for(const [i,item] of visible.slice(0,2).entries())markers.append(marker((formats[item.kind]||'Examinar')+' · '+item.label,'material',item.id,i+1));
+    markers.append(marker('Resolver la etapa','decision',null,3));
+  }
+  function enableLamp(world,stage,markers){
+    if(world==='umbravia'){
+      function lightAt(x,y){stage.style.setProperty('--light-x',x+'%');stage.style.setProperty('--light-y',y+'%');}
+      stage.addEventListener('pointermove',event=>{if(stage.dataset.lit!=='true')return;const box=stage.getBoundingClientRect();if(box.width&&box.height)lightAt((event.clientX-box.x)*100/box.width,(event.clientY-box.y)*100/box.height);});
+      markers.addEventListener('focusin',event=>{if(stage.dataset.lit!=='true')return;const target=event.target.closest('button');if(!target)return;const box=stage.getBoundingClientRect(),spot=target.getBoundingClientRect();
+        if(box.width&&box.height)lightAt((spot.x+spot.width/2-box.x)*100/box.width,(spot.y+spot.height/2-box.y)*100/box.height);});
+    }
+  }
+  function caseScene(frame,options){
+    const {world,story,actions}=options,style=boards[world]||boards.valdemar;
+    const host=el('section','ae-scene case-scenario'),stage=el('div','ae-stage'),photo=el('img','ae-image');
+    frame.dataset.adventureWorld=world;host.dataset.world=world;
+    photo.width=768;photo.height=512;photo.decoding='async';
+    const caption=el('div','ae-caption'),place=el('h2','ae-place');
+    caption.append(place);
+    const markers=el('div','ae-markers ae-play');
+    markers.setAttribute('role','group');markers.setAttribute('aria-label','Puntos de inspección');
+    stage.append(photo,caption,markers);
+    const instrument=el('details','ae-instrument ae-play'),instrumentTitle=el('summary',null,{
+      valdemar:'Índice del expediente',expedicion:'Carta de navegación',umbravia:'Farol de inspección',necropolis:'Disco de indicios'
+    }[world]||'Cuaderno de campo'),instrumentBody=el('div','ae-instrument-body');
+    instrument.append(instrumentTitle,instrumentBody);
+    const goal=el('p','case-consigna');
+    host.append(stage,goal,instrument);
+    if(story.question||story.intro){
+      const opening=el('details','ae-instructions');
+      opening.append(el('summary',null,'Leer la apertura del caso'));
+      for(const text of [story.question,story.intro])if(text)opening.append(el('p',null,text));
+      host.append(opening);
+    }
+    const explorer=mountExplorer(host,frame,options.id);
+    enableLamp(world,stage,markers);
+    let lastHour,lastSignature;
+    function update(hour){
+      if(hour)lastHour=hour;
+      const data=options.read()||{},state=lastHour||data.hour;
+      if(!state)return;
+      const phase=state.stage,paper=frame.dataset.playPaper,filter=['A','B'].includes(paper)?paper:null;
+      const visible=(phase?.materials||[]).filter(item=>!filter||!item.role||item.role==='AB'||item.role===filter||item.role===(filter==='A'?1:2));
+      const signature=JSON.stringify([state.current,phase?.title,filter,visible.map(item=>[item.id,item.label]),data.progress?.choice,state.journal?.length]);
+      if(signature===lastSignature)return;
+      lastSignature=signature;
+      const artwork=phase&&window.EscenasDeCaso?.[options.id]?.(state.current);
+      photo.src=artwork||options.image;
+      photo.alt=artwork?(phase.place||phase.title):(options.alt||options.place||story.title);
+      place.textContent=phase?.place||options.place||story.title;
+      goal.textContent=phase?stageObjective(phase,visible[0]):'Has completado las etapas. Abre Desenlace para cerrar la investigación.';
+      markers.replaceChildren();instrumentBody.replaceChildren();
+      drawScene({world,stage,markers,instrumentBody,actions,visible,state,phase,style,data});
+    }
+    const observer=new MutationObserver(()=>update());
+    observer.observe(frame,{attributes:true,attributeFilter:['data-play-paper','data-play-mode']});
+    return {node:host,update,destroy(){observer.disconnect();explorer.destroy();}};
+  }
+  function panelNavigation(frame,onSelect,options){
+    const type=options?'case':'hotel',viewId=key=>type+'-vista-'+key;
+    const shell=el('div',type+'-partida'),nav=el('nav',type+'-nav'),status=el('p',type+'-progress');
+    nav.setAttribute('aria-label',options?'Investigar en '+options.story.title:'Investigar en Hotel Medianoche');
     const labels={escenario:'Escenario',evidencias:'Evidencias',resolver:'Resolver',inventario:'Inventario',pistas:'Pistas',extra:'Reto extra',desenlace:'Desenlace'};
     const buttons=new Map(),screens=new Map();
     for(const [key,label] of Object.entries(labels)){
-      const b=button(label,()=>onSelect(key,true),'hotel-go');b.dataset.hotelGo=key;
-      b.setAttribute('aria-controls','hotel-vista-'+key);nav.append(b);buttons.set(key,b);
+      const b=button(label,()=>onSelect(key,true),type+'-go');b.dataset[type+'Go']=key;
+      b.setAttribute('aria-controls',viewId(key));nav.append(b);buttons.set(key,b);
     }
-    const save=el('span','hotel-save');save.setAttribute('role','status');
-    const help=el('details','hotel-instrucciones'),guide=el('ol');
+    const save=el('span',type+'-save');save.setAttribute('role','status');
+    const help=el('details',type+'-instrucciones'),guide=el('ol');
     help.append(el('summary',null,'Cómo se juega'),guide);
-    for(const tip of [
+    const tips=options?[
+      'Examina los puntos de Escenario para recorrer el lugar y recoger objetos. Podrás volver a ellos en Inventario.',
+      'Abre un documento en Evidencias y examina sus detalles. En pareja, cada persona aporta las pruebas de su carpeta.',
+      'Reúne lo que has averiguado en Resolver para avanzar a la siguiente etapa. En Pistas puedes consultar una ayuda.'
+    ]:[
       'En Evidencias, abre un documento y examina las marcas o experimenta con sus controles. En pareja, describid lo que contiene vuestra carpeta.',
       'En Escenario puedes recorrer el hotel, recoger objetos y enseñárselos a los testigos. El Inventario conserva los hallazgos.',
       'En Resolver, contrasta tu hipótesis. Si necesitas ayuda, entra en Pistas. Al completar las cinco etapas podrás decidir el desenlace.'
-    ])guide.append(el('li',null,tip));
+    ];
+    for(const tip of tips)guide.append(el('li',null,tip));
     shell.append(nav,status,help);
     let pending=0,failed=false,active=null,focusRequest=null,entryObserver=null;
     function cancelEntry(){focusRequest?.abort();focusRequest=null;}
@@ -366,8 +424,8 @@
       const card=slot?.querySelector('.vhour-material[open]:not([hidden])>summary');
       if(!card||!card.getClientRects().length)return;
       const clearance=Math.ceil(nav.getBoundingClientRect().height)+10;
-      shell.style.setProperty('--hotel-nav-alto',(clearance-10)+'px');
-      const heading=slot.querySelector('h2'),instruction=slot.querySelector('.hotel-consigna');
+      shell.style.setProperty('--'+type+'-nav-alto',(clearance-10)+'px');
+      const heading=slot.querySelector('h2'),instruction=slot.querySelector('.'+type+'-consigna');
       const first=[...card.parentElement.querySelectorAll('button,input,select')].find(b=>!b.disabled&&b.getClientRects().length);
       const bottom=(first||card).getBoundingClientRect().bottom;
       const fits=node=>node&&bottom-node.getBoundingClientRect().top+clearance<innerHeight-70;
@@ -394,10 +452,10 @@
       });
       entryObserver.observe(frame,{attributes:true,attributeFilter:['data-play-mode']});
     }
-    const bind=(key,node)=>{node.dataset.hotelPane=key;node.id='hotel-vista-'+key;node.tabIndex=-1;node.hidden=true;screens.set(key,node);shell.append(node);};
+    const bind=(key,node)=>{node.dataset[type+'Pane']=key;node.id=viewId(key);node.tabIndex=-1;node.hidden=true;screens.set(key,node);shell.append(node);};
     function show(key,focus){
       if(!screens.has(key)||buttons.get(key).hidden)return false;
-      active=key;frame.dataset.hotelView=key;
+      active=key;frame.dataset[type+'View']=key;
       for(const [id,screen] of screens){screen.hidden=id!==key;buttons.get(id).setAttribute('aria-pressed',String(id===key));}
       if(focus){const screen=screens.get(key);screen.focus({preventScroll:true});nav.scrollIntoView({block:'start',behavior:'instant'});}
       return true;
@@ -411,5 +469,15 @@
       writing(){if(!pending)failed=false;pending++;save.textContent='Guardando…';},
       written(ok){failed ||= ok===false;pending=Math.max(0,pending-1);save.textContent=pending?'Guardando…':failed?'Última acción sin confirmar':ok===null?'Respuesta comprobada':'Progreso guardado';}};
   }
-  window.AventuraEscena=Object.freeze({mount,mountExplorer,challengeHeader,hotelNavigation});
+  function hotelNavigation(frame,onSelect){return panelNavigation(frame,onSelect);}
+  function caseNavigation(frame,onSelect,options){
+    frame.dataset.caseUi='true';
+    const scenes=caseScene(frame,options),navigation=panelNavigation(frame,onSelect,options);
+    navigation.bind('escenario',scenes.node);
+    const progress=navigation.progress,destroy=navigation.destroy;
+    navigation.progress=hour=>{progress(hour);scenes.update(hour);};
+    navigation.destroy=()=>{scenes.destroy();destroy();};
+    return navigation;
+  }
+  window.AventuraEscena=Object.freeze({mount,mountExplorer,challengeHeader,hotelNavigation,caseNavigation});
 })();
