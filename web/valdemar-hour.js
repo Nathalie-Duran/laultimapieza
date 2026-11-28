@@ -312,6 +312,141 @@
     update();
     return field;
   }
+  function switchboard(field,stage,selected,change) {
+    const slots=Array(stage.requiredCount).fill(null);
+    let active=0;
+    const rack=el('div',null,'vh-switchboard'),contacts=el('div',null,'vh-contacts'),message=live();
+    const sockets=slots.map((_,index)=>{
+      const socket=control('',()=>{active=index;paint();},'vh-socket');
+      rack.append(socket);return socket;
+    });
+    const choices=stage.options.map(option=>{
+      const key=control(option.label,()=>{
+        const previous=slots.indexOf(option.id);
+        if(previous!==-1)slots[previous]=null;
+        slots[active]=option.id;
+        const next=slots.indexOf(null);
+        if(next!==-1)active=next;
+        paint();
+      },'vh-contact');
+      key.dataset.vhValue=option.id;contacts.append(key);return key;
+    });
+    const unplug=control('Desconectar la toma elegida',()=>{slots[active]=null;paint();});
+    function paint(){
+      selected.splice(0,selected.length,...slots.filter(value=>value!==null));
+      sockets.forEach((socket,index)=>{
+        const option=stage.options.find(row=>row.id===slots[index]);
+        socket.textContent='Toma '+(index+1)+' · '+(option?.label||'Libre');
+        pressed(socket,index===active);socket.dataset.connected=String(Boolean(option));
+      });
+      choices.forEach((key,i)=>pressed(key,slots.includes(stage.options[i].id)));
+      message.textContent=selected.length===slots.length?'Las tomas están conectadas. Puedes cambiar una conexión.':'Elige un contacto para la toma '+(active+1)+'.';
+      unplug.disabled=slots[active]===null;change();
+    }
+    field.append(el('h5','Centralita de guardia'),el('p','El aviso decide el orden de servicio. Elige una toma y conecta la actuación que corresponde. Puedes mover cualquier contacto a otra toma.'),
+      rack,contacts,unplug,message);paint();
+  }
+  function buoyRoute(field,stage,selected,change) {
+    const board=el('div',null,'vh-buoy-board'),caption=live();
+    const svgNs='http://www.w3.org/2000/svg';
+    const chart=document.createElementNS(svgNs,'svg'),trace=document.createElementNS(svgNs,'polyline');
+    chart.setAttribute('viewBox','0 0 100 100');chart.setAttribute('preserveAspectRatio','none');
+    chart.setAttribute('aria-hidden','true');chart.append(trace);board.append(chart);
+    const coordinates=[[23,24],[76,24],[76,75],[23,75]];
+    const markers=stage.options.map((option,index)=>{
+      const marker=control(option.label,()=>{
+        const previous=selected.indexOf(option.id);
+        if(previous>=0)selected.splice(previous,1);
+        else if(selected.length<stage.requiredCount)selected.push(option.id);
+        else {caption.textContent='Retira una boya de la ruta antes de marcar otra.';return;}
+        paint();
+      },'vh-buoy');
+      marker.dataset.vhValue=option.id;
+      marker.style.left=coordinates[index][0]+'%';marker.style.top=coordinates[index][1]+'%';
+      board.append(marker);return marker;
+    });
+    function paint(){
+      const indices=selected.map(id=>stage.options.findIndex(option=>option.id===id));
+      trace.setAttribute('points',indices.map(i=>coordinates[i].join(',')).join(' '));
+      markers.forEach((marker,index)=>{
+        const lead=indices.indexOf(index),name=stage.options[index].label;
+        marker.textContent=(lead>=0?(lead+1)+' · ':'')+name;pressed(marker,lead>=0);
+      });
+      caption.textContent=indices.length?'Tu ruta · '+indices.map(i=>stage.options[i].label).join(' → '):'Ruta sin trazar.';
+      change();
+    }
+    field.append(el('h5','Traza la ruta de las boyas'),el('p','Consulta la carta del práctico. Marca cada boya por orden de paso. Vuelve a tocar una para retirarla del trazado.'),board,caption);
+    paint();
+  }
+  function materialRows(stage) {
+    return stage.materials.filter(m=>m.kind==='visual').flatMap(m=>
+      m.body.split(/\r?\n/).map(line=>line.split('|').map(c=>c.trim())));
+  }
+  function doorLineup(field,stage,selected,change) {
+    const rows=materialRows(stage),lineup=el('div',null,'vh-door-lineup'),note=live();
+    const doors=stage.options.map(option=>{
+      const number=option.label.match(/\d+/)?.[0];
+      const row=rows.find(cells=>number&&cells[0]===number&&cells.length===4);
+      const door=control('',()=>{
+        selected.splice(0,selected.length,option.id);
+        for(const item of doors)pressed(item,item===door);
+        note.textContent=row?option.label+' · Bisagras a la '+row[1]+', ventana a '+row[2]+', marca en el zócalo: '+row[3]+'.':option.label+' seleccionada. Contrasta tu prueba con la de tu compañero.';
+        change();
+      },'vh-door');
+      const drawing=el('span',null,'vh-door-drawing');drawing.setAttribute('aria-hidden','true');
+      if(row){
+        drawing.dataset.hinge=row[1];drawing.dataset.mark=row[3];
+        drawing.append(el('i',null,'vh-door-hinge'),el('i',null,'vh-door-mark'));
+      }
+      door.dataset.vhValue=option.id;pressed(door,false);
+      door.append(drawing,el('span',option.label));lineup.append(door);return door;
+    });
+    field.append(el('h5','Inspecciona las puertas de la pensión'),el('p','Compara las puertas con el negativo de Violeta. Toca una para examinarla y proponer la habitación.'),lineup,note);change();
+  }
+  function rubbingDesk(field,stage,selected,change) {
+    const rows=materialRows(stage),choices=el('div',null,'vh-rubbing-choices'),plate=el('div',null,'vh-rubbing-plate'),note=live();
+    let overlap=false;
+    const traces=new Map();
+    for(const opt of stage.options){
+      const row=rows.find(cells=>cells[0]==='Ojo '+opt.label);
+      if(row?.[1])traces.set(opt.id,row[1]);
+    }
+    const buttons=stage.options.map(opt=>{
+      const b=control('Ojo '+opt.label,()=>{
+        const at=selected.indexOf(opt.id);
+        if(at>=0)selected.splice(at,1);
+        else if(selected.length<2)selected.push(opt.id);
+        else{note.textContent='Retira uno de los dos calcos antes de colocar otro.';return;}
+        overlap=false;paint();
+      },'vh-rubbing-choice');b.dataset.vhValue=opt.id;choices.append(b);return b;
+    });
+    const overlay=control('Superponer calcos',()=>{overlap=!overlap;paint();},'vh-overlay');
+    function paint(){
+      buttons.forEach((b,i)=>pressed(b,selected.includes(stage.options[i].id)));
+      const captions=[];
+      plate.dataset.overlap=String(overlap);
+      plate.replaceChildren(...selected.map((id,index)=>{
+        const label='Ojo '+stage.options.find(o=>o.id===id).label,mark=traces.get(id);
+        const sheet=el('div',null,'vh-rubbing-sheet');
+        sheet.dataset.layer=String(index);
+        const grooves=Number(mark?.match(/(\d+)\s+estrías/i)?.[1]||0);
+        if(grooves>0&&grooves<=12){
+          const drawing=el('span',null,'vh-grooves');drawing.setAttribute('aria-hidden','true');
+          drawing.dataset.height=mark.includes('roce bajo')?'bajo':'alto';
+          for(let i=0;i<grooves;i++)drawing.append(el('i'));
+          sheet.append(drawing);
+        }
+        sheet.setAttribute('aria-hidden','true');sheet.append(el('span',label));
+        captions.push(label+(mark?' · '+mark:''));return sheet;
+      }));
+      overlay.disabled=selected.length!==2||!selected.every(id=>traces.has(id));
+      overlay.textContent=overlap?'Separar los calcos':'Superponer calcos';pressed(overlay,overlap);
+      note.textContent=captions.length?captions.join('. ')+'.':'Mesa vacía.';
+      change();
+    }
+    field.append(el('h5','Mesa de improntas'),el('p',traces.size?'Coloca dos calcos en la mesa. Superpón sus marcas para comparar la altura del roce y las estrías.':'Usa el registro de ensayos y pide a tu compañero que describa las improntas. Elige los dos ojos que corresponden al cabo.'),
+      choices,plate,overlay,note);paint();
+  }
   function decision(stage,index,controller,refresh) {
     const form=el('form',null,'vhour-task');
     form.dataset.mode=stage.mode;
@@ -326,10 +461,16 @@
     const required = Number.isInteger(stage.requiredCount) && stage.requiredCount>0 && stage.requiredCount<=options.length
       ? stage.requiredCount : null;
     const sources=new Set();
-    const ready=()=>(required?selected.length===required:selected.length>0) &&
+    const ready=()=>(required?selected.length===required:stage.interaction==='improntas'?selected.length===2:selected.length>0) &&
       (!stage.corroboration || sources.size===stage.corroboration.count);
     let sending=false;
-    if(ordering) {
+    const special={centralita:switchboard,boyas:buoyRoute,puertas:doorLineup,improntas:rubbingDesk}[stage.interaction];
+    const supported=special&&Array.isArray(stage.materials)&&
+      (stage.interaction!=='boyas'||options.length===4)&&(!ordering||required);
+    if(supported){
+      form.dataset.vhPrueba=stage.interaction;
+      special(field,stage,selected,()=>{status.textContent='';submit.disabled=!ready();});
+    }else if(ordering) {
       const summary=el('div',null,'vhour-order-summary'), count=el('span',null,'vhour-order-count');
       count.setAttribute('role','status');
       summary.append(el('h5','Tu secuencia'),count);

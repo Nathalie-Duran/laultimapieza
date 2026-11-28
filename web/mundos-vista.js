@@ -79,12 +79,12 @@
   }
   function accessMarkup(edition,item,allowed,completed,status) {
     const extra=window.RetosTemporada?.acceso(item.id,allowed)||'';
-    if(allowed)return `<a class="md-cta" href="#mundos-jugar?id=${item.id}">${completed?'Ver mi desenlace':edition.launch} <span aria-hidden="true">→</span></a>`+extra;
+    if(allowed)return `<vd-block-progress><a class="md-cta" data-vd-play="${item.id}" href="#mundos-jugar?id=${item.id}">${completed?'Ver mi desenlace':'Jugar'}</a></vd-block-progress>`+extra;
     const previous=status?.previousReady===false || !status;
     const info=previous
       ? 'Completa los doce casos '+edition.previous.from+'.'+(status?' Tu avance: '+status.previousCompleted+'/12.':'')
       : 'Este bloque todavía no está disponible en tu pase.';
-    return `<p class="md-locked-note">${esc(info)}</p><a class="md-cta md-cta-secondary" href="${previous?edition.previous.href:'#planes'}">${previous?edition.previous.back:'Consultar mi pase'}</a>`+extra;
+    return `<p class="md-locked-note">${esc(info)}</p>${window.Colecciones?.proximoBloque?.(item.id)||''}<a class="md-cta md-cta-secondary" href="${previous?edition.previous.href:'#planes'}">${previous?edition.previous.back:'Consultar mi pase'}</a>`+extra;
   }
   function refreshAccess(node,edition,item,available,done,status) {
     const box=node.querySelector('.md-access');
@@ -116,7 +116,7 @@
         <p class="md-caption">${esc(item.place)}</p><${heading} id="md-case-title" tabindex="-1">${esc(item.title)}</${heading}><p class="md-question">${esc(item.question)}</p>
         <p class="md-facts"><span>≈ 60 min</span><span>1–2 personas</span><span>Bloque ${level+1} de 3</span></p>
         <div class="md-access">${accessMarkup(edition,item,allowed.has(item.id),done.has(item.id),status)}</div>
-        ${focused?(window.RetosTemporada?.salaDeAventura(item.id)||''):''}
+        ${focused?(window.RetosTemporada?.salaDeAventura(item.id)||'')+(window.Colecciones?.reliquiaDeJuego?.(item.id,access)||''):''}
         ${focused&&!allowed.has(item.id)?'<a class="md-demo-link" href="/cinta-87.html?caso='+number(item.id)+'">Probar gratis la demo de La cinta 87</a>':''}
         <details class="md-file-roles"><summary>Los dos papeles de esta aventura</summary><ol>${item.roles.map((role,i)=>'<li><strong>Papel '+(i+1)+'</strong> '+esc(role)+'</li>').join('')}</ol></details>
         ${focused?'':'<button type="button" class="md-back-pin">'+esc(edition.returnLabel)+'</button>'}</div>

@@ -77,11 +77,15 @@
     if(story.intro)briefing.append(el('p',null,story.intro));
     const mesaHost=el('div','ae-mesa');
     const shared=window.MesaDeJuego?.mount(mesaHost,{family:world,title:story.title});
+    const entryTools=options.blockEntry?mesaHost.querySelector('.mj-tools'):null;
+    const toolHome=entryTools?.parentElement;
+    entryTools?.classList.add('vd-block-tools');
     const mesaHome=el('div','ae-mesa-home');
     const dock=el('aside','mj-objective-dock');dock.hidden=true;dock.setAttribute('aria-label','Objetivo de la aventura');
     const examined=new Set();
     if(shared){mesaHome.append(mesaHost);caption.replaceChildren(place);host.replaceChildren(toolbar,heading,stage,party,setup,mesaHome,instrument);}
     else host.replaceChildren(toolbar,heading,stage,party,setup,objective,tools,instrument);
+    if(options.blockEntry){toolbar.remove();heading.remove();setup.remove();}
     if(story.intro||story.question)host.append(briefing);
     let lastMode,signature,currentHour,light=false,lastPoint,secondaryPanel=null,sceneContext={},area='scene',extraOrigin=null;
     let writes=0,saveText=options.resumed?'Partida recuperada':'',saveIssue=false;
@@ -135,6 +139,10 @@
       const context=waiting?'Reto de aventura · '+ancestry:ancestry;
       if(contextLabel.textContent!==context)contextLabel.textContent=context;
       const section=frame.dataset.playMode==='pending'?null:secondaryPanel;
+      if(entryTools){
+        const holder=section?toolHome:host;
+        if(entryTools.parentElement!==holder)holder.insertBefore(entryTools,section?holder.firstChild:stage);
+      }
       const ready=['solo','duo'].includes(frame.dataset.playMode);
       shared.dockObjective?.(dock.parentElement&&ready&&!sideOpen?dock:null);
       const canNavigate=ready&&!sideOpen;

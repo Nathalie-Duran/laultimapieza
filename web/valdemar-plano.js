@@ -67,14 +67,14 @@
     const blockLabel='Bloque '+item.month+(editorial?' · acceso editorial':allowed?' · disponible':options.canPlay?' · pendiente':'');
     const path=catalog.path(item.id);
     const primary=allowed
-      ? `<a class="vdp-primary" href="/#valdemar-jugar?id=${item.id}">${recovered?'Ver mi desenlace':'Abrir la investigación'}</a><a class="vdp-secondary" href="${path}">Ficha</a>`
-      : `<a class="vdp-primary" href="${item.id===1?path+'?carta=1':path}">${item.id===1?'Abrir la carta de Ada':'Ver la ficha'}</a>`;
+      ? `<vd-block-progress><a class="vdp-primary" href="/#valdemar-jugar?id=${item.id}" data-vd-play="${item.id}">${recovered?'Ver mi desenlace':'Jugar'}</a></vd-block-progress><a class="vdp-secondary" href="${path}">Ficha</a>`
+      : `<a class="vdp-primary" href="${path}">Ver la ficha</a>`;
     return `<aside class="vdp-place" id="vdp-place" aria-labelledby="vdp-title">
       <header class="vdp-still"><img class="vdp-cover" src="${esc(item.image)}" alt="${esc(item.coverAlt)}" width="764" height="508" decoding="async">
         <div class="vdp-still-top"><span class="vdp-plate">Caso ${num(item.id)}${recovered?' · Pieza recuperada':''}</span><nav class="vdp-neighbors" aria-label="Recorrer los lugares del plano">${nearby(places,item,month,-1)}${nearby(places,item,month,1)}</nav></div>
         <div class="vdp-caption"><p class="vdp-location">${esc(item.place)}</p><h2 class="vdp-title" id="vdp-title" data-vdp-focus="detail" tabindex="-1">${esc(item.title)}</h2></div>
       </header>
-      <div class="vdp-place-copy"><p class="vdp-question">${esc(item.question)}</p><ul class="vdp-format" aria-label="Formato del caso"><li>${esc(blockLabel)}</li><li>${item.id===1?'75–90 min':'≈ 60 min'}</li><li>1–2 personas</li></ul><div class="vdp-actions">${primary}</div>${item.id===1?'':(window.RetosTemporada?.acceso(item.id,allowed)||'')}<button type="button" class="vdp-back-map" data-vdp-focus="return">Volver al plano</button></div></aside>`;
+      <div class="vdp-place-copy"><p class="vdp-question">${esc(item.question)}</p><ul class="vdp-format" aria-label="Formato del caso"><li>${esc(blockLabel)}</li><li>${item.id===1?'75–90 min':'≈ 60 min'}</li><li>1–2 personas</li></ul><div class="vdp-actions">${primary}</div>${allowed?'':window.Colecciones?.proximoBloque?.(item.id)||''}${item.id===1?'':(window.RetosTemporada?.acceso(item.id,allowed)||'')}<button type="button" class="vdp-back-map" data-vdp-focus="return">Volver al plano</button></div></aside>`;
   }
 
   function remember() {

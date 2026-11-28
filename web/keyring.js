@@ -14,14 +14,17 @@
     const movements=[...(wallet.history||[])].reverse().sort((a,b)=>(b.at||0)-(a.at||0));
     for(const entry of movements) {
       const value=(entry.amount>0?'+':'')+entry.amount;
-      const id=entry.caseId,season=window.Colecciones?.seasons?.[Math.floor((id-1)/12)];
+      const id=entry.caseId,seasonIndex=Math.floor((id-1)/12),season=window.Colecciones?.seasons?.[seasonIndex];
+      const station=entry.station && window.SalasMundosCatalogo?.[seasonIndex+1]?.games.find(game=>game.id===entry.station);
+      const challenge=entry.kind==='reward' && id>1 && window.RetosTemporada?.ficha(id);
+      const activity=entry.activity || station?.title || challenge?.title;
       let context='';
       if(id && entry.kind!=='calendarChallenge'){
         const room=entry.kind==='mansionArcade'||entry.kind==='seasonArcade';
         context=room && season?' · '+season.name:' · '+(season?season.name+' · Aventura '+((id-1)%12+1):'Aventura '+id);
       }
       const when=entry.at?' · '+new Date(entry.at).toLocaleDateString('es-ES'):'';
-      list.append(node('li',value+' · '+(titles[entry.kind]||'Movimiento de llaves')+context+when));
+      list.append(node('li',value+' · '+(activity||titles[entry.kind]||'Movimiento de llaves')+context+when));
     }
     details.append(list.childElementCount?list:node('p','Aún no tienes movimientos.'));
     return details;

@@ -59,40 +59,6 @@
       }
     }
   }
-  function responseField(form,action){
-    const control=action.controles?.[0];
-    if(!control)return ()=>null;
-    const group=node('fieldset'),legend=node('legend',control.label||'Tu respuesta');
-    group.append(legend);form.append(group);
-    function input(type,label){
-      const wrap=node('label',label),el=node('input');
-      el.type=type;el.required=true;if(type==='number')el.step='any';else el.maxLength=500;
-      wrap.append(el);group.append(wrap);return el;
-    }
-    if(control.tipo==='punto'){
-      const x=input('number','Coordenada X'),y=input('number','Coordenada Y');
-      return ()=>[x.valueAsNumber,y.valueAsNumber];
-    }
-    if(control.tipo==='rumbo'||(action.opciones?.length&&control.tipo==='texto')){
-      const opts=control.tipo==='rumbo'?[['N','Norte'],['E','Este'],['S','Sur'],['O','Oeste']]:action.opciones.map(o=>[o.id,o.label]);
-      const select=node('select');select.required=true;select.setAttribute('aria-label',legend.textContent);
-      const first=node('option','Elige una opción');first.value='';select.append(first);
-      for(const [id,name] of opts){const option=node('option',name);option.value=id;select.append(option);}
-      group.append(select);return ()=>select.value;
-    }
-    if(control.tipo==='lista'){
-      const values=[],choices=node('div',null,'ap-options');
-      const field=input('text','Escribe los elementos en orden, separados por punto y coma.');
-      for(const option of action.opciones||[])choices.append(button(option.label,()=>{
-        values.splice(0,values.length,...field.value.split(';').map(v=>v.trim()).filter(Boolean),option.id);
-        field.value=values.join('; ');
-      }));
-      if(choices.childElementCount)group.append(choices);
-      return ()=>field.value.split(';').map(v=>v.trim()).filter(Boolean);
-    }
-    const field=input(control.tipo==='numero'?'number':'text',control.tipo==='numero'?'Introduce un número':'Escribe tu respuesta');
-    return ()=>control.tipo==='numero'?field.valueAsNumber:field.value.trim();
-  }
   class PublishedAdventure extends HTMLElement {
     connectedCallback(){
       this.generation=(this.generation||0)+1;this.slug=query().get('juego');this.owner=bridge()?.playerId();
@@ -182,9 +148,9 @@
           else evidence.append(node('strong',material.titulo),node('p',material.texto));
           form.append(evidence);evidencePanels.push(evidence);
         }
-        const answer=responseField(form,action);
+        const answer=window.ControlesPrueba.montar(form,action);
         const send=node('button',action.tipo==='prueba'?'Comprobar respuesta':action.titulo,'button primary');
-        send.type='submit';form.append(send);form.addEventListener('submit',e=>{e.preventDefault();this.play(action,answer());});
+        send.type='submit';form.append(send);form.addEventListener('submit',e=>{e.preventDefault();this.play(action,answer?.()??null);});
         if(action.zona&&[action.zona.x,action.zona.y].every(n=>Number.isFinite(n)&&n>=0&&n<=100)){
           const marker=button(String(panels.length+1),()=>{form.scrollIntoView({block:'center'});form.querySelector('input,select,button')?.focus({preventScroll:true});},'ap-marker');
           marker.setAttribute('aria-label','Examinar '+action.titulo);marker.style.left=action.zona.x+'%';marker.style.top=action.zona.y+'%';picture.append(marker);

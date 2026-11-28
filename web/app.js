@@ -9,12 +9,13 @@ function valdemarState(membership={}) {
   if (Array.isArray(season?.availableCases)) {
     const openedMonths = [...new Set(season.availableCases.filter(id=>Number.isInteger(id)&&id>=1&&id<=12).map(id=>Math.ceil(id/4)))];
     const valdemar=season.seasons?.find(s=>s.number===1);
-    return {admin,canPlay:admin||openedMonths.length>0,openedMonths:admin?[1,2,3]:openedMonths,fullyPaid:!!valdemar?.finishAccess,completed:season.completed||[]};
+    return {admin,canPlay:admin||openedMonths.length>0,openedMonths:admin?[1,2,3]:openedMonths,fullyPaid:!!valdemar?.finishAccess,completed:season.completed||[],seasonAccess:season};
   }
   const released = new Set(membership.calendar?.unlockedCaseIds || []);
   const blocks = membership.calendar?.blocks || [];
   const openedMonths = admin ? [1,2,3] : membership.ownAccess ? blocks.filter(b => b.caseIds?.some(id => released.has(id))).map(b => Number(b.number)) : [];
-  return {admin, canPlay:admin || membership.ownAccess === true, openedMonths};
+  const availableCases=Array.isArray(membership.calendar?.unlockedCaseIds)?(membership.ownAccess===true?[...released]:[]):undefined;
+  return {admin, canPlay:admin || membership.ownAccess === true, openedMonths,availableCases};
 }
 function seasonMonth() {
   const value=Number(new URLSearchParams(location.hash.split('?')[1]||'').get('mes'));
@@ -29,8 +30,9 @@ function experienceCatalog(){return window.ValdemarCatalog.list({...valdemarStat
 
 function valdemarDetail(membership){return window.ValdemarCatalog.detail(seasonId(),valdemarState(membership));}
 function valdemarGame(){
-  if(!window.ValdemarCatalog.get(seasonId()))return valdemarDetail({});
-  if(!online||!valdemarState(window.ClubAccess.state).canPlay)return valdemarDetail(window.ClubAccess.state);
+  const item=window.ValdemarCatalog.get(seasonId());
+  if(!item)return valdemarDetail({});
+  if(item.id>4&&(!online||!valdemarState(window.ClubAccess.state).canPlay))return valdemarDetail(window.ClubAccess.state);
   return '<section id="valdemar-player" aria-label="Mesa de juego de Código Valdemar" aria-busy="true"><p role="status">Abriendo el expediente…</p></section>';
 }
 function seasonMap(membership) { return window.Colecciones.menu('mapa')+window.ValdemarPlano.view(valdemarState(membership))+window.SellosTemporada.view(1); }
@@ -102,19 +104,20 @@ function avatar(p,large=false){
 function avatarPicker(p){const value=Object.hasOwn(portraits,p?.avatar)?p.avatar:'detective';return `<fieldset class="portrait-field"><legend>Tu avatar</legend><div class="portrait-choices">${Object.entries(portraits).map(([key,label])=>`<label><input type="radio" name="avatarChoice" value="${key}" ${value===key?'checked':''}><span class="portrait-tile">${key==='detective'?`<span class="portrait-initials">${esc(initials(p?.name||'Yo'))}</span>`:`<img src="/avatar-${key}.jpg" width="64" height="64" alt="">`}<span>${label}</span></span></label>`).join('')}</div></fieldset>`;}
 
 function notebookNav(section){
-  const collection=[['logros','Logros'],['archivo-secreto','Archivo secreto'],['llaves','Mi llavero']];
-  const classic=['estilo','Mi estilo de juego'];
-  const sections=[['progreso','Mi progreso'],...(cloudMode?[['suscripcion','Suscripción']]:[]),['partidas','Mis partidas'],...(cloudMode?[['trayectoria','Trayectoria'],['coleccion','Colección'],['pareja','Jugar en pareja']]:[classic]),['cuenta','Cuenta'],['preferencias','Preferencias']];
-  const parent=collection.some(([id])=>id===section)?'coleccion':section==='estilo'&&cloudMode?'trayectoria':section;
-  const links=rows=>rows.map(([id,label])=>{
-    const href=id==='progreso'?'#perfil':id==='suscripcion'?'#suscripcion':id==='partidas'?'#archivo':id==='preferencias'?'#accesibilidad?volver=perfil':'#perfil?seccion='+id;
-    const selected=section===id?' aria-current="page"':parent===id?' class="pn-parent"':'';
-    return `<a href="${href}"${selected}>${label}</a>`;
-  }).join('');
-  const children=cloudMode?(parent==='coleccion'?collection:parent==='trayectoria'?[classic]:[]):[];
-  return '<nav class="notebook-nav" aria-label="Secciones de mi cuenta">'+links(sections)+
-    (window.ClubAccess.state?.canManage===true?'<a class="notebook-management" href="#gestion">Gestión de la web</a>':'')+'</nav>'+
-    (children.length?'<nav class="notebook-nav pn-subnav" aria-label="'+(parent==='coleccion'?'Secciones de la colección':'Mi historial de decisiones')+'">'+links(children)+'</nav>':'');
+  const shortcuts=[['progreso','Mi aventura','#perfil'],...(cloudMode?[['suscripcion','Mi suscripción','#suscripcion']]:[]),['cuenta','Configuración']];
+  const exploration=[['tableros','Los cuatro mundos','#tableros'],['desafios','Retos extra','#desafios'],['partidas','Mis partidas','#archivo']];
+  const character=cloudMode?[['trayectoria','Mi personaje'],['pareja','Mi compañero'],['llaves','Mis llaves'],['logros','Mis logros'],['archivo-secreto','Archivo secreto'],['coleccion','Mi colección']]:[];
+  if(!cloudMode||section==='estilo'||data.sessions.some(s=>s.members?.some(m=>m.userId===me()?.userId)))character.push(['estilo','Mi estilo de juego']);
+  function links(rows){
+    return rows.map(([id,label,href='#perfil?seccion='+id])=>'<a href="'+href+'"'+(section===id?' aria-current="page"':'')+'>'+label+'</a>').join('');
+  }
+  function group(title,rows){
+    const selected=rows.find(([id])=>id===section);
+    return '<details class="pn-menu-group"'+(selected?' open':'')+'><summary>'+title+'</summary><div>'+links(rows)+'</div></details>';
+  }
+  return '<nav class="notebook-nav" aria-label="Secciones de mi cuenta" data-personal-menu><div class="pn-menu-shortcuts">'+links(shortcuts)+
+    (window.ClubAccess.state?.canManage===true?'<a class="notebook-management" href="#gestion">Gestión de la web</a>':'')+'</div><div class="pn-menu-groups">'+
+    group('Juegos y partidas',exploration)+group('Personaje y recompensas',character)+'</div></nav>';
 }
 function notebookHeader(p,section){
   return `<header class="profile-heading notebook-heading">${avatar(p,true)}<div><span class="eyebrow sage">Cuaderno del aventurero</span><h1>${esc(p.name)}</h1></div>${button('Editar perfil y avatar','edit-profile')}</header>`+notebookNav(section);
@@ -262,7 +265,8 @@ function profile(initialSection){
   if(section==='archivo-secreto')return top+'<profile-collection data-archive></profile-collection></div>';
   if(section==='llaves')return top+'<profile-collection data-keys></profile-collection></div>';
   if(section==='pareja')return top+'<preferred-partner></preferred-partner><profile-partners></profile-partners></div>';
-  if(section==='cuenta')return top+(cloudMode&&online?window.ClubAccess.account()+'<play-notice-preferences></play-notice-preferences>'+window.AccountUI.accountCard():'<p>Tu perfil se guarda en este dispositivo.</p>')+'</div>';
+  if(section==='cuenta')return top+'<section class="account-card"><h2>Configuración</h2><a class="button" href="#accesibilidad?volver=perfil">Pantalla, sonido y accesibilidad</a></section>'+
+    (cloudMode&&online?window.ClubAccess.account()+'<play-notice-preferences></play-notice-preferences>'+window.AccountUI.accountCard():'<p>Tu perfil se guarda en este dispositivo.</p>')+'</div>';
   const continuing=sessions.find(s=>s.status==='active');
   if(!model.hasDecisions)return top+'<section class="pn-career"><h2>Tu estilo de juego</h2><p>Tu primera decisión guardada mostrará cómo has abordado el caso y qué habilidades has usado.</p>'+
     (continuing&&window.ClubAccess.canPlay?button('Continuar mi historia','resume',`data-id="${esc(continuing.id)}"`,true):'<a class="button primary" href="/#casos">Explorar los juegos</a>')+'</section></div>';
@@ -359,10 +363,18 @@ function updateSiteNavigation(route,personal,management){
 function updatePageTitle(route){
   const fixed={aventura:'Aventura de autor',inicio:'Juegos de misterio online','como-se-juega':'Cómo se juega',casos:'Juegos',tableros:'Mapa de temporadas',perfil:'Mi cuenta',equipo:'Mi equipo',archivo:'Mis partidas',partida:'Mi partida',gestion:'Gestión'};
   let label=fixed[route];
+  if(route==='perfil'&&online){
+    const section=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
+    const names={trayectoria:'Mi personaje',pareja:'Mi compañero',llaves:'Mis llaves',logros:'Mis logros','archivo-secreto':'Archivo secreto',coleccion:'Mi colección',cuenta:'Configuración',estilo:'Mi estilo de juego'};
+    label=Object.hasOwn(names,section)?names[section]:'Mi aventura';
+  }
   if(route==='casos'&&window.Colecciones)label='Juegos · '+window.Colecciones.catalogBoard().name;
   if(route==='valdemar'||route==='valdemar-jugar'){
     const item=window.ValdemarCatalog.get(seasonId());
-    if(item)label=item.title+' · '+window.Colecciones.seasons[0].name;
+    if(item){
+      const section=item.id<=4?(route==='valdemar'?' · Ficha':' · Jugar'):'';
+      label=item.title+section+' · '+window.Colecciones.seasons[0].name;
+    }
   }
   if(route==='mundos-jugar'){
     const item=window.Mundos.story(seasonId());
@@ -512,6 +524,10 @@ window.addEventListener('hashchange',event=>{
   if(online && seasonAccountPages.has(route))window.GameAccountBridge.refreshSeasonAccess().catch(()=>{});
   const oldSection=new URLSearchParams(oldQuery).get('seccion');
   const newSection=new URLSearchParams(query).get('seccion');
+  if(route==='#perfil'&&newSection==='coleccion'&&new URLSearchParams(query).get('ver')==='hallazgos'){
+    const findings=document.querySelector('lup-explorador[collection] summary');
+    if(findings){findings.focus({preventScroll:true});findings.scrollIntoView({block:'center'});return;}
+  }
   const staysOnMap=['#mapa','#expedicion','#umbravia','#necropolis'].includes(route)&&oldRoute===route&&oldSection!=='ficha'&&newSection!=='ficha';
   if(staysOnMap||(sealRequested()&&document.getElementById('cipher-title'))||window.ClubAccess.renewalRequested?.())return;
   window.scrollTo({top:0,behavior:'instant'});

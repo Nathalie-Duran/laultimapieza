@@ -8,9 +8,31 @@
     return;
   }
   const archive=standalone && here.searchParams.get('archivo')==='1';
-  if(archive&&!window.VallejoArchive?.hasProgress()){
-    here.searchParams.delete('archivo');here.hash='';
-    location.replace(here.href);return;
+  async function restoreSavedDemo(){
+    if(!window.VallejoArchive){
+      const scripts=document.getElementById('c87-saved-scripts').content.querySelectorAll('script[src]');
+      const load=source=>new Promise((resolve,reject)=>{
+        const script=document.createElement('script');
+        script.onload=resolve;script.onerror=reject;script.src=source.src;
+        document.head.append(script);
+      });
+      try{
+        const sources=Array.from(scripts),player=sources.pop();
+        await Promise.all(sources.map(load));
+        await load(player);
+        if(!window.VallejoArchive)throw Error();
+      }catch{
+        const host=document.getElementById('cinta87-standalone-host');
+        const message=document.createElement('p'),retry=document.createElement('a');
+        message.setAttribute('role','status');message.textContent='No se ha podido abrir la partida guardada.';
+        retry.href=here.href;retry.textContent='Volver a intentar';
+        host.replaceChildren(message,retry);
+        return;
+      }
+    }
+    if(!window.VallejoArchive.hasProgress()){
+      here.searchParams.delete('archivo');here.hash='';location.replace(here.href);
+    }
   }
   const sharedLink='https://www.laultimapieza.es/cinta-87.html?via=invitacion';
   const events={start:'demo_start',receipt:'demo_receipt',solved:'demo_solved',complete:'demo_complete',hint:'demo_hint'};
@@ -99,7 +121,7 @@
   }
   window.CasePreview={open:(_format,origin)=>open(origin),close:exit,
     hasProgress:()=>Boolean(window.Cinta87Demo?.hasProgress()),isComplete:()=>Boolean(window.Cinta87Demo?.isComplete())};
-  if(archive)return;
+  if(archive){restoreSavedDemo();return;}
   document.addEventListener('click',event=>{
     const origin=event.target.closest?.('[data-action="preview-open"]');
     if(origin && !event.defaultPrevented && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && (event.button??0)===0){
