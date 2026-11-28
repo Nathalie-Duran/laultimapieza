@@ -126,15 +126,25 @@
     const wrap=el('fieldset','mansion-control');wrap.append(el('legend',null,field.label));
     const input=el('input','mansion-code');input.type='text';input.value=draft[field.id]||'';input.maxLength=field.maxLength||3;
     const label=el('label','mansion-control','Letras transcritas');label.append(input);
-    const alphabet={'.-':'A','-...':'B','-.-.':'C','-..':'D','.':'E','..-.':'F','--.':'G','....':'H','..':'I','.---':'J','-.-':'K','.-..':'L','--':'M','-.':'N','---':'O','.--.':'P','--.-':'Q','.-.':'R','...':'S','-':'T','..-':'U','...-':'V','.--':'W','-..-':'X','-.--':'Y','--..':'Z'};
     const row=el('div','mansion-pieces'),out=el('output','mansion-readout');
+    const groups=draft.morseGroups||[];
+    draft.morseGroups=groups;
     let press=draft.morsePress||'';
-    function show(){draft.morsePress=press;out.textContent=press||'Manipulador en reposo';}
-    for(const [mark,name] of [['.','Pulsación corta ·'],['-','Pulsación larga —']])row.append(button(name,()=>{if(press.length<4)press+=mark;show();},'mansion-piece'));
-    row.append(button('Registrar letra',()=>{if(alphabet[press]&&input.value.length<input.maxLength){input.value+=alphabet[press];draft[field.id]=input.value;press='';show();}}),
-      button('Borrar pulsaciones',()=>{press='';show();}));
+    function show(){
+      draft.morsePress=press;
+      const tape=[...groups,press].filter(Boolean);
+      out.textContent=tape.map(group=>[...group].map(mark=>mark==='.'?'corta':'larga').join(' · ')).join(' / ')||'Manipulador en reposo';
+    }
+    for(const [mark,name] of [['.','Pulsación corta ·'],['-','Pulsación larga —']])row.append(button(name,()=>{
+      if(groups.length<input.maxLength&&press.length<4)press+=mark;
+      show();
+    },'mansion-piece'));
+    row.append(button('Separar grupo',()=>{if(press&&groups.length<input.maxLength){groups.push(press);press='';show();}}),
+      button('Deshacer última pulsación',()=>{if(!press)press=groups.pop()||'';press=press.slice(0,-1);show();}));
     input.addEventListener('input',()=>{draft[field.id]=input.value;});
-    out.setAttribute('aria-live','polite');wrap.append(row,out,label);show();return wrap;
+    out.setAttribute('aria-live','polite');
+    wrap.append(row,out,el('p',null,'Usa la clave impresa para pasar de grupos de pulsaciones a letras.'),label);
+    show();return wrap;
   }
   function spatialPhoto(settings,world,evidence){
     const wrap=el('div','mansion-photo-table'),frame=el('div','mansion-photo-layers');

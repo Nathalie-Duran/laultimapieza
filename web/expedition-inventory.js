@@ -36,6 +36,8 @@
     async function act(payload, message) {
       if (busy) return;
       const index = selectedRoom;
+      const previousFinding = model.rooms.find(room => room.index === index)?.fieldNote?.finding;
+      let discovered = false;
       busy = true;
       render();
       try {
@@ -46,7 +48,9 @@
           remember(model);
         }
         if (payload.operation === 'combine') picks = [];
-        status.textContent = message;
+        const note = model.rooms.find(room => room.index === index)?.fieldNote;
+        discovered = !previousFinding && Boolean(note?.finding);
+        status.textContent = discovered ? '' : message;
       } catch (error) {
         status.textContent = error.message || 'No se ha podido guardar. Vuelve a intentarlo.';
       } finally {
@@ -55,7 +59,9 @@
         if (node.isConnected && (document.activeElement === document.body || node.contains(document.activeElement))) {
           const visited = payload.operation === 'visit' && model.rooms.find(room => room.index === index)?.visited;
           const next = visited ? body.querySelector('.vd-taller h4') || body.querySelector('button') : null;
-          (next || status).focus({preventScroll:true});
+          const finding = discovered && body.querySelector('[data-inventory-finding]');
+          if (finding) finding.focus();
+          else (next || status).focus({preventScroll:true});
         }
       }
     }
@@ -92,6 +98,18 @@
         explore.dataset.visitRoom='true';
         body.append(explore);
         return;
+      }
+      if (room.fieldNote) {
+        const note = document.createElement('section');
+        note.className = 'inventory-field-note';
+        note.append(element('h4', room.fieldNote.finding ? 'Hallazgo de campo' : 'Qué puedes descubrir aquí'));
+        const text = element('p', room.fieldNote.finding || room.fieldNote.objective);
+        if (room.fieldNote.finding) {
+          text.dataset.inventoryFinding = '';
+          text.tabIndex = -1;
+        }
+        note.append(text);
+        body.append(note);
       }
       if(room.instrument && window.FieldInstruments) {
         window.FieldInstruments.render(body,room.instrument,room.instrumentSolved,async answer=>{
