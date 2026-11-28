@@ -56,6 +56,8 @@
     const previous = active;
     active = null;
     previous.modeControl?.destroy();
+    previous.scene?.destroy();
+    previous.legacyExplorer?.destroy();
     previous.mansionView?.destroy();
     previous.hourView?.pause();
     pauseAudio(previous.frame);
@@ -196,6 +198,7 @@
       const hourNode=element('div');c.desk.append(hourNode);
       c.hourView=window.ValdemarHour.mount(hourNode,c.data.hour,{
         hotelNode:c.hotel,role:c.data.partner?.role,station:c.id===1,
+        onScene:hour=>c.scene?.update(hour),
         inventory:async input=>{
           const result=await request(c,'inventory',input);
           if(result.wallet)updateWallet(c,result);
@@ -316,6 +319,7 @@
     return form;
   }
   function renderEnding(c) {
+    c.scene?.update(c.data.hour);
     const {story,progress}=c.data;
     const section=c.ending;
     section.replaceChildren(element('h2','Resolver el caso'));
@@ -343,6 +347,7 @@
       const outcome=element('article',null,'vd-outcome');
       outcome.append(element('h3','Tu desenlace'),element('p',choice?.label||'Decisión guardada','vd-eyebrow'),element('p',progress.outcome||'Tu decisión ha quedado guardada para esta historia.'));
       section.append(outcome,window.SellosTemporada.afterCase(c.id,c.bridge,c.endingAccess),link('Regresar al catálogo',c.catalog,'vd-link'));
+      const summary=element('aventura-resumen');summary.dataset.case=String(c.id);section.append(summary);
       return;
     }
     section.append(decisionButtons(story.choices,'¿Cómo termina vuestra historia? La decisión quedará guardada.','Guardar mi desenlace',(choice,send,status)=>run(c,'ending',async()=>{
@@ -391,7 +396,18 @@
         c.hourView.enter();
       },'vd-primary gm-enter'));
     }
-    head.append(description,still);
+    if(c.id>1&&c.data.hour){
+      c.scene=window.AventuraEscena.mount(head,{world:'valdemar',id:c.id,frame:c.frame,story,
+        image:catalogItem?.image||'/valdemar-art-'+number+'.webp',alt:coverDescriptions[c.id-1],place:catalogItem?.place,
+        toolbar:headlinks,modeControl:c.modeControl,read:()=>c.data,playerName:()=>c.bridge.playerName?.(),
+        actions:(kind,id)=>{
+          if(kind==='ending'){selectView(c,'ending',true);return;}
+          selectView(c,'desk');c.hourView.open(kind,id);
+        }});
+    }else {
+      head.append(description,still);
+      if(c.id===1)c.legacyExplorer=window.AventuraEscena.mountExplorer(description,c.frame,1);
+    }
     const nav=element('nav',null,'vd-tabs');nav.setAttribute('aria-label','Mesa de juego');
     c.viewButtons=new Map();
     const availableViews=c.data.hour?.hotel&&window.ValdemarHour?[views[0],['hotel','Recepción del hotel'],...views.slice(1)]:views;
@@ -412,7 +428,7 @@
     const sideRequested=c.routeSection==='reto';
     const pending=c.frame.dataset.playMode==='pending';
     selectView(c,sideRequested?'game':ending?'ending':'desk',sideRequested || c.resume && (ending || pending));
-    if(c.resume && !ending && !sideRequested && !pending)c.hourView?.enter();
+    if(c.resume && !ending && !sideRequested && !pending){if(c.scene)c.scene.focus();else c.hourView?.enter();}
   }
   function editionButton(c,label,op) {
     return button(label,()=>run(c,'edition',async()=>{
@@ -444,6 +460,13 @@
       c.mansionView?.destroy();
       c.mansionView=window.MansionGame.mount(game,{state,role:paper,names:data.names,act,
         explore:roomId=>act({op:'inspect',roomId}),onExit:()=>{location.hash=c.catalog;}});
+      c.openArcade=()=>{
+        if(!game.querySelector('.mansion-arcade-drawer'))game.querySelector('#mansion-tab-scene')?.click();
+        const drawer=game.querySelector('.mansion-arcade-drawer');
+        if(drawer){drawer.open=true;const trigger=drawer.querySelector('summary');trigger?.focus();trigger?.scrollIntoView({block:'center'});}
+      };
+      c.routeSection=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
+      if(c.routeSection==='reto')queueMicrotask(()=>{if(valid(c))c.openArcade();});
     }
     const story={roles:['Investiga la mansión habitada de Ada.','Explora las huellas que quedan en la mansión abandonada.']};
     let modeHost=header;
@@ -505,6 +528,8 @@
       const section=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
       if(active.gamePanel && section!==active.routeSection){
         active.routeSection=section;selectView(active,section==='reto'?'game':'desk',true);
+      }else if(active.openArcade&&section!==active.routeSection){
+        active.routeSection=section;if(section==='reto')active.openArcade();
       }
       return;
     }

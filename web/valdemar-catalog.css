@@ -70,7 +70,7 @@
 .vd-call>summary {display:flex;gap:.8rem;align-items:center;min-height:58px;padding:1rem 1.2rem;list-style:none;cursor:pointer;color:var(--vd-ink);font:650 1.1rem/1.3 var(--sans,system-ui,sans-serif)}
 .vd-call>summary::-webkit-details-marker {display:none}
 .vd-call-led {border-radius:50%;width:.78rem;height:.78rem;background:#e6b575;border:2px solid #514c3e;box-shadow:0 0 0 1px #b39f77,0 0 9px #d8ab6459;flex:none}
-.vd-call-toggle {margin-inline-start:auto;width:.64rem;height:.64rem;border:inline-end:2px solid var(--vd-gold);border-bottom:2px solid var(--vd-gold);transform:rotate(45deg)}
+.vd-call-toggle {margin-inline-start:auto;width:.64rem;height:.64rem;border-inline-end:2px solid var(--vd-gold);border-bottom:2px solid var(--vd-gold);transform:rotate(45deg)}
 .vd-call[open] .vd-call-toggle {transform:rotate(225deg)}
 .vd-call-inner {padding:0 clamp(.85rem,1.6vw,1.3rem) 1.3rem}
 .vd-audio-actions,.vd-call-switch {display:flex;align-items:center;flex-wrap:wrap;gap:.6rem}
@@ -107,3 +107,45 @@
   .vd-detail .vd-actions :is(button,a){width:100%}.vd-call-switch button{flex:1 1 8rem}.vd-section .vd-card-foot{font-size:.78rem}
 }
 @media(prefers-reduced-motion:reduce){.vd-section .vd-card,.vd-section .vd-photo img{transition:none}.vd-section .vd-card:hover .vd-photo img{transform:none}}
+
+.vd-list[data-catalog-world] {
+  --vd-accent: #a9d3c6;
+  --vd-ground: #18302d;
+  --vd-line: #4d7068;
+}
+.vd-list[data-catalog-world=expedicion] { --vd-accent: #f1cc8e; --vd-ground: #30281a; --vd-line: #827047; }
+.vd-list[data-catalog-world=umbravia] { --vd-accent: #a7d3bc; --vd-ground: #18262a; --vd-line: #586c68; }
+.vd-list[data-catalog-world=necropolis] { --vd-accent: #f3cb8c; --vd-ground: #30241f; --vd-line: #84694b; }
+.vd-list[data-catalog-world] .vd-head { margin: 0; gap: .5rem 1.2rem; align-items: center; }
+.vd-list[data-catalog-world] .vd-head h1 { font-size: clamp(2.2rem,4.35vw,4.7rem); }
+.vd-list[data-catalog-world] .vd-head .vd-label { color: var(--vd-accent); }
+.vd-list[data-catalog-world] .vd-route-links { display: flex; flex-wrap: wrap; gap: 0 .9rem; }
+.vd-list[data-catalog-world] .vd-textlink { color: var(--vd-accent); }
+.vd-list[data-catalog-world] .vd-months { margin: .7rem 0 .85rem; gap: .3rem .9rem; }
+.vd-list[data-catalog-world] .vd-months a { min-block-size: 2.75rem; display: flex; align-items: center; gap: .4rem; }
+.vd-list[data-catalog-world] .vd-months a small { font-size: .8rem; opacity: .85; }
+.vd-list[data-catalog-world] .vd-months [aria-current] { color: var(--vd-accent); border-color: var(--vd-accent); }
+.vd-list[data-catalog-world] .vd-group { font-size: 1.3rem; }
+.vd-list[data-catalog-world] .vd-cards { grid-template-columns: repeat(2,minmax(0,1fr)); gap: .8rem; }
+.vd-list[data-catalog-world] .vd-card { border-color: var(--vd-line); background: linear-gradient(125deg,var(--vd-ground),#131c1b); }
+.vd-list[data-catalog-world] .vd-card>a { display: grid; grid-template-columns: minmax(0,.82fr) minmax(0,1.18fr); }
+.vd-list[data-catalog-world] .vd-photo { aspect-ratio: auto; min-height: 10rem; }
+.vd-list[data-catalog-world] .vd-photo img { position: absolute; inset: 0; }
+.vd-list[data-catalog-world] .vd-card-state { color: var(--vd-accent); margin: 0 0 .4rem; font: 650 .8rem/1.4 var(--sans,system-ui,sans-serif); }
+.vd-list[data-catalog-world] .vd-card-copy { padding: clamp(.8rem,1.4vw,1.4rem); min-width: 0; }
+.vd-list[data-catalog-world] .vd-card-copy p { margin: .6rem 0 .95rem; }
+.vd-detail .vd-case-steps { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,16rem),1fr)); gap: .65rem; margin-block: 1rem; }
+.vd-detail .vd-case-steps a { display: grid; align-content: center; gap: .25rem; padding: .8rem 1rem; background: #182925; border: 1px solid #51675d; border-radius: .3rem; color: #f4ead5; text-decoration: none; }
+.vd-detail .vd-case-steps span { color: #c8cabb; font-size: .82rem; }
+.vd-detail .vd-case-steps strong { color: #f1d298; font: 500 1.2rem/1.25 Georgia,serif; }
+.vd-detail .vd-case-steps a:is(:hover,:focus-visible) strong { text-decoration: underline; }
+@media(max-width:1060px) {
+  .vd-list[data-catalog-world] .vd-card>a { display: flex; }
+  .vd-list[data-catalog-world] .vd-photo { min-height: 0; aspect-ratio: 1.85; }
+}
+@media(max-width:540px) {
+  .vd-list[data-catalog-world] .vd-cards { grid-template-columns: 1fr; }
+  .vd-list[data-catalog-world] .vd-months a { gap: .26rem; padding-inline: .2rem; }
+  .vd-list[data-catalog-world] .vd-head .vd-route-links { gap: 0 .65rem; }
+  .vd-list[data-catalog-world] .vd-photo { aspect-ratio: 2.1; }
+}

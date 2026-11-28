@@ -7,20 +7,22 @@
   <meta name="description" content="Consulta cómo se guardan las partidas de La Última Pieza, gestiona tu suscripción y tu aviso de apertura, y revisa los controles de privacidad de la demo.">
   <link rel="canonical" href="https://www.laultimapieza.es/privacidad.html">
   <title>Privacidad y gestión de tus datos · La Última Pieza</title>
-  <link rel="stylesheet" href="/privacidad.css">
+  <link rel="stylesheet" href="/privacidad.css?v=22554c338188">
+  <script defer src="/display-preferences.js?v=7a70c42631cd"></script>
+  <script defer src="/documentos-publicados.js?v=6e2b1e6cce63"></script>
 </head>
 <body>
   <a class="skip" href="#contenido">Saltar al contenido</a>
   <header class="mast">
     <div class="wrap mast-inner">
       <a class="brand" href="/#inicio"><img src="/brand-logo.png?v=eye-1" alt="" width="38" height="38">La Última Pieza</a>
-      <nav aria-label="Principal"><a href="/#planes">El pase</a><a href="/#perfil">Mi cuenta</a></nav>
+      <nav aria-label="Principal"><a href="/ayuda.html">Ayuda y contacto</a><a href="/#planes">El pase</a><a href="/#perfil">Mi cuenta</a></nav>
     </div>
   </header>
   <main id="contenido" tabindex="-1">
     <div class="intro">
       <div class="wrap">
-        <h1>Privacidad y gestión<br>de tus datos</h1>
+        <h1>Privacidad y gestión de tus datos</h1>
         <p>Elige qué quieres gestionar y consulta qué se guarda al pedir un aviso, jugar o contratar un pase.</p>
       </div>
     </div>
@@ -64,27 +66,12 @@
         <section id="derechos" aria-labelledby="t-derechos">
           <h2 id="t-derechos">Derechos sobre tus datos</h2>
           <p>El reinicio actúa sobre el progreso del juego. Para solicitar una copia, la rectificación o la supresión de tus datos personales, escribe al <strong>Equipo de LaUltimaPieza.es</strong> en <a class="contact" href="mailto:info@laultimapieza.es">info@laultimapieza.es</a>. Indica qué necesitas y, si corresponde, el correo que utilizaste para tu cuenta o el aviso de apertura.</p>
-          <p id="politica-publicada" hidden><a class="action" href="#" id="politica-enlace">Consultar la política de privacidad del servicio</a></p>
+          <p id="politica-publicada" data-documento="privacyUrl" hidden><a class="action" id="politica-enlace">Consultar la política de privacidad del servicio</a></p>
           <a class="text-link" href="https://www.aepd.es/derechos-y-deberes/conoce-tus-derechos">Cómo ejercer tus derechos según la AEPD</a>
         </section>
       </div>
     </div>
   </main>
-  <footer class="end"><div class="wrap"><a class="brand" href="/#inicio">La Última Pieza</a><a href="/#planes?seccion=preguntas">Preguntas frecuentes</a></div></footer>
-  <script>
-    (async function showPublishedPolicy() {
-      try {
-        const response = await fetch('/api/billing/config', {cache:'no-store', credentials:'omit'});
-        if (!response.ok) return;
-        const config = await response.json();
-        if (typeof config.privacyUrl !== 'string' || !config.privacyUrl.trim()) return;
-        const url = new URL(config.privacyUrl, location.origin);
-        if (url.protocol !== 'https:' || url.username || url.password) return;
-        if (url.hostname.replace(/^www\./,'') === location.hostname.replace(/^www\./,'') && url.pathname === location.pathname) return;
-        document.getElementById('politica-enlace').href = url.href;
-        document.getElementById('politica-publicada').hidden = false;
-      } catch { /* The guide and its controls are available independently. */ }
-    })();
-  </script>
+  <footer class="end"><div class="wrap"><a class="brand" href="/#inicio">Volver al inicio</a><nav aria-label="Más ayuda"><a href="/ayuda.html">Ayuda y contacto</a><a href="/#accesibilidad">Accesibilidad</a><a href="/#planes?seccion=preguntas">Preguntas frecuentes</a></nav></div></footer>
 </body>
 </html>

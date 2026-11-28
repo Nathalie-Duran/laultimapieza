@@ -249,7 +249,7 @@
     const heading=el('h4',null,'vhour-shelf-title');
     tools.append(heading);
     const fixedRole=assignedRole==='A'||assignedRole==='B'?assignedRole:null;
-    const visibleFor=(item,role)=>!role || item.role==null || item.role==='AB' || item.role===role;
+    const visibleFor=(item,role)=>!role || item.role==null || item.role==='AB' || item.role===role || item.role===(role==='A'?1:2);
     const records=items.filter(item=>visibleFor(item,fixedRole)).map(item=>({item,card:material(item,state)}));
     const filters=el('div',null,'vhour-filter');
     filters.setAttribute('aria-label','Filtrar las pruebas por papel');
@@ -616,6 +616,7 @@
         for(const note of notes)box.append(fold(note.title,el('p',note.success||note.brief,'vhour-clipping'),proofShelf(note.materials||[],state,controller.role)));
         main.append(fold('Cuaderno de etapas resueltas · '+notes.length,box));
       }
+      controller.onScene?.(hour);
     }
     render(hour);
     function focusStage(){
@@ -629,6 +630,27 @@
       updateInventory:value=>{hour.inventory=value;hotel?.update(value.hotel);inventory?.update(value,hour.current);},
       pause:()=>stopVoice(state),
       focusStage,
+      open(kind,id){
+        if(kind==='journal'){
+          const journal=main.querySelector('.vhour-journal'),entry=(hour.journal||[]).findIndex(note=>note.index===id);
+          const chapter=journal?.children[entry];
+          if(chapter){journal.parentElement.open=true;chapter.open=true;const title=chapter.querySelector('summary');title.focus({preventScroll:true});title.scrollIntoView({block:'center'});return;}
+        }
+        if(kind==='bag'&&inventory&&hour.inventory){inventory.openBag();return;}
+        if(!hour.stage){controller.finish();return;}
+        if(kind==='inspect'){
+          if(inventory?.startExploring())return;
+          if(inventory&&hour.inventory){inventory.openBag();return;}
+        }
+        const cards=[...main.querySelectorAll('.vhour-workbench .vhour-material')].filter(card=>!card.hidden);
+        const card=kind==='material'?cards.find(item=>item.dataset.material===String(id)):kind==='evidence'?cards[0]:null;
+        if(card){card.open=true;const title=card.querySelector('summary');title.focus({preventScroll:true});title.scrollIntoView({block:'center'});return;}
+        if(kind==='decision'){
+          const heading=main.querySelector('.vhour-task h4');
+          if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'center'});return;}
+        }
+        focusStage();
+      },
       enter(){
         if(!hour.stage){controller.finish();return;}
         if(!inventory?.startExploring())focusStage();
