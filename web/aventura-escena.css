@@ -31,6 +31,9 @@
 .ae-scene summary {cursor:pointer;}
 .ae-mode>summary,.ae-instructions>summary {width:fit-content;min-height:2.75rem;align-content:center;color:var(--ae-accent);font:600 .91rem/1.4 var(--sans,system-ui,sans-serif);}
 .ae-scene .gm-entry {margin:.1rem 0 .55rem;padding:.6rem 0;}
+.ae-scene .ae-mode .gm-label {display:none;}
+.vd-player .ae-back {display:block;margin:0 0 .65rem;padding:.4rem .7rem;min-block-size:2.75rem;border:1px solid currentColor;border-radius:.35rem;background:transparent;color:inherit;text-align:start;text-decoration:underline;text-underline-offset:.2em;cursor:pointer;}
+.vd-player .ae-back:focus-visible {outline:3px solid currentColor;outline-offset:2px;}
 .vd-player .ae-objective {margin:.45rem clamp(.9rem,3vw,2rem);padding:.65rem .9rem;border-inline-start:3px solid var(--ae-accent);background:#ffffff0c;}
 .vd-player .ae-objective h2 {color:var(--ae-accent);font:650 .78rem/1.4 var(--sans,system-ui,sans-serif);margin:0;}
 .vd-player .ae-objective p {color:var(--ae-ink);margin:.14rem 0 0;font:500 clamp(.98rem,1.7vw,1.12rem)/1.45 var(--sans,system-ui,sans-serif);max-width:80ch;}

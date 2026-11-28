@@ -555,14 +555,15 @@
         const number=el('span',String(i+1).padStart(2,'0'),'vhour-number');
         entry.append(number,el('span',step.place||step.title));nav.append(entry);
       }
-      main.append(nav);
+      if(!controller.sceneRoute)main.append(nav);
       if(inventory && hour.inventory){inventory.update(hour.inventory, index);main.append(inventory.node);}
       if(feedback){const message=live();message.className='vhour-status vhour-solved';message.textContent=feedback;main.append(message);}
       if(stage) {
-        main.append(el('p','Etapa '+(index+1)+' de '+stages.length+' · '+stage.minutes+' min orientativos','vhour-kicker'));
-        const heading=head('h3',stage.title);
-        main.append(heading,el('p',stage.brief,'vhour-lead'));
-        if(hotel && controller.visitHotel)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
+        main.append(el('p',(controller.sceneBack?'':'Etapa '+(index+1)+' de '+stages.length+' · ')+stage.minutes+' min orientativos','vhour-kicker'));
+        const heading=head('h3',controller.sceneBack?'Pruebas de la etapa':stage.title);
+        main.append(heading);
+        if(!controller.sceneBack)main.append(el('p',stage.brief,'vhour-lead'));
+        if(hotel && controller.visitHotel && !controller.sceneBack)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
         const workbench=el('div',null,'vhour-workbench');
         workbench.dataset.stage=String(index+1);
         const shelf=proofShelf(stage.materials||[],state,controller.role);
@@ -616,7 +617,7 @@
         for(const note of notes)box.append(fold(note.title,el('p',note.success||note.brief,'vhour-clipping'),proofShelf(note.materials||[],state,controller.role)));
         main.append(fold('Cuaderno de etapas resueltas · '+notes.length,box));
       }
-      controller.onScene?.(hour);
+      controller.onScene?.(hour,main);
     }
     render(hour);
     function focusStage(){
@@ -634,20 +635,20 @@
         if(kind==='journal'){
           const journal=main.querySelector('.vhour-journal'),entry=(hour.journal||[]).findIndex(note=>note.index===id);
           const chapter=journal?.children[entry];
-          if(chapter){journal.parentElement.open=true;chapter.open=true;const title=chapter.querySelector('summary');title.focus({preventScroll:true});title.scrollIntoView({block:'center'});return;}
+          if(chapter){journal.parentElement.open=true;chapter.open=true;controller.sceneBack?.(chapter);const title=chapter.querySelector('summary');title.focus({preventScroll:true});title.scrollIntoView({block:'center'});return;}
         }
-        if(kind==='bag'&&inventory&&hour.inventory){inventory.openBag();return;}
+        if(kind==='bag'&&inventory&&hour.inventory){inventory.openBag();controller.sceneBack?.(inventory.node);return;}
         if(!hour.stage){controller.finish();return;}
         if(kind==='inspect'){
-          if(inventory?.startExploring())return;
-          if(inventory&&hour.inventory){inventory.openBag();return;}
+          if(inventory?.startExploring()){controller.sceneBack?.(inventory.node);return;}
+          if(inventory&&hour.inventory){inventory.openBag();controller.sceneBack?.(inventory.node);return;}
         }
         const cards=[...main.querySelectorAll('.vhour-workbench .vhour-material')].filter(card=>!card.hidden);
         const card=kind==='material'?cards.find(item=>item.dataset.material===String(id)):kind==='evidence'?cards[0]:null;
-        if(card){card.open=true;const title=card.querySelector('summary');title.focus({preventScroll:true});title.scrollIntoView({block:'center'});return;}
+        if(card){card.open=true;controller.sceneBack?.(card);const title=card.querySelector('summary');title.focus({preventScroll:true});title.scrollIntoView({block:'center'});return;}
         if(kind==='decision'){
           const heading=main.querySelector('.vhour-task h4');
-          if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'center'});return;}
+          if(heading){controller.sceneBack?.(heading.parentElement);heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'center'});return;}
         }
         focusStage();
       },

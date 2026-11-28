@@ -24,6 +24,16 @@ main:has(.universe-front) .v87-cover .v87-cover-art img{max-height:22rem;object-
 @media(max-width:420px){.universe-front .universe-front-copy p:not(.universe-eyebrow){margin-bottom:.55rem}.universe-pin-4{left:74%}.universe-pin-light{width:6px;height:6px}}
 @media(forced-colors:active){.universe-door,.universe-pin{border:2px solid LinkText}.universe-pin-light{background:LinkText}}
 .universe-pin{width:max-content}
+.front-demo,.front-pass{display:flex;align-items:center;gap:clamp(1rem,3.5vw,3.25rem);margin:1.4rem 0;color:#eee7d6}
+.front-demo{background:#172224;border:1px solid #46524b}
+.front-demo img{width:clamp(10rem,31%,25rem);aspect-ratio:2/1;object-fit:cover;align-self:stretch}
+.front-demo>div{padding:1.3rem 1.1rem 1.3rem 0;min-width:0}
+.front-demo h2,.front-pass h2{margin:.25rem 0;color:#fff0d4;font:normal clamp(1.45rem,2.7vw,2.35rem)/1.1 Georgia,serif}
+.front-demo p:not(.cover-caption),.front-pass p{margin:.4rem 0 .65rem;line-height:1.5}
+.front-demo .button,.front-pass a{min-height:44px;display:inline-flex;align-items:center}
+.front-pass{justify-content:space-between;padding:1.15rem 0;border-top:1px solid #52615b}
+.front-pass a{color:#f3d198;text-underline-offset:.2em}
+@media(max-width:640px){.front-demo{flex-direction:column;align-items:stretch;gap:0}.front-demo img{width:100%;max-height:9rem}.front-demo>div{padding:1rem}.front-pass{display:block}}
 @media(min-width:831px) and (max-height:850px){
   .universe-front{grid-template-columns:minmax(19rem,.86fr) minmax(0,1.5fr)}
   .universe-front-copy{padding:clamp(1.35rem,1.7vw,1.85rem)}

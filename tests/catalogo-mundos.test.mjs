@@ -20,6 +20,9 @@ test('los doce bloques presentan exactamente los 48 destinos, con sus ilustracio
       const html=page.ValdemarCatalog.list({month:block});
       assert.ok(html.includes('data-catalog-world="'+season.board+'"'));
       assert.equal((html.match(/class="vd-card"/g)||[]).length,4);
+      assert.equal((html.match(/class="vd-card-action"/g)||[]).length,4);
+      assert.equal((html.match(/1–2 participantes/g)||[]).length,1);
+      assert.doesNotMatch(html,/class="vd-group"|class="vd-card-info"|href="\/#[^"]+-jugar\?id=/);
       for(let pos=1;pos<=4;pos++){
         const local=(block-1)*4+pos,id=index*12+local;
         const game=index?page.Mundos.story(id):page.ValdemarCatalog.get(id);
@@ -44,6 +47,9 @@ test('las 36 fichas enlazan al bloque de origen y conservan los papeles y el acc
       page.location.hash='#'+season.board+'?lugar='+local+'&seccion=ficha';
       const guest=page.Mundos.view(season.board);
       assert.ok(guest.includes(game.title)&&guest.includes(game.roles[0])&&guest.includes(game.roles[1]));
+      assert.ok(guest.includes('<h1 id="md-case-title" tabindex="-1">'+game.title+'</h1>'));
+      assert.doesNotMatch(guest,/class="md-map-window"|class="md-directory"/);
+      assert.ok(guest.includes('data-md-map-return href="#'+season.board+'?lugar='+local+'"'));
       assert.ok(guest.includes('/#casos?mundo='+season.board+'&amp;mes='+block));
       assert.ok(!guest.includes('href="#mundos-jugar?id='));
       const own=page.Mundos.view(season.board,{seasonAccess:{availableCases:[id],completed:[id]}});
@@ -66,6 +72,17 @@ test('los expedientes, el plano y el catálogo de Valdemar respetan cada bloque 
   }
   const list=page.ValdemarCatalog.list({...options,month:2});
   assert.match(list,/Pieza recuperada/);
-  assert.match(list,/Disponible para jugar/);
+  assert.match(list,/href="\/#valdemar-jugar\?id=5" aria-label="Ver mi desenlace/);
+  assert.match(list,/href="\/#valdemar-jugar\?id=6" aria-label="Jugar/);
   assert.ok(page.Colecciones.menu('umbravia').includes('href="/#mapa"'));
+});
+
+test('el catálogo diferencia en una misma fila el acceso, la pieza conservada y la vista previa',async()=>{
+  const page=await publicSite();
+  page.location.hash='#casos?mundo=expedicion';
+  const html=page.ValdemarCatalog.list({month:1,seasonAccess:{availableCases:[13,15],completed:[13,14]}});
+  assert.match(html,/class="vd-card-action" href="\/#mundos-jugar\?id=13" aria-label="Ver mi desenlace/);
+  assert.match(html,/class="vd-card-action" href="\/#mundos-jugar\?id=15" aria-label="Jugar/);
+  assert.doesNotMatch(html,/href="\/#mundos-jugar\?id=(14|16)"/);
+  assert.equal((html.match(/class="vd-card-info"/g)||[]).length,2);
 });

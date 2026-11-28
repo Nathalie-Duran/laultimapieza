@@ -116,7 +116,8 @@
       details.append(el('p','mansion-eyebrow','Capítulo '+chapters[chapter-1]+(state.stage?.chapter?' · '+state.stage.chapter:'')),el('h1','mansion-title',state.title||'El secreto de los dos mundos'));
       header.append(details,el('p','mansion-progress',completed+'/15 pruebas resueltas'));
       const worlds=el('div','mansion-worlds');worlds.setAttribute('aria-label','Realidad de la mansión');
-      if(paired)worlds.append(el('span','mansion-world-name',labels[world]));
+      const names=options.names||state.names;
+      if(paired){if(!names?.[world])worlds.append(el('span','mansion-world-name',labels[world]));}
       else for(const id of ['A','B']){
         const control=button(labels[id],()=>{
           if(world===id||busy)return;
@@ -125,10 +126,9 @@
         },'mansion-world-choice');
         control.setAttribute('aria-pressed',String(world===id));worlds.append(control);
       }
-      header.append(worlds);
-      const names=options.names||state.names;
+      if(worlds.childElementCount)header.append(worlds);
       if(names && typeof names==='object'){
-        const shown=['A','B'].filter(id=>typeof names[id]==='string'&&names[id].trim()).map(id=>names[id]+' · '+labels[id]);
+        const shown=['A','B'].filter(id=>typeof names[id]==='string'&&names[id].trim()).map(id=>names[id]+(paired&&world===id?' (tú)':'')+' · '+labels[id]);
         if(shown.length)header.append(el('p','mansion-names',shown.join(' / ')));
       }
       if(options.onExit)header.append(button('Volver al expediente',options.onExit,'mansion-exit'));
@@ -161,7 +161,7 @@
           speaking=true;speech.onend=()=>{speaking=false;};window.speechSynthesis.speak(speech);
         }));
       }
-      if(group.childElementCount)group.append(button('Detener audio',stopAudio));
+      if(group.childElementCount&&!group.querySelector('audio'))group.append(button('Detener audio',stopAudio));
       return group.childElementCount?group:null;
     }
     function evidenceCard(item){
@@ -225,27 +225,34 @@
       const map=coordinates[rooms.indexOf(room.id)]||coordinates[0];
       function marker(label,point,handler,n){
         const control=button('',handler,'mansion-marker');
+        if(localStage&&n===1)control.className+=' mansion-device-pin';
         control.style.setProperty('--x',point[0]+'%');control.style.setProperty('--y',point[1]+'%');
-        const dot=el('span','mansion-dot',String(n));dot.setAttribute('aria-hidden','true');
+        const dot=el('span','mansion-dot');dot.dataset.number=String(n);dot.setAttribute('aria-hidden','true');
         control.append(dot,el('span','mansion-marker-label',label));frame.append(control);
       }
-      if(localStage)marker(stage.title,map[0],()=>{activeDevice=true;selectedEvidence=null;draw();focusTarget('.mansion-puzzle-title');},1);
+      function returnButton(n){
+        return button('Volver al escenario',()=>{
+          activeDevice=false;selectedEvidence=null;stopAudio();draw();
+          const target=panel.querySelectorAll('.mansion-marker')[n-1];
+          target?.focus({preventScroll:true});target?.scrollIntoView?.({block:'center'});
+        });
+      }
+      if(localStage)marker('Abrir el mecanismo',map[0],()=>{activeDevice=true;selectedEvidence=null;draw();focusTarget('.mansion-puzzle-title');},1);
       for(const [i,item] of localItems.slice(0,2).entries()){
         const point=i<2?map[i+1]:[18+(i%4)*18,70+Math.min(2,Math.floor(i/4))*7];
         marker(item.title||'Examinar',point,()=>{selectedEvidence=i;activeDevice=false;draw();focusTarget('.mansion-inspection h4');},i+(localStage?2:1));
       }
-      const caption=el('div','mansion-caption');caption.append(el('p','mansion-eyebrow',labels[world]),el('h3','mansion-room-title',room.title));
+      const caption=el('div','mansion-caption');caption.append(el('h3','mansion-room-title',room.title));
       scene.append(frame,caption);panel.append(scene);
       if(selectedEvidence!=null&&localItems[selectedEvidence]){
-        const inspection=el('section','mansion-inspection');inspection.append(evidenceCard(localItems[selectedEvidence]));panel.append(inspection);
+        const inspection=el('section','mansion-inspection');inspection.append(evidenceCard(localItems[selectedEvidence]),returnButton(selectedEvidence+(localStage?2:1)));panel.append(inspection);
       }
       if(stage){
         const objective=el('section','mansion-objective');
-        objective.append(el('p','mansion-eyebrow','Objetivo actual · '+stage.number+'/15'),el('h3',null,stage.title),el('p',null,stage.brief));
-        if(localStage && !activeDevice)objective.append(button('Abrir el mecanismo',()=>{activeDevice=true;draw();focusTarget('.mansion-puzzle-title');},'mansion-primary'));
+        objective.append(el('p','mansion-eyebrow','Objetivo actual'),el('h3',null,stage.title),el('p',null,stage.brief));
         if(!localStage)objective.append(button('Ir al objetivo',()=>travel(stage.room),'mansion-primary'));
         panel.append(objective);
-        if(localStage&&activeDevice)panel.append(displayPuzzle(stage));
+        if(localStage&&activeDevice)panel.append(displayPuzzle(stage),returnButton(1));
       }
       if(state.current===1&&state.recordings?.carta)panel.append(recording(state.recordings.carta));
       if(stage?.recording)panel.append(recording(stage.recording));
@@ -290,15 +297,19 @@
     }
     function drawEvidence(){
       panel.append(el('h3',null,'Evidencias'));
-      const cards=el('div','mansion-cards'),unique=new Set();
+      const cards=el('div','mansion-cards'),unique=new Set(),heard=new Set();
+      const entries=Object.values(state.recordings||{});
+      const normalize=text=>String(text||'').trim().replace(/^[«“"]+|[»”"]+$/g,'').trim();
       for(const item of [...(state.album||[]),...(state.stage?.evidence||[]),...seen.values()]){
         const key=[item.title,item.text].join('|');
         if(!roleAllowed(item,world)||unique.has(key))continue;
-        unique.add(key);cards.append(evidenceCard(item));
+        const record=entries.find(entry=>normalize(entry.text)===normalize(item.text));
+        unique.add(key);if(record)heard.add(record);
+        cards.append(evidenceCard(record?{...item,audio:record.audio}:item));
       }
       if(!cards.childElementCount)cards.append(el('p',null,'Las observaciones que descubras aparecerán aquí.'));
       panel.append(cards);
-      for(const entry of Object.values(state.recordings||{}))panel.append(recording(entry));
+      for(const entry of entries)if(!heard.has(entry))panel.append(recording(entry));
     }
     function drawHints(){
       panel.append(el('h3',null,'Pistas'));

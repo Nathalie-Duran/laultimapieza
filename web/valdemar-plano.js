@@ -64,18 +64,17 @@
   function detail(item, options, catalog, places, month, recovered) {
     const allowed = catalog.access(item,options);
     const editorial = options.admin === true || options.role === 'admin';
-    const availability = editorial ? 'Disponible con tu acceso editorial.' :
-      allowed ? 'Incluida en tu acceso actual.' : options.canPlay ? `Se abre con el mes ${item.month} de tu pase.` :
-      `Incluida en el mes ${item.month} del recorrido por los cuatro tableros.`;
-    const path = catalog.path(item.id);
-    const primary = allowed ? `<a class="vdp-primary" href="/#valdemar-jugar?id=${item.id}">${recovered?'Ver mi desenlace':'Abrir la investigación'}</a><a class="vdp-secondary" href="${path}">Ver la ficha</a>` :
-      `<a class="vdp-primary" href="${path}">Ver la historia</a><a class="vdp-secondary" href="/#planes">Ver el pase</a>`;
+    const blockLabel='Bloque '+item.month+(editorial?' · acceso editorial':allowed?' · disponible':options.canPlay?' · pendiente':'');
+    const path=catalog.path(item.id);
+    const primary=allowed
+      ? `<a class="vdp-primary" href="/#valdemar-jugar?id=${item.id}">${recovered?'Ver mi desenlace':'Abrir la investigación'}</a><a class="vdp-secondary" href="${path}">Ficha</a>`
+      : `<a class="vdp-primary" href="${item.id===1?path+'?carta=1':path}">${item.id===1?'Abrir la carta de Ada':'Ver la ficha'}</a>`;
     return `<aside class="vdp-place" id="vdp-place" aria-labelledby="vdp-title">
       <header class="vdp-still"><img class="vdp-cover" src="${esc(item.image)}" alt="${esc(item.coverAlt)}" width="764" height="508" decoding="async">
         <div class="vdp-still-top"><span class="vdp-plate">Caso ${num(item.id)}${recovered?' · Pieza recuperada':''}</span><nav class="vdp-neighbors" aria-label="Recorrer los lugares del plano">${nearby(places,item,month,-1)}${nearby(places,item,month,1)}</nav></div>
         <div class="vdp-caption"><p class="vdp-location">${esc(item.place)}</p><h2 class="vdp-title" id="vdp-title" data-vdp-focus="detail" tabindex="-1">${esc(item.title)}</h2></div>
       </header>
-      <div class="vdp-place-copy"><p class="vdp-question">${esc(item.question)}</p><ul class="vdp-format" aria-label="Formato del caso"><li>Mes ${item.month}</li><li>${item.id===1?'75–90 min':'≈ 60 min'}</li><li>1–2 personas</li></ul><p class="vdp-access">${availability}</p><div class="vdp-actions">${primary}</div><button type="button" class="vdp-back-map" data-vdp-focus="return">Volver al plano</button></div></aside>`;
+      <div class="vdp-place-copy"><p class="vdp-question">${esc(item.question)}</p><ul class="vdp-format" aria-label="Formato del caso"><li>${esc(blockLabel)}</li><li>${item.id===1?'75–90 min':'≈ 60 min'}</li><li>1–2 personas</li></ul><div class="vdp-actions">${primary}</div><button type="button" class="vdp-back-map" data-vdp-focus="return">Volver al plano</button></div></aside>`;
   }
 
   function remember() {
@@ -107,7 +106,7 @@
         <div class="vdp-inset"><div class="vdp-viewport" id="vdp-viewport" tabindex="0" data-vdp-focus="viewport" data-enlarged="${enlarged}" role="region" aria-label="Plano ilustrado de Valdemar"><div class="vdp-map" role="group" aria-label="Elegir un lugar"><img class="vdp-base" src="/valdemar-cartografia.webp" alt="Carta ilustrada del puerto de Valdemar con calles, vías de tren y una isla frente a la costa." width="1536" height="1024" fetchpriority="high" decoding="async">${places.map(item=>pin(item,selected.id,month,stopStatus(item,options,recovered))).join('')}<a class="vdp-chart-rose" href="${sealRoute(month,selected.id)}" aria-label="Abrir el sello de la Rosa de los Doce Rumbos"><span aria-hidden="true">Ver mi sello</span></a></div></div></div>
         <div class="vdp-map-foot"><a class="vdp-seal-link" href="${sealRoute(month,selected.id)}"><i aria-hidden="true"></i>Ver la Rosa de los Doce Rumbos</a><span class="vdp-drag-hint">Arrastra para explorar</span><button type="button" class="vdp-zoom" data-vdp-focus="zoom" aria-controls="vdp-viewport" aria-pressed="${enlarged}"><i aria-hidden="true"></i><span>${enlarged ? 'Ver plano completo' : 'Ampliar plano'}</span></button></div></div>
         ${detail(selected,options,catalog,places,month,recovered.has(selected.id))}</div>
-      <div class="vdp-references"><details class="vdp-index"${previous?.index?' open':''}><summary data-vdp-focus="index"><span class="vdp-index-glyph" aria-hidden="true"></span>Índice de lugares</summary><ol class="vdp-index-list">${places.map(item=>indexRow(item,selected.id,month,stopStatus(item,options,recovered))).join('')}</ol></details><footer class="vdp-footer"><a href="/#casos?mes=${selected.month}">Catálogo de Valdemar</a><a href="/#tableros?mundo=mapa">Mapa de los cuatro tableros</a><a href="#mapa-clasico">Plano del archivo clásico</a><a href="#mapa-clasico?seccion=sello">Ver el sello clásico</a></footer></div></section>`;
+      <div class="vdp-references"><details class="vdp-index"${previous?.index?' open':''}><summary data-vdp-focus="index"><span class="vdp-index-glyph" aria-hidden="true"></span>Índice de lugares</summary><ol class="vdp-index-list">${places.map(item=>indexRow(item,selected.id,month,stopStatus(item,options,recovered))).join('')}</ol></details><footer class="vdp-footer"><a href="/#casos?mes=${selected.month}">Catálogo de Valdemar</a><a href="/#tableros?mundo=mapa">Mapa de los cuatro tableros</a><details class="vdp-classic"><summary>Archivo clásico</summary><a href="#mapa-clasico">Plano del archivo clásico</a><a href="#mapa-clasico?seccion=sello">Ver el sello clásico</a></details></footer></div></section>`;
   }
 
   function centerWhenHidden(root, pin) {

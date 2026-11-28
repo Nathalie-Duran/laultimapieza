@@ -117,7 +117,7 @@
     }
     function profileLink(label) {
       const link=element('a','gm-profile',label);
-      link.href='/#perfil';return link;
+      link.href='/#perfil?seccion=pareja';return link;
     }
     function showWaiting() {
       tools.replaceChildren(element('p','gm-description','Ya has elegido «En pareja». Tu compañero debe abrir este juego y elegir también «En pareja». Entonces veréis vuestros papeles.'));

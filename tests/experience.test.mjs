@@ -58,3 +58,15 @@ test('La promoción clásica presenta los doce casos y solo invita a la demo de 
    assert.doesNotMatch(html,/habitaci[oó]n[ -]309|Bellamar|Caso adicional/i);
  }
 });
+
+test('La portada lleva al mapa de cada territorio y ofrece una sola entrada a la demo y a la carta',()=>{
+ const model={stories:ctx.STORIES,sessions:[],canPlay:false};
+ const front=ctx.ExperienceUI.home(model);
+ for(const world of ['mapa','expedicion','umbravia','necropolis']){
+   assert.equal(front.split('href="/#'+world+'"').length-1,1);
+ }
+ assert.equal(front.split('data-action="preview-open"').length-1,1);
+ assert.equal(front.split('El secreto de los dos mundos').length-1,1);
+ assert.equal(front.split('href="/#planes"').length-1,1);
+ assert.doesNotMatch(front,/Hotel Medianoche|Frecuencia 23:17/);
+});

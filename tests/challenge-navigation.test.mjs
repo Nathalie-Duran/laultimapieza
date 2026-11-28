@@ -3,28 +3,37 @@ import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 import {createContext, runInContext} from 'node:vm';
 
-test('El catálogo muestra los cuatro tableros y enlaza únicamente los retos abiertos', async () => {
-  const context = createContext({});
+test('la portada enlaza cada destino y solo el tablero seleccionado enumera sus retos', async () => {
+  const context = createContext({location:{hash:'#desafios'},URLSearchParams});
   context.window = context;
   for (const file of ['valdemar-catalog','mundos-catalogo','editorial-challenges','colecciones']) {
     const code = await readFile(new URL('../web/'+file+'.js', import.meta.url), 'utf8');
     runInContext(code, context);
   }
-  const guest = context.Colecciones.challenges();
-  assert.equal((guest.match(/class="challenge-board"/g) || []).length, 4);
-  assert.doesNotMatch(guest, /seccion=reto/);
-  assert.match(guest, /published-challenges/);
-  assert.match(guest, /Desafío diario/);
-  assert.match(guest, /Misión semanal/);
-  assert.match(guest, /<mansion-arcade\b/);
-  assert.match(guest, /data-action="auth-login"/);
-  assert.match(guest, /href="\/#planes"/);
+  const guest=context.Colecciones.challenges();
+  assert.equal((guest.match(/class="challenge-board"/g)||[]).length,4);
+  assert.match(guest,/href="\/#desafios\?seccion=sala"/);
+  assert.match(guest,/href="\/#desafios\?seccion=calendario"/);
+  assert.doesNotMatch(guest,/seccion=reto|<mansion-arcade|id="calendar-challenges"/);
+  assert.match(guest,/data-action="auth-login"/);
   context.GameAccountBridge={isSignedIn:()=>true};
-  const member = context.Colecciones.challenges({availableCases:[2,14,28,48]});
-  assert.equal((member.match(/seccion=reto/g) || []).length, 4);
-  assert.match(member, /#valdemar-jugar\?id=2&amp;seccion=reto/);
-  assert.match(member, /#mundos-jugar\?id=48&amp;seccion=reto/);
-  assert.match(member, /data-reto-premio="2">1 llave/);
-  assert.match(member, /data-reto-premio="48">2 llaves/);
-  assert.match(member, /href="\/#archivo"/);
+  const member={availableCases:[2,14,28,48]};
+  assert.match(context.Colecciones.challenges(member),/href="\/#archivo"/);
+  for(const [board,id] of [['mapa',2],['expedicion',14],['umbravia',28],['necropolis',48]]){
+    context.location.hash='#desafios?mundo='+board;
+    const html=context.Colecciones.challenges(member);
+    assert.equal((html.match(/seccion=reto/g)||[]).length,1);
+    assert.ok(html.includes('id='+id+'&amp;seccion=reto'));
+    assert.ok(html.includes('data-reto-premio="'+id+'">'+(id===48?'2 llaves':'1 llave')));
+    assert.match(html,/Todos los desafíos/);
+    assert.doesNotMatch(context.Colecciones.challenges(),/seccion=reto/);
+  }
+  context.location.hash='#desafios?seccion=calendario';
+  const calendar=context.Colecciones.challenges(member);
+  assert.match(calendar,/<h1>Calendario de juego<\/h1>/);
+  assert.match(calendar,/Desafío diario/);
+  assert.match(calendar,/Misión semanal/);
+  assert.doesNotMatch(calendar,/challenge-board|<mansion-arcade/);
+  context.location.hash='#desafios?seccion=sala';
+  assert.match(context.Colecciones.challenges(member),/<mansion-arcade>/);
 });

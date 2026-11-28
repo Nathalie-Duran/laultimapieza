@@ -65,6 +65,10 @@ test('Account navigation renders collectible progress and the key history for th
   collection.hasAttribute = () => false;
   await collection.connectedCallback();
   assert.match(collection.innerHTML,/Mis logros/);
+  assert.doesNotMatch(collection.innerHTML,/Mis reliquias/);
+  collection.hasAttribute=name=>name==='data-collection';
+  await collection.connectedCallback();
+  assert.doesNotMatch(collection.innerHTML,/Mis logros/);
   assert.match(collection.innerHTML,/1 de 12 piezas/);
   const keyring = new (elements.get('profile-collection'))();
   keyring.isConnected = true;
@@ -72,7 +76,7 @@ test('Account navigation renders collectible progress and the key history for th
   keyring.querySelector = () => ({append:node=>assert.equal(node,historyNode)});
   await keyring.connectedCallback();
   assert.match(keyring.innerHTML,/2 llaves disponibles/);
-  assert.deepEqual(paths,['/api/valdemar/partidas','/api/valdemar/seasons']);
+  assert.deepEqual(paths,['/api/valdemar/partidas','/api/valdemar/partidas','/api/valdemar/seasons']);
 });
 
 test('el resumen de cada aventura usa su propio expediente y respeta las llaves históricas sin desglose',()=>{
@@ -108,4 +112,32 @@ test('el cuaderno solo sugiere aventuras disponibles y muestra el papel de las p
   assert.equal(notes.caseRecap(2,{career,access},entries),'');
   const recap=notes.caseRecap(1,{career,access},entries);
   assert.match(recap,/300 XP/);assert.match(recap,/Continuar con Caso 2/);assert.doesNotMatch(recap,/Llaves ganadas en este caso/);
+  const inline=notes.caseRecap(1,{career,access},entries,{inArchive:true});
+  assert.match(inline,/300 XP/);assert.doesNotMatch(inline,/<h2>Aventura completada/);
+  const inPlayer=notes.caseRecap(1,{career,access},entries,{sealNavigation:true});
+  assert.match(inPlayer,/Ver mi trayectoria/);assert.doesNotMatch(inPlayer,/Continuar con Caso 2|Ver mi sello/);
+});
+
+test('la portada del cuaderno da prioridad a la partida pendiente más reciente y conserva los detalles en su página',async()=>{
+  const elements=new Map(),overview={};
+  const access={availableCases:[2,3],completed:[]},games=[{id:2,mode:'solo',current:2,total:5,available:true,checkpoint:{task:'Localiza el registro'}}];
+  let recent={time:50,href:'#valdemar-jugar?id=2&retomar=1',image:'/portada.webp',title:'Caso dos'};
+  const window={customElements:{define:(key,value)=>elements.set(key,value),get:key=>elements.get(key)},ExperienceUI:{seasonReturn:()=>recent},
+    ValdemarCatalog:{get:id=>({title:'Caso '+id,question:'Pregunta del caso',image:'/portada.webp'})},Colecciones:{seasons:[{name:'Valdemar'}]},
+    GameAccountBridge:{isSignedIn:()=>true,request:async()=>({games,access,career:{level:1,xp:0,nextLevelXp:500,pieces:[0,0,0,0]}})}};
+  class HTMLElement{}
+  runInNewContext(await readFile(new URL('../web/profile-notebook.js',import.meta.url),'utf8'),{window,HTMLElement,document:{activeElement:null},Intl});
+  const node=new (elements.get('notebook-return'))();
+  Object.assign(node,{isConnected:true,dataset:{classicTime:'60'},hasAttribute:key=>key==='data-classic-resume',
+    closest:()=>({querySelector:()=>overview}),contains:()=>false,innerHTML:'Continuar la partida clásica'});
+  await node.connectedCallback();
+  assert.equal(node.innerHTML,'Continuar la partida clásica');
+  assert.doesNotMatch(overview.innerHTML,/pn-relics|Mis reliquias/);
+  node.dataset.classicTime='40';
+  await node.connectedCallback();
+  assert.match(node.innerHTML,/Localiza el registro/);
+  assert.equal(node.innerHTML.match(/En solitario/g)?.length,1);
+  recent=null;games.length=0;node.hasAttribute=()=>false;
+  await node.connectedCallback();
+  assert.match(node.innerHTML,/Siguiente aventura disponible/);
 });

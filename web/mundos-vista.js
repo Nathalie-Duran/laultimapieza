@@ -79,10 +79,19 @@
   }
   function accessMarkup(edition,item,allowed,completed,status) {
     if(allowed)return `<a class="md-cta" href="#mundos-jugar?id=${item.id}">${completed?'Ver mi desenlace':edition.launch} <span aria-hidden="true">→</span></a>`;
-    const block=Math.ceil((item.id-edition.offset)/4);
-    const info=status?.previousReady ? 'Este caso pertenece al bloque '+block+' de este tablero. Consulta los bloques abonados en tu pase.' :
-      'Completa los doce casos '+edition.previous.from+' para acceder. '+(status?'Llevas '+status.previousCompleted+' de 12. ':'')+'Al terminar podrás jugar a los bloques que tengas abonados.';
-    return `<p class="md-locked-note">${esc(info)}</p><a class="md-cta md-cta-secondary" href="${status?.previousReady?'#planes':edition.previous.href}">${status?.previousReady?'Consultar mi pase':edition.previous.back} <span aria-hidden="true">→</span></a>`;
+    const previous=status?.previousReady===false || !status;
+    const info=previous
+      ? 'Completa los doce casos '+edition.previous.from+'.'+(status?' Tu avance: '+status.previousCompleted+'/12.':'')
+      : 'Este bloque todavía no está disponible en tu pase.';
+    return `<p class="md-locked-note">${esc(info)}</p><a class="md-cta md-cta-secondary" href="${previous?edition.previous.href:'#planes'}">${previous?edition.previous.back:'Consultar mi pase'}</a>`;
+  }
+  function refreshAccess(node,edition,item,available,done,status) {
+    const box=node.querySelector('.md-access');
+    const markup=accessMarkup(edition,item,available,done,status);
+    if(box.innerHTML===markup)return;
+    const focused=box.contains(document.activeElement);
+    box.innerHTML=markup;
+    if(focused)box.querySelector('a')?.focus({preventScroll:true});
   }
   function view(world,options={}) {
     const {edition,candidates,item}=boardData(world);
@@ -97,6 +106,21 @@
     const done=new Set(access?.completed||[]), status=access?.seasons?.find(season=>season.number===edition.number);
     const egypt=world==='necropolis', level=Math.floor((local-1)/4);
     const figureCaption=(egypt?'Nivel '+levels[level]+' · ':'')+edition.station+' '+number(local);
+    const focused=new URLSearchParams(location.hash.split('?')[1]||'').get('seccion')==='ficha';
+    const heading=focused?'h1':'h2';
+    const placeLink=entry=>route(world,entry.id)+(focused?'&amp;seccion=ficha':'');
+    const catalogLink='/#casos?mundo='+world+'&amp;mes='+(level+1);
+    const card=`<article class="md-file" id="md-file" aria-labelledby="md-case-title"><figure><img src="/mundo-${item.id}.webp" width="768" height="512" alt="" decoding="async"><figcaption>${esc(figureCaption)}</figcaption></figure><div class="md-file-copy">
+        <p class="md-caption">${esc(item.place)}</p><${heading} id="md-case-title" tabindex="-1">${esc(item.title)}</${heading}><p class="md-question">${esc(item.question)}</p>
+        <p class="md-facts"><span>≈ 60 min</span><span>1–2 personas</span><span>Bloque ${level+1} de 3</span></p>
+        <div class="md-access">${accessMarkup(edition,item,allowed.has(item.id),done.has(item.id),status)}</div>
+        <details class="md-file-roles"><summary>Los dos papeles de esta aventura</summary><ol>${item.roles.map((role,i)=>'<li><strong>Papel '+(i+1)+'</strong> '+esc(role)+'</li>').join('')}</ol></details>
+        ${focused?'':'<button type="button" class="md-back-pin">'+esc(edition.returnLabel)+'</button>'}</div>
+        <nav class="md-stepper" aria-label="Recorrer los doce casos"><a href="${placeLink(previous)}" data-md-way="step" data-md-id="${previous.id}" aria-label="Anterior. ${esc(previous.place)}">Anterior</a><span>${number(local)} / 12</span><a href="${placeLink(next)}" data-md-way="step" data-md-id="${next.id}" aria-label="Siguiente. ${esc(next.place)}">Siguiente</a></nav></article>`;
+    if(focused){
+      return `<section class="md-world md-standalone-file" data-md-world="${world}" data-md-selected="${item.id}" aria-labelledby="md-case-title">
+        <nav class="md-catalog-links" aria-label="Volver al territorio"><a href="${catalogLink}">Volver al bloque ${level+1}</a><a data-md-map-return href="${route(world,item.id)}">Situar en el mapa de ${esc(edition.short)}</a></nav>${card}</section>`;
+    }
     return `<section class="md-world" data-md-world="${world}" data-md-selected="${item.id}" data-md-editor="${editorial}" aria-labelledby="md-world-title">
       <header class="md-mast"><div><p class="md-caption">Temporada ${number(edition.number)} · ${esc(edition.genre)}</p><h1 id="md-world-title">${esc(edition.title)}</h1></div><div class="md-mast-end"><p>${esc(edition.intro)}</p>${world==='umbravia'||egypt?sealLink(edition,world,local):''}</div></header>
       <div class="md-atlas"><div class="md-board">
@@ -104,11 +128,7 @@
           <img class="md-map-art" src="${edition.image}" width="1536" height="1024" alt="${esc(edition.imageAlt)}" fetchpriority="high">
           <div class="md-pins">${candidates.map(v=>pin(edition,world,v,item.id,allowed.has(v.id),done.has(v.id))).join('')}${edition.sealCenter?sealLink(edition,world,local,true):''}</div></div></div>
         ${egypt?chamberLevels(edition,world,level):''}<div class="md-board-tools"><span class="md-board-status" data-md-progress>${access?candidates.filter(v=>done.has(v.id)).length+' de 12 '+esc(edition.progress):'12 '+esc(edition.count)}</span>${world==='expedicion'?'<button type="button" class="md-roll" aria-describedby="md-roll-note" disabled>Mover el peón</button>':''}<button type="button" class="md-zoom" aria-pressed="${!!enlarged}">${enlarged?'Ver completo':'Ampliar'}</button></div>${world==='expedicion'?'<p id="md-roll-note" class="md-board-note" aria-live="polite"></p>':''}</div>
-        <article class="md-file" id="md-file" aria-labelledby="md-case-title"><figure><img src="/mundo-${item.id}.webp" width="768" height="512" alt="" decoding="async"><figcaption>${esc(figureCaption)}</figcaption></figure><div class="md-file-copy">
-          <p class="md-caption">${esc(item.place)}</p><h2 id="md-case-title" tabindex="-1">${esc(item.title)}</h2><p class="md-question">${esc(item.question)}</p>
-          <p class="md-facts"><span>≈ 60 min</span><span>1–2 personas</span><span>Bloque ${Math.ceil(local/4)} de 3</span></p>
-          <div class="md-access">${accessMarkup(edition,item,allowed.has(item.id),done.has(item.id),status)}</div><details class="md-file-roles"><summary>Los dos papeles de esta aventura</summary><ol>${item.roles.map((role,i)=>'<li><strong>Papel '+(i+1)+'</strong> '+esc(role)+'</li>').join('')}</ol></details><button type="button" class="md-back-pin">${esc(edition.returnLabel)}</button>
-          </div><nav class="md-stepper" aria-label="Recorrer los doce casos"><a href="${route(world,previous.id)}" data-md-way="step" data-md-id="${previous.id}" aria-label="Anterior. ${esc(previous.place)}">← Anterior</a><span>${number(local)} / 12</span><a href="${route(world,next.id)}" data-md-way="step" data-md-id="${next.id}" aria-label="Siguiente. ${esc(next.place)}">Siguiente →</a></nav></article></div>
+        ${card}</div>
       <nav class="md-catalog-links" aria-label="Explorar el territorio"><a href="/#casos?mundo=${world}&amp;mes=${level+1}">Ver las aventuras de este bloque</a><a href="/#tableros?mundo=${world}">Mapa de los cuatro tableros</a></nav><details class="md-directory"${open?' open':''}><summary>${esc(edition.index)} <span>12</span></summary><ol>${candidates.map(v=>indexEntry(edition,world,v,item.id,allowed.has(v.id),done.has(v.id))).join('')}</ol></details></section>`;
   }
   function center(node,pin) {
@@ -146,6 +166,21 @@
     const id=Number(node.dataset.mdSelected),item=story(id),edition=editions[world];
     const pane=node.querySelector('.md-map-window'),selected=node.querySelector('.md-pin[aria-current]');
     const roll=node.querySelector('.md-roll'),note=node.querySelector('#md-roll-note');
+    if(!pane){
+      if(intent?.hash===location.hash)focusFile(node);
+      intent=null;
+      node.addEventListener('click',event=>{
+        if(event.defaultPrevented||event.button!==0||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
+        const link=event.target.closest('a[data-md-way="step"],a[data-md-map-return]');
+        if(link)intent={hash:link.hash,level:link.hasAttribute('data-md-map-return')};
+      });
+      if(bridge?.isSignedIn?.())Promise.resolve(access||bridge.request('/api/valdemar/seasons')).then(data=>{
+        if(board!==local||!node.isConnected||!bridge.isSignedIn())return;
+        const season=data.seasons?.find(pass=>pass.number===edition.number);
+        refreshAccess(node,edition,item,(data.availableCases||[]).includes(id),(data.completed||[]).includes(id),season);
+      }).catch(()=>{});
+      return;
+    }
     const destinations=catalog().filter(entry=>entry.world===world);
     let possible=[];
     function updateRoll(items,message) {
@@ -185,9 +220,6 @@
     });
     center(pane,selected);
     if(intent?.hash===location.hash) {if(intent.level)focusPin(pane,selected);else focusFile(node);}
-    else if(new URLSearchParams(location.hash.split('?')[1]||'').get('seccion')==='ficha'){
-      requestAnimationFrame(()=>{if(board===local&&node.isConnected)focusFile(node);});
-    }
     intent=null;
     if(!bridge?.isSignedIn?.())return;
     (access||bridge.request('/api/valdemar/seasons')).then(data=>{
@@ -205,7 +237,7 @@
       const count=destinations.filter(v=>done.has(v.id)).length;
       node.querySelector('[data-md-progress]').textContent=count+' de 12 '+edition.progress;
       const status=data.seasons?.find(season=>season.number===edition.number);
-      node.querySelector('.md-access').innerHTML=accessMarkup(edition,item,available.has(id),done.has(id),status);
+      refreshAccess(node,edition,item,available.has(id),done.has(id),status);
       const ready=destinations.filter(v=>available.has(v.id) && !done.has(v.id));
       const exhausted=destinations.some(v=>available.has(v.id));
       updateRoll(ready,ready.length?suggestion+'El peón elige una expedición abierta que aún no has terminado.':exhausted?'Has completado todas tus expediciones abiertas.':'El peón estará disponible al desbloquear esta temporada.');

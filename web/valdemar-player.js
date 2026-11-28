@@ -141,11 +141,12 @@
       c.deskMounted=true;
     }
     if(game&&!c.gameMounted) mountGame(c);
+    const target=game?c.gamePanel:desk?c.desk:view==='hotel'?c.hotel:view==='help'?c.help:c.ending;
+    c.scene?.returnFrom(target);
     if(focus){
       if(c.frame.dataset.playMode==='pending'){
         c.modeControl.entry.querySelector('button')?.focus();return;
       }
-      const target=game?c.gamePanel:desk?c.desk:view==='hotel'?c.hotel:view==='help'?c.help:c.ending;
       target.focus({preventScroll:true});target.scrollIntoView({block:'start'});
     }
   }
@@ -162,8 +163,8 @@
       for(const b of roleBar.querySelectorAll('button'))b.setAttribute('aria-pressed',String(Number(b.dataset.role)===role));
       privateArea.replaceChildren();
       const label=role===0?(c.modeControl?.mode==='solo'?'Aquí están los documentos de ambos papeles.':story.solo):story.roles?.[role-1];
-      if(label)privateArea.append(element('p',label,'vd-note'));
-      const cards=(story.evidenceCards||[]).filter(card=>role===0 || Number(card.role)===role);
+      if(label&&!c.scene)privateArea.append(element('p',label,'vd-note'));
+      const cards=(story.evidenceCards||[]).filter(card=>role===0||card.role==null||card.role==='AB'||card.role===(role===1?'A':'B')||Number(card.role)===role);
       for (const card of cards) {
         const fold=element('details',null,'vd-document');
         fold.append(element('summary',card.title),element('p',card.body));
@@ -198,7 +199,8 @@
       const hourNode=element('div');c.desk.append(hourNode);
       c.hourView=window.ValdemarHour.mount(hourNode,c.data.hour,{
         hotelNode:c.hotel,role:c.data.partner?.role,station:c.id===1,
-        onScene:hour=>c.scene?.update(hour),
+        onScene:(hour,main)=>{c.scene?.update(hour);if(c.view==='desk')c.scene?.returnFrom(main);},
+        sceneRoute:Boolean(c.scene),sceneBack:c.scene?target=>c.scene.returnFrom(target):null,
         inventory:async input=>{
           const result=await request(c,'inventory',input);
           if(result.wallet)updateWallet(c,result);
@@ -213,7 +215,7 @@
     }
     if(c.id===1 && c.hourView)return;
     c.desk.append(buildDocuments(c),element('h3','Pruebas compartidas'),c.evidence);
-    c.desk.append(button('Contrastar la deducción final',()=>selectView(c,'ending',true),'vd-primary'));
+    if(!c.scene)c.desk.append(button('Contrastar la deducción final',()=>selectView(c,'ending',true),'vd-primary'));
   }
   function updateWallet(c,data) {
     window.Keyring.update(c.data,data);
@@ -232,6 +234,7 @@
     envelope.append(element('h2',c.id===2?'Sobre de la gobernanta':'Sobre de ayuda'),body,
       button(backLabel,()=>selectView(c,from,true),'vd-link'));
     help.replaceChildren(envelope);
+    if(c.view==='help')c.scene?.returnFrom(help);
   }
   function trackGame(c,board,session) {
     const record = (event,select) => {
@@ -323,6 +326,7 @@
     const {story,progress}=c.data;
     const section=c.ending;
     section.replaceChildren(element('h2','Resolver el caso'));
+    if(c.view==='ending')c.scene?.returnFrom(section);
     if(!progress?.choice && c.data.hour?.stage) {
       const hour=c.data.hour;
       section.append(element('p','Estás en la etapa '+(hour.current+1)+' de '+hour.stages.length+'. Completa el recorrido para contrastar la deducción final.','vd-note'),
@@ -347,7 +351,7 @@
       const outcome=element('article',null,'vd-outcome');
       outcome.append(element('h3','Tu desenlace'),element('p',choice?.label||'Decisión guardada','vd-eyebrow'),element('p',progress.outcome||'Tu decisión ha quedado guardada para esta historia.'));
       section.append(outcome,window.SellosTemporada.afterCase(c.id,c.bridge,c.endingAccess),link('Regresar al catálogo',c.catalog,'vd-link'));
-      const summary=element('aventura-resumen');summary.dataset.case=String(c.id);section.append(summary);
+      const summary=element('aventura-resumen');summary.dataset.case=String(c.id);summary.dataset.navigation='seal';section.append(summary);
       return;
     }
     section.append(decisionButtons(story.choices,'¿Cómo termina vuestra historia? La decisión quedará guardada.','Guardar mi desenlace',(choice,send,status)=>run(c,'ending',async()=>{
@@ -401,6 +405,7 @@
         image:catalogItem?.image||'/valdemar-art-'+number+'.webp',alt:coverDescriptions[c.id-1],place:catalogItem?.place,
         toolbar:headlinks,modeControl:c.modeControl,read:()=>c.data,playerName:()=>c.bridge.playerName?.(),
         actions:(kind,id)=>{
+          if(kind==='scene'){selectView(c,'desk');return;}
           if(kind==='ending'){selectView(c,'ending',true);return;}
           selectView(c,'desk');c.hourView.open(kind,id);
         }});
@@ -419,7 +424,7 @@
     c.pair.append(c.gamePanel,c.desk);
     c.frame.replaceChildren(head,nav,c.pair,c.help,c.ending);
     if(c.hotel){
-      c.hotel.append(button('Volver a la investigación',()=>selectView(c,'desk',true),'vd-primary'));
+      if(!c.scene)c.hotel.append(button('Volver a la investigación',()=>selectView(c,'desk',true),'vd-primary'));
       c.frame.append(c.hotel);
     }
     c.modeControl.mount();

@@ -185,17 +185,15 @@
     return details;
   }
 
-  function group(rows, name, model, expanded, onArchivePage = false) {
+  function group(rows, name, model, expanded) {
     if (!rows.length) return '';
-    const {catalog: stories, mayOpen, details, canPlay} = model;
+    const {catalog: stories, mayOpen, details} = model;
     const items = rows.map(session => {
       const label = title(session, stories);
       const detail = details.get(session.id), context = detail ? label + ' · ' + detail : label;
       const canResume = mayOpen(session);
       const state = [sessionState(session), session.caseId==='habitacion-309'?'Caso retirado del catálogo':'', detail, canResume ? '' : 'Requiere acceso'].filter(Boolean).join(' · ');
-      const open = canResume ? control('resume', session.id, finished(session) ? 'Ver desenlace' : 'Abrir partida', false, context)
-        : finished(session) && !onArchivePage ? link('archivo', 'Ver archivo', false, context)
-        : canPlay ? browse('Elegir otro caso', false, context) : link('planes', 'Ver acceso', false, context);
+      const open = canResume ? control('resume', session.id, finished(session) ? 'Ver desenlace' : 'Abrir partida', false, context) : '';
       return '<li class="pn-row"><img class="pn-thumb" src="' + cover(session) +
         '" alt="" loading="lazy"><div class="pn-row-copy"><strong>' + escape(label) + '</strong><small>' +
         escape(state) + '</small></div><div class="pn-row-action">' + open + '</div></li>';
@@ -226,19 +224,21 @@
     const model = notebookModel(input);
     const {owned, canPlay} = model;
     const ongoing = owned.filter(session => !finished(session)), complete = owned.filter(finished);
-    const groups = group(ongoing, 'En curso', model, true, true) + group(complete, 'Terminadas', model, !ongoing.length, true);
+    const groups = group(ongoing, 'En curso', model, true) + group(complete, 'Terminadas', model, !ongoing.length);
     const firstCase = canPlay ? browse('Elegir un caso') : '<button type="button" class="button primary" data-action="preview-open">Jugar a Clínica Vallejo</button>';
-    const join = input.online && input.userId ? '<a class="button" href="/#perfil?seccion=pareja">Mis partidas en pareja</a>' : '';
     const seasons = input.online && input.userId && window.customElements?.get('season-archive');
-    const seasonList = seasons ? '<season-archive'+(owned.length?' data-with-classic':'')+'></season-archive>' : '';
+    const locked=owned.some(session=>!model.mayOpen(session));
+    const seasonList = seasons ? '<season-archive'+(owned.length?' data-with-classic':'')+(ongoing.some(model.mayOpen)?' data-classic-ongoing':'')+
+      (locked?' data-classic-locked':'')+'></season-archive>' : '';
     const classic = owned.length ? (seasons?'<h2 class="pn-classic-heading">Archivo clásico</h2>':'')+groups :
       seasons ? '' : '<p class="pn-empty">Todavía no tienes partidas guardadas.</p><div class="pn-actions">'+firstCase+'</div>';
-    return '<section class="pn-dashboard pn-archive" aria-labelledby="pn-sessions-title"><div class="pn-section-heading"><h1 id="pn-sessions-title">Mis partidas</h1>' + join + '</div>' +
-      seasonList + classic + (input.online && input.userId ? '<button type="button" class="text-button" data-action="join">Introducir un código del archivo clásico</button>' : '') + '</section>';
+    return '<section class="pn-dashboard pn-archive" aria-labelledby="pn-sessions-title"><div class="pn-section-heading"><h1 id="pn-sessions-title">Mis partidas</h1></div>' +
+      seasonList + classic + (locked?link('planes','Consultar mi pase',false):'') +
+      (input.online && input.userId ? '<button type="button" class="text-button" data-action="join">Introducir un código del archivo clásico</button>' : '') + '</section>';
   }
 
   function careerPanel(career, achievementsOnly = false) {
-    const {xp, level, nextLevelXp, skills, achievements, pieces, rewards} = career;
+    const {xp, level, nextLevelXp, skills, achievements, rewards} = career;
     if (achievementsOnly) {
       const cards = achievements.map(item => {
         const earned = item.progress >= item.goal;
@@ -247,7 +247,7 @@
           item.goal + ' · ' + escape(item.unit)) + '</small></li>';
       });
       return '<section class="pn-career"><h2>Mis logros</h2><ul class="pn-career-grid">' +
-        cards.join('') + '</ul></section>'+collectionPanel(pieces);
+        cards.join('') + '</ul></section>';
     }
     const cards = skills.map(skill => '<li><strong>' + escape(skill.name) + '</strong><span>' + skill.points +
       (skill.points === 1 ? ' punto' : ' puntos') + '</span><small>' + escape(skill.criterion) + '</small></li>');
@@ -258,8 +258,7 @@
       (level + 1) + '</p><progress class="pn-meter" max="500" value="' + (xp % 500) +
       '" aria-label="Avance dentro del nivel ' + level + '"></progress><details><summary>Cómo he ganado experiencia</summary>' +
       '<ul class="pn-xp-list">' + lines.join('') + '</ul></details><h3>Mis ocho habilidades</h3>' +
-      '<p>Estas habilidades recogen las acciones y recompensas que ya has conseguido.</p>' +
-      '<ul class="pn-career-grid">' + cards.join('') + '</ul><a class="button" href="#perfil?seccion=logros">Ver mis logros y reliquias</a></section>';
+      '<ul class="pn-career-grid">' + cards.join('') + '</ul></section>';
   }
 
   if (root.customElements && !root.customElements.get('play-notice-preferences')) {
@@ -324,10 +323,10 @@
     return '<section class="pn-career"><h2>Archivo secreto</h2>' + (cases.length
       ? '<p>Hallazgos que has conseguido en tus investigaciones.</p><ul class="pn-career-grid">' + cases.join('') + '</ul>'
       : '<p>Aquí aparecerán los documentos que recuperes con un instrumento, las fichas de misión y las pistas que abras en tus casos disponibles.</p>' +
-        link('casos', 'Explorar los tableros', false)) + '</section>';
+        link('tableros', 'Explorar los tableros', false)) + '</section>';
   }
 
-  function caseRecap(id,report,games) {
+  function caseRecap(id,report,games,{inArchive=false,sealNavigation=false}={}) {
     const game=games.find(item=>item.id===id && item.finished);
     const result=report.career?.caseResults?.[id];
     if(!game || !result)return '';
@@ -338,13 +337,14 @@
     const next=nextAdventure(games,report.access,id),team=teamLabel(game);
     const metric=(value,label)=>'<div><dt>'+escape(label)+'</dt><dd>'+escape(value)+'</dd></div>';
     const keys=Number.isInteger(result.earnedKeys)?metric(result.earnedKeys,'Llaves ganadas en este caso'):'';
-    return '<section class="pn-recap" aria-label="Resumen de la aventura"><p class="pn-kicker">'+escape(season.name)+'</p>'+
-      '<h2>Aventura completada</h2><p>'+escape(title)+'</p>'+(team?'<p>Modalidad guardada · '+escape(team)+'</p>':'')+
+    const heading=inArchive?'':'<p class="pn-kicker">'+escape(season.name)+'</p><h2>Aventura completada</h2><p>'+escape(title)+'</p>'+
+      (team?'<p>Modalidad guardada · '+escape(team)+'</p>':'');
+    return '<section class="pn-recap" aria-label="Resumen de la aventura">'+heading+
       '<dl class="pn-recap-numbers">'+metric(result.xp+' XP','Experiencia de este caso')+metric(pieces+' de 12','Piezas del tablero')+keys+'</dl>'+
       '<p>El desenlace aporta '+result.completionXp+' XP y una pieza de '+escape(season.seal)+'.</p>'+
       (skills?'<details><summary>Habilidades ganadas en esta aventura</summary><ul class="pn-skill-gains">'+skills+'</ul></details>':'')+
-      '<div class="pn-actions">'+(next?link(next.route,'Continuar con '+next.title):'')+
-      link(season.board+'?seccion=sello',pieces===12?'Abrir el sello completo':'Ver mi sello',!next)+
+      '<div class="pn-actions">'+(!sealNavigation&&next?link(next.route,'Continuar con '+next.title):'')+
+      (sealNavigation?'':link(season.board+'?seccion=sello',pieces===12?'Abrir el sello completo':'Ver mi sello',!next))+
       link('perfil?seccion=trayectoria','Ver mi trayectoria',false)+'</div></section>';
   }
 
@@ -358,7 +358,7 @@
           const data=await bridge.request('/api/valdemar/partidas');
           if(!current())return;
           const games=await pairedGames(data.games,bridge);
-          if(current())this.innerHTML=caseRecap(id,data,games);
+          if(current())this.innerHTML=caseRecap(id,data,games,{sealNavigation:this.dataset.navigation==='seal'});
         }catch{
           if(current())this.innerHTML='<p class="pn-empty">Puedes consultar el resumen desde '+link('archivo','Mis partidas',false)+'.</p>';
         }
@@ -385,7 +385,8 @@
         const keys = this.hasAttribute('data-keys');
         const archive = this.hasAttribute('data-archive');
         const trajectory=this.hasAttribute('data-career'), collection=this.hasAttribute('data-collection');
-        this.textContent = archive ? 'Cargando mi archivo secreto.' : keys ? 'Cargando mi llavero.' : 'Cargando mis logros.';
+        const section=archive?'el archivo secreto':keys?'el llavero':trajectory?'la trayectoria':collection?'la colección':'los logros';
+        this.textContent = 'Cargando '+section+'…';
         try {
           const result = await bridge.request(keys ? '/api/valdemar/seasons' : '/api/valdemar/partidas');
           if (!this.isConnected || this.readToken !== token || !bridge.isSignedIn()) return;
@@ -405,7 +406,7 @@
           }
         } catch {
           if (!this.isConnected || this.readToken !== token || !bridge.isSignedIn()) return;
-          this.textContent = archive ? 'No se ha podido cargar tu archivo secreto. ' : keys ? 'No se ha podido cargar tu llavero. ' : 'No se han podido cargar tus logros. ';
+          this.textContent = 'No se ha podido consultar '+section+'. ';
           const retry = document.createElement('button');
           retry.className = 'button';
           retry.textContent = 'Volver a intentar';
@@ -428,29 +429,26 @@
           if (!this.isConnected || this.readToken !== token || !bridge.isSignedIn() || !Array.isArray(data.games)) return;
           const games=await pairedGames(data.games,bridge),{career,access}=data;
           if(!this.isConnected || this.readToken!==token || !bridge.isSignedIn())return;
-          const tally = this.closest('.pn-dashboard')?.querySelector('[data-notebook-ongoing]');
           const character = this.closest('.pn-dashboard')?.querySelector('[data-player-career]');
           if (character && career) character.innerHTML = '<div class="pn-overview">'+
             '<section><p class="pn-kicker">Mi personaje</p><h2>Nivel '+career.level+'</h2><strong>'+career.xp+' XP</strong>'+
             '<progress class="pn-meter" max="500" value="'+(career.xp%500)+'" aria-label="Avance de nivel"></progress>'+
             '<p>'+Math.max(0,career.nextLevelXp-career.xp)+' XP hasta el nivel '+(career.level+1)+'</p>'+link('perfil?seccion=trayectoria','Ver mis ocho habilidades',false)+'</section>'+
             '<section><p class="pn-kicker">Mi colección</p><h2>'+career.pieces.reduce((sum,n)=>sum+n,0)+' de 48 piezas</h2>'+
-            '<p>'+career.pieces.filter(n=>n===12).length+' de 4 reliquias completas</p>'+link('perfil?seccion=coleccion','Abrir mi colección',false)+'</section></div>'+collectionPanel(career.pieces);
-          if (tally) {
-            tally.querySelector('strong').textContent = Number(this.dataset.classicOngoing) + games.filter(game => !game.finished).length;
-            tally.querySelector('span').textContent = 'Partidas en curso';
-          }
+            '<p>'+career.pieces.filter(n=>n===12).length+' de 4 reliquias completas</p>'+link('perfil?seccion=coleccion','Ver las piezas por tablero',false)+'</section></div>';
           const latest = root.ExperienceUI.seasonReturn(games);
           let card;
           if (latest && latest.time >= Number(this.dataset.classicTime)) {
             const game=games.find(g=>g.available&&!g.finished&&(latest.href||'').includes('?id='+g.id+'&'));
-            const objective=[game?.checkpoint?.task,teamLabel(game)].filter(Boolean).join(' · ');
+            const season=game&&root.Colecciones?.seasons?.[Math.floor((game.id-1)/12)]?.name;
+            const phase=game&&(game.current<game.total?'Etapa '+(game.current+1)+' de '+game.total:'Deducción final');
+            const context=[season,phase,teamLabel(game)].filter(Boolean).join(' · ')||latest.detail;
             const action = link(latest.href.slice(1), 'Continuar mi partida', true, latest.title);
-            card = featureCard(latest.image, latest.detail, latest.title, objective||'Retoma tu etapa guardada.', action);
-          } else if (this.hasAttribute('data-without-classic')) {
+            card = featureCard(latest.image, context, latest.title, game?.checkpoint?.task||'Retoma tu etapa guardada.', action);
+          } else if (!this.hasAttribute('data-classic-resume')) {
             const next=nextAdventure(games,access);
             if(next)card=featureCard(next.image,'Siguiente aventura disponible',next.title,next.question,link(next.route,'Abrir la aventura'));
-            else if(games.length)card = featureCard(notebookCover, 'Mis partidas', 'Tus investigaciones guardadas',
+            else if(games.length && this.hasAttribute('data-without-classic'))card = featureCard(notebookCover, 'Mis partidas', 'Tus investigaciones guardadas',
               'Consulta los casos que has empezado y los desenlaces que has guardado.', link('archivo', 'Ver mis partidas'));
           }
           if (card) {
@@ -476,10 +474,9 @@
   }
 
   function progress(input = {}) {
-    const {activeSessionId, pieces, totals, canPlay = false, userId, online = false} = input;
+    const {activeSessionId, pieces, canPlay = false, userId, online = false} = input;
     const model = notebookModel(input);
     const {catalog, owned, mayOpen, details} = model;
-    const ongoing = owned.filter(session => !finished(session));
     const complete = owned.filter(finished);
     const playable = owned.filter(mayOpen);
     const candidates = playable.length ? playable : owned;
@@ -492,24 +489,12 @@
     const resolved = new Set(seasonCases.filter(session => hasResolution(session, catalog.get(session.caseId))).map(session => session.caseId));
     const partial = !Number.isFinite(pieces) && seasonCases.some(session => !resolved.has(session.caseId));
     const count = Math.min(12, Math.max(0, Number.isFinite(pieces) ? Math.trunc(pieces) : resolved.size));
-    const decisions = Number.isFinite(totals?.decisions) ? Math.max(0, Math.trunc(totals.decisions)) : '—';
-    const summary = '<div class="notebook-numbers pn-summary" role="group" aria-label="Resumen de mi progreso"><div><strong>' +
-      decisions + '</strong><span>Decisiones del archivo clásico</span></div><div data-notebook-ongoing><strong>' + ongoing.length +
-      '</strong><span>Partidas clásicas en curso</span></div><div><strong>' + (partial && !count ? '-' : count) +
-      '</strong><span>Piezas del plano clásico</span></div></div>';
-    const others = showSeasons ? owned : owned.filter(session => session.id !== current?.id);
-    const otherRows = others.length ? group(others.filter(session => !finished(session)), 'En curso', model, true) +
-      group(others.filter(finished), 'Terminadas', model, !others.some(session => !finished(session))) :
-      '<p class="pn-empty">' + (showSeasons ? 'Aún no tienes partidas del archivo clásico.' :
-        current ? 'Tus demás investigaciones aparecerán aquí.' : 'Aquí encontrarás las partidas que empieces y los casos que termines.') + '</p>';
     const first = featured(current, catalog, canPlay, mayOpen, userId, online, count, details.get(current?.id));
     const opening = showSeasons ? '<notebook-return data-classic-time="' + root.ExperienceUI.classicActivity(recent) +
-      '" data-classic-ongoing="' + ongoing.length + '"' + (owned.length ? '' : ' data-without-classic') + '>' + first + '</notebook-return>' : first;
+      '"' + (recent?' data-classic-resume':'') + (owned.length ? '' : ' data-without-classic') + '>' + first + '</notebook-return>' : first;
     return '<div class="pn-dashboard">' +
       opening + (showSeasons ? '<div data-player-career>Cargando mi personaje…</div>' : '') +
-      summary + seasonProgress(count, partial) +
-      '<section class="pn-archive" aria-labelledby="pn-archive-title"><div class="pn-section-heading"><h2 id="pn-archive-title">' +
-      (showSeasons ? 'Mis partidas del archivo clásico' : current ? 'Mis otras partidas' : 'Mis partidas') + '</h2><a class="text-link" href="#archivo">Ver mi archivo</a></div>' + otherRows + '</section></div>';
+      (count || partial ? seasonProgress(count, partial) : '') + '</div>';
   }
 
   root.PlayerNotebook = {...root.PlayerNotebook, progress, archive, pairedGames,teamLabel,nextAdventure,caseRecap};
