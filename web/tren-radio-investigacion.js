@@ -256,7 +256,81 @@
     }
   }
 
-  function mountDecision({field,stage,index,caseId,selected,change}) {
+  // The two witnesses own complementary documents. Solo investigators carry both folders.
+  const trainDrafts=new WeakMap();
+  const compartments=[
+    {name:'El doble fondo de la maleta',minutes:10,job:'Perfora tres casillas del resguardo, en el orden del viaje. El patrón libera el cierre de la maleta.',a:'Itinerario cosido al forro · Primero el embarcadero, después el molino y por último el mercado. Una mancha tapa las coordenadas.',b:'Índice de encomiendas · Mercado: fila C, asiento 2. Molino: fila A, asiento 4. Taller: fila A, asiento 2. Embarcadero: fila B, asiento 1. Aduana: fila B, asiento 3.',hint:'Una carpeta da el orden de las paradas y la otra convierte cada nombre en fila y asiento.',reward:'El forro cede. Dentro hay un libro con la silueta de un billete en la guarda. Contrasta esa huella con los cuatro billetes del expediente.'},
+    {name:'El enclavamiento de las agujas',minutes:12,job:'Traza la maniobra del coche postal desde la entrada hasta el andén. Pulsa las estaciones del plano en orden.',a:'Orden del jefe de tren · Entra por Norte y recoge el saco en Taller. No pases por Patio: allí esperan los viajeros. Termina en Andén.',b:'Parte de vías · La aguja Taller–Andén está inmovilizada. Desde Taller solo puedes salir por Puente. La vía de Puente conduce a Andén.',hint:'Comprueba tanto la parada obligatoria como la aguja clausurada antes de trazar el camino.',reward:'El coche postal queda en vía libre. En el cajetín aparece el plano de transbordos. Averigua desde qué recorrido pudo verse cada aviso.'},
+    {name:'La ventana del fotógrafo',minutes:13,job:'Reconstruye la placa de registro en el visor. Decide qué marco invertir, orienta la muesca y elige el filtro que revela la marca de inventario.',a:'Nota del fotógrafo · La cartulina exterior se lee tal como fue impresa. Solo la imagen tomada a través del cristal está en espejo. La muesca quedó orientada hacia la puerta.',b:'Leyenda al dorso del visor · La puerta estaba al oeste. En la prueba azul, la marca de inventario quedaba velada. En la ámbar se distinguía del fondo.',hint:'Combina tres decisiones independientes: qué inviertes, dónde queda la muesca y qué filtro usas.',reward:'Las guías encajan. En una copia reflejada, el borde y la imagen pueden contar historias distintas. Examina ahora el negativo original de la cita.'},
+    {name:'Los tres relojes del furgón',minutes:12,job:'Ajusta las tres esferas a la hora real de paso. Las fichas del relojero expresan cuánto se adelantaba o atrasaba cada máquina.',a:'Hoja del convoy · Lecturas anotadas, sin corregir: Taquilla 20:56 · Andén 21:03 · Furgón 21:06.',b:'Taller de precisión · El reloj de Taquilla adelanta cuatro minutos. El de Andén atrasa dos. El del Furgón adelanta un minuto. Dos sucesos pudieron ocurrir a la vez.',hint:'Un reloj que adelanta señala una hora posterior a la real. Corrige cada esfera por separado.',reward:'Dos relojes coinciden después del ajuste. Una hora impresa solo sirve si sabes qué máquina la marcó. Aplica ese criterio a los sellos del trayecto.'},
+    {name:'La carta bajo el asiento',minutes:13,job:'Cose los cinco retales siguiendo los bordes que encajan. Hay un sexto recorte de otra carta. El sello postal debe quedar al final.',a:'Inventario del borde izquierdo · Olivo: margen limpio. Llave: diente corto. Luna: onda doble. Faro: pico. Puerta: escalón. Puente: media luna.',b:'Inventario del borde derecho · Puerta: sello postal. Faro: escalón. Llave: onda doble. Puente: doble pico. Olivo: diente corto. Luna: pico.',hint:'Empieza por el margen limpio. Busca a qué borde izquierdo corresponde la rotura derecha de cada retal.',reward:'«Si llegas después que yo, mira debajo del asiento. Dejé allí lo único que no quise perder: tu carta». La nota explica una intención. Queda contrastarla con lo que el álbum documenta.'}
+  ];
+  function trainCompartment(index,role,controller,onOpen){
+    const spec=compartments[index];
+    let drafts=trainDrafts.get(controller);
+    if(!drafts){drafts=new Map();trainDrafts.set(controller,drafts);}
+    let state=drafts.get(index);
+    if(!state){state={sequence:[],dials:[0,0,0],open:false};drafts.set(index,state);}
+    const box=el('section','rail-lock');box.dataset.chapter=String(index+1);
+    const heading=el('header','rail-head');
+    const intro=el('div','rail-intro');intro.append(el('small','','Coche postal · '+spec.minutes+' min de investigación · Aventura de 60 min'),el('h4','',spec.name),el('p','',spec.job));
+    const illustration=el('img','rail-still');illustration.src=foto(3,index);illustration.alt='';heading.append(illustration,intro);
+    const folders=el('div','rail-folders');
+    const assigned=({'1':'A','2':'B',A:'A',B:'B'})[role];
+    const pair=controller.role&&assigned;
+    for(const [paper,name,clue] of [['A','Cuaderno de la viajera',spec.a],['B','Archivo del pasajero',spec.b]]){
+      if(pair&&paper!==assigned)continue;
+      const file=el('details','rail-paper');file.append(el('summary','','Papel '+(paper==='A'?'1':'2')+' · '+name),el('p','',clue));folders.append(file);
+    }
+    const invitation=el('p','rail-brief',pair?'Abre tu carpeta y describe sus marcas a tu pareja. Necesitáis los dos documentos para accionar el mecanismo.':'Llevas las dos carpetas. Abre cada una y cruza sus indicios en el mecanismo.');
+    const board=el('div','rail-board');const progress=live('rail-feedback');
+    const help=el('details','rail-hint');help.append(el('summary','','Una pista de observación'),el('p','',spec.hint));
+    const controls=el('div','rail-actions');
+    const targets=[['B1','A4','C2'],['Norte','Taller','Puente','Andén'],[1,3,1],[-4,2,-1],['Olivo','Llave','Luna','Faro','Puerta']];
+    const target=targets[index],dial=index===2||index===3;
+    const read=()=>dial?state.dials:state.sequence;
+    const same=()=>read().length===target.length&&read().every((v,i)=>v===target[i]);
+    function add(value){
+      if(state.sequence.includes(value)){progress.textContent='Esa pieza ya está colocada. Puedes deshacer el último movimiento.';return;}
+      if(state.sequence.length>=target.length){progress.textContent='El soporte está lleno. Deshaz el último movimiento para cambiarlo.';return;}
+      state.sequence.push(value);paint();
+    }
+    function action(label,run){return button(label,event=>{const controls=[...board.querySelectorAll('button')];const pos=controls.indexOf(event.currentTarget);run();if(pos>=0&&!event.currentTarget.isConnected){const next=board.querySelectorAll('button')[pos];if(next&&!next.disabled)next.focus({preventScroll:true});}},'rail-key');}
+    function remove(){state.sequence.pop();paint();}
+    const undo=action('Deshacer el último movimiento',remove);
+    const check=action('Probar el mecanismo',()=>{
+      if(!same()){progress.textContent=['Los pernos no caen en las tres perforaciones. Revisa orden, fila y asiento.','La señal sigue roja. Revisa la parada del saco y el desvío de la vía bloqueada.','Las marcas del registro no coinciden. Comprueba el cristal, la muesca y el filtro.','El registro sigue desfasado. Contrasta el signo de cada corrección.','La costura se interrumpe. Comprueba el borde de salida y el de entrada de cada pareja.'][index];return;}
+      state.open=true;unseal();
+    });controls.append(undo,check);
+    function unseal(){board.hidden=true;controls.hidden=true;help.hidden=true;progress.textContent=spec.reward;box.dataset.open='true';onOpen();}
+    function paint(){
+      board.replaceChildren();progress.textContent='';undo.hidden=dial;undo.disabled=!state.sequence.length;
+      const picks=el('div','rail-pieces');
+      const put=(label,value)=>{const key=action(label,()=>add(value));const rank=state.sequence.indexOf(value);key.setAttribute('aria-pressed',String(rank>=0));if(rank>=0)key.append(el('small','',' · '+(rank+1)));picks.append(key);};
+      if(index===0){
+        picks.classList.add('rail-punch');for(const row of ['A','B','C'])for(const seat of [1,2,3,4])put(row+seat,row+seat);
+      }else if(index===1){
+        const stations=[['Norte',9,50],['Taller',36,22],['Patio',36,80],['Puente',65,22],['Andén',90,50]];
+        const links=[[0,1],[0,2],[1,2],[1,3],[1,4],[2,4],[3,4]];
+        const map=el('div','rail-map');const ns='http://www.w3.org/2000/svg';const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 100 100');svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('aria-hidden','true');
+        for(const [from,to] of links){const line=document.createElementNS(ns,'line');for(const [attr,val] of [['x1',stations[from][1]],['y1',stations[from][2]],['x2',stations[to][1]],['y2',stations[to][2]]])line.setAttribute(attr,val);const pos=state.sequence.indexOf(stations[from][0]),next=state.sequence.indexOf(stations[to][0]);line.setAttribute('class',pos>=0&&next>=0&&Math.abs(pos-next)===1?'used':'');svg.append(line);}map.append(svg);
+        for(const [name,x,y] of stations){const key=action(name,()=>{const last=state.sequence.at(-1);const i=stations.findIndex(s=>s[0]===last),j=stations.findIndex(s=>s[0]===name);if(last&&!links.some(([a,b])=>(a===i&&b===j)||(a===j&&b===i))){progress.textContent='No hay vía directa entre esas dos estaciones.';return;}add(name);});key.style.left=x+'%';key.style.top=y+'%';key.setAttribute('aria-pressed',String(state.sequence.includes(name)));map.append(key);}board.append(map);
+      }else if(index===2){
+        const slide=el('div','rail-glass');slide.dataset.filter=String(state.dials[2]);
+        const print=el('img');print.src=foto(3,2);print.alt='Placa del archivo fotográfico';print.style.transform=state.dials[0]===1?'scaleX(-1)':'none';
+        const edge=el('span','rail-notch','▲');edge.style.transform='rotate('+state.dials[1]*90+'deg)';slide.append(print,edge,el('b','','N.º 08 · REGISTRO'));board.append(slide);
+        const choices=[['Cristal directo','Cristal invertido'],['Muesca norte','Muesca este','Muesca sur','Muesca oeste'],['Filtro azul','Filtro ámbar','Filtro rojo']];
+        choices.forEach((opts,k)=>picks.append(action(opts[state.dials[k]],()=>{state.dials[k]=(state.dials[k]+1)%opts.length;paint();})));
+      }else if(index===3){
+        const names=['Taquilla','Andén','Furgón'];[1256,1263,1266].forEach((base,k)=>{const unit=el('div','rail-clock');const mins=base+state.dials[k];const value=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');unit.append(el('b','',names[k]),el('output','',value));for(const delta of [-1,1]){const key=action(delta<0?'−1 min':'+1 min',()=>{state.dials[k]+=delta;paint();});key.setAttribute('aria-label',names[k]+(delta<0?' restar':' sumar')+' un minuto');key.disabled=Math.abs(state.dials[k]+delta)>9;unit.append(key);}picks.append(unit);});
+      }else{picks.classList.add('rail-scraps');for(const name of ['Faro','Olivo','Puente','Puerta','Luna','Llave'])put(name,name);}
+      board.append(picks);if(!dial){board.append(el('output','rail-strip',state.sequence.length?state.sequence.join(' → '):'Sin piezas colocadas'));}
+      check.disabled=!dial&&state.sequence.length!==target.length;
+    }
+    box.append(heading,invitation,folders,board,controls,help,progress);paint();if(state.open)unseal();return box;
+  }
+
+  function mountDecision({field,stage,index,caseId,selected,change,role,controller}) {
     const meta = mesas[caseId]?.[index], options = stage.options || [];
     if (!meta || !options.length || !['single','multi','order'].includes(stage.mode)) return false;
     const isRadio = Number(caseId) === 4, ordering = stage.mode === 'order', single = stage.mode === 'single';
@@ -372,7 +446,12 @@
       pick.setAttribute('aria-label',meta[2]+'. '+option.label);
       pick.append(mark,el('span','',option.label)); choices.append(pick);marks.set(option.id,pick);
     }
-    draft.append(receipt,list);panel.append(cover,choices,draft);field.append(panel);
+    draft.append(receipt,list);panel.append(cover,choices,draft);
+    if(Number(caseId)===3){
+      panel.hidden=true;
+      field.append(trainCompartment(index,role,controller,()=>{panel.hidden=false;}));
+    }
+    field.append(panel);
     refresh();return true;
   }
   window.ArchivosDeCaso ||= {};
