@@ -65,14 +65,21 @@
     return [game.partnerName?'Con '+game.partnerName:'En pareja',game.role?'Tu papel '+game.role:''].filter(Boolean).join(' · ');
   }
 
-  function collectionPanel(pieces) {
+  function collectionPanel(pieces,inventory=[],cases=[],available=[]) {
     const seasons=root.Colecciones?.seasons||[];
+    const holdings=cases.map(item=>{
+      const game=adventure(item.id);
+      const entry=game&&available.includes(item.id)?link(game.route+'&retomar=1','Abrir la aventura',false,game.title):'';
+      return '<li><strong>'+escape(game?.title||'Aventura '+item.id)+'</strong><span>'+item.count+(item.count===1?' objeto':' objetos')+'</span>'+entry+'</li>';
+    });
     return '<section class="pn-career pn-collection"><h2>Mis reliquias</h2><p>Recupera las doce piezas de cada temporada para abrir su epílogo.</p><ul class="pn-relics">'+pieces.map((count,i)=>{
       const s=seasons[i];if(!s)return '';
       return '<li><a href="#'+escape(s.board)+'?seccion=sello">'+(s.art?'<img src="/'+escape(s.art)+'" alt="" loading="lazy">':'')+
         '<div><small>'+escape(s.name)+'</small><strong>'+escape(s.seal)+'</strong><span>'+(count===12?'Reliquia conseguida · ':'')+
         count+' de 12 piezas</span><progress class="pn-meter" max="12" value="'+count+'" aria-label="Piezas de '+escape(s.seal)+'"></progress></div></a></li>';
-    }).join('')+'</ul></section>';
+    }).join('')+'</ul>'+(inventory.length?'<h3>Inventario de las aventuras</h3><p>Objetos y pruebas recogidos en cada temporada.</p><ul class="pn-career-grid">'+
+      inventory.map((count,i)=>'<li><strong>'+escape(seasons[i]?.name||'Temporada '+(i+1))+'</strong><span>'+count+(count===1?' objeto guardado':' objetos guardados')+'</span></li>').join('')+'</ul>':'')+
+      (holdings.length?'<details><summary>Ver los objetos por aventura</summary><p>Abre una aventura para inspeccionar los objetos de tu inventario.</p><ul class="pn-career-grid">'+holdings.join('')+'</ul></details>':'')+'</section>';
   }
 
   function control(action, id, label, primary, context = '') {
@@ -243,22 +250,32 @@
       const cards = achievements.map(item => {
         const earned = item.progress >= item.goal;
         return '<li class="' + (earned ? 'is-earned' : '') + '"><strong>' + escape(item.name) +
-          '</strong><small>' + (earned ? 'Conseguido' : Math.min(item.progress, item.goal) + ' de ' +
+          '</strong><small>' + (earned ? 'Medalla conseguida' : Math.min(item.progress, item.goal) + ' de ' +
           item.goal + ' · ' + escape(item.unit)) + '</small></li>';
       });
-      return '<section class="pn-career"><h2>Mis logros</h2><ul class="pn-career-grid">' +
+      return '<section class="pn-career"><h2>Mis logros</h2><p>Cada medalla indica qué necesitas resolver para conseguirla.</p><ul class="pn-career-grid">' +
         cards.join('') + '</ul></section>';
     }
     const cards = skills.map(skill => '<li><strong>' + escape(skill.name) + '</strong><span>' + skill.points +
       (skill.points === 1 ? ' punto' : ' puntos') + '</span><small>' + escape(skill.criterion) + '</small></li>');
-    const lines = rewards.map(item => '<li><span>' + escape(item.name) + '</span><strong>' +
+    const lines = rewards.filter(item=>item.count>0).map(item => '<li><span>' + escape(item.name) + '</span><strong>' +
       item.count + ' × ' + item.unit + ' XP</strong></li>');
+    const modes=career.modes;
+    const resolved=n=>n+(n===1?' etapa resuelta':' etapas resueltas');
+    const statistics=modes?'<h3>Etapas de la historia</h3><ul class="pn-career-grid"><li><strong>En solitario</strong><span>'+resolved(modes.solo)+
+      '</span></li><li><strong>En cooperación</strong><span>'+resolved(modes.cooperative)+'</span></li></ul>'+
+      (modes.unknown?'<p>'+resolved(modes.unknown)+' en guardados antiguos sin modalidad registrada.</p>':''):'';
+    const rooms=career.roomStats;
+    const arcade=rooms?.completed?'<p>Salas de minijuegos · '+rooms.completed+' de 24 resueltos. En cooperación · '+rooms.cooperative+'.</p>':'';
+    const specializations=Array.isArray(career.specializations)?'<h3>Especializaciones</h3>'+
+      (career.specializations.length?'<ul class="pn-career-grid">'+career.specializations.map(name=>'<li><strong>'+escape(name)+'</strong></li>').join('')+'</ul>':'')+
+      '<p>Cada habilidad abre su especialización al alcanzar cinco puntos.</p>':'';
     return '<section class="pn-career pn-character"><div class="pn-section-heading"><h2>Mi trayectoria</h2><span class="pn-count">Nivel ' +
-      level + '</span></div><p><strong>' + xp + ' XP</strong> · ' + (nextLevelXp - xp) + ' XP para el nivel ' +
+      level + '</span></div>'+(career.rank?'<p>Rango · <strong>'+escape(career.rank)+'</strong>'+(career.nextRank?' · '+escape(career.nextRank.name)+' a partir del nivel '+career.nextRank.level:'')+'</p>':'')+'<p><strong>' + xp + ' XP</strong> · ' + (nextLevelXp - xp) + ' XP para el nivel ' +
       (level + 1) + '</p><progress class="pn-meter" max="500" value="' + (xp % 500) +
       '" aria-label="Avance dentro del nivel ' + level + '"></progress><details><summary>Cómo he ganado experiencia</summary>' +
-      '<ul class="pn-xp-list">' + lines.join('') + '</ul></details><h3>Mis ocho habilidades</h3>' +
-      '<ul class="pn-career-grid">' + cards.join('') + '</ul></section>';
+      (lines.length?'<ul class="pn-xp-list">' + lines.join('') + '</ul>':'<p>Tu primera prueba resuelta aparecerá aquí.</p>')+'</details>'+statistics+arcade+'<h3>Mis ocho habilidades</h3>' +
+      '<ul class="pn-career-grid">' + cards.join('') + '</ul>'+specializations+'</section>';
   }
 
   if (root.customElements && !root.customElements.get('play-notice-preferences')) {
@@ -341,7 +358,7 @@
       (team?'<p>Modalidad guardada · '+escape(team)+'</p>':'');
     return '<section class="pn-recap" aria-label="Resumen de la aventura">'+heading+
       '<dl class="pn-recap-numbers">'+metric(result.xp+' XP','Experiencia de este caso')+metric(pieces+' de 12','Piezas del tablero')+keys+'</dl>'+
-      '<p>El desenlace aporta '+result.completionXp+' XP y una pieza de '+escape(season.seal)+'.</p>'+
+      '<p>El primer desenlace aporta '+result.completionXp+' XP, una llave y una pieza de '+escape(season.seal)+'.</p>'+
       (skills?'<details><summary>Habilidades ganadas en esta aventura</summary><ul class="pn-skill-gains">'+skills+'</ul></details>':'')+
       '<div class="pn-actions">'+(!sealNavigation&&next?link(next.route,'Continuar con '+next.title):'')+
       (sealNavigation?'':link(season.board+'?seccion=sello',pieces===12?'Abrir el sello completo':'Ver mi sello',!next))+
@@ -369,11 +386,11 @@
 
   function keyChallenge(result) {
     const id=result.availableCases?.find(id=>id>1&&!result.wallet.won?.includes(id));
-    const next=id&&adventure(id);
-    if(!next)return '';
-    const prize=(id-1)%12>=8?2:1;
-    return '<div class="pn-key-challenge"><h3>Ganar más llaves</h3><p>'+escape(next.title)+' · Reto paralelo · '+
-      prize+(prize===1?' llave':' llaves')+'</p>'+link(next.route+'&seccion=reto','Abrir el reto')+'</div>';
+    const next=id&&root.RetosTemporada?.ficha(id);
+    if(!next)return '<div class="pn-key-challenge">'+link('desafios','Explorar las actividades opcionales',false)+'</div>';
+    const action=root.RetosTemporada.enlace(id,true);
+    return '<div class="pn-key-challenge"><h3>Ganar más llaves</h3><p>'+escape(next.title)+' · '+next.prize+
+      (next.prize===1?' llave':' llaves')+'</p><a class="button" href="'+escape(action.href)+'">Jugar al reto de aventura</a></div>';
   }
 
   if (root.customElements && !root.customElements.get('profile-collection')) {
@@ -395,11 +412,11 @@
           } else if(trajectory) {
             this.innerHTML=careerPanel(result.career);
           } else if(collection) {
-            this.innerHTML=collectionPanel(result.career.pieces);
+            this.innerHTML=collectionPanel(result.career.pieces,result.career.inventory,result.career.inventoryCases,result.access?.availableCases);
           } else if (keys) {
             this.innerHTML = '<section class="pn-career"><h2>Mi llavero</h2><p><strong>' +
               escape(result.wallet.balance) + (result.wallet.balance === 1 ? ' llave disponible' : ' llaves disponibles') +
-              '</strong></p>'+keyChallenge(result)+'</section>';
+              '</strong></p><p>Una pista orientativa cuesta 1 llave, una detallada cuesta 2 y una solución explicada cuesta 3.</p>'+keyChallenge(result)+'</section>';
             this.querySelector('section').append(root.Keyring.history(result.wallet));
           } else {
             this.innerHTML = careerPanel(result.career, true);
@@ -431,7 +448,7 @@
           if(!this.isConnected || this.readToken!==token || !bridge.isSignedIn())return;
           const character = this.closest('.pn-dashboard')?.querySelector('[data-player-career]');
           if (character && career) character.innerHTML = '<div class="pn-overview">'+
-            '<section><p class="pn-kicker">Mi personaje</p><h2>Nivel '+career.level+'</h2><strong>'+career.xp+' XP</strong>'+
+            '<section><p class="pn-kicker">Mi personaje</p><h2>'+escape(career.rank||'Mi trayectoria')+'</h2><strong>Nivel '+career.level+' · '+career.xp+' XP</strong>'+
             '<progress class="pn-meter" max="500" value="'+(career.xp%500)+'" aria-label="Avance de nivel"></progress>'+
             '<p>'+Math.max(0,career.nextLevelXp-career.xp)+' XP hasta el nivel '+(career.level+1)+'</p>'+link('perfil?seccion=trayectoria','Ver mis ocho habilidades',false)+'</section>'+
             '<section><p class="pn-kicker">Mi colección</p><h2>'+career.pieces.reduce((sum,n)=>sum+n,0)+' de 48 piezas</h2>'+

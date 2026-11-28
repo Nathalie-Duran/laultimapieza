@@ -45,7 +45,7 @@
     gain.gain.exponentialRampToValueAtTime(level,start+.012);
     gain.gain.exponentialRampToValueAtTime(.0001,start+length);
     osc.connect(gain);
-    gain.connect(context.destination);
+    gain.connect(window.GamePreferences?.audioOutput(context)||context.destination);
     osc.start(start);
     osc.stop(start+length+.015);
     return osc;

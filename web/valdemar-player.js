@@ -71,15 +71,19 @@
   async function request(c, action, payload) {
     if (!sessionLive(c)) throw new Error('Inicia sesión para seguir jugando.');
     const body=payload===undefined?undefined:{...payload,partnerId:c.data?.partner?.id||null};
+    const tracking=body!==undefined&&c.scene;
+    if(tracking)c.scene.writing();
     let result;
     try {
       result=await c.bridge.request('/api/valdemar/cases/'+c.id+(action?'/'+action:''),body);
     } catch(error) {
+      if(tracking&&valid(c))c.scene.written(false);
       if(error.code==='PAIR_CHANGED')reopen(c);
       else if(action==='pair-state' && sessionLive(c) && [401,402,403].includes(error.status))showFailure(c,error);
       throw error;
     }
     if(!sessionLive(c)) throw new Error('La partida ya no está abierta.');
+    if(tracking)c.scene.written(result?.correct===false?null:true);
     return result;
   }
   async function run(c, key, operation, onError) {
@@ -107,7 +111,7 @@
   // Isolate their browser exports so switching accounts never reuses another player's module.
   async function loadEngines(c) {
     if (typeof c.data.gameScript !== 'string' || (c.id===1 && typeof c.data.stationScript!=='string')) throw new Error('El expediente todavía no está disponible.');
-    const prelude = 'const window = {Retos:{},AudioContext:globalThis.AudioContext,webkitAudioContext:globalThis.webkitAudioContext,setTimeout:globalThis.setTimeout.bind(globalThis)};\n';
+    const prelude = 'const window = {Retos:{},GamePreferences:globalThis.GamePreferences,AudioContext:globalThis.AudioContext,webkitAudioContext:globalThis.webkitAudioContext,setTimeout:globalThis.setTimeout.bind(globalThis)};\n';
     const source = [prelude,c.data.gameScript,c.id===1?c.data.stationScript:'','\nexport default window;'];
     const url=URL.createObjectURL(new Blob(source,{type:'text/javascript'}));
     try {
@@ -120,6 +124,7 @@
   }
   function selectView(c,view,focus=false) {
     if(!valid(c) || c.blocked) return;
+      if(view==='game'&&c.view&&view!==c.view)c.scene?.rememberExtra(c.view);
     if(view!==c.view)c.hourView?.pause();
     if(view==='help' && c.view!=='help'){
       c.helpFrom=c.view||'desk';
@@ -205,6 +210,7 @@
         sceneRoute:Boolean(c.scene),sceneBack:c.scene?target=>c.scene.returnFrom(target):null,
         inventory:async input=>{
           const result=await request(c,'inventory',input);
+          c.scene?.inventory(result.inventory);
           if(result.wallet)updateWallet(c,result);
           return result;
         },
@@ -420,10 +426,12 @@
       },'vd-primary gm-enter'));
     }
     if(c.id>1&&c.data.hour){
-      c.scene=window.AventuraEscena.mount(head,{world:'valdemar',id:c.id,frame:c.frame,story,
+      c.scene=window.AventuraEscena.mount(head,{world:'valdemar',id:c.id,frame:c.frame,story,resumed:c.resume,
         image:catalogItem?.image||'/valdemar-art-'+number+'.webp',alt:coverDescriptions[c.id-1],place:catalogItem?.place,
         toolbar:headlinks,modeControl:c.modeControl,read:()=>c.data,playerName:()=>c.bridge.playerName?.(),
         actions:(kind,id)=>{
+            if(kind==='restore'){selectView(c,id);return id==='desk'?c.desk:id==='help'?c.help:id==='hotel'?c.hotel:c.ending;}
+            if(kind==='hints'){selectView(c,'help',true);return;}
           if(kind==='scene'){selectView(c,'desk');return;}
           if(kind==='ending'){selectView(c,'ending',true);return;}
           selectView(c,'desk');c.hourView.open(kind,id);
@@ -445,6 +453,11 @@
     buildDesk(c);buildGame(c);renderEnding(c);updateWallet(c,c.data);
     c.pair.append(c.gamePanel,c.desk);
     c.frame.replaceChildren(head,nav,c.pair,c.help,c.ending);
+    c.scene?.attach();
+    const roomReward=async()=>{
+      try{const value=await request(c);if(valid(c)){updateWallet(c,value);if(c.view==='help')renderHelp(c);}}catch{}
+    };
+    for(const event of ['season-room-reward','mansion-arcade-reward','editorial-challenge-solved'])c.frame.addEventListener(event,roomReward);
     if(c.hotel){
       if(!c.scene)c.hotel.append(button('Volver a la investigación',()=>selectView(c,'desk',true),'vd-primary'));
       c.frame.append(c.hotel);
@@ -454,8 +467,9 @@
     c.routeSection=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
     const sideRequested=c.routeSection==='reto';
     const pending=c.frame.dataset.playMode==='pending';
-    selectView(c,sideRequested?'game':ending?'ending':'desk',sideRequested || c.resume && (ending || pending));
-    if(c.resume && !ending && !sideRequested && !pending){if(c.scene)c.scene.focus();else c.hourView?.enter();}
+    const hintsRequested=c.routeSection==='pistas';
+    selectView(c,sideRequested?'game':hintsRequested?'help':ending?'ending':'desk',sideRequested||hintsRequested||c.resume&&(ending||pending));
+    if(c.resume&&!ending&&!sideRequested&&!hintsRequested&&!pending){if(c.scene)c.scene.focus();else c.hourView?.enter();}
   }
   function editionButton(c,label,op) {
     return button(label,()=>run(c,'edition',async()=>{
@@ -493,6 +507,7 @@
       };
       c.routeSection=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
       if(c.routeSection==='reto')queueMicrotask(()=>{if(valid(c))c.openArcade();});
+      if(c.routeSection==='pistas')queueMicrotask(()=>{if(valid(c))c.mansionView.openHints();});
     }
     const story={roles:['Investiga la mansión habitada de Ada.','Explora las huellas que quedan en la mansión abandonada.']};
     let modeHost=header;
@@ -556,9 +571,9 @@
       if(host!==active.frame.parentElement)host.replaceChildren(active.frame);
       const section=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
       if(active.gamePanel && section!==active.routeSection){
-        active.routeSection=section;selectView(active,section==='reto'?'game':'desk',true);
+        active.routeSection=section;selectView(active,section==='reto'?'game':section==='pistas'?'help':'desk',true);
       }else if(active.openArcade&&section!==active.routeSection){
-        active.routeSection=section;if(section==='reto')active.openArcade();
+        active.routeSection=section;if(section==='reto')active.openArcade();else if(section==='pistas')active.mansionView?.openHints();
       }
       return;
     }

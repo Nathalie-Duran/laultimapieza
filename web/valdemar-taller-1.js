@@ -161,7 +161,7 @@
         if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) throw Error('speech');
         await new Promise((resolve, reject) => {
           utterance = new window.SpeechSynthesisUtterance(clip.speech);
-          utterance.lang = 'es-ES';
+          utterance.lang = 'es-ES';window.GamePreferences?.audioVoice(utterance);
           utterance.onend = resolve;
           utterance.onerror = reject;
           window.speechSynthesis.speak(utterance);
@@ -180,7 +180,7 @@
             gain.gain.setValueAtTime(0.001, at);
             gain.gain.exponentialRampToValueAtTime(0.10, at + 0.02);
             gain.gain.exponentialRampToValueAtTime(0.001, at + 0.19);
-            tone.connect(gain); gain.connect(audio.destination);
+            tone.connect(gain); gain.connect(window.GamePreferences?.audioOutput(audio)||audio.destination);
             tone.start(at); tone.stop(at + 0.2);
           });
           window.setTimeout(resolve, (clip.tones.length * 0.23 + 0.08) * 1000);

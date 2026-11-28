@@ -86,6 +86,7 @@
         const voices = window.speechSynthesis.getVoices().filter(v => /^es(?:[-_]|$)/i.test(v.lang));
         const spanish = voices.find(v=>v.localService)||voices[0];
         if (spanish) voice.voice = spanish;
+        window.GamePreferences?.audioVoice(voice);
         const reset = () => {button.textContent='Escuchar lectura';pressed(button,false);};
         const entry = {button,reset,voice};
         state.voice = entry;playingStates.add(state);
@@ -105,7 +106,7 @@
     }
     if(!transcriptShown){
       const source = fold('Leer la transcripción',el('p',body,'vhour-prose'));
-      source.open = !available;
+      source.dataset.gameTranscript=''; source.open = !available || window.GamePreferences?.transcripts===true;
       node.append(source);
     }
     return node;
