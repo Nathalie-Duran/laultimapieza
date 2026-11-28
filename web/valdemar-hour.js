@@ -563,7 +563,7 @@
         main.append(el('p',(controller.sceneBack?'':'Etapa '+(index+1)+' de '+stages.length+' · ')+stage.minutes+' min orientativos','vhour-kicker'));
         const heading=head('h3',controller.sceneBack?'Pruebas de la etapa':stage.title);
         main.append(heading);
-        if(!controller.sceneBack)main.append(el('p',stage.brief,'vhour-lead'));
+        if(stage.brief&&stage.brief!==stage.task)main.append(el('p',stage.brief,'vhour-lead'));
         if(hotel && controller.visitHotel && !controller.sceneBack)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
         const workbench=el('div',null,'vhour-workbench');
         workbench.dataset.stage=String(index+1);
