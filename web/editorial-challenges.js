@@ -76,7 +76,7 @@
       else status.textContent='Inicia sesión para consultar los desafíos de tus casos.';
       return;
     }
-    status.textContent='Cargando desafíos…';
+    status.textContent=calendar?'Cargando el calendario…':'Buscando retos del equipo editorial…';
     try {
       const {items}=await request(path);
       if (!panel.isConnected) return;

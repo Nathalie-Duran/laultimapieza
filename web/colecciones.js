@@ -67,12 +67,13 @@
   function sideStop(data) {
     const {number,season,items,allowed}=data;
     if(number===1) return `<aside class="atlas-side-stop" aria-labelledby="atlas-side-1"><div><small>Actividad secundaria · Valdemar</small><h3 id="atlas-side-1">Sala de juegos de la mansión</h3><p>El archivo, el relojero, el museo, las cartas de Ada, el jardín y el espejo reúnen seis minijuegos independientes.</p></div><a href="/#desafios?seccion=sala">Visitar la sala de juegos</a></aside>`;
-    const stop=items.find(item=>allowed.has(item.id))||items[0];
-    if(!stop)return '';
-    const local=(stop.id-1)%12+1,play=allowed.has(stop.id);
-    const location=placeHref(season,local)+'&amp;seccion=ficha';
-    const href=play?'/#mundos-jugar?id='+stop.id+'&amp;seccion=reto':location;
-    return `<aside class="atlas-side-stop" aria-labelledby="atlas-side-${number}"><div><small>Actividad secundaria · Reto paralelo</small><h3 id="atlas-side-${number}">${esc(stop.place)}</h3><p>El reto de «${esc(stop.title)}» está en esta parada.</p></div><nav aria-label="Actividades de ${esc(season.name)}"><a href="${href}">${play?'Abrir el reto paralelo':'Ver la parada'}</a><a href="/#desafios?mundo=${season.board}">Ver los retos del tablero</a></nav></aside>`;
+    const stop=items.find(item=>allowed.has(item.id));
+    const directory='/#desafios?mundo='+season.board;
+    if(!stop){
+      const labels={expedicion:'Explorar los retos de Ámbar',umbravia:'Explorar los retos de Umbravía',necropolis:'Explorar los retos de la Necrópolis'};
+      return `<aside class="atlas-side-stop" aria-labelledby="atlas-side-${number}"><h3 id="atlas-side-${number}"><a href="${directory}">${labels[season.board]}</a></h3></aside>`;
+    }
+    return `<aside class="atlas-side-stop" aria-labelledby="atlas-side-${number}"><div><h3 id="atlas-side-${number}">Reto en ${esc(stop.place)}</h3><p>${esc(stop.title)}</p></div><nav aria-label="Retos de ${esc(season.name)}"><a href="/#mundos-jugar?id=${stop.id}&amp;seccion=reto">Abrir el reto paralelo</a><a href="${directory}">Ver todos los retos</a></nav></aside>`;
   }
   function itinerary(data) {
     const {number,base,season,items,pass,allowed,earned}=data;

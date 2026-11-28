@@ -36,7 +36,9 @@ function valdemarGame(){
 function seasonMap(membership) { return window.Colecciones.menu('mapa')+window.ValdemarPlano.view(valdemarState(membership))+window.SellosTemporada.view(1); }
 function classicMap(){return window.ExperienceUI.map(experienceModel());}
 function worldView(route, membership) {
-  return window.Colecciones.menu(route) + window.Mundos.view(route, membership || {})+window.SellosTemporada.view(window.Mundos.edition(route).number);
+  const view=window.Mundos.view(route,membership||{});
+  if(new URLSearchParams(location.hash.split('?')[1]).get('seccion')==='ficha')return view;
+  return window.Colecciones.menu(route)+view+window.SellosTemporada.view(window.Mundos.edition(route).number);
 }
 function mountWorld(route) {
   const number=route==='mapa'?1:window.Mundos?.edition(route)?.number;
@@ -478,7 +480,10 @@ window.addEventListener('hashchange',event=>{
   sealEntryPending = true;
   render();
   if(online && seasonAccountPages.has(route))window.GameAccountBridge.refreshSeasonAccess().catch(()=>{});
-  if((['#mapa','#expedicion','#umbravia','#necropolis'].includes(route)&&oldRoute===route)||sealRequested())return;
+  const oldSection=new URLSearchParams(oldQuery).get('seccion');
+  const newSection=new URLSearchParams(query).get('seccion');
+  const staysOnMap=['#mapa','#expedicion','#umbravia','#necropolis'].includes(route)&&oldRoute===route&&oldSection!=='ficha'&&newSection!=='ficha';
+  if(staysOnMap||sealRequested())return;
   window.scrollTo({top:0,behavior:'instant'});
   const main=$('#main');
   const worldChanged=route==='#casos' && (new URLSearchParams(oldQuery).get('mundo')||'mapa')!==(new URLSearchParams(query).get('mundo')||'mapa');
