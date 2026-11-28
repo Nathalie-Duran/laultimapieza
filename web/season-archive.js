@@ -46,20 +46,22 @@
       if(objective)info.append(element('p',objective,'sa-objective'));
     }
     const actions=element('div',null,'sa-actions');
-    const label=game.available ? game.finished?'Ver desenlace':'Continuar' : 'Consultar mi pase';
-    const href=game.available?gameLink(game.id)+(game.finished?'':'&retomar=1'):'#planes';
-    actions.append(actionLink(label,href,story.title));
-    if(game.finished){
+    if(game.available){
+      const href=gameLink(game.id)+(game.finished?'':'&retomar=1');
+      actions.append(actionLink(game.finished?'Ver desenlace':'Continuar',href,story.title));
+    }else info.append(element('small','Requiere acceso'));
+    const hasRecap=game.finished && report?.career?.caseResults?.[game.id] && window.PlayerNotebook?.caseRecap;
+    if(game.finished && !hasRecap){
       const local=(game.id-1)%12+1;
       actions.append(actionLink('Ver mi sello','#'+season.board+'?lugar='+local+'&seccion=sello',season.seal));
     }
     item.append(cover,info,actions);
-    if(game.finished && report?.career?.caseResults?.[game.id] && window.PlayerNotebook?.caseRecap){
+    if(hasRecap){
       const details=element('details',null,'sa-recap'), summary=element('summary','Resumen de la aventura');
       details.append(summary);
       details.addEventListener('toggle',()=>{
         if(!details.open || details.childElementCount>1)return;
-        const view=element('div');view.innerHTML=window.PlayerNotebook.caseRecap(game.id,report,games);details.append(view);
+        const view=element('div');view.innerHTML=window.PlayerNotebook.caseRecap(game.id,report,games,{inArchive:true});details.append(view);
       });
       item.append(details);
     }
@@ -151,7 +153,7 @@
             const group=element('section',null,'sa-group'),list=element('ul',null,'sa-list');
             list.append(card);group.append(element('h3','Retomar la investigación'),list);body.append(group);
           }
-        }else if(mode==='all' && !board){
+        }else if(mode==='all' && !board && !this.hasAttribute('data-classic-ongoing')){
           const suggestion=nextVisit(ordered,access);
           if(suggestion)body.append(suggestion);
         }
@@ -163,6 +165,7 @@
           const list = element('ul',null,'sa-list');
           list.append(...items); group.append(heading,list); body.append(group);
         }
+        if(visible.some(g=>!g.available) && !this.hasAttribute('data-classic-locked'))body.append(actionLink('Consultar mi pase','#planes'));
       };
       if (visibleModes.size > 1) {
         const filter = element('label',null,'sa-filter');

@@ -30,8 +30,7 @@
     connectedCallback() {
       this.innerHTML = `<section class="pp-preference" aria-labelledby="pp-preference-title">
         <div class="pp-preference-intro"><h2 id="pp-preference-title">Tu compañero de juego</h2>
-        <p id="pp-preference-help">Cada uno guarda el correo del otro. Esta será tu pareja en los cuatro tableros. Para compartir una partida, abrid el mismo juego y pulsad «En pareja» desde vuestras cuentas.</p>
-        <a class="text-link" href="/#perfil?seccion=pareja">Elegir un juego <span aria-hidden="true">→</span></a></div>
+        <p id="pp-preference-help">Guardad el correo del otro para jugar juntos en los cuatro tableros.</p></div>
         <form class="pp-preference-form"><label for="pp-preferred-email">Correo de tu compañero de juego</label>
         <div class="pp-preference-controls"><input id="pp-preferred-email" type="email" name="email" required maxlength="254"
           autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="nombre@ejemplo.es" aria-describedby="pp-preference-help">
@@ -122,6 +121,7 @@
         this.applyPreference(response);
         email.value = this.savedEmail;
         status.textContent = reading ? '' : this.savedEmail ? 'Correo guardado.' : 'Correo retirado.';
+        if(!reading)this.parentElement?.querySelector('profile-partners')?.refresh();
       } catch (error) {
         if (this.readToken !== token) return;
         if (!reading && ['PARTNER_OFFER_CHANGED','PARTNER_GAMES_CHANGED'].includes(error.code)) {
@@ -260,14 +260,14 @@
 
     compose() {
       const ids = this.available;
-      if (!ids.length) return '<h3>Elige un juego</h3><p>Los juegos que abras con tu pase aparecerán aquí.</p>' + linkToPass;
+      if (!ids.length) return '<h3>Acceso a los juegos</h3><p>Los casos que abras con tu pase aparecerán aquí.</p>' + linkToPass;
       if (!validId(this.selected)) this.selected = ids[0];
       const current = this.selected;
       const available = ids.includes(current);
-      return '<h3>Elige un juego</h3><label for="pp-game">Juegos de tus tableros</label><select id="pp-game" name="game">' +
+      return '<label for="pp-game">Elige un juego de tus tableros</label><select id="pp-game" name="game">' +
         (available ? '' : '<option value="' + current + '" selected>' + esc(title(current)) + ' · cerrado</option>') +
         groupedOptions(ids, current) + '</select><div class="pp-selection">' + img(current) + '<div><small>' +
-        esc(season(current)) + '</small><strong>' + esc(title(current)) + '</strong></div></div>' +
+        esc(season(current)) + '</small></div></div>' +
         (available ? '<a class="button primary" href="' + gameUrl(current) + '">Abrir el juego</a>' :
           '<p>Este juego aún está cerrado en tu cuenta.</p>' + linkToPass);
     }
@@ -281,12 +281,8 @@
       const lists = groups.filter(([,items]) => items.length).map(([heading, items]) =>
         '<section><h3>' + heading + '</h3><ul class="pp-list">' + items.map(i =>
           caseCard(i, this.available.includes(i.caseId), !!this.preferredEmail)).join('') + '</ul></section>').join('');
-      const contact = this.preferredEmail ? '<p>Tu compañero de juego · <b class="pp-contact-email">' + esc(this.preferredEmail) +
-        '</b></p><a class="text-link" href="/#perfil">Cambiar compañero en mi perfil</a>' :
-        '<p>Guarda el correo de la persona con la que quieres jugar en los cuatro tableros.</p><a class="text-link" href="/#perfil">Guardar mi compañero</a>';
-      this.innerHTML = '<section class="pp-panel" aria-labelledby="pp-title"><header><h2 id="pp-title">Jugar en pareja</h2>' +
-        contact + '</header><div class="pp-layout"><section class="pp-compose">' + this.compose() + '</section><div class="pp-inbox">' +
-        (lists || '<section><h3>Vuestras partidas</h3><p>Para empezar, abrid el mismo juego y elegid «En pareja» en cada cuenta. Podréis continuar desde aquí.</p></section>') +
+      this.innerHTML = '<section class="pp-panel" aria-labelledby="pp-title"><header><h2 id="pp-title">Partidas compartidas</h2></header><div class="pp-layout"><section class="pp-compose">' + this.compose() + '</section><div class="pp-inbox">' +
+        (lists || (this.available.length?'<p>Abrid el mismo caso y elegid «En pareja» desde ambas cuentas.</p>':'')) +
         '<button type="button" class="text-button" data-partner-reload>Actualizar partidas</button></div></div></section>';
     }
   }

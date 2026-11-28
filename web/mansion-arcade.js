@@ -92,6 +92,10 @@
   };
 
   class MansionArcade extends HTMLElement {
+    heading(title){
+      const dedicated=Boolean(this.closest('.reto-sala')),tag=dedicated?'h1':'h2';
+      return '<'+tag+' tabindex="-1">'+esc(title||(dedicated?'Sala de juegos de la mansión':'Minijuegos de la mansión'))+'</'+tag+'>';
+    }
     connectedCallback() {
       if(this.bound)return;
       this.bound=true;
@@ -101,7 +105,7 @@
       this.load();
     }
     async load() {
-      this.innerHTML='<section class="ma-panel"><h2>Minijuegos de la mansión</h2><p role="status">Abriendo la sala de juegos…</p></section>';
+      this.innerHTML='<section class="ma-panel">'+this.heading()+'<p role="status">Abriendo la sala de juegos…</p></section>';
       try {
         const signed=window.GameAccountBridge?.isSignedIn()===true;
         this.preview=!signed;
@@ -112,7 +116,7 @@
         if(this.preview)this.games=(await import('./mansion-arcade-catalog.js')).mansionArcadeCatalog;
         this.show();
       } catch(error) {
-        this.innerHTML='<section class="ma-panel"><h2>Minijuegos de la mansión</h2><p role="status">'+esc(error.message)+'</p><button type="button" data-act="retry">Volver a consultar</button></section>';
+        this.innerHTML='<section class="ma-panel">'+this.heading()+'<p role="status">'+esc(error.message)+'</p><button type="button" data-act="retry">Volver a consultar</button></section>';
       }
     }
     focusControl(act,value) {
@@ -123,16 +127,16 @@
       const game=this.games.find(g=>g.id===this.current);
       const back=this.hasAttribute('embedded')?'<button type="button" class="ma-back" data-act="return">Volver a la aventura</button>':'';
       if(!game) {
-        this.innerHTML=`<section class="ma-panel"><h2 tabindex="-1">Minijuegos de la mansión</h2>
+        this.innerHTML=`<section class="ma-panel">${this.heading()}
           <p class="ma-intro">Seis pruebas independientes en la casa de Ada. Puedes ganar hasta ocho llaves en total.${this.hasAttribute('embedded')?' Tu aventura continúa en la misma estancia cuando vuelvas.':''}</p>
           ${this.preview?'<p class="ma-access">La sala se abre al tener acceso al primer caso de Valdemar. <a href="/#planes">Ver el pase</a></p>':''}
           <div class="ma-cards">${this.games.map(g=>`<article><h3>${esc(g.title)}</h3><p>${esc(g.description)}</p><small>${g.solved?'Resuelto · recompensa recibida':keyCount(g.prize)+' al resolverlo'}</small>${this.preview?'':`<button type="button" data-act="open" data-value="${esc(g.id)}">${g.solved?'Volver a jugar':'Jugar'}<span class="ma-sr"> a ${esc(g.title)}</span></button>`}</article>`).join('')}</div>${back}</section>`;
       } else {
-        this.innerHTML=`<section class="ma-panel"><h2 tabindex="-1">${esc(game.title)}</h2>
+        this.innerHTML=`<section class="ma-panel">${this.heading(game.title)}
           ${screens[game.id](this.states[game.id])}<div class="ma-actions"><button type="button" class="ma-check" data-act="check" ${this.busy?'disabled':''}>${checks[game.id]}</button>
           <button type="button" data-act="back">Sala de minijuegos</button>${back}</div><p role="status" aria-live="polite">${esc(this.notice)}</p></section>`;
       }
-      if(focusTitle)this.querySelector('h2')?.focus();
+      if(focusTitle)this.querySelector('h1,h2')?.focus();
     }
     inputControl(event) {
       const field=event.target.dataset.field, state=this.states[this.current];
