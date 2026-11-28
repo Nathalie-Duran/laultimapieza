@@ -64,7 +64,7 @@
   }
   function hasProgress() {
     const save = readSave();
-    return !!save && (save.playMode === 'duo' || (Array.isArray(save.consulted) && save.consulted.length > 0));
+    return !!save && (save.playMode === 'solo' || save.playMode === 'duo' || (Array.isArray(save.consulted) && save.consulted.length > 0));
   }
   function asList(value) { return Array.isArray(value) ? value : []; }
   function saveBookmark(st) {
@@ -889,7 +889,7 @@
   }
   const archiveRoute=document.body?.dataset.vallejoStandalone==='true'&&new URLSearchParams(root.location.search).get('archivo')==='1';
   root.VallejoArchive = {open,close,hasProgress};
-  if(!archiveRoute)return;
+  if(!archiveRoute||!hasProgress())return;
   document.addEventListener('click', event => {
     const trigger = event.target.closest?.('[data-archivo-abrir]');
     if(trigger)open(trigger.dataset.vpFormat,trigger);

@@ -8,14 +8,19 @@ try{noticeReceipt=localStorage.getItem(noticeKey)||'';}catch{}
 function openingAction(){
  return noticeReceipt||state.waitlist?{label:'Ver mi aviso de apertura',target:'pase-aviso-titulo'}:{label:'Avísame cuando abra',target:'pase-correo-apertura'};
 }
+function publicOfferAction(){
+ if(configStatus!=='ready')return {href:'/#planes',label:'Ver la suscripción'};
+ if(config.checkoutAvailable)return {href:'/#alta-club',label:'Suscribirme'};
+ return {href:'/#alta-club',label:noticeReceipt||state.waitlist?openingAction().label:'Avisarme de la apertura'};
+}
 function interest(withHeading=true){
- if(state.waitlist)return '<section class="waiting-interest"><h3 id="pase-aviso-titulo" tabindex="-1">Ya estás en la lista de apertura</h3><p>Te avisaremos por correo cuando se abra la temporada.</p><button class="button" data-action="waitlist" data-enabled="false">Retirar el aviso de mi cuenta</button></section>';
- if(noticeReceipt)return '<section class="waiting-interest"><h3 id="pase-aviso-titulo" tabindex="-1">Ya has pedido el aviso</h3><p>Cuando abra la temporada recibirás un correo. Entonces podrás decidir si te suscribes.</p><form class="postal-list-form" data-notice="remove"><button class="button" type="submit">Retirar mi solicitud</button><p role="status"></p></form></section>';
+ if(state.waitlist)return '<section class="waiting-interest"><h3 id="pase-aviso-titulo" tabindex="-1">Ya estás en la lista de apertura</h3><p>Te avisaremos por correo cuando se abra la suscripción.</p><button class="button" data-action="waitlist" data-enabled="false">Retirar el aviso de mi cuenta</button></section>';
+ if(noticeReceipt)return '<section class="waiting-interest"><h3 id="pase-aviso-titulo" tabindex="-1">Ya has pedido el aviso</h3><p>Recibirás un correo cuando puedas suscribirte.</p><form class="postal-list-form" data-notice="remove"><button class="button" type="submit">Retirar mi solicitud</button><p role="status"></p></form></section>';
  return `<section class="waiting-interest">
    ${withHeading?'<h3>¿Te avisamos cuando abra?</h3>':''}
    <form class="postal-list-form" data-notice="join">
      <label>Tu correo electrónico<input id="pase-correo-apertura" type="email" name="email" maxlength="254" autocomplete="email" placeholder="tu@correo.es" required></label>
-     <label class="notice-consent"><input type="checkbox" name="consent" required> <span>Quiero recibir un correo cuando abra la temporada.</span></label>
+     <label class="notice-consent"><input type="checkbox" name="consent" required> <span>Quiero recibir un correo cuando se abra la suscripción.</span></label>
      <button class="button primary" type="submit">Avisarme de la apertura</button>
      <p class="micro">Puedes retirar el aviso desde este navegador. <a href="/privacidad.html#avisos">Cómo usamos tu correo</a></p>
      <p role="status"></p>
@@ -46,7 +51,7 @@ const seasonRoutes=['casos','expedicion','umbravia','necropolis'];
 function passMap(number,held){
  const paid=new Set(held?.paidBlocks||[]);
  return `<section class="pase-recorrido" aria-labelledby="pase-progresion"><h2 id="pase-progresion">Así completas una temporada</h2>
-  <ol class="pase-bloques">${[1,2,3].map(block=>`<li${paid.has(block)?' class="pase-abonado"':''}><small>Cuota ${block}${paid.has(block)?' · abonada':''}</small><strong>${block*4}<span> / 12 juegos</span></strong></li>`).join('')}</ol>
+  <ol class="pase-bloques">${[1,2,3].map(block=>`<li${paid.has(block)?' class="pase-abonado"':''}><small>Cuota ${block}${paid.has(block)?' · abonada':''}</small><span class="pase-bloque-juegos">Juegos</span><strong>${(block-1)*4+1}–${block*4}</strong></li>`).join('')}</ol>
   <p>Al terminar los doce juegos de ${seasonNames[number-1]}, ${number===4?'completas la última temporada.':'puedes jugar los bloques que ya hayas abonado de la siguiente temporada.'} <a href="/#tableros">Ver las temporadas</a></p></section>`;
 }
 function blockGames(number,block){
@@ -63,7 +68,7 @@ function blockGames(number,block){
   }).join('')}</ol></section>`;
 }
 function adminCard(){
- const billing=state.hasCustomer?renewalControls()+'<button class="button" data-action="billing-portal">Ver mis facturas</button>':'<p>Tu acceso editorial es gratuito. No tienes una suscripción personal que se renueve.</p>';
+ const billing=renewalControls()+(state.hasCustomer?'<button class="button" data-action="billing-portal">Ver mis facturas</button>':'');
  return '<section class="account-card"><span class="club-kicker">Acceso editorial</span><h2>Tienes los 48 juegos abiertos</h2><p>Para jugar en pareja, guarda a tu compañero en Mi cuenta y pulsad «En pareja» en el mismo juego desde vuestras cuentas.</p><a class="button" href="/#casos">Abrir Juegos</a> <a class="button" href="/#perfil?seccion=pareja">Ver mi compañero de juego</a><h3>Facturación personal</h3>'+billing+'</section>';
 }
 function catalogPaid(access){return (access?.seasons||[]).reduce((sum,season)=>sum+season.paidBlocks.length,0)>=12;}
@@ -100,7 +105,7 @@ function questions(){
    <details><summary>¿Qué ocurre si me salto un desafío diario o una misión semanal?</summary><p>Tu partida y tus llaves se conservan. Desde el primer caso de Código Valdemar puedes jugar una prueba diaria por una llave y una misión de tres etapas por dos llaves cada semana. Cada edición indica cuándo cierra, en horario de Madrid. <a href="/#desafios">Ver los Retos extra disponibles</a></p></details>
    <details><summary>¿Cómo paso a la siguiente temporada?</summary><p>Al guardar los doce desenlaces de una temporada puedes jugar los bloques ya abonados de la siguiente. Cada cuota nueva se acumula aunque avances más despacio. <a href="/#tableros">Ver las cuatro temporadas en orden</a></p></details>
    <h2>Cobros, privacidad y avisos</h2>
-   <details><summary>¿Cómo gestiono o cancelo mi suscripción?</summary><p>En tu perfil, abre Suscripción y pulsa «Dar de baja mi suscripción». Comprueba la fecha y elige «Confirmar la baja» para detener las renovaciones. Conservas el acceso durante el periodo abonado. Después podrás terminar las temporadas que hayas abonado por completo, en orden. Con la suscripción mensual actual los cobros terminan automáticamente cuando quedan abonados los 48 juegos. Los pases de temporada contratados anteriormente conservan su calendario original. <a href="/#suscripcion">Abrir Suscripción</a></p></details>
+   <details><summary>¿Cómo gestiono o cancelo mi suscripción?</summary><p>Abre la gestión de la baja. Si tienes una renovación pendiente, verás la fecha hasta la que puedes jugar. Para detener los próximos cobros, pulsa «Confirmar la baja». Conservas el periodo abonado y puedes terminar las temporadas pagadas por completo, en orden.</p><p>${renewalLink()}</p></details>
    <details><summary>¿Qué datos guardáis y cómo puedo gestionarlos?</summary><p>La cuenta conserva tus partidas, etapas y desenlaces para que puedas volver a ellos. La demo recuerda tu avance en el navegador. Consulta tus controles o escribe al Equipo de LaUltimaPieza.es en <a href="mailto:info@laultimapieza.es">info@laultimapieza.es</a> para ejercer tus derechos. <a href="/privacidad.html">Ver privacidad y datos</a></p></details>
    <details><summary>¿Puedo retirar el aviso de apertura?</summary><p>Abre la gestión de avisos en el navegador donde lo solicitaste. Si usas otro dispositivo, puedes retirarlo desde una cuenta con ese mismo correo verificado. <a href="/#planes?gestion=aviso">Gestionar mi aviso</a></p></details>
  </section>`;
@@ -117,51 +122,89 @@ function noticeManagement(){
  <p class="pase-links"><a href="/privacidad.html#avisos">Privacidad del aviso</a> · <a href="/#planes">Volver al pase</a></p>
  </article></div></section>`;
 }
+const renewalRoute='#suscripcion?seccion=baja';
+const renewalTitle='Dar de baja mi suscripción';
+let review=null;
+function renewalLink(){
+ return '<a href="/'+renewalRoute+'">'+renewalTitle+'</a>';
+}
+function renewalRequested(){return root.location?.hash===renewalRoute;}
+function renewalDate(value){
+ const date=new Date(value);
+ return value&&Number.isFinite(date.getTime())?date.toLocaleDateString('es-ES',{timeZone:'Europe/Madrid',day:'numeric',month:'long',year:'numeric'}):'';
+}
+function renewalResult(info){
+ const date=renewalDate(info?.effectiveAt);
+ const until=date?' El periodo abonado termina el '+date+'.':'';
+ switch(info?.status){
+  case 'scheduled':return '<h4>Baja programada</h4><p>Ya has detenido las renovaciones.'+until+'</p>';
+  case 'ending':return '<h4>Último periodo abonado</h4><p>Tu pase termina sin otra renovación.'+until+'</p>';
+  case 'ended':return '<h4>Suscripción finalizada</h4><p>Esta suscripción ya no se renueva.</p>';
+  case 'none':return '<h4>Sin renovaciones pendientes</h4><p>No tienes una suscripción personal que se renueve.</p>';
+  default:return '';
+ }
+}
+function renewalMessage(){
+ if(!root.GameAccountBridge?.isSignedIn?.())return '<p>Inicia sesión con la cuenta con la que contrataste el pase para consultar o cancelar su renovación.</p><button type="button" class="button primary" data-action="auth-login">Iniciar sesión</button>';
+ if(state.hasCustomer===false)return '<p>'+(state.role==='admin'?'Tu acceso editorial es gratuito. ':'')+'Esta cuenta no tiene una suscripción de pago. No hay renovaciones que cancelar.</p>';
+ if(state.hasCustomer!==true)return '<p>No hemos podido comprobar si esta cuenta tiene una suscripción. Recarga la página para volver a consultarlo.</p><button class="button" type="button" data-reload-offer>Volver a comprobar</button>';
+ if(review?.error)return '<p role="alert">'+esc(review.error)+'</p><button type="button" class="button" data-renewal="retry">Volver a comprobar</button>';
+ if(!review?.result)return '<p>Consultando tu suscripción…</p>';
+ if(review.result.status!=='available')return renewalResult(review.result);
+ if(review.saving)return '<p>Guardando la baja…</p>';
+ return '<h4>¿Confirmas la baja de tu suscripción?</h4><p>Podrás jugar hasta el <strong>'+esc(renewalDate(review.result.effectiveAt))+'</strong>. Si confirmas, se detendrán las próximas renovaciones. Conservarás tu cuenta y tus partidas.</p><div class="renewal-buttons"><button class="button renewal-confirm" type="button" data-renewal="confirm">Confirmar la baja</button><a class="button" href="/#suscripcion" data-renewal="back">Mantener mi suscripción</a></div>';
+}
 function renewalControls(){
- const info=state.renewal||{};
- if(!state.hasCustomer)return '';
- if(info.status==='none')return '<p>No tienes una suscripción personal que se renueve.</p>';
- const date=info.effectiveAt?new Date(info.effectiveAt).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric',timeZone:'Europe/Madrid'}):'';
- let content;
- if(info.status==='scheduled')content='<h3>Baja programada</h3><p>La renovación está cancelada.'+(date?' El periodo termina el '+date+'.':'')+'</p>';
- else if(info.status==='ended')content='<h3>Suscripción finalizada</h3><p>Esta suscripción ya no se renueva.</p>';
- else if(info.status==='ending'||catalogPaid(state.seasonAccess)||state.seasonAccess?.billingPlan==='season'&&state.seasonAccess?.seasons?.filter(s=>s.paidBlocks?.length&&s.previousReady!==false).at(-1)?.paidBlocks.length===3)content='<h3>Último periodo abonado</h3><p>Este pase ha completado sus cuotas y ya no se renueva.</p>';
- else content='<button type="button" class="button renewal-open" data-renewal="review">Dar de baja mi suscripción</button>';
- return '<section class="renewal-controls" aria-label="Baja de la suscripción">'+content+'<div class="renewal-status" aria-live="polite"></div></section>';
+ if(!renewalRequested()){
+  const status=state.hasCustomer===true&&state.renewal?.status!=='none'?renewalResult(state.renewal):'';
+  return '<section class="renewal-controls" aria-label="Baja de la suscripción"><a class="button renewal-open" href="/'+renewalRoute+'" data-renewal="review">'+renewalTitle+'</a>'+status+'</section>';
+ }
+ return '<section class="renewal-controls" aria-labelledby="baja-titulo"><h3 id="baja-titulo" tabindex="-1">'+renewalTitle+'</h3><div class="renewal-status" aria-live="polite">'+renewalMessage()+'</div></section>';
 }
-async function handleRenewal(event){
- const button=event.target.closest?.('[data-renewal]');
- if(!button||button.disabled)return;
- const box=button.closest('.renewal-controls');
- const label=box.querySelector('.renewal-status');
- const opener=box.querySelector('[data-renewal="review"]');
- if(button.dataset.renewal==='back'){label.replaceChildren();opener.hidden=false;opener.focus();return;}
- const verify=button.dataset.renewal==='confirm';
- if(verify)for(const b of label.querySelectorAll('button'))b.disabled=true;
- button.disabled=true;
- const bridge=root.GameAccountBridge;
+function refreshRenewalMessage(){
+ const label=document.querySelector('.renewal-status');
+ if(!label)return;
+ const refocus=label.contains(document.activeElement);
+ label.innerHTML=renewalMessage();
+ if(refocus||document.activeElement===document.body)document.getElementById('baja-titulo')?.focus({preventScroll:true});
+}
+async function checkRenewal(entry,confirmation){
  try{
-  const response=verify?await bridge.request('/api/billing/cancellation',{confirm:true,confirmation:button.dataset.confirmation},'POST'):await bridge.request('/api/billing/cancellation',undefined,'GET');
-  if(!box.isConnected)return;
-  const date=response.effectiveAt?new Date(response.effectiveAt).toLocaleDateString('es-ES',{timeZone:'Europe/Madrid',day:'numeric',month:'long',year:'numeric'}):'';
-  if(response.status==='available'&&!verify&&typeof response.confirmation==='string'){
-    opener.hidden=true;
-    label.innerHTML='<h3 tabindex="-1">¿Confirmas la baja de tu suscripción?</h3><p>Las renovaciones se detendrán el <strong>'+esc(date)+'</strong>. Conservarás el tiempo ya abonado, tu cuenta y tus partidas. Las facturas ya emitidas mantienen su estado.</p><div class="renewal-buttons"><button class="button" type="button" data-renewal="back">Mantener mi suscripción</button><button class="button renewal-confirm" type="button" data-renewal="confirm">Confirmar la baja</button></div>';
-    label.querySelector('[data-renewal="confirm"]').dataset.confirmation=response.confirmation;
-  }else if(['scheduled','ended','ending','none'].includes(response.status)){
-    state={...state,renewal:{status:response.status,effectiveAt:response.effectiveAt}};
-    opener.hidden=true;
-    const message=response.status==='scheduled'?['Baja programada','Las renovaciones quedan canceladas. El periodo termina el '+date+'.']:response.status==='ending'?['Último periodo de la suscripción','El pase termina el '+date+' sin otra renovación.']:['Sin renovaciones pendientes','Esta cuenta no tiene una suscripción pendiente de renovación.'];
-    label.innerHTML='<h3 tabindex="-1">'+message[0]+'</h3><p>'+message[1]+'</p>';
-  }else{throw Error('No hemos podido confirmar el estado de la suscripción.');}
-  label.querySelector('h3')?.focus();
+  const bridge=root.GameAccountBridge,path='/api/billing/cancellation';
+  const result=confirmation?await bridge.request(path,{confirm:true,confirmation},'POST'):await bridge.request(path,undefined,'GET');
+  if(review!==entry||!renewalRequested())return;
+  if(result?.status==='available'&&!confirmation&&typeof result.confirmation==='string'&&result.confirmation&&renewalDate(result.effectiveAt)){
+   entry.result=result;
+  }else if(renewalResult(result)){
+   entry.result=result;
+   state={...state,renewal:{status:result.status,effectiveAt:result.effectiveAt}};
+  }else throw Error('No hemos podido verificar el estado de tu suscripción.');
  }catch(error){
-  if(!box.isConnected)return;
-  label.innerHTML='<p role="alert"></p>';label.firstElementChild.textContent=error.message||'No se ha podido verificar la baja. Consulta de nuevo su estado.';
-  opener.hidden=false;opener.focus();
- }finally{if(opener)opener.disabled=false;}
+  if(review!==entry||!renewalRequested())return;
+  entry.error=error.message||'No hemos podido verificar el estado de tu suscripción.';
+  entry.result=null;
+ }
+ if(review===entry&&renewalRequested()){entry.saving=false;refreshRenewalMessage();}
 }
-if(typeof document!=='undefined')document.addEventListener('click',handleRenewal);
+function mountRenewal(){
+ if(!renewalRequested()){review=null;return;}
+ const heading=document.getElementById('baja-titulo');
+ if(!heading)return;
+ heading.focus({preventScroll:true});
+ heading.scrollIntoView({block:'start',behavior:'instant'});
+ if(root.GameAccountBridge?.isSignedIn?.()&&state.hasCustomer===true&&!review){
+  review={};
+  checkRenewal(review);
+ }
+}
+if(typeof document!=='undefined')document.addEventListener('click',event=>{
+ const button=event.target.closest?.('[data-renewal]');
+ if(!button||!renewalRequested())return;
+ if(button.dataset.renewal==='retry'){review=null;refreshRenewalMessage();mountRenewal();}
+ if(button.dataset.renewal==='confirm'&&review?.result?.status==='available'&&!review.saving){
+  review.saving=true;refreshRenewalMessage();checkRenewal(review,review.result.confirmation);
+ }
+});
 function presentOffer(number,held,offer,reviewing,focused,signed){
  const access=state.seasonAccess,paid=catalogPaid(access);
  const ready=configStatus==='ready',eligible=!signed||!access||Boolean(offer);
@@ -172,7 +215,7 @@ function presentOffer(number,held,offer,reviewing,focused,signed){
  const block=offer?.number===number&&offer.blocks?.length?offer.blocks[0]:Math.max(1,...(held?.paidBlocks||[]));
  const goBack='<a href="/#planes">Volver al pase</a>',help='<a href="/#planes?seccion=preguntas">Preguntas frecuentes</a>';
  const terms=[['Condiciones',config.termsUrl],['Política de privacidad',config.privacyUrl]].filter(([,url])=>typeof url==='string'&&/^https:\/\//i.test(url)).map(([label,url])=>`<a href="${esc(url)}" rel="noopener" target="_blank">${label}</a>`).join(' · ');
- if(focused&&waiting)return `<section class="pase-temporada pase-sencillo"><p class="pase-links">${goBack}</p><article class="pase-ficha"><h1>Aviso de apertura</h1><p>Te escribiremos cuando puedas suscribirte a los cuatro juegos mensuales. Pedir el aviso es gratis.</p><div class="pase-decision">${interest(false)}</div></article></section>`;
+ if(focused&&waiting)return `<section class="pase-temporada pase-sencillo"><p class="pase-links">${goBack}</p><article class="pase-ficha"><h1>Aviso de apertura</h1><p>La primera cuota abre los cuatro primeros misterios de Código Valdemar. La suscripción cuesta ${monthlyPrice()} por persona al mes, IVA incluido.</p><p>Déjanos tu correo y te avisaremos cuando abra. El aviso es gratuito y tú decides entonces si te suscribes.</p><div class="pase-decision">${interest(false)}</div><a class="pase-demo-espera" href="/cinta-87.html">Mientras esperas, juega gratis a La cinta 87</a></article></section>`;
  const completedSeason=state.ownAccess&&access?.billingPlan==='season'&&!nextBill;
  const returning=state.ownAccess||paid||(!eligible&&ready);
  let action;
@@ -197,12 +240,12 @@ function presentOffer(number,held,offer,reviewing,focused,signed){
  return `<section class="pase-temporada" data-season="${number}"><header class="pase-escena pase-resumen">
     <img class="pase-fondo" src="${heroImage}" alt="" width="1536" height="1024" fetchpriority="high">
     <div class="pase-apertura"><p class="pase-supra">Suscripción personal</p><h1>${title}</h1>${price}
-    <p class="pase-premisa">${returning?status:'Investiga a solas o en pareja. Cada juego dura unos 60 minutos.'}</p>
+    <p class="pase-premisa">${returning?status:'Abre el primer expediente de Código Valdemar. Examina fotografías, escucha grabaciones y contrasta pistas hasta resolver el misterio. Juega a solas o comparte la investigación en pareja. Cada juego dura unos 60 minutos.'}</p>
     <div class="pase-acciones">${action}${signed?'<a class="pase-muestra" href="/#archivo">Volver a mis partidas</a>':'<a class="pase-muestra" href="/cinta-87.html">Probar la demo de La cinta 87</a>'}</div>
     ${!returning?'<p class="pase-disponibilidad" role="status">'+(configStatus==='loading'?'':status)+'</p>':''}</div></header>
     ${blockGames(number,block)}
     <div class="pase-comparativa">${passMap(number,held)}<section class="pase-condiciones"><h2>Cuotas y renovación</h2><p>${detail}</p>${partner}${terms?'<p>'+terms+'</p>':''}</section></div>
-    <p class="pase-links">${help} · <a href="/#casos">Explorar Juegos</a>${!signed?' · <button type="button" class="pase-login" data-action="auth-login">Ya tengo cuenta · Entrar</button>':''}</p></section>`;
+    <p class="pase-links">${help} · ${renewalLink()} · <a href="/#casos">Explorar Juegos</a>${!signed?' · <button type="button" class="pase-login" data-action="auth-login">Ya tengo cuenta · Entrar</button>':''}</p></section>`;
 }
 function plans(){
  const hash=typeof location==='undefined'?'#planes':location.hash;
@@ -211,11 +254,11 @@ function plans(){
  const back='<a href="/#planes">Volver al pase</a>';
  const signed=root.GameAccountBridge?.isSignedIn?.()===true;
  if(params.get('gestion')==='aviso')return noticeManagement();
- if(params.get('seccion')==='preguntas')return '<div class="pase-temporada pase-ayuda"><p class="pase-links">'+back+'</p>'+questions()+'</div>';
+ if(params.get('seccion')==='preguntas')return '<div class="pase-temporada pase-ayuda"><nav class="pase-links" aria-label="Gestiones de suscripción">'+back+' '+renewalLink()+'</nav>'+questions()+'</div>';
  if(params.get('checkout')==='complete')return `<section class="pase-temporada pase-sencillo"><article class="pase-ficha" role="status"><h1>${state.ownAccess?'Tu pase está activo':'Estamos comprobando tu pase'}</h1><p>${state.ownAccess?'Tu pago está confirmado. En tu perfil puedes ver los juegos que ya puedes abrir.':'Tus juegos aparecerán en el perfil cuando se confirme el pago.'}</p><a class="button primary" href="/#perfil">Abrir mi perfil</a></article></section>`;
  if(page==='#suscripcion'||(page==='#alta-club'&&signed&&state.ownAccess)){
    if(signed)return '<section class="pase-temporada pase-sencillo"><h1>Mi suscripción</h1>'+root.ClubAccess.account(true)+'<p class="pase-links">'+help+'</p></section>';
-   return '<section class="pase-temporada pase-sencillo"><article class="pase-ficha"><h1>Mi suscripción</h1><p>Entra para consultar tus bloques y gestionar tu pase personal.</p><div class="pase-acciones"><button class="button primary" data-action="auth-login">Entrar con mi cuenta</button><a href="/#planes">Ver el pase</a></div></article></section>';
+   return '<section class="pase-temporada pase-sencillo"><article class="pase-ficha"><h1>Mi suscripción</h1>'+(!renewalRequested()?'<p>Entra para consultar tus bloques y gestionar tu pase personal.</p><button class="button primary" data-action="auth-login">Entrar con mi cuenta</button>':'')+renewalControls()+'<p class="pase-links"><a href="/#planes">Ver el pase</a></p></article></section>';
  }
  if(state.role==='admin')return '<section class="pase-temporada pase-sencillo"><h1>Tu acceso editorial</h1>'+adminCard()+'<p class="pase-links">'+help+'</p></section>';
  const access=state.seasonAccess;
@@ -228,7 +271,7 @@ function plans(){
  const focused=page==='#alta-club'||reviewing;
  return presentOffer(number,held,offer,reviewing,focused,signed);
 }
-root.ClubAccess={...old,plans,enrollment:plans,gate(){
+root.ClubAccess={...old,plans,enrollment:plans,mountRenewal,renewalRequested,get offerAction(){return publicOfferAction();},gate(){
  const signed=root.GameAccountBridge?.isSignedIn?.()===true;
  const action=configStatus==='ready'&&!config.checkoutAvailable?'Ver el pase y pedir el aviso':'Ver la suscripción mensual';
  return '<section class="pase-temporada pase-acceso"><div class="pase-ficha"><h1>Este juego forma parte de la suscripción</h1><p>Cuatro juegos por '+monthlyPrice()+' por persona al mes, IVA incluido. Cada temporada reúne doce juegos.</p><div class="pase-acciones"><a class="button primary" href="/#planes">'+action+'</a>'+(signed?'<a class="button" href="/#archivo">Ver mis partidas</a>':'<button type="button" class="button" data-action="auth-login">Ya tengo cuenta · Entrar</button>')+'<a href="/cinta-87.html">Jugar la demo gratuita</a></div></div></section>';
@@ -237,7 +280,7 @@ root.ClubAccess={...old,plans,enrollment:plans,gate(){
  const page=typeof location==='undefined'?'':location.hash.split('?')[0];
  if(['#planes','#alta-club','#suscripcion','#gestion'].includes(page))return '';
  return '<aside class="paid-banner" aria-label="Acceso editorial"><span class="paid-dot" aria-hidden="true"></span><p><strong>Acceso editorial</strong> · 48 aventuras disponibles.</p></aside>';
-},get salesState(){return configStatus==='ready'?(config.checkoutAvailable?'open':'waitlist'):'unknown';},get price(){return monthlyPrice();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){state=value||{canPlay:false};},account(standalone=false){
+},get salesState(){return configStatus==='ready'?(config.checkoutAvailable?'open':'waitlist'):'unknown';},get price(){return monthlyPrice();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){if(!value||state.hasCustomer!==value.hasCustomer)review=null;state=value||{canPlay:false};},account(standalone=false){
  if(state.role==='admin') return adminCard();
  const access=state.seasonAccess;
  const current=access?.seasons?.filter(s=>s.paidBlocks.length && s.previousReady!==false).at(-1);
@@ -264,5 +307,5 @@ fetch('/api/billing/config',{cache:'no-store'}).then(async response=>{
  const value=await response.json();
  if(typeof value.checkoutAvailable!=='boolean')throw Error('config');
  config=value;configStatus='ready';
-}).catch(()=>{configStatus='error';}).finally(()=>root.GameAccountBridge?.render());
+}).catch(()=>{configStatus='error';}).finally(()=>{root.GameAccountBridge?.render();root.dispatchEvent?.(new Event('club-offer-ready'));});
 })(globalThis);
