@@ -143,6 +143,7 @@ test('las rutas del cuaderno de un titular sin cuota conservan cuenta, archivo y
   assert.equal(app.bridge.playerName(),'Alicia');
   const routes=[['#perfil','Cuaderno del aventurero'],['#perfil?seccion=trayectoria','profile-collection data-career'],
     ['#perfil?seccion=coleccion','lup-explorador collection'],['#perfil?seccion=logros','<profile-collection>'],
+    ['#perfil?seccion=coleccion&ver=hallazgos','lup-explorador collection'],
     ['#perfil?seccion=archivo-secreto','profile-collection data-archive'],['#perfil?seccion=llaves','profile-collection data-keys'],
     ['#perfil?seccion=pareja','<profile-partners>'],['#perfil?seccion=cuenta','<play-notice-preferences>'],['#archivo','Mis partidas']];
   for(const [route,expected] of routes)assert.ok(app.visit(route).includes(expected),route);
