@@ -76,3 +76,43 @@
 @media(max-width:34rem){.tr-choices{padding:.6rem}.tr-draft{margin-inline:.6rem}.tr-cover{min-height:9rem}.tr-mounted{align-items:flex-start}.tr-inspector{margin:.35rem}.tr-bench .tr-piece{min-height:2.9rem}}
 @media(prefers-reduced-motion:reduce){.tr-playing{animation:none}}
 
+
+
+/* Radio Valdemar uses the same reading surface and scene proportions as the mansion. */
+#valdemar-player [data-vd-case="04"] .radio-desk {
+  padding:0; margin:.8rem 0 0; min-width:0; background:#161513; color:#f5ead7;
+  border:1px solid #5a4e3a; border-radius:.45rem; box-shadow:none;
+}
+#valdemar-player .radio-desk > .mj-objective-dock {
+  margin:0; padding:.55rem 1.25rem; background:#211d17; border:0;
+  border-bottom:1px solid #5a4e3a; border-radius:0; box-shadow:none;
+}
+#valdemar-player .radio-desk > .mansion-tabs {
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.25rem;
+  padding:0 1.25rem; margin:0; background:#161513; border:1px solid #5a4e3a; border-radius:.4rem;
+}
+#valdemar-player .radio-desk .mansion-tabs > button {
+  width:100%; min-width:0; min-height:44px; margin:0; padding:.35rem .6rem;
+  background:transparent; color:#f5ead4; border:1px solid transparent; border-radius:.25rem;
+  font:700 .91rem/1.25 "Segoe UI",Arial,sans-serif;
+}
+#valdemar-player .radio-desk .mansion-tabs > button[aria-pressed=true] {
+  color:#edc78a; background:#211d17; border-color:#f4ce8c; border-bottom:2px solid #edc78a;
+}
+#valdemar-player .radio-desk .radio-scenario:not([hidden]) {display:block; margin:0; padding:0; border:0; background:#161513; color:#f5ead7; box-shadow:none;}
+#valdemar-player .radio-scenario .mansion-header {margin:0; padding:.55rem 1rem; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.4rem 1rem; background:linear-gradient(115deg,#211d17,#161513 75%);}
+#valdemar-player .radio-scenario .radio-layout {display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); align-items:start; gap:.65rem 1.25rem; padding:1.25rem;}
+#valdemar-player .radio-layout .mansion-stage {grid-column:1 / 10; min-width:0; margin:0;}
+#valdemar-player .radio-layout .ae-stage {margin:0; width:100%; border-radius:.25rem; overflow:hidden;}
+#valdemar-player .radio-layout .mansion-scene-tools {grid-column:10 / -1; min-width:0; border:0; border-left:1px solid #5a4e3a; padding:.45rem .3rem .4rem clamp(.75rem,1.7vw,1.4rem); background:transparent;}
+#valdemar-player .radio-layout .mansion-paper-task {margin:.55rem 0 1rem; padding:0; background:transparent; border:0; color:#f5ead7;}
+#valdemar-player .radio-layout .mansion-find {width:100%; position:static; transform:none; min-width:0; text-align:left;}
+#valdemar-player .radio-scenario > :is(details,lup-explorador) {margin:.7rem 1.25rem;}
+#valdemar-player .radio-desk .hotel-related {display:flex; flex-wrap:wrap; gap:.5rem; padding:.75rem 1.25rem;}
+#valdemar-player .radio-desk [data-case-pane][hidden] {display:none;}
+@media(max-width:760px){
+  #valdemar-player .radio-desk > .mansion-tabs {padding:0 .2rem;gap:0;}
+  #valdemar-player .radio-desk .mansion-tabs > button {padding:.3rem .08rem;font-size:.85rem;}
+  #valdemar-player .radio-scenario .radio-layout {grid-template-columns:minmax(0,1fr);padding:.75rem;}
+  #valdemar-player .radio-layout :is(.mansion-stage,.mansion-scene-tools) {grid-column:1; border:0; padding:0;}
+}
