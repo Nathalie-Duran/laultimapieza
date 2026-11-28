@@ -176,7 +176,7 @@
     return {node:wrap,redraw};
   }
   function render({stage,draft,actions,submit,perform,world,inventory,mission}) {
-    const [kind,title,symbol]=mission?['mission',stage.title,'◇']:mechanisms[Number(stage.number)-1]||['mesa',stage.title,'◇'];
+    const [kind,title,symbol]=mission?['mission','Resolver la misión','◇']:mechanisms[Number(stage.number)-1]||['mesa',stage.title,'◇'];
     const box=el('section','mansion-puzzle');box.dataset.kind=kind;
     const heading=el('h3','mansion-puzzle-title',title);heading.tabIndex=-1;
     box.append(heading);

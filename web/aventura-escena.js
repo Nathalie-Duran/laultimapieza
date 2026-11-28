@@ -51,7 +51,18 @@
     if(story.intro)briefing.append(el('p',null,story.intro));
     host.replaceChildren(toolbar,heading,stage,party,setup,objective,tools,instrument);
     if(story.intro||story.question)host.append(briefing);
-    let lastMode,signature,currentHour,light=false;
+    let lastMode,signature,currentHour,light=false,lastPoint;
+    host.addEventListener('click',event=>{const point=event.target.closest?.('button');if(point&&host.contains(point))lastPoint=point;},true);
+    const back=button('Volver al escenario',()=>{
+      actions('scene');
+      const point=lastPoint?.isConnected&&host.contains(lastPoint)&&!lastPoint.closest('details:not([open])')?lastPoint:markers.querySelector('button');
+      point?.focus({preventScroll:true});(point||stage).scrollIntoView({block:'center'});
+    },'ae-back');
+    function returnFrom(target){
+      if(!target||back.parentElement===target)return;
+      if(target.tagName==='DETAILS'&&target.firstElementChild)target.firstElementChild.after(back);
+      else target.prepend(back);
+    }
     function marker(text,name,info,slot){
       const control=button('',()=>actions(name,info),'ae-marker');
       control.dataset.action=name;
@@ -84,7 +95,7 @@
       }else if(together)crew='Revisión editorial · Papel '+(filter==='B'?'2':'1');
       else if(mode==='solo')crew=playerName?'En solitario · '+playerName:'En solitario';
       party.textContent=crew;party.hidden=!crew;
-      label.textContent=mode==='pending'?'Elegir modalidad de juego':'Cambiar modalidad';
+      label.textContent=mode==='pending'?'Cómo quieres jugar':'Cambiar modalidad';
       const phase=state.stage;
       const visible=(phase?.materials||[]).filter(item=>!filter||!item.role||item.role==='AB'||item.role===filter||item.role===(filter==='A'?1:2));
       const next=JSON.stringify([state.current,phase?.title,mode,filter,visible.map(item=>[item.id,item.label]),data.progress?.choice,data.progress?.deduced]);
@@ -93,7 +104,9 @@
       const total=state.stages?.length||0;
       progress.textContent=phase?'Etapa '+(state.current+1)+' de '+total:'Investigación completada';
       place.textContent=phase?.place||options.place||phase?.title||story.title;
-      goal.textContent=phase?(phase.task||phase.brief||phase.title):data.progress?.choice?'Releer el desenlace guardado.':data.progress?.deduced?'Decidir cómo cerrar la historia.':'Contrastar la deducción final.';
+      goalLabel.textContent=phase?.title||'Objetivo actual';
+      goal.textContent=phase?(phase.brief===phase.task?'':phase.brief||''):data.progress?.choice?'Releer el desenlace guardado.':data.progress?.deduced?'Decidir cómo cerrar la historia.':'Contrastar la deducción final.';
+      goal.hidden=!goal.textContent;
       if(world==='expedicion'||world==='valdemar'){
         const list=el('ol','ae-route');
         for(const [index,step] of (state.stages||[]).entries()){
@@ -135,7 +148,7 @@
     }
     const observer=new MutationObserver(()=>update());
     observer.observe(frame,{attributes:true,attributeFilter:['data-play-mode','data-play-paper']});
-    return {update,focus(){markers.querySelector('button')?.focus({preventScroll:true});host.scrollIntoView({block:'start'});},destroy(){observer.disconnect();explorer.destroy();}};
+    return {update,returnFrom,focus(){markers.querySelector('button')?.focus({preventScroll:true});host.scrollIntoView({block:'start'});},destroy(){observer.disconnect();explorer.destroy();}};
   }
   window.AventuraEscena=Object.freeze({mount,mountExplorer});
 })();

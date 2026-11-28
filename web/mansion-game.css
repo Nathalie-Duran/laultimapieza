@@ -229,6 +229,8 @@
 }
 .mansion-game .mansion-marker[aria-pressed="true"] { color: #20251d; background: var(--house-metal); }
 .mansion-game .mansion-marker .mansion-dot { font-variant-numeric: tabular-nums; }
+.mansion-game .mansion-marker .mansion-dot::before {content:attr(data-number);}
+.mansion-game .mansion-device-pin .mansion-marker-label {opacity:1;}
 .mansion-game .mansion-marker-label {
   position: absolute;
   inset-block-start: calc(100% + .5rem);

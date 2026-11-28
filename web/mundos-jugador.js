@@ -91,6 +91,7 @@
     c.tab=tab;
     for(const [k,panel] of Object.entries(c.panels))panel.hidden=k!==tab;
     for(const [k,btn] of Object.entries(c.controls))btn.setAttribute('aria-pressed',String(k===tab));
+    c.scene?.returnFrom(c.panels[tab]);
     if(focus && c.frame.dataset.playMode==='pending'){
       c.modeControl.entry.querySelector('button')?.focus();return;
     }
@@ -104,6 +105,7 @@
   function refreshHelp(c) {
     const h=c.panels.help;
     h.replaceChildren(el('p',worlds.edition(c.item.world).notebook,'md-caption'),el('h2','Pistas del caso'));
+    if(c.tab==='help')c.scene?.returnFrom(h);
     window.Keyring.render(h,{id:c.item.id,data:c.data,buttonClass:'md-action',play:()=>select(c,'side',true),
       buy:async (op,quotedCost)=>{updateWallet(c,await request(c,op,{quotedCost}));refreshHelp(c);h.focus({preventScroll:true});}});
   }
@@ -140,6 +142,7 @@
     const target=c.panels.end,{hour,story,progress}=c.data;
     c.scene?.update(hour);
     target.replaceChildren(el('p',worlds.nameOf(c.item.world),'md-caption'),el('h2','El desenlace'));
+    if(c.tab==='end')c.scene?.returnFrom(target);
     if(hour.stage && !progress.choice){
       target.append(el('p','Has resuelto '+hour.current+' de '+hour.stages.length+' etapas. El cuaderno reúne las pruebas que necesitarás al final.'),button('Volver a la etapa actual',()=>select(c,'main',true),'md-cta'));return;
     }
@@ -151,12 +154,13 @@
     if(progress.choice){
       const name=story.choices.find(o=>o.id===progress.choice)?.label;
       target.append(el('h3',name||'Tu decisión'),el('p',progress.outcome),window.SellosTemporada.afterCase(c.item.id,c.bridge,c.endingAccess),link(worlds.edition(c.item.world).returnLabel,worlds.route(c.item.world,c.item.id),'md-cta'));
-      const summary=el('aventura-resumen');summary.dataset.case=String(c.item.id);target.append(summary);
+      const summary=el('aventura-resumen');summary.dataset.case=String(c.item.id);summary.dataset.navigation='seal';target.append(summary);
     } else target.append(concludeForm(c,story.choices,'¿Cómo queréis cerrar esta historia? La decisión quedará guardada.','Guardar desenlace','ending'));
   }
   function renderSide(c,feedback,replay=false) {
     const target=c.panels.side,side=c.data.side;
     target.replaceChildren(el('p','Reto paralelo · '+c.data.parallelPrize+(c.data.parallelPrize===1?' llave':' llaves'),'md-caption'),el('h2',side.title));
+    if(c.tab==='side')c.scene?.returnFrom(target);
     if(!replay && c.data.wallet.won.includes(c.item.id)){
       target.append(live(feedback||'Reto resuelto. Ya ganaste la llave de este caso.'),button('Consultar mis pistas',()=>select(c,'help',true),'md-cta'),button('Repetir el reto sin premio adicional',()=>renderSide(c,'',true)));
       return;
@@ -192,6 +196,7 @@
     c.scene=window.AventuraEscena.mount(header,{world:item.world,id:item.id,frame,story,image:'/mundo-'+item.id+'.webp',
       place:item.place,alt:item.place,toolbar:top,modeControl:c.modeControl,read:()=>c.data,playerName:()=>c.bridge.playerName?.(),
       actions:(kind,id)=>{
+        if(kind==='scene'){select(c,'main');return;}
         if(kind==='ending'){select(c,'end',true);return;}
         select(c,'main');c.hour.open(kind,id);
       }});
@@ -209,7 +214,8 @@
     frame.replaceChildren(header,nav,...Object.values(c.panels));
     c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
       role:c.data.partner?.role,
-      onScene:hour=>c.scene.update(hour),
+      onScene:(hour,main)=>{c.scene.update(hour);if(c.tab==='main')c.scene.returnFrom(main);},
+      sceneRoute:item.world==='expedicion',sceneBack:target=>c.scene.returnFrom(target),
       inventory:async input=>{
           const result=await request(c,'inventory',input);
           if(result.wallet)updateWallet(c,result);
