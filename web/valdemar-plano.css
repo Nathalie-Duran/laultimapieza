@@ -159,6 +159,8 @@
 .vdp .vdp-footer {display:flex;flex-wrap:wrap;gap:.2rem 1rem;}
 .vdp .vdp-footer a {display:inline-flex;align-items:center;min-height:44px;text-underline-offset:.24em;}
 .vdp .vdp-footer a:hover {color:#ffdda2;}
+.vdp .vdp-classic summary {cursor:pointer;min-block-size:2.75rem;padding:.58rem 0;color:#e3d5b6;text-underline-offset:.2em;}
+.vdp .vdp-classic[open] a {display:flex;}
 .vdp .vdp-pin[data-access=open]:not([aria-current]) .vdp-pin-number { outline:2px solid #f2d293; outline-offset:2px; }
 .vdp .vdp-index-link:focus-visible,.vdp .vdp-footer a:focus-visible { outline:3px solid #f4d897; outline-offset:2px; }
 @media(pointer:coarse) {

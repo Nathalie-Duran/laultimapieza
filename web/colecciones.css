@@ -187,6 +187,9 @@ display-preferences label { display: flex; align-items: center; gap: .55rem; min
 .atlas-universe .atlas-direction { margin-block: 1rem; padding-block: .75rem; border-block: 1px solid var(--atlas-line); }
 .atlas-universe .atlas-next { display: grid; justify-items: start; min-inline-size: 0; max-inline-size: 100%; }
 .atlas-universe .atlas-next a { padding-block: .3rem; color: var(--atlas-paper); font-size: clamp(1.05rem,1.8vw,1.45rem); text-decoration: underline; text-underline-offset: .23em; text-decoration-color: var(--atlas-amber); }
+.atlas-universe .atlas-next h2 { margin:0; }
+.atlas-universe .atlas-next h2 a { color:#fff0d5; font:400 clamp(1.65rem,3.1vw,3.15rem)/1.13 Georgia,serif; text-underline-offset:.12em; text-decoration-thickness:1px; }
+.atlas-universe .atlas-available { margin:0; color:var(--atlas-muted); }
 .atlas-universe .atlas-relic { display: flex; gap: .7rem; align-items: center; min-block-size: 3.25rem; text-decoration: none; color: var(--atlas-amber); min-inline-size: 0; }
 .atlas-universe .atlas-relic-image { --ss-gold: var(--atlas-amber); position: relative; flex: 0 0 3.65rem; inline-size: 3.65rem; isolation: isolate; }
 .atlas-universe .atlas-relic-image::before, .atlas-universe .atlas-relic-image::after { display: none; }
@@ -307,3 +310,26 @@ display-preferences label { display: flex; align-items: center; gap: .55rem; min
 .reto-periodos span{font-size:.88rem;color:#d8d8c9}
 .adventure-challenges :is(#published-challenges,#calendar-challenges) details{min-width:0}
 .adventure-challenges :is(#published-challenges,#calendar-challenges) summary{cursor:pointer;min-height:44px;align-content:center}
+
+.adventure-challenges .reto-portada{min-height:clamp(12rem,23vw,19rem)}
+.reto-opciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin:1rem 0 1.8rem}
+.reto-opciones a,.reto-destino{display:block;height:100%;color:#f8eacb;text-decoration:none}
+.reto-opciones a{display:grid;align-content:center;gap:.25rem;padding:1rem 1.2rem;background:#27342d;border:1px solid #756d53;border-radius:5px}
+.reto-opciones strong{font:500 clamp(1.2rem,2.1vw,1.6rem)/1.2 var(--serif,Georgia,serif)}
+.reto-opciones span,.reto-destino div>span{color:#dfdace;font:500 .88rem/1.35 var(--sans,system-ui,sans-serif)}
+.reto-opciones a:hover strong,.reto-destino:hover h3{text-decoration:underline;text-underline-offset:.2em}
+.adventure-challenges .challenge-boards:has(.reto-destino){grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch}
+.adventure-challenges .reto-destino img{width:100%;height:clamp(6rem,9vw,8rem);object-fit:cover}
+.reto-destino>div{padding:.75rem .9rem}
+.adventure-challenges .reto-destino h3{font-size:clamp(1.15rem,1.85vw,1.55rem);margin-bottom:.32rem}
+.reto-migas{display:flex;align-items:center;gap:.3rem 1.4rem;flex-wrap:wrap;margin-bottom:.8rem}
+.reto-migas a{display:inline-flex;align-items:center;min-height:44px;color:#f3d69b;text-underline-offset:.2em}
+.reto-parada-accion{text-align:end;flex:none}
+.reto-sala .ma-panel h1{margin:0 0 .6rem;color:var(--ma-ink);font:400 clamp(1.8rem,4vw,3.25rem)/1.13 Georgia,serif}
+.reto-local challenge-keyring.reto-saldo-breve{margin:0 0 1rem}
+.reto-local .reto-saldo-breve>div{display:none}
+.reto-agenda .reto-calendario h1{font-size:clamp(2rem,4.4vw,3.8rem)}
+.reto-agenda :is(.reto-periodos,#published-challenges)[hidden]{display:none}
+.reto-agenda [role=status]:empty{margin:0}
+@media(max-width:920px){.adventure-challenges .challenge-boards:has(.reto-destino){grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.reto-opciones{grid-template-columns:1fr}.reto-opciones a{padding:.8rem 1rem}}
