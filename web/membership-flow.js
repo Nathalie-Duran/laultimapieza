@@ -62,7 +62,10 @@ function blockGames(number,block){
    return `<li><a href="${link}"><img src="${esc(image)}" alt="" width="320" height="180" loading="lazy"><span><small>Juego ${id}</small><strong>${esc(game.title)}</strong></span></a></li>`;
   }).join('')}</ol></section>`;
 }
-function adminCard(){return '<section class="account-card"><span class="club-kicker">Acceso editorial</span><h2>Tienes los 48 juegos abiertos</h2><p>Para jugar en pareja, guarda a tu compañero en Mi cuenta y pulsad «En pareja» en el mismo juego desde vuestras cuentas.</p><a class="button" href="/#casos">Abrir Juegos</a> <a class="button" href="/#perfil?seccion=pareja">Ver mi compañero de juego</a>'+(state.hasCustomer?'<h3>Facturación personal</h3>'+renewalControls()+'<button class="button" data-action="billing-portal">Ver mis facturas</button>':'')+'</section>';}
+function adminCard(){
+ const billing=state.hasCustomer?renewalControls()+'<button class="button" data-action="billing-portal">Ver mis facturas</button>':'<p>Tu acceso editorial es gratuito. No tienes una suscripción personal que se renueve.</p>';
+ return '<section class="account-card"><span class="club-kicker">Acceso editorial</span><h2>Tienes los 48 juegos abiertos</h2><p>Para jugar en pareja, guarda a tu compañero en Mi cuenta y pulsad «En pareja» en el mismo juego desde vuestras cuentas.</p><a class="button" href="/#casos">Abrir Juegos</a> <a class="button" href="/#perfil?seccion=pareja">Ver mi compañero de juego</a><h3>Facturación personal</h3>'+billing+'</section>';
+}
 function catalogPaid(access){return (access?.seasons||[]).reduce((sum,season)=>sum+season.paidBlocks.length,0)>=12;}
 function duesRemaining(access,held){
  if(catalogPaid(access))return false;
@@ -116,7 +119,8 @@ function noticeManagement(){
 }
 function renewalControls(){
  const info=state.renewal||{};
- if(!state.hasCustomer||info.status==='none')return '';
+ if(!state.hasCustomer)return '';
+ if(info.status==='none')return '<p>No tienes una suscripción personal que se renueve.</p>';
  const date=info.effectiveAt?new Date(info.effectiveAt).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric',timeZone:'Europe/Madrid'}):'';
  let content;
  if(info.status==='scheduled')content='<h3>Baja programada</h3><p>La renovación está cancelada.'+(date?' El periodo termina el '+date+'.':'')+'</p>';
