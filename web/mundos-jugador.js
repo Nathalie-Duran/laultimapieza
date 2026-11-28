@@ -107,7 +107,7 @@
     if(section==='reto')return 'extra';
     if(['pistas','extra','inventario','escenario','evidencias'].includes(section))return section;
     if(section==='resolver'&&c.data.hour.stage)return 'resolver';
-    return c.data.hour.stage?'evidencias':'desenlace';
+    return c.data.hour.stage?'escenario':'desenlace';
   }
   function updateReturnLink(c,query){
     const source=Number(query.get('desde'));
