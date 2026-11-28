@@ -118,7 +118,7 @@
         '<h1 tabindex="-1" data-c87-heading>La cinta 87</h1><p class="c87-lead">Una casete conserva el arranque de la última emisión de la estación. La bobina original está en una de tres cajas del archivo.</p>'+
         '<p>Escucha los pulsos en la cabina, contrasta los precintos en el depósito y decide si la grabación vuelve a las ondas.</p>'+
         '<p class="c87-meta">10-15 min aprox. · Un dispositivo · '+(storageBlocked?'Guardado durante esta visita':'Guardado local')+'</p><div class="c87-actions">'+
-        control('start','Jugar en solitario','solo',true)+control('start','Jugar en pareja','duo')+'</div>'+
+        control('start','Jugar en solitario','solo',true)+control('start','Jugar en pareja','duo')+'<gameplay-help context="demo"></gameplay-help></div>'+
         '<p class="c87-small">En solitario consultas ambas carpetas. En pareja os turnáis con el dispositivo y compartís en voz alta vuestras pistas.</p>'+
         '<div class="c87-links">'+control('archive','Archivo de Marta y Tomás')+control('exit',exitLabel)+'</div></div></section>';
     }
