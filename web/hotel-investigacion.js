@@ -20,10 +20,18 @@
     img.loading = 'lazy';
     return img;
   }
+  const rooms=['conmutador','obras','archivo','entrevistas','acta'];
+  function roomPhoto(index) {
+    const image=make('img','hm-room-photo');
+    image.src='/hotel-mesa-'+rooms[index]+'.webp';
+    image.alt='';
+    image.decoding='async';
+    return image;
+  }
   const stages = [
     {title:'La centralita de noche', image:'centralita', instruction:'Escoge una toma del conmutador y conecta una orden. Las tres órdenes se cursarán de izquierda a derecha.'},
-    {title:'La mesa del aparejador', image:'planta', instruction:'Coteja las dos plantas y el libro de cerrajería. Fija una conclusión por pieza para reconstruir la reforma.'},
-    {title:'La ampliadora del archivo', image:'negativo', instruction:'Prepara dos fichas de testigo para la franja de la foto. Adjunta el documento que la tercera persona puede explicar.'},
+    {title:'La mesa del aparejador', image:'planta', instruction:'Abre cada pieza de la mesa y fija una conclusión. Contrasta la reforma con el plano y el libro de cerrajería.'},
+    {title:'La ampliadora del archivo', image:'negativo', instruction:'Abre el portafotos para elegir dos testigos. En la carpeta de documentos, añade la fuente que puede explicar la tercera persona.'},
     {title:'La ronda de entrevistas', image:'registro', instruction:'Elige un objeto de la carpeta y a quién se lo mostraste en el hotel. Incorpora la declaración correspondiente a tu cuaderno.'},
     {title:'El acta de la última llamada', image:'recado', instruction:'Redacta el cierre de la guardia. Sella una anotación en cada apartado y repasa el acta antes de entregarla.'}
   ];
@@ -44,6 +52,7 @@
     ]
   };
   const switchProps = {pino:'llaves',seno:'centralita',roble:'llaves',puerta:'planta',guardia:'recado',monta:'planta'};
+  const shortLabels={pino:'Armario de pino',seno:'Aviso sonoro',roble:'Manta del armario de roble',puerta:'Armario de nogal',guardia:'Recado a guardia',monta:'Montacargas'};
   const interviewObjects = [
     ['plano','Plano de la reforma','planta'],['foto','Recorte de fotografía','negativo'],['recibo','Hoja de depósito','registro']
   ];
@@ -52,13 +61,15 @@
     negativo:'negativo',fechas:'registro',registro:'registro',fuentes:'negativo',objetos:'llaves',entrevista:'registro',
     referencia:'negativo',candela:'centralita',margen:'registro',recado:'recado'
   };
-  function switchboard(root, stage, selected, sync) {
+  function switchboard(root, surface, stage, selected, sync) {
     const sockets = make('div','hm-jacks'), contacts = make('div','hm-contacts');
+    const rig=make('div','hm-switch-rig'), leads=make('canvas','hm-cables');
+    leads.setAttribute('aria-hidden','true');
     const slots = Array.from({length:stage.requiredCount || 3}, () => null);
     let active = 0;
     const jacks = slots.map((_,i) => {
       const b = action('', () => {active=i;paint();}, 'hm-jack');
-      b.append(make('span','hm-jack-number','Toma '+(i+1)),make('span','hm-jack-label'));
+      b.append(make('span','hm-port'),make('span','hm-jack-number','Toma '+(i+1)),make('span','hm-jack-label'));
       sockets.append(b); return b;
     });
     const buttons = stage.options.map(opt => {
@@ -71,30 +82,69 @@
         paint();
       }, 'hm-contact');
       b.dataset.vhValue=opt.id;
-      b.append(prop(switchProps[opt.id] || 'centralita'),make('span','',opt.label));
+      b.append(make('i','hm-plug'),prop(switchProps[opt.id] || 'centralita'),make('span','',opt.label));
       contacts.append(b); return b;
     });
     const unplug = action('Desconectar la toma activa', () => {slots[active]=null;paint();}, 'hm-erase');
+    let drawing=0;
+    function drawLeads(){
+      drawing=0;
+      const r=rig.getBoundingClientRect();
+      if(!r.width||!r.height)return;
+      const dpr=Math.min(window.devicePixelRatio||1,2);
+      leads.width=Math.round(r.width*dpr);leads.height=Math.round(r.height*dpr);
+      const ctx=leads.getContext('2d');if(!ctx)return;
+      ctx.scale(dpr,dpr);ctx.lineCap='round';
+      slots.forEach((id,i)=>{
+        if(!id)return;
+        const a=jacks[i].querySelector('.hm-port').getBoundingClientRect(),b=contacts.querySelector('[data-vh-value="'+id+'"] .hm-plug')?.getBoundingClientRect();
+        if(!b)return;
+        const x=a.left+a.width/2-r.left,y=a.top+a.height*.72-r.top;
+        const dx=b.left+b.width/2-r.left,dy=b.top-r.top;
+        const bow=Math.max(14,Math.min(66,(dy-y)*.3));
+        for(const [width,ink] of [[7,'#181913'],[4,['#b16943','#599c8b','#c99d57'][i]]]){
+          ctx.beginPath();ctx.strokeStyle=ink;ctx.lineWidth=width;
+          ctx.moveTo(x,y);ctx.bezierCurveTo(x,y+bow,dx,dy-bow,dx,dy);ctx.stroke();
+        }
+      });
+    }
+    function queueDraw(){if(!drawing)drawing=requestAnimationFrame(drawLeads);}
     function paint() {
       selected.splice(0,selected.length,...slots.filter(Boolean));
       jacks.forEach((b,i) => {
-        b.lastChild.textContent=stage.options.find(o=>o.id===slots[i])?.label || 'Sin conectar';
+        const order=stage.options.find(o=>o.id===slots[i]);
+        b.lastChild.textContent=order?(shortLabels[order.id]||order.label):'Libre';
+        b.setAttribute('aria-label','Toma '+(i+1)+' · '+(order?.label||'Sin conectar'));
         b.setAttribute('aria-pressed',String(i===active));
         b.dataset.connected=String(Boolean(slots[i]));
       });
       buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(slots.includes(stage.options[i].id))));
       unplug.disabled=!slots[active];
       sync(selected.length+' de '+slots.length+' tomas conectadas.');
+      queueDraw();
     }
-    root.append(sockets,contacts,unplug);paint();
+    surface.append(sockets);surface.after(rig);rig.append(surface,contacts,leads);
+    root.append(unplug);
+    if(window.ResizeObserver){
+      const resize=new ResizeObserver(()=>{if(rig.isConnected)queueDraw();else resize.disconnect();});
+      resize.observe(rig);
+    }
+    paint();
   }
-  function dossier(root, stage, index, selected, sync) {
+  function dossier(root, surface, stage, index, selected, sync) {
     const entries = families[index];
     const opts = new Map(stage.options.map(o=>[o.id,o]));
     const groups = make('div','hm-files');
     const total = entries.reduce((n,row)=>n+(row[3]||1),0);
     const controls = [];
-    for (const [name, image, ids, limit=1] of entries) {
+    const instruments=make('div','hm-board-pins');
+    instruments.setAttribute('role','group');instruments.setAttribute('aria-label',stages[index].title);
+    surface.append(instruments);
+    let active=0;
+    for (const [position,[name, image, ids, limit=1]] of entries.entries()) {
+      const pin=action('',()=>{active=position;paint();},'hm-board-pin');
+      const badge=make('span','hm-pin-count');
+      pin.append(make('i','hm-pin-light'),make('span','hm-pin-title',name),badge);instruments.append(pin);
       const section = make('section','hm-file'), cap = make('div','hm-file-cap');
       cap.append(prop(image),make('h6','',name));
       section.append(cap);
@@ -115,13 +165,17 @@
         }, 'hm-slip');
         b.dataset.vhValue=id;section.append(b);return b;
       });
-      controls.push({summary,ids,limit,buttons});
+      controls.push({summary,ids,limit,buttons,pin,badge,section});
       groups.append(section);
     }
     function paint(){
-      for(const {ids,limit,summary,buttons} of controls) {
+      for(const [i,{ids,limit,summary,buttons,pin,badge,section}] of controls.entries()) {
         const count=selected.filter(x=>ids.includes(x)).length;
         summary.textContent=count+' / '+limit;
+        badge.textContent=count+' / '+limit;
+        section.hidden=i!==active;
+        pin.setAttribute('aria-pressed',String(i===active));
+        pin.dataset.complete=String(count===limit);
         buttons.forEach((button,i)=>{
           const on=selected.includes(ids[i]);button.setAttribute('aria-pressed',String(on));
           button.disabled=limit>1 && count>=limit && !on;
@@ -131,7 +185,7 @@
     }
     root.append(groups);paint();
   }
-  function interviews(root, stage, selected, sync) {
+  function interviews(root, surface, stage, selected, sync) {
     const tray=make('div','hm-tray'), people=make('div','hm-people'), page=make('div','hm-interview-page');
     const names={s:'Simón',l:'Lucía',d:'Darío'};
     let object=interviewObjects[0][0];
@@ -167,7 +221,7 @@
       }
       sync(selected.length+' de 3 entrevistas archivadas.');
     }
-    root.append(tray,people,page);paint();
+    surface.append(tray);root.append(people,page);paint();
   }
   function renderDecision({field, stage, index, selected, change, controller}) {
     const info=stages[index];
@@ -178,16 +232,17 @@
     field.dataset.requiredChoices=String(stage.requiredCount || 3);
     field.dataset.vhPrueba=['centralita','plano-de-la-suite','archivo-de-visitas','ronda-de-entrevistas','acta-de-guardia'][index];
     const desk=make('section','hm-desk hm-desk-'+index);
-    const banner=make('header','hm-desk-head'), text=make('div','hm-desk-caption');
-    text.append(make('h5','',info.title),make('p','',info.instruction));banner.append(prop(info.image),text);desk.append(banner);
+    const banner=make('header','hm-desk-head'),text=make('div','hm-desk-caption'),surface=make('div','hm-stage-surface');
+    text.append(make('h5','',info.title),make('p','',info.instruction));
+    banner.append(text);surface.append(roomPhoto(index));desk.append(banner,surface);
     if(index===3 && controller?.sceneBack && controller.visitHotel) {
-      desk.append(action('Visitar a los huéspedes del hotel',controller.visitHotel,'hm-visit'));
+      desk.append(action('Entrevistar a los tres visitantes',controller.visitHotel,'hm-visit'));
     }
     const meter=make('p','hm-meter');meter.setAttribute('role','status');
     const sync=message=>{meter.textContent=message;change();};
-    if(index===0) switchboard(desk,stage,selected,sync);
-    else if(index===3)interviews(desk,stage,selected,sync);
-    else dossier(desk,stage,index,selected,sync);
+    if(index===0) switchboard(desk,surface,stage,selected,sync);
+    else if(index===3)interviews(desk,surface,stage,selected,sync);
+    else dossier(desk,surface,stage,index,selected,sync);
     desk.append(meter);field.append(desk);
     return true;
   }
@@ -195,13 +250,15 @@
     const lines=material.body?.split(/\r?\n/).filter(line=>/^\d{4}:/.test(line));
     if(lines?.length!==2)return null;
     const reader=make('div','hm-viewer'),bar=make('div','hm-years'),drawing=make('div','hm-plan');
-    const title=make('h6','','Examinar el plano'),caption=make('p','hm-plan-text');
-    const doors=['12','14','16'].map(n=>{const door=make('span','hm-door',n);drawing.append(door);return door;});
+    const title=make('h6','','Plano del rellano'),caption=make('p','hm-plan-text');
+    const rooms=['Junto al patio','Dormitorio central','Dormitorio derecho'];
+    const doors=['12','14','16'].map((n,i)=>{const door=make('span','hm-door');door.append(make('b','',n),make('small','',rooms[i]));drawing.append(door);return door;});
     drawing.setAttribute('aria-hidden','true');caption.setAttribute('aria-live','polite');
     const tabs=lines.map((line,i)=>{const button=action(line.slice(0,4),()=>draw(i),'hm-year');bar.append(button);return button;});
     function draw(i){
       tabs.forEach((b,j)=>b.setAttribute('aria-pressed',String(i===j)));
-      doors.forEach((door,j)=>{door.dataset.closed=String(i===1 && j!==1);});
+      title.textContent='Plano del rellano · '+lines[i].slice(0,4);
+      doors.forEach((door,j)=>{door.dataset.closed=String(i===1 && j!==1);door.lastChild.textContent=i===0?rooms[j]:j===1?'Salón':'Hueco cegado';});
       caption.textContent=lines[i].slice(5).trim();
     }
     reader.append(title,bar,drawing,caption);draw(0);return reader;
@@ -275,20 +332,26 @@
     },'hm-chip');
     box.append(lights,button,log);return box;
   }
+  const sourceSurface={
+    voz:0,protocolo:0,ronda:'llaves',planta:1,llaves:1,palabra:1,negativo:2,fechas:2,registro:2,fuentes:2,
+    objetos:3,entrevista:3,referencia:3,candela:0,margen:4,recado:4
+  };
   function clipReader(evidence) {
     const spec=sourceDesk[evidence.id];
     if(!spec || typeof evidence.body!=='string')return null;
     const [title,operation,art]=spec;
     const folder=make('section','hm-document hm-document-'+evidence.id);
     const plate=make('div','hm-document-plate');
-    plate.append(prop(art));
+    const scene=sourceSurface[evidence.id];
+    const background=typeof scene==='number'?roomPhoto(scene):prop(scene||art);
+    background.classList.add('hm-document-image');plate.append(background);
     const work=make('div','hm-document-work');
     const heading=make('h5','',title);
-    work.append(heading);
+    const label=make('header','hm-document-heading');label.append(heading);plate.append(label);
     folder.append(plate,work);
     if(evidence.id==='planta'){
       const plan=planReader(evidence);if(!plan)return null;
-      work.append(plan);return folder;
+      plate.append(plan);return folder;
     }
     const pages=pagesFor(evidence);
     if(!pages.length)return null;
@@ -300,13 +363,18 @@
     const isLetter=evidence.id==='recado';
     const isCalendar=evidence.id==='fechas';
     const signal=evidence.id==='voz'?callSignal():null;
+    const isPhone=evidence.id==='voz'||evidence.id==='candela';
+    const phoneState=isPhone?make('p','hm-phone-state','Auricular en su soporte'):null;
+    if(phoneState){phoneState.setAttribute('role','status');label.append(phoneState);}
+    const dock=make('div','hm-doc-dock');
+    plate.append(dock);
     if(isCalendar){
       tabs.classList.add('hm-calendar');
       for(const day of ['L','M','X','J','V','S','D']){
         const name=make('span','hm-weekday',day);name.setAttribute('aria-hidden','true');tabs.append(name);
       }
     }
-    if(!isLetter)work.append(make('span','hm-instrument-label',operation),tabs);
+    if(!isLetter)dock.append(make('span','hm-instrument-label',operation),tabs);
     let selected=-1;
     const buttons=[];
     function show(i){
@@ -314,24 +382,32 @@
       const page=pages[i];
       sheet.hidden=!page;
       if(signal)signal.hidden=i!==1;
-      if(!page)return;
-      caption.textContent=page[0];
+      if(isPhone){
+        background.src='/hotel-mesa-'+(page?'descolgado':'conmutador')+'.webp';
+        phoneState.textContent=page?(signal && i===1?'Línea de servicio conectada':'En línea con Candela'):'Auricular en su soporte';
+        if(signal && buttons[0])buttons[0].textContent=i===0?'Colgar el auricular':i===1?'Volver a Candela':'Descolgar y leer';
+        folder.dispatchEvent(new CustomEvent('hm-line-changed',{detail:i}));
+      }
+      if(!page){folder.dataset.page='closed';return;}
+      folder.dataset.page=String(i+1);
+      caption.textContent=isPhone?(signal&&i===1?'Transcripción del aviso de servicio':'Transcripción de Candela'):page[0];
       copy.textContent=page[1];
       if(evidence.id==='objetos'){
-        const pic=plate.querySelector('img');
-        pic.src=file(['planta','negativo','registro'][i]||art);
+        const artName=['planta','negativo','registro'][i]||art;
+        sheet.querySelector('.hm-evidence-inset')?.remove();
+        const card=prop(artName);card.classList.add('hm-evidence-inset');sheet.prepend(card);
       }
     }
     function newTab(name,i){
-      const b=action(name,()=>show(i),'hm-chip');
-      b.setAttribute('aria-label',pages[i][0]);buttons[i]=b;return b;
+      const b=action(name,()=>show(signal&&i===0&&selected===0?-1:i),'hm-chip');
+      buttons[i]=b;return b;
     }
     if(isLetter){
       const open=action('Romper el sello y leer el recado',()=>{
         const expanding=selected<0;
         show(expanding?0:-1);open.setAttribute('aria-expanded',String(expanding));open.textContent=expanding?'Doblar el recado':'Abrir el sobre';
       },'hm-chip');
-      open.setAttribute('aria-expanded','false');work.append(open);
+      open.setAttribute('aria-expanded','false');dock.append(open);
     }else if(isCalendar){
       const indices=new Map(pages.map((p,i)=>[parseInt(p[0],10),i]));
       // Monday 1 July 1996 starts the printed calendar.
@@ -345,9 +421,10 @@
     }
     work.append(sheet);
     if(signal)work.append(signal);
-    show(isLetter || signal?-1:0);return folder;
+    show(isLetter || isPhone?-1:0);return folder;
   }
   function decorateShelf({shelf,stage}) {
+    shelf.classList.add('hm-evidence-shelf');
     for(const card of shelf.querySelectorAll('[data-material]')) {
       if(card.querySelector('.hm-document'))continue;
       const evidence=stage.materials.find(m=>m.id===card.dataset.material);
@@ -357,9 +434,23 @@
       if(img && thumb){thumb.classList.add('hm-photo');thumb.style.backgroundImage='url("'+file(img)+'")';}
       const reader=clipReader(evidence),summary=card.querySelector('summary');
       if(reader && summary) {
+        card.classList.add('hm-evidence-card');
         const original=make('details','hm-original');
         original.append(make('summary','','Consultar la fuente íntegra'));
         const contents=[...card.children].filter(child=>child!==summary);
+        const playback=card.querySelector('.vhour-recording audio,.vhour-recording .vhour-listen');
+        if(playback && (evidence.id==='voz'||evidence.id==='candela')){
+          const row=make('div','hm-phone-playback'),status=playback.parentElement.querySelector('.vhour-status');
+          playback.setAttribute('aria-label','Reproducir o detener la lectura de la llamada');
+          row.hidden=true;row.append(playback);
+          if(status)row.append(status);
+          reader.querySelector('.hm-document-work').append(row);
+          reader.addEventListener('hm-line-changed',event=>{
+            row.hidden=event.detail<0 || evidence.id==='voz' && event.detail===1;
+            if(row.hidden && playback.tagName==='AUDIO')playback.pause();
+            else if(row.hidden && playback.getAttribute('aria-pressed')==='true')playback.click();
+          });
+        }
         original.append(...contents);
         card.append(reader,original);
       }
