@@ -6,7 +6,7 @@ import {runInNewContext} from 'node:vm';
 const source = file => readFile(new URL('../web/' + file, import.meta.url), 'utf8');
 
 async function load(file) {
-  const document = {};
+  const document = new EventTarget();
   function createElement(tag) {
     return {
       tag, dataset:{}, attributes:{}, listeners:{}, children:[], isConnected:true,style:{setProperty(){},removeProperty(){}},
@@ -38,7 +38,7 @@ async function load(file) {
   document.activeElement = document.body;
   const window = {ValdemarHour:{filterByRole() {}}, clearInterval() {}, setInterval() {}};
   if(file==='aventura-escena.js')runInNewContext(await source('mesa-de-juego.js'),{window,document});
-  runInNewContext(await source(file), {window, document, MutationObserver:class {observe(){} disconnect(){}}});
+  runInNewContext(await source(file), {window, document, AbortController, queueMicrotask, MutationObserver:class {observe(){} disconnect(){}}});
   return {window, document};
 }
 
