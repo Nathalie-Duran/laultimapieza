@@ -28,6 +28,11 @@
   function disclosure(label,children){
     const el=node('details');el.append(node('summary',label),...children);return el;
   }
+  function showPanel(item,open=false){
+    if(open)item.open=true;
+    const target=open?item.querySelector('summary'):item;
+    target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'center'});
+  }
   function gameLink(a,continueGame){
     const url='/#aventura?juego='+encodeURIComponent(a.id)+'&caso='+a.caseId+(continueGame?'&modo='+(a.modo==='duo'?'duo':'solo'):'');
     const card=link('',url);card.className='ap-card';
@@ -167,7 +172,7 @@
         const player=node('audio');player.controls=true;player.preload='none';player.src='/'+scene.audio.replace(/^\//,'');player.setAttribute('aria-label','Audio de '+scene.titulo);body.append(player);
         if(scene.transcripcion){const text=disclosure('Leer la transcripción',[node('p',scene.transcripcion)]);text.setAttribute('data-game-transcript','');body.append(text);}
       }
-      const panels=[];
+      const panels=[],evidencePanels=[];
       for(const action of s.completada?[]:v.acciones){
         const form=node('form',null,'ap-task');form.append(node('h3',action.titulo));
         if(action.instrucciones)form.append(node('p',action.instrucciones));
@@ -175,7 +180,7 @@
           const evidence=node('div',null,'ap-evidence');
           if(window.MotorAventuras?.montarMaterial)window.MotorAventuras.montarMaterial(evidence,material);
           else evidence.append(node('strong',material.titulo),node('p',material.texto));
-          form.append(evidence);
+          form.append(evidence);evidencePanels.push(evidence);
         }
         const answer=responseField(form,action);
         const send=node('button',action.tipo==='prueba'?'Comprobar respuesta':action.titulo,'button primary');
@@ -191,13 +196,25 @@
         const p=node('div',null,'ap-evidence');if(item.imagen)p.append(photo(item.imagen,cover(s.caseId)));p.append(node('strong',item.nombre),node('p',item.descripcion));return p;
       }):[node('p','Aquí aparecerán los objetos que recojas con este expediente.')]);
       const notes=disclosure('Cuaderno ('+v.cuaderno.length+')',v.cuaderno.length?v.cuaderno.map(t=>node('p',t)):[node('p','Aquí se guardarán tus descubrimientos.')]);
+      const hints=node('section',null,'ap-evidence');hints.hidden=true;
+      const orientacion=s.completada?'Revisa el cuaderno para reconstruir cómo llegaste al desenlace.':
+        evidencePanels.length?'Lee primero los materiales de la acción. Busca qué dato aporta cada uno antes de comprobar tu respuesta.':
+        v.acciones.some(a=>a.tipo==='transferir')?'Comprueba qué objeto puedes enviar y qué necesita el otro expediente.':
+        v.acciones.some(a=>a.tipo==='combinar')?'Abre el inventario de este expediente y comprueba qué piezas podrían encajar.':
+        !panels.length?(s.modo==='solo'?'Consulta el otro expediente para encontrar la acción pendiente.':'Compara con tu compañero lo que ve en su expediente.'):
+        'Examina los puntos del escenario y consulta los objetos de tu expediente.';
+      hints.append(node('h3','Pistas'),node('p',orientacion),node('small','Esta orientación es gratuita.'));
       shelf.append(inventory,notes);
       if(s.modo==='solo'&&!s.completada)shelf.append(button('Consultar el expediente '+(s.papel==='A'?'B':'A'),()=>this.open('solo',s.papel==='A'?'B':'A')));
       if(!s.completada&&!panels.length)tasks.append(node('p',s.modo==='duo'?'Ahora le toca actuar a tu compañero. Verás aquí su avance.':'Consulta el otro expediente para seguir investigando.'));
       if(s.completada)tasks.append(node('h3','Aventura completada'),link('Ver mis partidas','/#archivo'));
-      section.append(desk,body,shelf,tasks,link('Salir a Mis partidas','/#archivo'));this.replaceChildren(section);
+      section.append(desk,body,shelf,hints,tasks,link('Salir a Mis partidas','/#archivo'));this.replaceChildren(section);
       this.mesa=window.MesaDeJuego.mount(desk,{title:s.titulo,family:'temporada',objective:s.completada?'Revisa tu desenlace y los descubrimientos del cuaderno.':v.acciones[0]?.titulo||(s.modo==='solo'?'Consulta el otro expediente.':'Comenta tus hallazgos con tu compañero.'),
         progress:s.completada?'Desenlace':scene.titulo,saved:s.paso?'Progreso guardado en tu cuenta.':'La primera acción guardará tu partida.',
+        tools:[{id:'scene',label:'Escenario',run:()=>showPanel(title)},
+          {id:'bag',label:'Inventario',run:()=>showPanel(inventory,true)},
+          {id:'evidence',label:'Evidencias',run:()=>evidencePanels.length?showPanel(evidencePanels[0]):showPanel(notes,true)},
+          {id:'hints',label:'Pistas',run:()=>{hints.hidden=false;showPanel(hints);}}],
         tutorial:s.paso?'':'Lee la escena y examina los materiales. Utiliza el inventario y el cuaderno para contrastar lo que descubres.',
         next:panels.length?{label:'Ir a la acción',run:()=>{panels[0].scrollIntoView({block:'center'});panels[0].querySelector('input,select,button')?.focus({preventScroll:true});}}:null});
       document.title=s.titulo+' · La Última Pieza';if(focus)(message?this.feedback:title).focus();
