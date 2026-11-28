@@ -114,6 +114,7 @@
         <p class="md-caption">${esc(item.place)}</p><${heading} id="md-case-title" tabindex="-1">${esc(item.title)}</${heading}><p class="md-question">${esc(item.question)}</p>
         <p class="md-facts"><span>≈ 60 min</span><span>1–2 personas</span><span>Bloque ${level+1} de 3</span></p>
         <div class="md-access">${accessMarkup(edition,item,allowed.has(item.id),done.has(item.id),status)}</div>
+        ${focused&&!allowed.has(item.id)?'<a class="md-demo-link" href="/cinta-87.html?caso='+number(item.id)+'">Probar gratis la demo de La cinta 87</a>':''}
         <details class="md-file-roles"><summary>Los dos papeles de esta aventura</summary><ol>${item.roles.map((role,i)=>'<li><strong>Papel '+(i+1)+'</strong> '+esc(role)+'</li>').join('')}</ol></details>
         ${focused?'':'<button type="button" class="md-back-pin">'+esc(edition.returnLabel)+'</button>'}</div>
         <nav class="md-stepper" aria-label="Recorrer los doce casos"><a href="${placeLink(previous)}" data-md-way="step" data-md-id="${previous.id}" aria-label="Anterior. ${esc(previous.place)}">Anterior</a><span>${number(local)} / 12</span><a href="${placeLink(next)}" data-md-way="step" data-md-id="${next.id}" aria-label="Siguiente. ${esc(next.place)}">Siguiente</a></nav></article>`;
