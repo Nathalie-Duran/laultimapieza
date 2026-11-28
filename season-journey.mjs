@@ -14,7 +14,7 @@ export function seasonProgress(stories,sessions,uid,solvedAt=null){
     const active=matches.find(s=>s.status==='active')||matches.find(s=>s.status==='waiting');
     const session=finished||active||narrative;
     return {caseId:story.id,episode:story.episode,completed:!!finished,storyFinished:!!narrative,resolved:!!finished,sessionId:session?.id||null,
-      status:finished?'completed':narrative?'needs_solution':active?'in_progress':'available',decisions:session?.history?.length||0,
+      status:finished?'completed':active?'in_progress':narrative?'needs_solution':'available',decisions:session?.history?.length||0,
       totalDecisions:story.decisionCount||5,letter:finished?fragments[story.episode-1]:null};
   });
   const completed=stops.filter(s=>s.completed).length;
