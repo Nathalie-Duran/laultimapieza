@@ -1,0 +1,89 @@
+.extras-hall {
+  --extra-paper:#f6ecd7;
+  --extra-text:#d8e0d6;
+  --extra-accent:#f4ce8c;
+  --extra-line:#53645a;
+  --extra-panel:#172825;
+  color:var(--extra-paper);
+}
+.extras-hall .extras-home-head,.extras-hall .extras-season-head { box-sizing:border-box; width:100%; max-width:none; margin:0 0 clamp(1rem,2.5vw,2rem); }
+.extras-hall .extras-home-head { display:flex; align-items:flex-end; flex-wrap:wrap; justify-content:space-between; gap:.3rem 1.8rem; }
+.extras-hall :is(.extras-home-head,.extras-season-head,.extras-detail) h1 {
+  margin:0; color:var(--extra-paper); font:500 clamp(2.25rem,4.5vw,4.25rem)/1.06 var(--serif,Georgia,serif); text-wrap:balance;
+}
+.extras-hall p.extras-intro { max-width:58ch; margin:.65rem 0 0; color:var(--extra-text); font-size:clamp(1rem,1.3vw,1.14rem); line-height:1.53; }
+.extras-hall .extras-home-head .extras-actions { margin:0; }
+.extras-hall .extras-actions { display:flex; align-items:center; flex-wrap:wrap; gap:.45rem 1rem; margin:.7rem 0 0; }
+.extras-hall .extras-actions :is(a,button),.extras-hall .extras-primary {
+  display:inline-flex; justify-content:center; align-items:center; min-height:44px;
+  padding:.5rem .15rem; color:var(--extra-accent); background:transparent;
+  border:0; text-decoration:underline; text-underline-offset:.22em;
+  font:650 1rem/1.35 var(--sans,system-ui,sans-serif);
+}
+.extras-hall .extras-primary,.extras-hall .extras-actions .extras-primary {
+  padding:.65rem 1.1rem; border:1px solid var(--extra-accent); border-radius:.28rem;
+  color:#192721; background:var(--extra-accent); text-decoration:none;
+}
+.extras-hall :is(a,button):focus-visible { outline:3px solid #ffe599; outline-offset:3px; }
+.extras-hall :is(.extras-seasons,.extras-list) {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,16.5rem),1fr));
+  align-items:stretch; gap:clamp(.75rem,1.5vw,1.15rem); list-style:none; margin:0 0 1.5rem; padding:0;
+}
+.extras-hall .extras-list { grid-template-columns:repeat(auto-fit,minmax(min(100%,17.5rem),1fr)); }
+.extras-hall :is(.extras-seasons,.extras-list)>li { min-width:0; margin:0; padding:0; }
+.extras-hall .extras-tile {
+  box-sizing:border-box; display:flex; flex-direction:column; width:100%; height:100%; min-width:0; padding:0;
+  text-decoration:none; color:var(--extra-paper); border:1px solid var(--extra-line); border-radius:.52rem; background:var(--extra-panel);
+}
+.extras-hall .extras-tile:is(:hover,:focus-visible) { background:#20342d; border-color:var(--extra-accent); }
+.extras-hall .extras-tile:is(:hover,:focus-visible) .extras-link-label { color:#fff0c9; text-decoration:underline; text-underline-offset:.22em; }
+.extras-hall img.extras-photo,.extras-hall .extras-season-head>img,.extras-hall .extras-calendar>img {
+  display:block; width:100%; height:auto; object-fit:cover; background:#24382f;
+}
+.extras-hall .extras-tile .extras-photo { aspect-ratio:16/9; border-radius:.48rem .48rem 0 0; }
+.extras-hall .extras-tile-body { box-sizing:border-box; display:flex; flex:1; flex-direction:column; gap:.32rem; min-width:0; padding:clamp(.8rem,1.45vw,1.15rem); }
+.extras-hall p.extras-origin { margin:0; color:#d9c29b; font:600 .83rem/1.38 var(--sans,system-ui,sans-serif); }
+.extras-hall .extras-tile h2,.extras-hall .extras-calendar h2 {
+  margin:0; color:var(--extra-paper); font:500 clamp(1.45rem,2.1vw,2.12rem)/1.14 var(--serif,Georgia,serif); text-wrap:balance;
+}
+.extras-hall .extras-tile .extras-task { margin:.16rem 0 .5rem; color:var(--extra-text); font:400 1rem/1.47 var(--sans,system-ui,sans-serif); }
+.extras-hall .extras-tile-foot { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.15rem .7rem; margin-top:auto; padding-top:.57rem; border-top:1px solid #4b5c51; }
+.extras-hall .extras-link-label { display:inline-flex; align-items:center; gap:.42rem; min-height:2rem; margin-left:auto; color:var(--extra-accent); font:700 .93rem/1.32 var(--sans,system-ui,sans-serif); }
+.extras-hall .extras-link-label>span { font-size:1.07rem; }
+.extras-hall .extras-prize,.extras-hall .extras-access { color:#e6d5ac; font:600 .88rem/1.4 var(--sans,system-ui,sans-serif); }
+.extras-hall .extras-access { color:#c6d9c9; }
+.extras-hall .extras-season-head,.extras-hall .extras-detail {
+  display:grid; grid-template-columns:minmax(0,1fr) minmax(0,40%); align-items:stretch; overflow:hidden;
+  border:1px solid var(--extra-line); border-radius:.52rem; background:var(--extra-panel);
+}
+.extras-hall .extras-season-head>div,.extras-hall .extras-detail>div { align-self:center; min-width:0; padding:clamp(1rem,2.7vw,2rem); }
+.extras-hall .extras-season-head>img { height:100%; max-height:16rem; min-height:11rem; }
+.extras-hall .extras-season-head .extras-access { margin:.7rem 0 0; }
+.extras-hall .extras-detail { grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); }
+.extras-hall .extras-detail>img { height:100%; max-height:28rem; min-height:16rem; }
+.extras-hall .extras-detail h1 { margin-top:.45rem; }
+.extras-hall .extras-detail .extras-prize { display:block; margin:.85rem 0 0; }
+.extras-hall .extras-unlock { color:var(--extra-text); margin:.6rem 0; }
+.extras-hall .extras-calendar {
+  display:grid; grid-template-columns:minmax(5rem,8rem) minmax(0,1fr) auto; align-items:center; gap:clamp(.75rem,2vw,1.5rem);
+  border:1px solid var(--extra-line); border-radius:.45rem; background:#1d2d28; padding:clamp(.8rem,1.25vw,1.1rem); margin:1.5rem 0 1rem;
+}
+.extras-hall .extras-calendar>img { aspect-ratio:4/3; border-radius:.25rem; }
+.extras-hall .extras-calendar p { max-width:53ch; margin:.35rem 0 0; color:var(--extra-text); line-height:1.5; }
+.extras-hall .reto-migas { gap:.25rem 1rem; margin-bottom:.7rem; }
+.extras-hall .reto-migas a { color:var(--extra-accent); }
+@media(min-width:68rem) {
+  .extras-hall .extras-seasons { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .extras-hall .extras-list { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media(max-width:680px) {
+  .extras-hall .extras-season-head,.extras-hall .extras-detail { grid-template-columns:1fr; }
+  .extras-hall .extras-season-head>img { grid-row:1; height:auto; aspect-ratio:3/1; min-height:0; }
+  .extras-hall .extras-detail>img { height:auto; aspect-ratio:16/9; min-height:0; }
+  .extras-hall .extras-calendar { grid-template-columns:4.5rem minmax(0,1fr); }
+  .extras-hall .extras-calendar .extras-primary { grid-column:2; justify-self:start; }
+}
+@media(forced-colors:active) {
+  .extras-hall .extras-tile,.extras-hall .extras-primary { border:1px solid LinkText; }
+  .extras-hall .extras-link-label { text-decoration:underline; }
+}

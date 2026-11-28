@@ -177,7 +177,7 @@
       if(!game) {
         this.innerHTML=this.lobby(back);
       } else {
-        this.innerHTML=`<section class="ma-panel ma87-panel">${this.heading(game.title)}${this.shared?'<div data-ma-mesa></div>':''}
+        this.innerHTML=`<section class="ma-panel ma87-panel"><header class="reto-cabecera"><img class="reto-foto" src="/sala-${esc(game.id)}.webp" width="768" height="512" alt="" decoding="async"><div class="reto-cabecera-copy"><p class="reto-procedencia">Sala de Ada · ${esc(stationDetails[game.id].kind)}</p>${this.heading(game.title)}</div></header>${this.shared?'<div data-ma-mesa></div>':''}
           ${screens[game.id](this.states[game.id])}<div class="ma-actions ma87-actions"><button type="button" class="ma-check" data-act="check" ${this.busy?'disabled':''}>${checks[game.id]}</button>
           ${this.shared?'':'<button type="button" data-act="back">Sala de minijuegos</button>'}${back}</div><p data-ma-feedback role="status" aria-live="polite">${esc(this.notice)}</p></section>`;
       }

@@ -10,6 +10,23 @@
   const formats={audio:'Escuchar',ledger:'Examinar',testimony:'Leer',visual:'Examinar',web:'Consultar',text:'Leer'};
   function el(tag,cls,text){const node=document.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=text;return node;}
   function button(label,run,cls){const node=el('button',cls,label);node.type='button';node.addEventListener('click',run);return node;}
+  function challengeHeader({id,world,title,photo,caseTitle,embedded=false}){
+    const season=boards[world]||boards.valdemar;
+    const board=world==='valdemar'?'mapa':world;
+    const header=el('header','reto-cabecera');
+    const image=el('img','reto-foto');
+    image.src=photo;image.width=768;image.height=512;image.alt='';image.decoding='async';
+    const copy=el('div','reto-cabecera-copy');
+    const directory=el('a','reto-directorio','Retos de '+season.title);
+    directory.href='/#desafios?mundo='+board;
+    const navigation=el('nav','reto-cabecera-nav');
+    navigation.setAttribute('aria-label','Salidas del reto');
+    navigation.append(directory);
+    const game=el('p','reto-procedencia','Juego '+String((id-1)%12+1).padStart(2,'0')+' · '+caseTitle);
+    copy.append(game,el(embedded?'h2':'h1','reto-nombre',title),navigation);
+    header.append(image,copy);
+    return header;
+  }
   function mountExplorer(target,frame,id){
     let explorer;
     function sync(){
@@ -26,7 +43,9 @@
     host.className='ae-scene';host.dataset.world=world;
     toolbar.className+=' ae-toolbar';
     const heading=el('div','ae-heading');
-    heading.append(el('p','ae-world-name',style.title+' · Caso '+String((options.id-1)%12+1).padStart(2,'0')),el('h1','ae-title',story.title));
+    const ancestry=style.title+' · Caso '+String((options.id-1)%12+1).padStart(2,'0');
+    const contextLabel=el('p','ae-world-name',ancestry),caseTitle=el('h1','ae-title',story.title);
+    heading.append(contextLabel,caseTitle);
     const stage=el('div','ae-stage'),photo=el('img','ae-image');
     photo.src=options.image;photo.alt=options.alt||options.place||'Escenario del caso';
     photo.width=768;photo.height=512;photo.decoding='async';
@@ -68,24 +87,39 @@
         secondaryPanel=target.closest?.('.md-game-side,.vd-game,.md-game-help,.vd-help,.md-game-end,.vd-ending,.vhour-hotel-panel')||null;
         syncMesa();
       }
+      const sideNav=target.querySelector?.('.reto-cabecera-nav');
+      if(sideNav){if(back.parentElement!==sideNav)sideNav.append(back);return;}
       if(back.parentElement===target)return;
       if(target.tagName==='DETAILS'&&target.firstElementChild)target.firstElementChild.after(back);
       else target.prepend(back);
     }
     function syncMesa(){
       if(!shared)return;
+      const sideOpen=secondaryPanel?.matches('.md-game-side,.vd-game')===true;
+      const waiting=sideOpen&&frame.dataset.playMode==='pending';
+      const ficha=sideOpen?window.RetosTemporada?.ficha(options.id):null;
+      const headerTitle=waiting&&ficha?ficha.title:story.title;
+      if(caseTitle.textContent!==headerTitle)caseTitle.textContent=headerTitle;
+      const context=waiting?'Reto extra · '+ancestry:ancestry;
+      if(contextLabel.textContent!==context)contextLabel.textContent=context;
       const section=frame.dataset.playMode==='pending'?null:secondaryPanel;
       if(!section){
         if(mesaHost.parentElement!==mesaHome)mesaHome.append(mesaHost);
-        shared.update(sceneContext);return;
+        shared.update(waiting?{...sceneContext,objective:'Elige cómo jugar para abrir el reto.',help:{context:'reto',text:ficha?.action||''}}:sceneContext);return;
       }
-      if(mesaHost.parentElement!==section)section.prepend(mesaHost);
+      if(mesaHost.parentElement!==section){
+        const hero=section.querySelector('.reto-cabecera');
+        if(hero && hero.parentElement===section)section.insertBefore(mesaHost,hero.nextSibling);
+        else section.prepend(mesaHost);
+      }
       const data=read(),base={...sceneContext,tools:[],objective:'',next:null};
       if(section.matches('.md-game-side,.vd-game')){
         const complete=data.wallet?.won?.includes(options.id);
         const side=data.side;
-        const pitch=section.querySelector('.vd-game-heading .vd-note')?.textContent;
-        shared.update({...base,progress:complete?'Premio del reto recibido':'Reto extra',
+        const pitch=section.querySelector('.vd-note')?.textContent;
+        const prize=data.parallelPrize;
+        const reward=Number.isInteger(prize)?prize+(prize===1?' llave':' llaves')+' al resolverlo por primera vez':'Reto extra';
+        shared.update({...base,title:side?.title||ficha?.title||story.title,progress:complete?'Premio del reto recibido':reward,
           objective:complete?'':side?.brief||pitch||'',help:{context:'reto',text:side?.task||'Examina el tablero y utiliza sus controles para resolver el reto.',
           steps:['Consulta la consigna del reto.','Prueba una respuesta o manipula las piezas.','Al terminar puedes volver a la investigación.']}});
       }else if(section.matches('.md-game-help,.vd-help')){
@@ -110,7 +144,11 @@
       if(lastMode!==mode){
         const active=setup.contains(document.activeElement);
         setup.open=mode==='pending';
-        if(active&&mode!=='pending')label.focus({preventScroll:true});
+        if(active&&mode!=='pending'){
+          const next=secondaryPanel?.matches('.md-game-side,.vd-game')?secondaryPanel:label;
+          next.focus({preventScroll:true});
+          if(next===secondaryPanel)next.scrollIntoView({block:'start'});
+        }
         lastMode=mode;
       }
       const names=data.names||{};
@@ -193,5 +231,5 @@
     observer.observe(frame,{attributes:true,attributeFilter:['data-play-mode','data-play-paper']});
     return {update,returnFrom,focus(){markers.querySelector('button')?.focus({preventScroll:true});host.scrollIntoView({block:'start'});},destroy(){observer.disconnect();explorer.destroy();shared?.destroy();}};
   }
-  window.AventuraEscena=Object.freeze({mount,mountExplorer});
+  window.AventuraEscena=Object.freeze({mount,mountExplorer,challengeHeader});
 })();

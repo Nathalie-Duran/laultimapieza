@@ -32,7 +32,7 @@
     const mesaHost=el('div','mansion-objective mj-mansion-host');
     const shared=window.MesaDeJuego?.mount(mesaHost,{family:'mansion',title:state?.title||'El secreto de los dos mundos'});
     root.append(header,tabs,panel,message);host.replaceChildren(root);
-    const arcade=el('details','mansion-arcade-drawer');arcade.append(el('summary',null,'Sala de juegos'));
+    const arcade=el('details','mansion-arcade-drawer');arcade.append(el('summary',null,'Sala de juegos de Ada · 6 minijuegos'));
     const explorer=el('lup-explorador');explorer.setAttribute('case-id','1');
     arcade.addEventListener('toggle',()=>{
       if(arcade.open&&!arcade.querySelector('mansion-arcade')){
