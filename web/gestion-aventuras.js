@@ -123,7 +123,8 @@ class AuthorWorkshop extends HTMLElement{
       def.escenas.push({id,titulo:name,texto:description,acciones:[{id:'volver',tipo:'ir',titulo:'Volver a '+origin.titulo,destino:origin.id}]});
       origin.acciones.push({id:unique(origin.acciones,'ir-'+base),tipo:'ir',titulo:'Ir a '+name,destino:id});
     }else{
-      const objetos=def.objetos||=[],id=unique(objetos,base);
+      def.objetos ??= [];
+      const objetos=def.objetos,id=unique(objetos,base);
       objetos.push({id,nombre:name,descripcion:description});
       origin.acciones.push({id:unique(origin.acciones,'recoger-'+base),tipo:'recoger',titulo:'Recoger '+name,objeto:id});
     }

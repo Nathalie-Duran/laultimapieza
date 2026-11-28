@@ -74,13 +74,16 @@
       ${item.options.map((opt,index)=>`<label class="field"><span><input name="option" type="radio" value="${index}" required> ${esc(opt)}</span></label>`).join('')}</fieldset>
       <button type="submit" class="button primary">Comprobar respuesta</button>`;
   }
+  function prizeCaption(item){
+    const amount=item.earned??item.prize??1;
+    return ' · '+amount+(amount===1?' llave':' llaves')+(item.earned?' ya en tu llavero':' por la primera resolución');
+  }
   function challengeCard(item,calendar) {
     const edition=calendar?scheduleKinds[item.schedule.kind]+' · ':'';
-    const amount=item.prize??1;
     const kind={simple:'Reto sencillo',advanced:'Reto avanzado',mission:'Misión secreta'}[item.rewardType]||'Reto sencillo';
-    const reward=(calendar?'':kind+' · Temporada '+Math.ceil(item.caseId/12)+' · Caso '+((item.caseId-1)%12+1)+' · ')+amount+(amount===1?' llave':' llaves')+' por la primera resolución';
-    return `<details class="account-card" name="reto-en-juego"><summary>${esc(edition+item.title)}<span data-reto-progreso></span></summary>
-      <p>${esc(reward)} · ${item.total} ${item.total===1?'prueba':'pruebas'}${scheduleCaption(item.schedule,calendar)}</p><div data-mesa-reto></div>
+    const provenance=calendar?'':kind+' · Temporada '+Math.ceil(item.caseId/12)+' · Caso '+((item.caseId-1)%12+1)+' · ';
+    return `<details class="account-card" name="reto-en-juego"><summary>${esc(edition+item.title)}<span data-challenge-payout>${esc(prizeCaption(item))}</span><span data-reto-progreso></span></summary>
+      <p>${esc(provenance)}${item.total} ${item.total===1?'prueba':'pruebas'}${scheduleCaption(item.schedule,calendar)}</p><div data-mesa-reto></div>
       <form data-challenge="${esc(item.id)}"><p role="status" aria-live="polite"></p><div data-question></div></form>
       <button type="button" class="text-link" data-repasar hidden>Repasar la última prueba</button></details>`;
   }
@@ -107,6 +110,8 @@
     }
     function paintQuestion(){
       const done=item.solved&&!reviewing;
+      const payout=summary.querySelector('[data-challenge-payout]');
+      if(payout)payout.textContent=prizeCaption(item);
       saved.textContent=item.solved?' · Resuelto':item.index?' · Guardado '+item.index+' de '+item.total:'';
       review.hidden=!done;fields.hidden=done;
       fields.innerHTML=done?'':question(item,!!mesa);
