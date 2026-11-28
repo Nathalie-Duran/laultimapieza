@@ -47,6 +47,11 @@ export function inspectInventory(story, record, role) {
       contributed: !role || Boolean(page.contributions?.[role]?.includes(item.id)),
       ...(held.has(item.id) && allowedRole(item, role) ? {detail: item.body} : {})
     })) : [];
+    const comparison = page && stage.fieldLink;
+    const fieldNote = comparison && {
+      objective:comparison.objective,
+      ...(page.links?.some(link => samePair(link, comparison.items)) ? {finding:comparison.finding} : {})
+    };
     const assignment = mission?.index === index && page ? {
       prize:mission.prize, complete:Boolean(record?.missionPrize),
       fragments:mission.sources.filter(item => allowedRole(item,role)).map(item => fragment(item.body,mission.prize)),
@@ -56,7 +61,8 @@ export function inspectInventory(story, record, role) {
     const solved = record?.fieldToolSolved === true;
     const recovery = instrument && solved ? materials.find(item => allowedRole(item,role) && typeof item.body === 'string' && item.body.trim()) : null;
     return {...(instrument ? {instrument, instrumentSolved:solved, recovered:recovery && {label:recovery.label,fragment:fragment(recovery.body,1)}} : {}),
-      index, place: stage.place || stage.title, visited: Boolean(page), items, links: page?.links || [], assignment};
+      index, place: stage.place || stage.title, visited: Boolean(page), items, links: page?.links || [], assignment,
+      ...(fieldNote ? {fieldNote} : {})};
   });
   return {rooms, revision: record?.inventoryRevision || 0, ...(story.hour?.hotel ? {
     hotel:record?.hotelInventory || {objects:[], witnesses:[]}
