@@ -1,4 +1,6 @@
 /* The archive box and its four clues share one work surface. */
+.vp-at-table .vp-table-hero .vp-table-start[hidden]{display:none}
+.vp-at-table .vp-material .vp-card-next{display:block;font-weight:700;line-height:1.35;color:#ffe2a9}
 #scene-preview.vallejo-player:has(.vp-at-table) {
   --desk-ink:#122623;
   --desk-paper:#f1e8d5;

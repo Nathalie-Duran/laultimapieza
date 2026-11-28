@@ -184,7 +184,6 @@
       card.dataset.kind = card.dataset.format = medium.format;
       if (medium.format === action.format) {
         card.dataset.next = 'true';
-        card.setAttribute('aria-description','Siguiente pista sugerida');
       }
       const art = node('span', 'vp-card-art vp-material-art');
       art.setAttribute('aria-hidden','true');
@@ -196,6 +195,7 @@
       const copy = node('span','vp-material-copy');
       const reader=['image','audio'].includes(medium.format)?'Sala de pruebas':'Archivo';
       copy.append(node('small','vp-card-format',formatNames[medium.format]+(st.playMode==='duo'?' · '+reader:'')),node('strong','vp-card-title',medium.label),node('span','vp-card-use',medium.use));
+      if (medium.format === action.format) copy.prepend(node('span','vp-card-next','Siguiente pista'));
       const reviewed = st.consulted.has(medium.file || medium.tool);
       if (reviewed) {
         card.dataset.reviewed = 'true';
@@ -211,6 +211,7 @@
     st.tableIntro.textContent = first
       ? 'Han llegado tres copias de madrugada. Busca la hora en el correo, escucha el timbre y usa ambas pistas para reconocer la caja 87-V en el registro.'
       : 'La cinta de Marta ha perdido tres fragmentos. El Archivo te ha enviado su diario, la grabación y una hoja sin firma. ¿Qué dijo Marta aquella noche?';
+    st.tableStart.hidden = !!action.format;
     st.tableStart.textContent = action.label;
     st.tableStart.onclick = action.run;
     st.tableSessions.replaceChildren();
@@ -260,7 +261,7 @@
     const next = button('Examinar la ficha de admisión','vp-button vp-entry-next',()=>openMedium(st,'image',st.section));
     next.setAttribute('aria-describedby',footer.id);
     const actions = node('div','vp-receipt-actions');
-    actions.append(next,seasonLink('casos?mes=1','Ver los cuatro casos del primer mes',false));
+    actions.append(next);
     actions.hidden = !st.receiptConfirmed;
     if (st.receiptConfirmed) footer.textContent = 'Copia D-24 identificada. Su resguardo corresponde a la ficha que acompañaba el correo.';
     for (const [id,time,signal] of [['D-18','03:08','Largo · corto · corto'],['D-21','03:12','Corto · largo · corto'],['D-24','03:12','Largo · corto · corto']]) {
@@ -627,7 +628,7 @@
       <div class="vp-evidence-grid vp-table-materials" aria-label="Pruebas de la mesa" role="group"></div></section>
       <aside class="vp-side" id="vp-documentos" aria-label="Documentos del expediente"><div class="vp-side-head"><h3>Documentos</h3><button type="button" class="vp-side-close" aria-label="Cerrar la lista de documentos">Cerrar</button></div><div class="vp-sessions"></div><ol class="vp-doc-list"></ol></aside>
       <section class="vp-desk" aria-label="Lector de documentos"><div class="vp-document-head"><button type="button" class="vp-table-return vp-back-table">Volver a la mesa</button><button type="button" class="vp-shelf-toggle" aria-controls="vp-documentos" aria-expanded="false">Documentos</button><h3 class="vp-doc-title" tabindex="-1"></h3><button type="button" class="vp-zoom" hidden>Ampliar imagen</button><button type="button" class="vp-adjust" hidden>Invertir</button><button type="button" class="vp-brighten" hidden>Subir brillo</button><button type="button" class="vp-mirror" hidden>Espejo</button><a class="vp-open-original vp-separate" target="_blank" rel="noopener" hidden>Abrir aparte</a></div><div class="vp-reader"></div>
-      <div class="vp-help"><aside class="vp-delivery" hidden aria-label="Nuevo correo"><strong>03:41 · Correo del Archivo</strong><p>Hay una cinta dañada en la carpeta de Marta. El Archivo acaba de enviarte una copia.</p></aside><section class="vp-finale" hidden aria-labelledby="vp-finale-title"><h3 id="vp-finale-title">¿Sobrevivirá una cinta durante treinta años?</h3><p>Has abierto el expediente de Tomás. En «Mundos cruzados», dos épocas de la misma estación esconden tu siguiente pista. Es una de las cuatro historias del primer mes.</p><div class="vp-season-actions"></div><div class="case-share vp-share-demo"><button type="button" data-copy-invite="https://www.laultimapieza.es/vallejo.html?via=invitacion">Copiar enlace a la demo</button><p role="status" aria-live="polite"></p></div></section>
+      <div class="vp-help"><aside class="vp-delivery" hidden aria-label="Nuevo correo"><strong>03:41 · Correo del Archivo</strong><p>Hay una cinta dañada en la carpeta de Marta. El Archivo acaba de enviarte una copia.</p></aside><section class="vp-finale" hidden aria-labelledby="vp-finale-title"><h3 id="vp-finale-title">Expediente de Tomás abierto</h3><p>Has terminado la investigación de la Clínica Vallejo.</p><div class="vp-season-actions"></div><div class="case-share vp-share-demo"><button type="button" data-copy-invite="https://www.laultimapieza.es/vallejo.html?via=invitacion">Copiar enlace a la demo</button><p role="status" aria-live="polite"></p></div></section>
       <details class="vp-pair" hidden><summary>Consultar los dos documentos</summary><p><span></span> <a target="_blank" rel="noopener"></a></p></details>
       <details class="vp-hints" hidden><summary>Pistas de esta prueba</summary><div class="vp-hints-body"><ol class="vp-hint-list"></ol><button type="button" class="vp-hint-table" hidden>Ver la tabla de Vigenère</button><button type="button" class="vp-hint-more">Revelar la primera pista</button><small class="vp-hint-status"></small></div></details></div></section></div>
       <footer class="vp-footer"><details class="vp-privacy"><summary>Opciones</summary><div class="vp-options"><p data-save-info></p><label><input type="checkbox" data-vp-consent> Permitir contadores anónimos de uso de la demo, incluida la apertura del pase al terminar. Si llegué por invitación, también se contarán mi visita y mi solicitud de aviso. Opcional.</label><details class="vp-restart"><summary>Empezar de nuevo</summary><p>Se borrará el progreso de Clínica Vallejo guardado en este navegador.</p><button type="button" class="vp-reset">Reiniciar la demo</button></details></div></details>
@@ -652,9 +653,8 @@
     st.previous.addEventListener('click', () => select(st.section, st.index - 1));
     st.nextSession.addEventListener('click', () => continueSession(st));
     const member = !!root.ClubAccess?.canPlay;
-    const plans = seasonLink('planes', 'Ver el pase mensual', !member);
-    const cases = seasonLink('casos', member ? 'Elegir mi siguiente caso' : 'Explorar los casos', member);
-    q('.vp-season-actions').append(...(member ? [cases, plans] : [plans, cases]),seasonLink('tableros','Ver los cuatro tableros',false));
+    const cases = seasonLink('casos', member ? 'Elegir mi siguiente aventura' : 'Explorar las aventuras',true);
+    q('.vp-season-actions').append(cases);
     q('.vp-close').addEventListener('click', event => { event.stopPropagation(); suspend(); });
     if (returnCase) {
       q('.vp-close').textContent = 'Volver a la historia';
