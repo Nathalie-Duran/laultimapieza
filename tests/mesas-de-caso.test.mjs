@@ -34,11 +34,14 @@ test('Jugar carga cada mesa de su temporada con su hoja de estilo y reutiliza lo
   for(let id=2;id<=48;id++){
     await Promise.all([game.ArchivoObjetos.open(id),game.ArchivoObjetos.open(id)]);
     assert.equal(typeof game.MesasDeCaso[id],'function','Falta la mesa del juego '+id);
+    assert.equal(typeof game.ArchivosDeCaso[id],'function','Falta el lector de evidencias del juego '+id);
   }
-  assert.equal(requests.length,12);
+  assert.equal(requests.length,19);
   for(const url of requests){
     assert.equal(url.search,'?v=prueba');
-    if(url.pathname.endsWith('.js'))assert.ok(requests.some(s=>s.pathname===url.pathname.replace(/\.js$/,'.css')));
+    if(url.pathname.endsWith('.js')&&!url.pathname.endsWith('/tercer-jugador-evidencias.js')){
+      assert.ok(requests.some(s=>s.pathname===url.pathname.replace(/\.js$/,'.css')));
+    }
   }
 });
 
