@@ -1,3 +1,4 @@
+@import url('./mansion-well.css');
 /* The two eras share a layout and use distinct accent colors. */
 .mansion-entry, .mansion-game {
   --house-ink: #f7efd9;
@@ -190,7 +191,6 @@
 .mansion-game .mansion-scene {
   position: relative;
   isolation: isolate;
-  aspect-ratio: 16 / 9;
   margin: 0;
   overflow: hidden;
   border: 1px solid #728075;
@@ -198,14 +198,10 @@
   background: #1e2925;
 }
 .mansion-game .mansion-scene .mansion-photo {
-  position: absolute;
-  inset: 0;
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
   max-width: none;
-  object-fit: cover;
-  object-position: center;
 }
 .mansion-game .mansion-scene .mansion-marker {
   position: absolute;
@@ -228,8 +224,7 @@
   font: 700 1rem/1.15 var(--sans, system-ui, sans-serif);
 }
 .mansion-game .mansion-marker[aria-pressed="true"] { color: #20251d; background: var(--house-metal); }
-.mansion-game .mansion-marker .mansion-dot { font-variant-numeric: tabular-nums; }
-.mansion-game .mansion-marker .mansion-dot::before {content:attr(data-number);}
+.mansion-game .mansion-marker .mansion-dot { inline-size:.68rem;block-size:.68rem;border-radius:50%;background:var(--house-metal); }
 .mansion-game .mansion-device-pin .mansion-marker-label {opacity:1;}
 .mansion-game .mansion-marker-label {
   position: absolute;
@@ -247,6 +242,18 @@
   opacity: 0;
   pointer-events: none;
 }
+.mansion-game .mansion-pin-end .mansion-marker-label { inset-inline-start:auto;inset-inline-end:-.5rem;transform:none; }
+.mansion-game .mansion-examine {display:flex;flex-wrap:wrap;gap:.4rem;margin-block-start:.5rem}
+.mansion-game .mansion-find,.mansion-game .mansion-extra-find {
+  display:inline-flex;align-items:center;gap:.45rem;
+  min-block-size:2.75rem;max-inline-size:100%;padding:.45rem .7rem;
+  border:1px solid var(--house-stroke);border-radius:.25rem;
+  color:var(--house-ink);background:var(--house-panel);text-align:start;font-size:.95rem;
+}
+.mansion-game .mansion-find::before {content:"";flex:0 0 auto;inline-size:.5rem;block-size:.5rem;border:1px solid var(--house-metal);transform:rotate(45deg)}
+.mansion-game [data-read="true"]::after {content:"✓";color:var(--house-metal);margin-inline-start:.2em;font-weight:700}
+.mansion-game .mansion-location-world {display:block;font-size:.83rem;color:#fff3d9}
+.mansion-game .mansion-room-notes .mansion-extra-find {margin:.25rem .3rem .25rem 0}
 .mansion-game .mansion-marker:focus-visible { z-index: 2; }
 .mansion-game .mansion-marker:focus-visible .mansion-marker-label { opacity: 1; }
 .mansion-game[data-world="B"] .mansion-scene .mansion-photo { filter: saturate(.55) contrast(1.07); }
@@ -347,7 +354,7 @@
   background: #1e322c;
 }
 .mansion-game .mansion-status[data-error="true"]:not(:empty) { color: #fff0df; background: #452c26; border-color: #f2ae8b; }
-.mansion-game > .mansion-status:empty { margin: 0; }
+.mansion-game .mansion-panel > .mansion-status:empty { margin:0; padding:0; height:0; position:absolute; overflow:hidden; }
 .mansion-game .mansion-puzzle { margin-block: 1rem; }
 .mansion-game .mansion-puzzle > .mansion-pieces { margin-block: .8rem 1rem; }
 .mansion-game .mansion-action { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; }
@@ -416,7 +423,6 @@
 }
 @media (max-width: 420px) {
   .mansion-game { --house-gutter: .65rem; }
-  .mansion-game .mansion-scene { aspect-ratio: 1.65; }
   .mansion-game .mansion-header { padding-block-start: 1rem; }
   .mansion-game .mansion-rooms { grid-template-columns: 1fr; }
   .mansion-game .mansion-piece { padding-inline: .5rem; }

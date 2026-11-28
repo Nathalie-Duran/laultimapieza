@@ -391,7 +391,7 @@
     c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,save,onPaper,options);
     host.append(c.modeControl.entry);
   }
-  function blockEntry(c,{title,question,photo,alt,mode,choice,locked}={}) {
+  function blockEntry(c,{title,question,photo,alt,mode,modeHelp,choice,locked}={}) {
     const number=String(c.id).padStart(2,'0'),item=window.ValdemarCatalog?.get(c.id)||{};
     const entry=element('header',null,'vd-block-entry'),nav=element('nav',null,'vd-block-links');
     nav.setAttribute('aria-label','Navegación del juego');
@@ -406,7 +406,7 @@
     copy.append(element('p','Código Valdemar · Bloque 1 · Juego '+number,'vd-block-label'),heading,pitch);
     if(mode){
       const setup=element('details',null,'vd-block-mode'),summary=element('summary');
-      const description=element('p','A solas, investigas con los dos papeles. En pareja, cada persona abre su carpeta desde su cuenta y compartís los hallazgos.','vd-block-mode-note');
+      const description=element('p',modeHelp||'A solas, investigas con los dos papeles. En pareja, cada persona abre su carpeta desde su cuenta y compartís los hallazgos.','vd-block-mode-note');
       setup.append(summary,mode.entry,description);copy.append(setup);
       let previous;
       function sync(){
@@ -600,7 +600,10 @@
       }
     }
     if(!arcadeHost.firstElementChild)arcadeHost.innerHTML=window.RetosTemporada?.puertaSala('mapa')||'';
-    const header=blockEntry(c,{title:'El secreto de los dos mundos',mode:data.edition==='choose'?null:c.modeControl,choice});
+    const header=blockEntry(c,{
+      title:'El secreto de los dos mundos',mode:data.edition==='choose'?null:c.modeControl,choice,
+      modeHelp:'A solas, cambia de casa para comparar lo que encuentres. En pareja, cada persona explora su propia versión de la mansión desde su cuenta. Contad qué veis y usad las pistas del otro para mover vuestro mecanismo.'
+    });
     c.frame.replaceChildren(header,game,arcadeHost);
     c.modeControl.mount();
     if(data.mansion&&c.routeSection!=='reto'&&c.routeSection!=='pistas'&&(c.resume||c.freshMode))header.querySelector('h1').focus({preventScroll:true});

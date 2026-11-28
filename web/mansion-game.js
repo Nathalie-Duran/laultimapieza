@@ -8,6 +8,13 @@
     [[32,54],[66,44],[48,31]],[[53,45],[25,48],[72,62]],[[48,54],[28,46],[72,51]],[[59,52],[30,55],[74,34]],
     [[49,46],[25,48],[69,54]],[[49,60],[25,54],[73,39]],[[53,56],[24,54],[73,39]],[[51,51],[25,56],[72,52]]
   ];
+  const devices=[
+    ['Examinar el arco'],['Hablar con Elías','Girar la fotografía'],
+    ['Examinar la manivela','Mirar dentro del pozo'],['Ajustar el reloj'],['Abrir el cajón'],
+    ['Comparar las placas'],['Girar los anillos'],['Examinar el riego'],['Ajustar los desvíos'],
+    ['Preparar el señuelo'],['Sintonizar la radio'],['Examinar el receptor'],
+    ['Examinar el banco óptico','Examinar el inductor'],['Examinar el acta'],['Accionar el panel']
+  ];
   function el(tag,cls,text){
     const node=document.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=text;return node;
   }
@@ -36,8 +43,8 @@
     const mesaHost=el('div','mansion-objective mj-mansion-host');
     const shared=window.MesaDeJuego?.mount(mesaHost,{family:'mansion',title:state?.title||'El secreto de los dos mundos'});
     const dock=el('aside','mj-objective-dock');dock.hidden=true;dock.setAttribute('aria-label','Objetivo de la aventura');
-    if(options.blockEntry){tabs.classList.add('vd-block-tools');root.append(dock,tabs,header,panel,message);}
-    else root.append(header,dock,tabs,panel,message);
+    if(options.blockEntry){tabs.classList.add('vd-block-tools');root.append(dock,tabs,header,panel);}
+    else root.append(header,dock,tabs,panel);
     host.replaceChildren(root);shared?.dockObjective?.(dock);
     const arcade=el('details','mansion-arcade-drawer');
     const summary=el('summary','season-room-door','Sala de juegos de Ada · 6 minijuegos');
@@ -75,16 +82,11 @@
       if(speaking){window.speechSynthesis?.cancel();speaking=false;}
     }
     let speaking=false;
-    function switchTab(id){stopAudio();missionSource=null;tab=id;draw();}
+    function switchTab(id){stopAudio();say('');missionSource=null;tab=id;draw();}
     function say(text,error=false){notice=text||'';noticeError=error;message.textContent=notice;message.dataset.error=String(error);}
     function focusTarget(selector){const target=panel.querySelector(selector);if(target){target.focus({preventScroll:true});target.scrollIntoView?.({block:'nearest'});}}
-    function observe(items){
-      for(const [i,item] of (items||[]).entries()){
-        if(!roleAllowed(item,world))continue;
-        const key=item.id||[world,item.title,item.text||'',i].join('|');
-        if(!seen.has(key))seen.set(key,item);
-      }
-    }
+    const noteKey=(item,perspective)=>[perspective,item.id||item.title+'|'+item.text].join('|');
+    function observations(){return Array.isArray(state.notebook)?state.notebook:[...seen.values()];}
     function apply(incoming,keepRoom){
       const next=incoming?.mansion||incoming?.state||incoming;
       if(!next||!Array.isArray(next.rooms))return;
@@ -95,22 +97,24 @@
       else if(!keepRoom&&next.explore?.id)roomId=next.explore.id;
       if(next.explore?.id===roomId)explore=next.explore;
       else if(explore?.id!==roomId)explore=null;
-      observe(state.stage?.evidence);
     }
-    async function act(input,after){
+    async function act(input,after,afterDraw){
       if(busy||disposed)return;
       const id=++requestId;
       busy=true;root.setAttribute('aria-busy','true');say('');saveText='Guardando…';shared?.update({saved:saveText});
       try {
         const result=await options.act(input);
         if(disposed||id!==requestId)return;
+        const previous=state.current;
         apply(result,true);
         const failed=result?.correct===false;
         saveText=failed?'Respuesta comprobada':'Progreso guardado';
         say(result?.message||result?.feedback||'',failed);
         if(!failed)after?.(result);
         draw();
-        if(notice)message.focus({preventScroll:true});
+        if(!failed&&afterDraw)afterDraw();
+        else if(state.current!==previous)focusTarget('.mansion-room-title');
+        else if(notice)message.focus({preventScroll:true});
       }catch(err){if(!disposed&&id===requestId){saveText='Última acción sin confirmar';shared?.update({saved:saveText});say(err?.message||'No se ha podido guardar. Puedes volver a intentarlo.',true);message.focus();}}
       finally{if(!disposed&&id===requestId){busy=false;root.removeAttribute('aria-busy');}}
     }
@@ -121,7 +125,6 @@
       await act({op:'inspect',roomId:id},result=>{
         const incoming=result?.mansion||result?.state||result;
         roomId=id;explore=incoming.explore||null;activeDevice=false;selectedEvidence=null;tab='scene';
-        observe(explore?.evidence);
       });
     }
     function drawHeader(){
@@ -136,7 +139,7 @@
         const stage=state.stage;
         shared.update({progress:completed+'/15 pruebas resueltas'+(stage?.title?' · '+stage.title:''),saved:saveText,
           objective:stage?.brief||'Revisa la fotografía final y lee el desenlace que has guardado.',
-          tutorial:stage&&completed===0?'Abre un objeto marcado en la fotografía y lee lo que observas. '+(paired?'Compara ese detalle con lo que ve tu pareja en la otra casa.':'Cambia de casa para ver la misma habitación desde el otro papel.')+' Después abre el mecanismo y prueba tu deducción.':'',help:{context:paired?'duo':'solo',
+          tutorial:stage&&completed===0?'Examina un objeto del escenario. Lo que descubras quedará en Evidencias. '+(paired?'Coméntalo con tu pareja y probad vuestra deducción desde las dos casas.':'Cambia de casa para comparar los hallazgos y probar tu deducción.'):'',help:{context:paired?'duo':'solo',
             text:paired?'Cada persona observa una realidad de la casa. Comparad lo que ocurre en la misma habitación.':'Puedes alternar entre la casa habitada y la abandonada para comparar la misma habitación.',
             steps:['Abre los puntos de la fotografía para examinar los objetos.','Consulta las evidencias y opera el mecanismo de la sala.','Usa el mapa para volver a las habitaciones abiertas.']},
           next:stage&&tab==='scene'&&stage.room!==roomId?{label:'Ir al objetivo',run:()=>travel(stage.room)}:null});
@@ -149,7 +152,7 @@
           if(world===id||busy)return;
           stopAudio();world=id;selectedEvidence=null;
           try{if(perspectiveKey)sessionStorage.setItem(perspectiveKey,JSON.stringify({stage:state.current,world}));}catch{}
-          observe(state.stage?.evidence);observe(explore?.evidence);draw();
+          draw();
           header.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
         },'mansion-world-choice');
         control.setAttribute('aria-pressed',String(world===id));worlds.append(control);
@@ -210,12 +213,13 @@
       const key=(mission?'mission-'+stage.id:'stage-'+stage.number)+'-'+world;
       if(!drafts.has(key))drafts.set(key,{});
       const params={stage:state.stage?.number||Math.min(state.current||15,15),...(mission?{mission:stage.id}:{})};
-      const observed=new Set([...seen.values()].map(clue=>clue.title+'|'+clue.text));
-      const shownStage=stage.number===6?{...stage,evidence:(stage.evidence||[]).filter(clue=>observed.has(clue.title+'|'+clue.text))}:stage;
+      const observed=new Set(observations().map(clue=>clue.title+'|'+clue.text));
+      const shownStage={...stage,controls:(stage.controls||[]).filter(control=>roleAllowed(control,world))};
+      if(stage.number===6)shownStage.evidence=(stage.evidence||[]).filter(clue=>observed.has(clue.title+'|'+clue.text));
       return window.MansionPuzzles.render({
         stage:shownStage,mission,world,inventory:state.inventory,draft:drafts.get(key),actions:(stage.actions||[]).filter(item=>roleAllowed(item,world)),
-        perform:action=>act({op:'act',...params,action:action.id}),
-        submit:answers=>act({op:'solve',...params,answers})
+        perform:(action,extra={})=>act({...extra,op:'act',...params,action:action.id,world}),
+        submit:answers=>act({op:'solve',...params,answers,world})
       });
     }
     function drawMap(){
@@ -246,29 +250,59 @@
       const evidence=(explore?.id===room.id?explore.evidence:localStage?stage.evidence:[])||[];
       const related=localStage?(stage.evidence||[]):[];
       const localItems=[...related,...evidence].filter((item,i,items)=>roleAllowed(item,world)&&items.findIndex(a=>a.title===item.title&&a.text===item.text)===i);
-      observe(localItems);
       const scene=el('section','mansion-stage'),frame=el('div','mansion-scene'),photo=el('img','mansion-photo');
       photo.src=roomImage(room.id,world);photo.alt=(room.title||'Sala')+' · '+labels[world];
       photo.width=960;photo.height=540;photo.decoding='async';frame.append(photo);
       const map=coordinates[rooms.indexOf(room.id)]||coordinates[0];
+      const details=el('div','mansion-examine');details.setAttribute('role','group');details.setAttribute('aria-label','Objetos y lugares que puedes examinar');
       function marker(label,point,handler,n){
-        const control=button('',handler,'mansion-marker');
-        if(localStage&&n===1)control.className+=' mansion-device-pin';
+        const primary=localStage&&n===1;
+        const control=button('',handler,'mansion-marker'+(primary?' mansion-device-pin':' mansion-find'));
         control.style.setProperty('--x',point[0]+'%');control.style.setProperty('--y',point[1]+'%');
-        const dot=el('span','mansion-dot');dot.dataset.number=String(n);dot.setAttribute('aria-hidden','true');
-        control.append(dot,el('span','mansion-marker-label',label));frame.append(control);return control;
+        if(primary){
+          const dot=el('span','mansion-dot');dot.setAttribute('aria-hidden','true');
+          control.append(dot,el('span','mansion-marker-label',label));frame.append(control);
+          if(point[0]>68)control.className+=' mansion-pin-end';
+        }else{
+          control.append(el('span','mansion-find-label',label));details.append(control);
+        }
+        return control;
       }
-      function returnButton(n){
+      function returnButton(index,extra=false){
         return button('Volver al escenario',()=>{
           activeDevice=false;selectedEvidence=null;stopAudio();draw();
-          const target=panel.querySelectorAll('.mansion-marker')[n-1];
+          if(extra){const list=panel.querySelector('.mansion-room-notes');if(list)list.open=true;}
+          const target=panel.querySelectorAll(extra?'.mansion-extra-find':'.mansion-marker')[index];
           target?.focus({preventScroll:true});target?.scrollIntoView?.({block:'center'});
         });
       }
-      if(localStage)marker('Abrir el mecanismo',map[0],()=>{activeDevice=true;selectedEvidence=null;draw();focusTarget('.mansion-puzzle-title');},1);
+      if(localStage){
+        const names=devices[stage.number-1]||[];
+        const point=stage.number===3?(world==='A'?[83,47]:[48,61]):map[0];
+        marker(names[world==='B'?1:0]||names[0]||'Examinar el mecanismo',point,()=>{activeDevice=true;selectedEvidence=null;draw();focusTarget('.mansion-puzzle-title');},1);
+      }
+      function inspectItem(item,index){
+        if(busy)return;
+        const place=roomId,perspective=world,step=state.current;
+        const open=()=>{
+          if(tab!=='scene'||roomId!==place||world!==perspective||state.current!==step)return;
+          selectedEvidence=index;activeDevice=false;
+          if(!Array.isArray(state.notebook))seen.set(noteKey(item,world),{...item,world});
+        };
+        if(item.id&&Array.isArray(state.notebook)&&!state.notebook.some(e=>e.id===item.id&&e.world===world)){
+          return act({op:'observe',stage:state.current,roomId:place,world,evidenceId:item.id},open,()=>focusTarget('.mansion-inspection h4'));
+        }
+        open();draw();focusTarget('.mansion-inspection h4');
+      }
+      function itemLabel(item){
+        return item.title===labels[world]?'Observar la habitación':item.title||'Examinar un objeto';
+      }
+      function markReading(control,item){
+        const read=observations().some(e=>noteKey(e,e.world||world)===noteKey(item,world));
+        if(read){control.dataset.read='true';control.setAttribute('aria-label','Volver a examinar · '+itemLabel(item));}
+      }
       for(const [i,item] of localItems.slice(0,2).entries()){
-        const point=i<2?map[i+1]:[18+(i%4)*18,70+Math.min(2,Math.floor(i/4))*7];
-        marker(item.title||'Examinar',point,()=>{selectedEvidence=i;activeDevice=false;draw();focusTarget('.mansion-inspection h4');},i+(localStage?2:1));
+        markReading(marker(itemLabel(item),map[i+1],()=>inspectItem(item,i),i+(localStage?2:1)),item);
       }
       const encounter=(state.missions||[]).find(m=>m.available&&m.room===room.id);
       if(encounter){
@@ -278,10 +312,16 @@
         },'✦');
         pin.className+=' mansion-mission-pin';pin.setAttribute('aria-label','Misión opcional · '+encounter.title);
       }
-      const caption=el('div','mansion-caption');caption.append(el('h3','mansion-room-title',room.title));
-      scene.append(frame,caption);panel.append(scene);
+      const caption=el('div','mansion-caption'),location=el('h3','mansion-room-title',room.title);
+      location.tabIndex=-1;
+      caption.append(el('span','mansion-location-world',labels[world]),location);
+      frame.append(caption);scene.append(frame);
+      if(details.childElementCount)scene.append(details);
+      panel.append(scene);
       if(selectedEvidence!=null&&localItems[selectedEvidence]){
-        const inspection=el('section','mansion-inspection');inspection.append(evidenceCard(localItems[selectedEvidence]),returnButton(selectedEvidence+(localStage?2:1)));panel.append(inspection);
+        const extra=selectedEvidence>=2;
+        const inspection=el('section','mansion-inspection');
+        inspection.append(evidenceCard(localItems[selectedEvidence]),returnButton(extra?selectedEvidence-2:selectedEvidence+(localStage?1:0),extra));panel.append(inspection);
       }
       if(stage){
         if(shared)panel.append(mesaHost);
@@ -291,13 +331,18 @@
           if(!localStage)objective.append(button('Ir al objetivo',()=>travel(stage.room),'mansion-primary'));
           panel.append(objective);
         }
-        if(localStage&&activeDevice)panel.append(displayPuzzle(stage),returnButton(1));
+        if(localStage&&activeDevice)panel.append(displayPuzzle(stage),message,returnButton(0));
       }
       if(state.current===1&&state.recordings?.carta)panel.append(recording(state.recordings.carta));
       if(stage?.recording)panel.append(recording(stage.recording));
       if(localItems.length>2){
         const ledger=el('details','mansion-room-notes');ledger.append(el('summary',null,'Otras observaciones de la sala'));
-        for(const clue of localItems.slice(2))ledger.append(evidenceCard(clue));panel.append(ledger);
+        for(const [offset,clue] of localItems.slice(2).entries()){
+          const extra=button(itemLabel(clue),()=>inspectItem(clue,offset+2),'mansion-secondary mansion-extra-find');
+          markReading(extra,clue);
+          ledger.append(extra);
+        }
+        panel.append(ledger);
       }
       panel.append(drawMap());
       panel.append(recording(storm));
@@ -343,14 +388,14 @@
       const cards=el('div','mansion-cards'),unique=new Set(),heard=new Set();
       const entries=Object.values(state.recordings||{});
       const normalize=text=>String(text||'').trim().replace(/^[«“"]+|[»”"]+$/g,'').trim();
-      for(const item of [...(state.album||[]),...(state.stage?.evidence||[]),...seen.values()]){
+      for(const item of [...(state.album||[]),...observations()]){
         const key=[item.title,item.text].join('|');
-        if(!roleAllowed(item,world)||unique.has(key))continue;
+        if(!roleAllowed(item,world)||labels[item.world]&&item.world!==world||unique.has(key))continue;
         const record=entries.find(entry=>normalize(entry.text)===normalize(item.text));
         unique.add(key);if(record)heard.add(record);
         cards.append(evidenceCard(record?{...item,audio:record.audio}:item));
       }
-      if(!cards.childElementCount)cards.append(el('p',null,'Las observaciones que descubras aparecerán aquí.'));
+      if(!observations().some(item=>roleAllowed(item,world)&&(!labels[item.world]||item.world===world)))cards.prepend?.(el('p','mansion-notebook-empty','Examina un objeto del escenario para guardar aquí tu primer hallazgo de esta casa.'));
       panel.append(cards);
       for(const entry of entries)if(!heard.has(entry))panel.append(recording(entry));
     }
@@ -379,6 +424,7 @@
       for(const [key,node] of builtTabs){node.setAttribute('aria-selected',String(tab===key));node.tabIndex=tab===key?0:-1;}
       panel.setAttribute('aria-labelledby','mansion-tab-'+tab);
       panel.replaceChildren();
+      if(tab!=='scene'||!activeDevice||state.stage?.room!==roomId)panel.append(message);
       if(tab==='scene')drawScene();else if(tab==='bag')drawBag();else if(tab==='evidence')drawEvidence();else drawHints();
       if(shared&&(tab!=='scene'||!state.stage))root.insertBefore(mesaHost,options.blockEntry?panel:tabs);
       message.textContent=notice;message.dataset.error=String(noticeError);
@@ -389,7 +435,7 @@
       apply(value,true);draw();
     }
     function destroy(){disposed=true;requestId++;stopAudio();shared?.destroy();root.remove();}
-    if(state){observe(state.stage?.evidence);draw();}
+    if(state)draw();
     return {update,destroy,openHints(){switchTab('hints');builtTabs.get('hints').focus();}};
   }
   window.MansionGame=Object.freeze({mount});
