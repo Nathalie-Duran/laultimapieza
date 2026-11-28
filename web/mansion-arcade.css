@@ -65,3 +65,212 @@ mansion-arcade{display:block;margin-block:1.25rem;text-align:start}
   .ma-gears select{padding-inline:.1rem}
   .ma-vitrines{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+
+.ma87-lobby, .ma87-panel, dialog.ma87-detail {
+  --ma87-green: #102c25;
+  --ma87-shade: #0b211d;
+  --ma87-brass: #debd83;
+  --ma87-ivory: #fff5df;
+  --ma87-muted: #d9d9c9;
+  --ma87-line: #716849;
+  --ma87-serif: var(--serif, Georgia, serif);
+  --ma87-sans: var(--sans, system-ui, sans-serif);
+  min-inline-size: 0;
+  font-family: var(--ma87-sans);
+  text-align: start;
+}
+.ma87-lobby *, .ma87-panel *, dialog.ma87-detail * { box-sizing: border-box; }
+.ma87-lobby {
+  width: 100%;
+  color: var(--ma87-ivory);
+  background: var(--ma87-shade);
+  border: 1px solid var(--ma87-line);
+  border-radius: .4rem;
+}
+.ma87-lobby > .ma87-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: end;
+  min-block-size: clamp(19rem, 40vw, 38rem);
+  border-radius: .35rem .35rem 0 0;
+  overflow: hidden;
+  background: var(--ma87-green);
+}
+.ma87-hero .ma87-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  display: block;
+  object-fit: cover;
+  object-position: center 54%;
+  z-index: -2;
+}
+.ma87-hero .ma87-scene img { display:block; width:100%; height:100%; object-fit:cover; }
+.ma87-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(6 22 18 / .91), rgb(6 22 18 / .63) 33%, transparent 72%), linear-gradient(0deg, rgb(7 22 18 / .78), transparent 57%);
+}
+.ma87-hero .ma87-intro { width: min(45rem, 76%); padding: clamp(1.4rem, 4.4vw, 4rem); }
+.ma87-lobby .ma87-intro h1, .ma87-lobby .ma87-intro h2 {
+  color: var(--ma87-ivory);
+  margin: 0;
+  font: 400 clamp(2.6rem, 6.2vw, 5.85rem)/1.03 var(--ma87-serif);
+  letter-spacing: -.04em;
+  text-wrap: balance;
+}
+.ma87-intro p { max-width: 43ch; margin: .7rem 0 1rem; color: #f7edda; line-height: 1.55; }
+.ma87-intro :is(a,button), .ma87-actions :is(a,button), dialog.ma87-detail button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 100%;
+  min-height: 44px;
+  padding: .62rem 1rem;
+  border: 1px solid #8d7856;
+  border-radius: .25rem;
+  background: #f4ead5;
+  color: #243b30;
+  font: 650 .94rem/1.3 var(--ma87-sans);
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  cursor: pointer;
+}
+.ma87-intro :is(a,button) { background: #e7c58a; color: #142e24; border-color: #e7c58a; }
+.ma87-intro :is(a,button):hover { background: #f4d79e; }
+.ma87-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem 1rem;
+  margin: 0;
+  padding: .8rem clamp(1rem, 3.7vw, 3.2rem);
+  border-block: 1px solid var(--ma87-line);
+  background: #19392e;
+  color: #ead5a9;
+  line-height: 1.45;
+}
+.ma87-progress p, .ma87-progress strong { margin: 0; color: inherit; }
+.ma87-progress progress { width: min(100%, 11rem); height: .65rem; accent-color: #d9ad65; }
+.ma87-lobby .ma87-section { padding: clamp(1.05rem, 3.6vw, 3.2rem); }
+.ma87-lobby .ma87-section h2 {
+  color: var(--ma87-ivory);
+  margin: 0 0 .85rem;
+  font: 400 clamp(1.55rem, 3.4vw, 3rem)/1.13 var(--ma87-serif);
+  letter-spacing: -.025em;
+}
+.ma87-lobby .ma87-stations {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: clamp(.65rem, 1.3vw, 1.15rem);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ma87-stations :is(button.ma87-station,.ma87-station > button) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 44px;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #18382f;
+  color: var(--ma87-ivory);
+  border: 1px solid #6d7054;
+  border-radius: .3rem;
+  text-align: start;
+  cursor: pointer;
+}
+.ma87-stations .ma87-station img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  background: #19362e;
+}
+.ma87-stations .ma87-station :is(button,button.ma87-station) > span,
+.ma87-stations button.ma87-station > span { display: grid; gap: .2rem; padding: .8rem .95rem 1rem; }
+.ma87-stations .ma87-station small { color: #e4cf9d; font: 600 .8rem/1.4 var(--ma87-sans); }
+.ma87-stations .ma87-station strong { color: var(--ma87-ivory); font: 500 clamp(1.15rem, 1.8vw, 1.65rem)/1.14 var(--ma87-serif); }
+.ma87-stations button:is(:hover,:focus-visible) { border-color: #ecc785; background: #214535; }
+.ma87-stations button:hover strong { text-decoration: underline; text-underline-offset: .14em; }
+.ma87-access {
+  margin: .8rem 0;
+  padding: .7rem .9rem;
+  border-inline-start: 3px solid #c0a069;
+  background: #243f33;
+  color: #f2ead9;
+  line-height: 1.5;
+}
+.ma87-access a { color: #ffe0a3; }
+.ma87-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block: 1rem 0; }
+.ma87-panel, dialog.ma87-detail {
+  color: #2c3329;
+  background: #f6edda;
+  border: 1px solid #ae9362;
+  border-radius: .4rem;
+}
+.ma87-panel { padding: clamp(1rem, 3vw, 2.2rem); line-height: 1.5; }
+.ma87-panel > :is(h1,h2), dialog.ma87-detail :is(h1,h2,h3) {
+  color: #243c30;
+  font: 500 clamp(1.55rem, 3.4vw, 2.65rem)/1.14 var(--ma87-serif);
+  margin: .3rem 0 .65rem;
+  text-wrap: balance;
+}
+dialog.ma87-detail {
+  width: min(34rem, calc(100% - 2rem));
+  max-height: calc(100vh - 2.5rem);
+  max-height: calc(100dvh - 2.5rem);
+  margin: auto;
+  padding: clamp(1rem, 3vw, 1.65rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  box-shadow: 0 1.5rem 5rem rgb(0 0 0 / .55);
+}
+dialog.ma87-detail:not([open]) { display: none; }
+dialog.ma87-detail::backdrop { background: rgb(4 18 14 / .83); }
+dialog.ma87-detail img { display: block; width: 100%; max-height: 35vh; object-fit: cover; border-radius: .18rem; margin: 0 0 .8rem; }
+dialog.ma87-detail p, .ma87-panel > p { color: #354034; line-height: 1.5; }
+dialog.ma87-detail .ma87-actions :is(button,a):first-child, .ma87-panel .ma87-actions :is(button,a):first-child {
+  color: #fff5df; border-color: #204934; background: #204934;
+}
+:is(.ma87-lobby,.ma87-panel,dialog.ma87-detail) :is(button,a,summary,input,select):focus-visible {
+  outline: 3px solid #ffd781;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px #16382c;
+}
+:is(.ma87-lobby,.ma87-panel,dialog.ma87-detail) button:disabled { cursor: default; opacity: .62; }
+@media (max-width: 860px) {
+  .ma87-lobby .ma87-stations { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 600px) {
+  .ma87-hero .ma87-intro { width: 100%; padding: 1.2rem; }
+  .ma87-hero::after { background: linear-gradient(0deg, rgba(5,21,16,.97), rgba(5,21,16,.74) 43%, rgba(5,21,16,.08) 87%); }
+  .ma87-hero .ma87-scene { object-position: 58% center; }
+}
+@media (max-width: 470px) {
+  .ma87-lobby .ma87-stations { grid-template-columns: 1fr; }
+  .ma87-stations .ma87-station img { aspect-ratio: 2.25; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.ma87-lobby,.ma87-panel,dialog.ma87-detail) *, dialog.ma87-detail::backdrop { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+}
+@media (forced-colors: active) {
+  .ma87-hero .ma87-intro { background: Canvas; }
+  .ma87-lobby .ma87-intro :is(h1,h2,p) { color: CanvasText; }
+  .ma87-stations button, .ma87-progress, dialog.ma87-detail { border: 1px solid CanvasText; }
+}
+
+dialog.ma87-detail .ma87-access { color: #fff5df; }
