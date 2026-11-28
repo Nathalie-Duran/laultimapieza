@@ -299,7 +299,15 @@
         target?.focus({preventScroll:true});(entry||host).scrollIntoView({block:'start',behavior:'instant'});
       },destroy(){cancelEntryFocus();observer.disconnect();explorer.destroy();shared?.destroy();}};
   }
-  function drawScene({world,stage,markers,instrumentBody,actions,visible,state,phase,style,data}){
+  const trainActions=['Examinar el doble fondo','Accionar las agujas','Alinear la placa','Ajustar los relojes','Coser la carta'];
+  const trainScenes=[
+    'Una esquina del libro se levanta cuando el tren toma la curva. Bajo la tela asoman tres perforaciones y el canto de un sobre. Abre el doble fondo antes de comparar los billetes.',
+    'El coche postal debía cambiar de vía sin cruzarse con los viajeros. Una palanca aún está precintada. Reconstruye la maniobra para recuperar el plano de transbordos.',
+    'Al acercar la placa a la ventanilla, el reloj parece cambiar de hora. El borde conserva una muesca. Encaja la placa en el visor y examina después la fotografía.',
+    'Tres máquinas estamparon horas distintas en la misma tira. El parte de mantenimiento quedó en manos del otro viajero. Calibra las esferas antes de reconstruir el trayecto.',
+    'En el forro del asiento aparecen seis recortes. Uno es de otra persona. Reúne los que formaban la carta y decide qué parte de la historia puedes sostener con pruebas.'
+  ];
+  function drawScene({world,stage,markers,instrumentBody,actions,visible,state,phase,style,data,caseId}){
     function marker(text,name,info,slot){
       const control=button('',()=>actions(name,info),'ae-marker');
       control.dataset.action=name;
@@ -336,7 +344,7 @@
     if(!phase){markers.append(marker(data.progress?.choice?'Tu desenlace':'Abrir la resolución','ending',null,0));return;}
     markers.append(marker(style.inspect,'inspect',null,0));
     for(const [i,item] of visible.slice(0,2).entries())markers.append(marker((formats[item.kind]||'Examinar')+' · '+item.label,'material',item.id,i+1));
-    markers.append(marker('Resolver la etapa','decision',null,3));
+    markers.append(marker(caseId===3?trainActions[state.current]:'Resolver la etapa','decision',null,3));
   }
   function enableLamp(world,stage,markers){
     if(world==='umbravia'){
@@ -386,7 +394,7 @@
       place.textContent=phase?.place||options.place||story.title;
       goal.textContent=phase?stageObjective(phase,visible[0]):'Has completado las etapas. Abre Desenlace para cerrar la investigación.';
       markers.replaceChildren();instrumentBody.replaceChildren();
-      drawScene({world,stage,markers,instrumentBody,actions,visible,state,phase,style,data});
+      drawScene({world,stage,markers,instrumentBody,actions,visible,state,phase,style,data,caseId:options.id});
     }
     const observer=new MutationObserver(()=>update());
     observer.observe(frame,{attributes:true,attributeFilter:['data-play-paper','data-play-mode']});
@@ -538,6 +546,7 @@
       const stage=hour.stage;
       chapterTitle.textContent=stage?'Capítulo '+(['I','II','III','IV','V'][hour.current]||String(hour.current+1))+' · '+stage.title:'Investigación completada';
       shortcuts.lastElementChild.hidden=!stage;
+      if(options.id===3&&stage){shortcuts.lastElementChild.textContent=trainActions[hour.current];task.textContent=trainScenes[hour.current];}
       mesa.update({progress:hour.current+'/'+hour.stages.length+' pruebas resueltas'+(stage?' · '+stage.title:''),
         objective:stage?(stage.task||stage.brief||options.story.question):'Abre el desenlace para cerrar el caso.',
         saved:status.querySelector('.case-save')?.textContent||'',help:false,tools:[],tutorial:'',next:null});
