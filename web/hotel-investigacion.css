@@ -144,3 +144,5 @@
 .hm-document .hm-phone-playback{padding:.6rem 1rem;background:#1c3026;color:#f6eedb}
 .hm-phone-playback .vhour-listen{border:1px solid #ad996f;color:#fff2d1;background:#31473a;padding:.58rem .83rem;border-radius:.3rem}
 .hm-phone-playback .vhour-status:empty{display:none}
+.hm-document-protocolo .hm-doc-dock{margin-top:clamp(7.9rem,19cqi,12rem)}
+.hm-document-protocolo .hm-document-image{object-position:43% 35%}
