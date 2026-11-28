@@ -14,6 +14,23 @@ async function publicSite(){
   return page;
 }
 
+test('la miga de los cuatro mapas vuelve al territorio activo y su nombre se conserva en el selector y el h1',async()=>{
+  const page=await publicSite();
+  for(const season of page.Colecciones.seasons){
+    const route=season.board;
+    page.location.hash='#'+route;
+    const crumb=page.Colecciones.mapBreadcrumb(route),menu=page.Colecciones.menu(route);
+    assert.ok(crumb.includes('href="/#tableros?mundo='+route+'"'));
+    assert.ok(crumb.includes(' Tableros</a>'));
+    assert.ok(!crumb.includes(season.name));
+    assert.ok(menu.includes('href="/#'+route+'" aria-current="page"'));
+    const map=route==='mapa'?page.ValdemarPlano.view({}):page.Mundos.view(route);
+    const heading=map.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1];
+    assert.ok(heading?.includes(season.name));
+  }
+  assert.equal(page.Colecciones.mapBreadcrumb('casos'),'');
+});
+
 test('cada nombre editorial coincide en el catálogo, el mapa, el pase y la invitación al primer caso de su tablero',async()=>{
   const page=await publicSite();
   const names=['Código Valdemar','La ruta prohibida','El tercer jugador','La ira de Ra'];

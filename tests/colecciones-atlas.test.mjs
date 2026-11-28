@@ -18,7 +18,7 @@ test('el atlas público abre Valdemar y conserva las doce paradas oficiales de c
   assert.equal((html.match(/role="tab"/g)||[]).length,4);
   assert.equal((html.match(/role="tabpanel"/g)||[]).length,4);
   assert.equal((html.match(/data-atlas-state="preview"/g)||[]).length,48);
-  assert.match(html,/Empieza en Código Valdemar<\/span><h2><a href="\/valdemar\/01\/">El secreto de los dos mundos/);
+  assert.match(html,/Primera aventura<\/span><h2><a href="\/valdemar\/01\/">El secreto de los dos mundos/);
   for(const season of catalog.seasons) {
     assert.ok(html.includes('src="/'+season.art+'"'));
     for(let i=1;i<=12;i++)assert.ok(html.includes('href="/#'+season.board+'?lugar='+i+'"'));
