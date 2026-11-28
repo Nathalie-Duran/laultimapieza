@@ -564,6 +564,34 @@
     iframe.addEventListener('error', () => errorMessage(pane, () => { pane.replaceChildren(); frame(st, section, doc, pane); }), { once: true });
     pane.append(iframe);
   }
+  function evidenceReading(reading) {
+    const box=node('details','vp-evidence-reading');
+    box.append(node('summary','',reading.knocks?'Leer la secuencia de golpes':'Leer el facsímil en texto'));
+    for(const line of reading.lines||[])box.append(node('p','',line));
+    if(reading.knocks){
+      box.append(node('p','','Cada «toc» es un golpe. Una pausa breve separa los dos grupos de cada línea. Una pausa más larga separa una línea de la siguiente.'));
+      const list=node('ol');
+      const taps=count=>Array(count).fill('toc').join(', ');
+      for(const [first,second] of reading.knocks)list.append(node('li','',taps(first)+'. Pausa breve. '+taps(second)+'.'));
+      box.append(list);
+    }
+    if(reading.alphabet){
+      const letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const label=node('label','','Fila de la clave ');
+      const choose=node('select');
+      for(const letter of letters)choose.append(node('option','',letter));
+      const values=node('p');values.setAttribute('aria-live','polite');
+      const show=()=>{const offset=letters.indexOf(choose.value);values.textContent=[...letters].map((letter,i)=>letter+' / '+letters[(i+offset)%letters.length]).join(', ');};
+      label.append(choose);box.append(label,node('p','','Cada par muestra la cabecera de la columna y, después de la barra, la letra cifrada de la fila seleccionada.'),values);
+      choose.addEventListener('change',show);show();
+    }
+    if(reading.tool){
+      const changed=node('div');changed.hidden=true;changed.dataset.readingTool=reading.tool;
+      for(const line of reading.adjusted)changed.append(node('p','',line));
+      box.append(changed);
+    }
+    return box;
+  }
   function loadDocument(st, section, doc) {
     if (st.panes.has(doc.file)) return st.panes.get(doc.file);
     const pane = node('div', 'vp-pane vp-' + doc.type);
@@ -572,6 +600,7 @@
     pane.hidden = true;
     st.reader.append(pane);
     st.panes.set(doc.file, pane);
+    const reading=st.sessions[section].readings?.[doc.file];
     if (doc.type === 'image') {
       const img = node('img', 'vp-original-image');
       img.alt = doc.label + ' · facsímil original';
@@ -583,6 +612,7 @@
         img.addEventListener('error', () => errorMessage(pane, () => { pane.replaceChildren(viewport); showImage(); }), { once: true });
         img.src = '/' + doc.file;
       };
+      if(reading)viewport.append(evidenceReading(reading));
       viewport.append(img);
       pane.append(viewport);
       showImage();
@@ -598,6 +628,7 @@
       original.target = '_blank';
       original.rel = 'noopener';
       card.append(node('p', 'vp-eyebrow', 'Archivo sonoro'), node('h3', '', doc.label), audio, original);
+      if(reading)card.append(evidenceReading(reading));
       pane.append(card);
     } else frame(st, section, doc, pane);
     return pane;
@@ -675,7 +706,10 @@
     for (const [control, css] of [[st.adjust, 'vp-inverted'], [st.bright, 'vp-bright'], [st.mirror, 'vp-mirrored']]) {
       control.addEventListener('click', () => {
         const pane = st.panes.get(st.sessions[st.section].documents[st.index].file);
-        control.setAttribute('aria-pressed', String(pane.classList.toggle(css)));
+        const active=pane.classList.toggle(css);
+        control.setAttribute('aria-pressed', String(active));
+        const reading=pane.querySelector('[data-reading-tool="'+css+'"]');
+        if(reading)reading.hidden=!active;
       });
     }
     st.zoom.addEventListener('click', () => {

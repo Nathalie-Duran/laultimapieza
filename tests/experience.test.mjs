@@ -59,6 +59,18 @@ test('La promoción clásica presenta los doce casos y solo invita a la demo de 
  }
 });
 
+test('el mapa clásico y su llamada a continuar describen la misma partida al haber varios intentos',()=>{
+ const story=ctx.STORIES.find(item=>item.season===1),members=[{userId:'a'}];
+ const pending={id:'desenlace',caseId:story.id,members,status:'finished',history:Array(5).fill({}),nodeId:Object.keys(story.endings)[0]};
+ const running={id:'activa',caseId:story.id,members,status:'active',history:[],nodeId:story.startNode};
+ const single=seasonProgress(ctx.STORIES,[pending],'a');
+ const both=seasonProgress(ctx.STORIES,[pending,running],'a'),pick=both.stops.find(stop=>stop.caseId===story.id);
+ assert.equal(pick.sessionId,running.id);assert.equal(pick.status,'in_progress');
+ const model={stories:ctx.STORIES,sessions:[pending,running],canPlay:true,userId:'a'};
+ assert.match(ctx.ExperienceUI.detail(story,{...model,journey:single}),/data-id="desenlace">Resolver el enigma pendiente/);
+ assert.match(ctx.ExperienceUI.detail(story,{...model,journey:both}),/data-id="activa">Continuar/);
+});
+
 test('La portada lleva al mapa de cada territorio y ofrece una sola entrada a la demo y a la carta',()=>{
  const model={stories:ctx.STORIES,sessions:[],canPlay:false};
  const front=ctx.ExperienceUI.home(model);
@@ -69,4 +81,25 @@ test('La portada lleva al mapa de cada territorio y ofrece una sola entrada a la
  assert.equal(front.split('El secreto de los dos mundos').length-1,1);
  assert.equal(front.split('href="/#planes"').length-1,1);
  assert.doesNotMatch(front,/Hotel Medianoche|Frecuencia 23:17/);
+});
+
+test('la oferta inicial cambia según apertura o acceso y la demo conserva su enlace de continuación',()=>{
+ const model={stories:ctx.STORIES,sessions:[],canPlay:false};
+ try{
+   ctx.ClubAccess={salesState:'waitlist',price:'29,95 €'};
+   let html=ctx.ExperienceUI.home(model);
+   assert.match(html,/<h1[^>]*>Cuatro juegos de misterio al mes<\/h1>/);
+   assert.match(html,/href="\/#alta-club">Avisarme cuando abra/);
+   assert.match(html,/29,95 €/);
+   ctx.ClubAccess.salesState='open';
+   ctx.CasePreview={hasProgress:()=>true};
+   html=ctx.ExperienceUI.home(model);
+   assert.match(html,/href="\/#planes">Ver la suscripción/);
+   assert.match(html,/data-home-demo-label>Continuar la demo/);
+   html=ctx.ExperienceUI.home({...model,canPlay:true});
+   assert.match(html,/href="\/#casos">Elegir un juego/);
+   assert.doesNotMatch(html,/Avisarme cuando abra|Ver la suscripción/);
+   ctx.ClubAccess.salesState='unknown';
+   assert.match(ctx.ExperienceUI.home(model),/href="\/#planes">Ver la suscripción/);
+ }finally{delete ctx.ClubAccess;delete ctx.CasePreview;}
 });

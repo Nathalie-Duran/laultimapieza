@@ -27,6 +27,7 @@ function callToPlay(s,m){
  if(p?.completed&&saved)return `<button class="button primary" data-action="archive-open" data-id="${esc(saved.id)}">Ver mi desenlace</button>`;
  if(!m.canPlay)return '<a class="button primary" href="#planes">Ver suscripción</a>';
  if(root.MonthlyAccess&&!root.MonthlyAccess.allowed(s,m))return root.MonthlyAccess.label(s,m)+'<a class="button" href="#planes">Ver mi suscripción</a>';
+ if(saved&&p.status==='needs_solution')return `<button class="button primary" data-action="resume" data-id="${esc(saved.id)}">Resolver el enigma pendiente</button>`;
  return saved?`<button class="button primary" data-action="resume" data-id="${esc(saved.id)}">Continuar · ${p.decisions}/${p.totalDecisions} decisiones</button>`:`<button class="button primary" data-action="setup" data-case="${esc(s.id)}">Empezar esta experiencia</button>`;
 }
 function seasonMeter(m){return `<div class="season-meter"><span><b>${count(m)}</b> de 12 piezas recuperadas</span><span>${Math.round(count(m)/12*100)}%</span><progress max="12" value="${count(m)}" aria-label="Experiencias completadas">${count(m)} de 12</progress></div>`;}
@@ -34,17 +35,23 @@ function invitationPath(s){return '/caso/'+encodeURIComponent(s.id)+'/';}
 
 function shareBox(s,path){if(!s)return '';const url='https://www.laultimapieza.es'+(path||invitationPath(s))+'?via=invitacion';const message='Mira el avance de «'+s.title+'». '+url;return `<details class="case-share"><summary>Compartir el avance del caso</summary><div><a href="https://wa.me/?text=${encodeURIComponent(message)}" target="_blank" rel="noopener noreferrer">Compartir por WhatsApp ↗</a><button type="button" data-copy-invite="${esc(url)}">Copiar enlace al avance</button></div><p role="status" aria-live="polite"></p></details>`;}
 
-function invitation(s,m){if(!s||s.id==='habitacion-309')return catalog(m);const i=s.episode-1;const month=s.season===1?Math.ceil(s.episode/4):0;const hook=s.season===1&&openingQuestions[i];return `<article class="invite-page"><div class="invite-content"><a class="text-link" href="${month?'#archivo-clasico?mes='+month:'#archivo-clasico'}">${month?'Ver el mes '+month+' del archivo clásico':'Ver el archivo clásico'}</a><p class="ui-kicker">${month?'ARCHIVO CLÁSICO · MES '+month:'CASO ADICIONAL'} · ${s.id==='cartas-medianoche'?'≈60':month?'30–45':'15–25'} MIN · 1–2 PERSONAS</p><h1>${esc(s.title)}</h1>${hook?`<p class="invite-question">${esc(hook)}</p>`:''}<p class="invite-description">${esc(s.description)}</p>${m.canPlay?callToPlay(s,m):`<a class="button primary" href="/cinta-87.html" data-action="preview-open">Jugar gratis a La cinta 87</a><a class="text-link" href="#planes">Ver el pase de los cuatro tableros</a>`}${shareBox(s)}${m.referred?`<details class="invite-privacy"><summary>Privacidad de esta visita</summary><label><input type="checkbox" data-invite-counts ${root.InvitationCounts?.enabled?'checked':''}> Permitir contadores anónimos de la visita, el inicio de la demo y la solicitud de aviso. Opcional.</label></details>`:''}</div><figure class="invite-poster"><img src="${sceneImage(s)||invitationPath(s)+'portada.png'}" width="1200" height="630" alt="" fetchpriority="high"></figure></article>`;}
+function invitation(s,m){if(!s||s.id==='habitacion-309')return catalog(m);const i=s.episode-1;const month=s.season===1?Math.ceil(s.episode/4):0;const hook=s.season===1&&openingQuestions[i];return `<article class="invite-page"><div class="invite-content"><a class="text-link" href="${month?'#archivo-clasico?mes='+month:'#archivo-clasico'}">${month?'Ver el mes '+month+' del archivo clásico':'Ver el archivo clásico'}</a><p class="ui-kicker">${month?'ARCHIVO CLÁSICO · MES '+month:'CASO ADICIONAL'} · ${s.id==='cartas-medianoche'?'≈60':month?'30–45':'15–25'} MIN · 1–2 PERSONAS</p><h1>${esc(s.title)}</h1>${hook?`<p class="invite-question">${esc(hook)}</p>`:''}<p class="invite-description">${esc(s.description)}</p>${m.canPlay?callToPlay(s,m):`<a class="button primary" href="/cinta-87.html" data-action="preview-open">Jugar gratis a La cinta 87</a><a class="text-link" href="#planes">Ver la suscripción mensual</a>`}${shareBox(s)}${m.referred?`<details class="invite-privacy"><summary>Privacidad de esta visita</summary><label><input type="checkbox" data-invite-counts ${root.InvitationCounts?.enabled?'checked':''}> Permitir contadores anónimos de la visita, el inicio de la demo y la solicitud de aviso. Opcional.</label></details>`:''}</div><figure class="invite-poster"><img src="${sceneImage(s)||invitationPath(s)+'portada.png'}" width="1200" height="630" alt="" fetchpriority="high"></figure></article>`;}
 const sceneCovers = new Set(["cartas-medianoche","ultima-funcion","archivo-ausencias","marea-quieta","habitacion-309","frecuencia-17","jardin-invierno","retrato-prestado","mesa-13","tren-detenido","ciudad-invisible","ultimo-coro","ultima-invitacion"]);
 function sceneImage(s){return s && sceneCovers.has(s.id) ? '/' + s.id + '.jpg' : '';}
 
-function coverStory() {
- return `<section class="front-demo" aria-labelledby="vh-title">
-   <img src="/cinta87-mesa.webp" width="1536" height="1024" loading="lazy" alt="">
-   <div><p class="cover-caption">Demo sin cuenta</p><h2 id="vh-title">La cinta 87</h2>
-   <p>La noche en que cerró Radio Valdemar quedó una grabación sin identificar. Escucha sus pulsos y sigue el rastro en el archivo.</p>
-   <a class="button" href="/cinta-87.html" data-action="preview-open" data-home-demo>${demoAction()}</a></div>
- </section>`;
+function clubCover(m) {
+ const waiting=root.ClubAccess?.salesState==='waitlist';
+ const action=m.canPlay?'<a class="front-join" href="/#casos">Elegir un juego</a>':
+   waiting?'<a class="front-join" href="/#alta-club">Avisarme cuando abra</a>':'<a class="front-join" href="/#planes">Ver la suscripción</a>';
+ return `<section class="front-club" aria-labelledby="front-club-title"><div class="front-club-copy">
+   <p class="front-club-kicker">Club de investigación</p><h1 id="front-club-title">Cuatro juegos de misterio al mes</h1>
+   <p>Examina escenas, escucha grabaciones y combina objetos para resolver cada caso. Puedes jugar a solas o repartir las pistas con otra persona.</p>
+   <div class="front-club-offer">${action}${m.canPlay?'':'<span><strong>'+esc(root.ClubAccess?.price||'29,95 €')+'</strong> por persona y mes</span>'}</div></div>
+   <a class="front-demo" href="/cinta-87.html" data-action="preview-open" data-home-demo>
+    <span class="front-demo-photo"><img src="/cinta87-mesa.webp" width="1536" height="1024" fetchpriority="high" alt=""></span>
+    <span class="front-demo-copy"><small>Demo sin cuenta · 10–15 min</small><strong>La cinta 87</strong>
+    <span class="front-demo-hook">Sigue el rastro de la última emisión de Radio Valdemar.</span>
+    <span class="front-demo-label" data-home-demo-label>${demoAction()}</span></span></a></section>`;
 }
 
 function demoAction(){
@@ -52,15 +59,10 @@ function demoAction(){
  return root.CasePreview?.hasProgress?.()?'Continuar la demo':'Jugar la demo gratis';
 }
 root.addEventListener?.('case-preview-progress',()=>{
- const button=root.document?.querySelector('[data-home-demo]');
+ const button=root.document?.querySelector('[data-home-demo-label]');
  if(button)button.textContent=demoAction();
 });
 
-function homeSeasonOffer(m) {
- if(m.canPlay)return '';
- const open=root.ClubAccess?.checkoutAvailable===true;
- return `<section class="front-pass" aria-labelledby="front-pass-title"><div><h2 id="front-pass-title">Pase mensual</h2><p>${open?'29,95 € por persona':'Próxima apertura · 29,95 € por persona'}. Cuatro aventuras por cuota.</p></div><a href="/#planes">Ver el pase y el descuento en pareja <span aria-hidden="true">→</span></a></section>`;
-}
 
 function activityTime(value){
  const stamp=typeof value==='number'?value:Date.parse(value);
@@ -109,7 +111,7 @@ function seasonReturn(games){
  return null;
 }
 function returnCard(game){
- if(!game)return '<section class="return-strip"><div><h2>Tus tableros de temporada</h2><p>Cada juego que terminas recupera una pieza de su sello.</p></div><a class="button" href="#tableros">Explorar mis tableros</a></section>';
+ if(!game)return '<section class="return-strip"><div><h2>Tus tableros de temporada</h2><p>Cada juego que terminas recupera una pieza de su sello.</p></div><a class="button" href="#tableros">Ver mis temporadas</a></section>';
  const label=(game.fresh?'Jugar a ':'Continuar ')+game.title;
  const action=game.href?`<a class="button primary" href="${esc(game.href)}" aria-label="${esc(label)}">${game.fresh?'Abrir el caso':'Continuar mi partida'}</a>`:
    `<button class="button primary" data-action="resume" data-id="${esc(game.sessionId)}" aria-label="${esc(label)}">Continuar mi partida</button>`;
@@ -182,14 +184,14 @@ function home(m){
  const returning=m.userId&&m.canPlay?`<home-resume data-classic-time="${latest?.time||0}">${returnCard(latest)}</home-resume>`:'';
  const territories=[['mapa','Código Valdemar','Misterio'],['expedicion','La ruta prohibida','Expedición'],['umbravia','El tercer jugador','Suspense'],['necropolis','La ira de Ra','Antiguo Egipto']];
  const atlas=`<section class="universe-front" aria-labelledby="universe-heading"><div class="universe-front-copy">
- <h1 id="universe-heading">El mapa de los cuatro mundos</h1>
- <p>Elige un territorio del mapa para descubrir sus doce aventuras.</p>
- ${m.canPlay?'':`<div class="universe-front-first"><span>Primera aventura · Código Valdemar</span><h2>El secreto de los dos mundos</h2>
+ <h2 id="universe-heading">Las cuatro temporadas</h2>
+ <p>Cada temporada tiene doce juegos. Elige un lugar del mapa para explorar sus historias.</p>
+ ${m.canPlay?'':`<div class="universe-front-first"><span>Primer juego · Código Valdemar</span><h3>El secreto de los dos mundos</h3>
  <p>Ada os envía una foto de vuestra infancia. Reconocéis vuestras caras, pero ninguno recuerda esa casa.</p>
  <a class="universe-door" href="/valdemar/01/?carta=1">Abrir la carta de Ada <span aria-hidden="true">→</span></a></div>`}</div>
- <nav class="universe-chart" aria-label="Explorar los cuatro tableros"><img src="/atlas-cuatro-mundos.webp" width="1520" height="856" alt="" fetchpriority="high">
+ <nav class="universe-chart" aria-label="Explorar las cuatro temporadas"><img src="/atlas-cuatro-mundos.webp" width="1520" height="855" alt="" loading="lazy">
  ${territories.map(([route,name,genre],i)=>`<a class="universe-pin universe-pin-${i+1}" href="/#${route}" aria-label="Explorar ${esc(name)}"><span class="universe-pin-light" aria-hidden="true"></span><span><small>${esc(genre)}</small><strong>${esc(name)}</strong></span></a>`).join('')}</nav></section>`;
- return `${returning}${atlas}${coverStory()}${homeSeasonOffer(m)}`;
+ return `${returning}${clubCover(m)}${atlas}`;
 }
 const openingQuestions = ["¿Dónde se esconde la última carta de Valdemar?","¿Cómo desapareció el faro durante el ensayo?","¿Por qué el catálogo borra un recuerdo de Teresa?","¿Qué ocurrió en el faro de Marea quieta?"];
 function card(s,m){
@@ -203,7 +205,7 @@ function card(s,m){
 
 function catalog(m){
  const cases=season(m),month=[1,2,3].includes(m.catalogMonth)?m.catalogMonth:1;
- return `<section class="season-catalog"><header><p class="cover-caption">Archivo clásico · Doce noches</p><h1>El archivo de las primeras historias</h1><p>Elige un mes para abrir sus cuatro expedientes.</p><a class="text-link" href="/#tableros">Ir a los cuatro tableros</a><a class="text-link" href="/#mapa-clasico">Ver el plano de las doce piezas</a></header><nav class="month-nav" aria-label="Casos por mes">${[1,2,3].map(n=>`<a href="#archivo-clasico?mes=${n}" ${n===month?'aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><div class="shelf-grid" aria-label="Cuatro casos del mes ${month}">${cases.slice((month-1)*4,month*4).map(s=>card(s,m)).join('')}</div><a class="text-link classic-demo-link" href="/cinta-87.html">Demo gratuita de La cinta 87</a></section>`;
+ return `<section class="season-catalog"><header><p class="cover-caption">Archivo clásico · Doce noches</p><h1>El archivo de las primeras historias</h1><p>Elige un mes para abrir sus cuatro expedientes.</p><a class="text-link" href="/#tableros">Explorar las temporadas</a><a class="text-link" href="/#mapa-clasico">Ver el plano de las doce piezas</a></header><nav class="month-nav" aria-label="Casos por mes">${[1,2,3].map(n=>`<a href="#archivo-clasico?mes=${n}" ${n===month?'aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><div class="shelf-grid" aria-label="Cuatro casos del mes ${month}">${cases.slice((month-1)*4,month*4).map(s=>card(s,m)).join('')}</div><a class="text-link classic-demo-link" href="/cinta-87.html">Demo gratuita de La cinta 87</a></section>`;
 }
 
 function classicStation(s,m){

@@ -35,7 +35,7 @@ test('los bloques abonados y las piezas ganadas permanecen separados incluso con
   assert.match(html,/<div class="atlas-next" data-atlas-next="1"><span>Siguiente aventura disponible<\/span><h2><a href="\/#valdemar-jugar\?id=5">/);
   assert.match(html,/href="\/#mapa\?lugar=6" data-atlas-state="done"/);
   assert.match(html,/href="\/#mapa\?lugar=1" data-atlas-state="closed"/);
-  assert.match(html,/Termina los doce pasos del tablero anterior<\/span><h2><a href="\/#mapa">Volver a Código Valdemar/);
+  assert.match(html,/Completa los doce juegos de la temporada anterior<\/span><h2><a href="\/#mapa">Volver a Código Valdemar/);
   assert.equal((html.match(/data-atlas-state="open"/g)||[]).length,3);
 });
 

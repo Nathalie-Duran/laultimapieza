@@ -486,3 +486,12 @@
 [data-vd-case="01"][data-play-mode="duo"] .vd-station-duo{display:block}
 [data-vd-case="01"][data-play-paper="A"] .vd-board table:nth-of-type(2),
 [data-vd-case="01"][data-play-paper="B"] .vd-board table:nth-of-type(1){display:none}
+.expedition-inventory .inventory-field-note {
+  margin: 1rem 0;
+  padding: .85rem 1rem;
+  border-inline-start: .25rem solid #a67837;
+  background: #f3e9d2;
+  color: #28362d;
+}
+.expedition-inventory .inventory-field-note :is(h4,p) { color: inherit; margin: .25rem 0; }
+.inventory-field-note [tabindex]:focus-visible { outline: 2px solid #226248; outline-offset: .2rem; }

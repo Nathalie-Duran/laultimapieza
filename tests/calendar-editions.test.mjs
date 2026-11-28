@@ -5,6 +5,17 @@ import {playPublished} from '../published-challenges.mjs';
 
 const at=(value)=>Date.parse(value);
 const schedule=(date,kind)=>calendarEditions(at(date)).find(item=>item.schedule.kind===kind);
+test('el título semanal permite buscar la valija sin revelar la sala de destino',()=>{
+  const destinations=new Set();
+  for(let week=0;week<53;week++){
+    const atNoon=at('2026-01-05T12:00Z')+week*7*86400000;
+    const weekly=calendarEditions(atNoon).find(item=>item.schedule.kind==='weekly');
+    const room=weekly.options[weekly.answer].replace(/^Sala /,'');
+    destinations.add(room);
+    assert.equal(weekly.title.includes(room),false);
+  }
+  assert.equal(destinations.size,4);
+});
 test('las ediciones diarias, semanales y estacionales siguen el calendario de Madrid',()=>{
   assert.equal(schedule('2026-10-30T22:59Z','event'),undefined);
   assert.equal(schedule('2026-10-30T23:00Z','event').schedule.startsOn,'2026-10-31');

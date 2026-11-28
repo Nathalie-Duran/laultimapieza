@@ -191,3 +191,11 @@
 @media(forced-colors:active){
   .vp-at-table .vp-table-materials .vp-material[data-next=true] {outline:2px solid Highlight;}
 }
+.vp-shell .vp-image-scroll>.vp-evidence-reading {
+  box-sizing:border-box; width:100%; padding:.4rem .85rem; margin:0;
+  color:#283c32; background:#f4ecd9; text-align:start; font:400 1rem/1.5 system-ui,sans-serif;
+}
+.vp-shell .vp-evidence-reading summary { cursor:pointer; min-height:44px; padding:.55rem 0; font-weight:650 }
+.vp-shell .vp-evidence-reading p,.vp-shell .vp-evidence-reading li { margin:.5rem 0; color:#283c32 }
+.vp-shell .vp-evidence-reading select { min-height:44px; padding:.3rem .7rem; color:#283c32; background:white }
+.vp-shell .vp-evidence-reading [hidden] { display:none }

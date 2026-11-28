@@ -67,7 +67,7 @@
 
   function collectionPanel(pieces) {
     const seasons=root.Colecciones?.seasons||[];
-    return '<section class="pn-career pn-collection"><h2>Mis reliquias</h2><p>Recupera las doce piezas de cada tablero para abrir su epílogo.</p><ul class="pn-relics">'+pieces.map((count,i)=>{
+    return '<section class="pn-career pn-collection"><h2>Mis reliquias</h2><p>Recupera las doce piezas de cada temporada para abrir su epílogo.</p><ul class="pn-relics">'+pieces.map((count,i)=>{
       const s=seasons[i];if(!s)return '';
       return '<li><a href="#'+escape(s.board)+'?seccion=sello">'+(s.art?'<img src="/'+escape(s.art)+'" alt="" loading="lazy">':'')+
         '<div><small>'+escape(s.name)+'</small><strong>'+escape(s.seal)+'</strong><span>'+(count===12?'Reliquia conseguida · ':'')+
@@ -120,7 +120,7 @@
         : story?.season === 1 && !solved ? '¡Has llegado al desenlace! Revisa el enigma final para recuperar la pieza de este caso.'
         : '¡Has llegado al desenlace! Esta investigación ya forma parte de tu archivo.';
       actions = control('resume', session.id, 'Ver mi desenlace', true, context) +
-        (pieces === 12 ? '<a class="button" href="#mapa-clasico">Ver mis doce piezas</a>' : browse('Explorar los casos', false));
+        (pieces === 12 ? '<a class="button" href="#mapa-clasico">Ver mis doce piezas</a>' : browse('Explorar los juegos', false));
     } else {
       kicker = sessionState(session);
       heading = title(session, stories);
@@ -274,7 +274,7 @@
           if(!current())return;
           const options={milestones:'Mis aventuras terminadas y las reliquias de mis tableros',
             pairs:'Confirmación cuando los dos elegimos jugar en pareja',
-            challenges:'Nuevos desafíos publicados, incluidos los de casos que aún no he abierto',
+            challenges:'Nuevos retos extra publicados, incluidos los de casos que aún no he abierto',
             reminders:'Un recordatorio tras 14 días sin visitar mi cuenta ni avanzar en mi partida'};
           const form=document.createElement('form');
           form.innerHTML='<fieldset><legend>Qué quiero recibir en mi correo verificado</legend>'+

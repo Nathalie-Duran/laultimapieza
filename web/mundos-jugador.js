@@ -29,7 +29,7 @@
   }
   function game(id) {
     const item=worlds.story(id);
-    if(!item)return '<section class="md-missing"><h1>No se encontró esta historia</h1><a href="#casos">Ver los casos</a></section>';
+    if(!item)return '<section class="md-missing"><h1>No se encontró esta historia</h1><a href="#casos">Ver los juegos</a></section>';
     return '<div id="md-game-host"><p role="status">Abriendo la investigación…</p></div>';
   }
   function active(c) {return current===c && c.bridge.isSignedIn();}
