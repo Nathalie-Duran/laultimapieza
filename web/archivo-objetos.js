@@ -61,6 +61,7 @@
     if(caseId<2||caseId>48)return;
     const [,name]=desks.find(([last])=>caseId<=last);
     const sheets=[name],scripts=[name];
+    if(caseId===2){sheets.push('hotel-cuaderno');scripts.push('hotel-cuaderno');}
     if(caseId===3||caseId===4){sheets.push('tren-radio-fuentes');scripts.push('tren-radio-fuentes');}
     if(caseId>=5&&caseId<=12){
       const evidence=caseId===11?'valdemar-rifa':'valdemar-evidencias';
