@@ -13,7 +13,7 @@
     accounts: { label: 'Cuentas', series: [['accounts', 'Altas de cuenta']] },
     subscriptions: { label: 'Suscripciones', series: [['subscriptionStarts', 'Altas de pago'], ['subscriptionEnds', 'Bajas efectivas']] },
     notices: { label: 'Avisos de apertura', series: [['noticeAdds', 'Solicitudes'], ['noticeRemoves', 'Retiradas']] },
-    games: { label: 'Archivo clásico', series: [['sessionsStarted', 'Iniciadas'], ['cohortCompleted', 'De esas, resueltas']] },
+    games: { label: 'Partidas narrativas', series: [['sessionsStarted', 'Iniciadas'], ['cohortCompleted', 'De esas, resueltas']] },
     payments: { label: 'Cobros', series: [['paidCents', 'Cobros brutos']], money: true }
   };
   let days = 30;
@@ -225,7 +225,7 @@
       if (cohort.accounts === 0) return '0 de 0';
       return ratio(count, cohort.accounts) + ' · ' + format(count) + ' de ' + format(cohort.accounts);
     }
-    return `<section class="mg-panel"><h2>Primeros 30 días de una cuenta</h2><p class="mg-note">${escape(windowLabel)} Cada cuenta ha tenido 30 días completos de seguimiento.</p><dl class="mg-rows">${metricRow('Cuentas del grupo', valid(cohort?.accounts) ? format(cohort.accounts) : 'N/D')}${metricRow('Guardaron una partida propia en el archivo clásico', cohortFraction(cohort?.played))}${metricRow('Hicieron su primer pago', cohortFraction(cohort?.paid))}</dl><p class="mg-note">Las partidas recuperadas cuentan el día en que se guardaron en la web.</p></section>`;
+    return `<section class="mg-panel"><h2>Primeros 30 días de una cuenta</h2><p class="mg-note">${escape(windowLabel)} Cada cuenta ha tenido 30 días completos de seguimiento.</p><dl class="mg-rows">${metricRow('Cuentas del grupo', valid(cohort?.accounts) ? format(cohort.accounts) : 'N/D')}${metricRow('Guardaron una partida propia en una historia narrativa', cohortFraction(cohort?.played))}${metricRow('Hicieron su primer pago', cohortFraction(cohort?.paid))}</dl><p class="mg-note">Las partidas recuperadas cuentan el día en que se guardaron en la web.</p></section>`;
   }
   function lineSegments(daily, key, x, y) {
     const pieces = [];
@@ -275,8 +275,8 @@
       ['subscriptionStarts', 'Altas de suscripción de pago'],
       ['subscriptionEnds', 'Bajas efectivas de suscripción'],
       ['paidCents', 'Cobros brutos antes de reembolsos (EUR)'],
-      ['sessionsStarted', 'Archivo clásico: partidas iniciadas'],
-      ['cohortCompleted', 'Archivo clásico: partidas iniciadas ese día y ya resueltas']
+      ['sessionsStarted', 'Partidas narrativas iniciadas'],
+      ['cohortCompleted', 'Partidas narrativas iniciadas ese día y ya resueltas']
     ];
     const lines = [['Fecha (UTC)', ...columns.map(([, label]) => label)].join(';')];
     for (const day of dashboard.daily) {
@@ -319,7 +319,7 @@
   }
   function activity(data) {
     const t = data.totals, rows = [...data.cases].sort((a, b) => b.started - a.started || b.completed - a.completed || String(a.title).localeCompare(String(b.title), 'es'));
-    return `<section class="mg-panel mg-block"><div class="mg-section-heading"><h2>Archivo clásico por caso</h2><span>Partidas iniciadas en el periodo</span></div>
+    return `<section class="mg-panel mg-block"><div class="mg-section-heading"><h2>Partidas narrativas por caso</h2><span>Partidas iniciadas en el periodo</span></div>
       <dl class="mg-activity">
         ${tile('Partidas iniciadas', format(t.sessionsStarted), 'Una partida compartida cuenta una vez')}
         ${tile('De esas, resueltas', format(t.cohortCompleted), 'Completadas hasta hoy')}
