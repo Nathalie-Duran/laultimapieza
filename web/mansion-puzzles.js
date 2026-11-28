@@ -21,9 +21,94 @@
     ['intercambio','Bandejas de intercambio','⇄'],['acta','Acta de la casa','✎'],
     ['paneles','Paneles de los dos mundos','▥']
   ];
-  const dialKinds=new Set(['escudos','reloj','esferas','riego','vias']);
+  const dialKinds=new Set(['reloj','esferas','riego','vias']);
+  const guardianArt=new Map([['cuervo','cuervo'],['lobo','lobo'],['búho','buho'],['ciervo','ciervo']]);
+  const roman=['I','II','III','IV'];
+
+  function guardianMedal(option) {
+    const image=el('img','guardian-relief');
+    image.src='/mansion-guardian-'+guardianArt.get(option.value)+'.webp';
+    image.alt='';image.width=256;image.height=256;image.decoding='async';
+    return image;
+  }
+
+  function guardianLock(fields,draft,stage,world,submit) {
+    const form=el('form','guardian-form'),arch=el('div','guardian-arch'),sockets=el('div','guardian-sockets');
+    const seats=new Map(fields.map(field=>[field.id,field]));
+    const done=stage.contributions?.[world]?.done===true;
+    const chosen=field=>field.options.find(option=>option.value===draft[field.id]);
+    let active=seats.get(draft.guardianSeat)||fields.find(field=>!chosen(field))||fields[0];
+    const note=el('p','guardian-announcement');note.setAttribute('role','status');
+    const caption=el('div','guardian-sides');
+    for(const side of ['B','A']){
+      const label=el('span','guardian-side',side==='B'?'Casa abandonada':'Casa habitada');
+      if(side===world)label.dataset.own='true';
+      caption.append(label);
+    }
+    arch.setAttribute('role','group');arch.setAttribute('aria-label','Los cuatro engastes del arco, de izquierda a derecha');
+    const slotViews=[];
+    for(let i=0;i<4;i++){
+      const id='escudo'+(i+1),field=seats.get(id);
+      const fixed=field?done:stage.contributions?.[i<2?'B':'A']?.done;
+      const slot=field&&!done?button('',()=>{active=field;draft.guardianSeat=id;draw();},'guardian-slot'):el('div','guardian-slot');
+      slot.dataset.field=id;slot.dataset.movable=String(Boolean(field&&!done));
+      const bezel=el('span','guardian-bezel'),number=el('span','guardian-numeral',roman[i]),status=el('span','guardian-setting');
+      const face=el('span','guardian-face');bezel.append(face);slot.append(bezel,number,status);sockets.append(slot);
+      slotViews.push({slot,field,face,status,fixed});
+    }
+    arch.append(sockets,caption);form.append(arch);
+    const bench=el('fieldset','guardian-bench'),legend=el('legend','guardian-legend'),tray=el('div','guardian-tray');
+    bench.append(legend,tray);
+    const latch=el('button','guardian-latch','Encajar mis escudos');latch.type='submit';
+    const footer=el('div','guardian-footer'),count=el('span','guardian-count');footer.append(count,latch);
+    if(done){
+      const message=el('p','guardian-confirmed','Tus escudos han quedado fijos. Falta encajar los de la otra casa.');
+      message.setAttribute('role','status');form.append(message);
+    }else form.append(bench,footer,note);
+    function draw(){
+      for(const {slot,field,face,status,fixed} of slotViews){
+        const selection=field&&!done?chosen(field):null;
+        slot.dataset.filled=String(Boolean(selection));slot.dataset.fixed=String(Boolean(fixed));
+        face.replaceChildren();
+        if(selection)face.append(guardianMedal(selection));
+        status.textContent=fixed?'Fijado':selection?selection.label:field?'Libre':'Otra casa';
+        if(slot.dataset.movable==='true'){
+          slot.setAttribute('aria-pressed',String(field===active));
+          slot.setAttribute('aria-label',field.label+' · '+(selection?selection.label:'Sin ajustar'));
+        }
+      }
+      if(done)return;
+      const placed=fields.filter(chosen).length;
+      count.textContent=placed+' de '+fields.length+' colocados';
+      latch.disabled=placed!==fields.length||stage.ready===false;
+      legend.textContent='Elige la figura del '+active.label.toLocaleLowerCase('es');
+      tray.replaceChildren();
+      for(const option of active.options){
+        const chip=button('',()=>{
+          const edited=active;
+          draft[edited.id]=option.value;
+          active=fields.find(field=>!chosen(field))||edited;draft.guardianSeat=active.id;
+          draw();
+          note.textContent=edited.label+' · '+option.label+'. '+(active===edited?'Puedes probar el cierre o cambiar las figuras.':legend.textContent+'.');
+          if(active!==edited)tray.firstElementChild?.focus({preventScroll:true});
+          else tray.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
+        },'guardian-medal');
+        chip.dataset.value=option.value;
+        chip.setAttribute('aria-label','Colocar '+option.label.toLocaleLowerCase('es')+' en '+active.label.toLocaleLowerCase('es'));
+        chip.setAttribute('aria-pressed',String(draft[active.id]===option.value));
+        chip.append(guardianMedal(option),el('span','guardian-animal',option.label));tray.append(chip);
+      }
+    }
+    form.addEventListener('submit',event=>{
+      event.preventDefault();
+      if(done||stage.ready===false||!fields.every(chosen))return;
+      submit(Object.fromEntries(fields.map(field=>[field.id,draft[field.id]])));
+    });
+    draw();return form;
+  }
 
   function dial(field, draft, kind) {
+    if(kind==='reloj'&&['agujaHoras','agujaMinutos'].includes(field.id)&&window.MansionAtrezo)return window.MansionAtrezo.clock(field,draft);
     const wrap=el('fieldset','mansion-control mansion-dial'), title=el('legend',null,field.label);
     const face=el('div','mansion-device'), needle=el('span','mansion-symbol');
     const read=el('output','mansion-readout');
@@ -49,8 +134,8 @@
     function draw() {
       if(position<0){read.textContent='Sin ajustar';if(clockHand)needle.hidden=true;return;}
       const option=entries[position];draft[field.id]=String(option.value);read.textContent=option.label;
-      if(kind==='escudos'||kind==='esferas'){
-        const marks={ciervo:'🦌',cuervo:'🐦',búho:'🦉',lobo:'🐺',luna:'☾',sol:'☀',estrella:'★'};
+      if(kind==='esferas'){
+        const marks={luna:'☾',sol:'☀',estrella:'★'};
         needle.textContent=marks[option.value]||symbols[kind];
       }else if(clockHand){
         needle.hidden=false;needle.style.transform='translateX(-50%) rotate('+(Number(option.value)*(field.id==='agujaHoras'?30:6))+'deg)';
@@ -119,6 +204,7 @@
     box.append(read);update();return box;
   }
   function frequency(field,draft){
+    if(window.MansionAtrezo)return window.MansionAtrezo.radio(field,draft);
     const label=el('label','mansion-control',field.label),input=el('input','mansion-range'),read=el('output','mansion-readout');
     input.type='range';input.min='600';input.max='710';input.step='10';input.value=String(draft[field.id]||600);
     function turn(){draft[field.id]=input.value;read.textContent=input.value+' kHz';input.setAttribute('aria-valuetext',read.textContent);}
@@ -270,6 +356,11 @@
     const heading=el('h3','mansion-puzzle-title',title);heading.tabIndex=-1;
     box.append(heading);
     const contribution=stage.contributions?.[world];
+    const fields=(stage.controls||[]).filter(field=>!field.role||field.role==='both'||field.role===world);
+    if(kind==='escudos' && fields.length && fields.every(field=>/^escudo[1-4]$/.test(field.id)&&field.options?.length&&field.options.every(option=>guardianArt.has(option.value)))){
+      heading.textContent='Los cuatro guardianes';
+      box.append(guardianLock(fields,draft,stage,world,submit));return box;
+    }
     if(contribution?.objective)box.append(el('p','mansion-role-objective',contribution.objective));
     const realWell=kind==='pozo'&&Number.isInteger(stage.wellDepth);
     if(realWell)box.append(wellMechanism(stage,actions||[],world,perform));
@@ -327,7 +418,6 @@
       const confirmation=el('p','mansion-readout','Tu parte está resuelta. El mecanismo conserva tu ajuste mientras se resuelve la otra casa.');
       confirmation.setAttribute('role','status');box.append(confirmation);return box;
     }
-    const fields=(stage.controls||[]).filter(field=>!field.role||field.role==='both'||field.role===world);
     {
       const form=el('form','mansion-controls');
       for(const original of fields){
@@ -338,6 +428,7 @@
         const isChoice=Array.isArray(field.options)&&field.options.length;
         let control;
         if(!isChoice&&kind==='reloj')control=clock(field,draft);
+        else if(kind==='radio'&&field.id==='division'&&isChoice&&window.MansionAtrezo)control=window.MansionAtrezo.radio(field,draft);
         else if(!isChoice&&kind==='radio')control=frequency(field,draft);
         else if(!isChoice&&kind==='morse')control=morse(field,draft);
         else if(!isChoice&&kind==='elementos'&&field.symbols?.length)control=sequence(field,draft,field.symbols);
