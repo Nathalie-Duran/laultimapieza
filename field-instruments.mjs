@@ -1,3 +1,26 @@
+import './web/motor-aventuras.js';
+
+const board={
+  puertas:[
+    {id:'primera',tipo:'XOR',a:'a',b:'b'}, {id:'inversor',tipo:'NOT',a:'c'},
+    {id:'segunda',tipo:'AND',a:'b',b:'inversor'}, {id:'tercera',tipo:'OR',a:'a',b:'c'}
+  ],
+  salidas:['primera','segunda','tercera']
+};
+const panelReadings=new Map();
+function circuitReadings(){
+  if(!panelReadings.size){
+    for(let state=0;state<8;state++){
+      const code=state.toString(2).padStart(3,'0');
+      const [a,b,c]=[...code].map(Number);
+      const lights=board.salidas.map(salida=>globalThis.MotorAventuras.evaluarPrueba({
+        tipo:'mecanica',mecanica:'circuito',parametros:{interruptores:{a,b,c},puertas:board.puertas,salida}
+      },1));
+      panelReadings.set(code,lights.map(Number).join(''));
+    }
+  }
+  return panelReadings;
+}
 const cases = new Map([
   [1, {
     answer: '0734',
@@ -53,11 +76,25 @@ const cases = new Map([
 
 export function getFieldInstrument(caseId, edition) {
   const entry = edition ?? cases.get(caseId);
-  return entry ? structuredClone(entry.instrument) : null;
+  if(!entry)return null;
+  const definition=structuredClone(entry.instrument);
+  if(definition.kind==='circuit')definition.placa=structuredClone(board);
+  return definition;
 }
 
 export function checkFieldInstrument(caseId, answer, edition) {
   const entry = edition ?? cases.get(caseId);
   if (!entry || typeof answer !== 'string' || answer.length > 32) return false;
-  return answer.trim().toLocaleUpperCase('es') === entry.answer.toLocaleUpperCase('es');
+  const submitted=answer.trim().toLocaleUpperCase('es'),expected=entry.answer.toLocaleUpperCase('es');
+  const evaluate=globalThis.MotorAventuras.evaluarPrueba;
+  if(entry.instrument.kind==='circuit'&&/^[01]{3}$/.test(expected)){
+    if(!/^[01]{3}$/.test(submitted))return false;
+    const readings=circuitReadings(),target=readings.get(expected);
+    // Some switch positions on this panel are indistinguishable by their lamps alone.
+    // An edition that names those positions keeps its original selector requirement.
+    if([...readings.values()].filter(lights=>lights===target).length===1){
+      return evaluate({tipo:'seleccion',respuesta:target},readings.get(submitted));
+    }
+  }
+  return evaluate({tipo:'seleccion',respuesta:expected},submitted);
 }

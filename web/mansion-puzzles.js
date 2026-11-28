@@ -263,9 +263,16 @@
       form.append(send,note);
       form.addEventListener('submit',event=>{
         event.preventDefault();
-        const missing=fields.find(field=>draft[field.id]==null||String(draft[field.id]).trim()==='');
-        if(missing){note.textContent='Falta ajustar '+missing.label+'.';note.focus();return;}
-        const answers=Object.fromEntries(fields.map(field=>[field.id,draft[field.id]]));
+        if(stage.ready===false)return;
+        const names=fields.map(field=>field.id);
+        const answers=Object.fromEntries(names.map(id=>[id,draft[id]]));
+        const valid=window.MotorAventuras?.intentoValido?.({tipo:'campos',campos:names},answers)
+          ?? names.every(id=>typeof answers[id]==='string'&&answers[id].trim());
+        if(!valid){
+          const missing=fields.find(field=>!String(answers[field.id]??'').trim());
+          note.textContent=missing?'Falta ajustar '+missing.label+'.':'Revisa el ajuste del mecanismo.';
+          note.focus();return;
+        }
         submit(answers);
       });
       box.append(form);

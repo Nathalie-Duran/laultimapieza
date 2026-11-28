@@ -74,11 +74,16 @@
       ${item.options.map((opt,index)=>`<label class="field"><span><input name="option" type="radio" value="${index}" required> ${esc(opt)}</span></label>`).join('')}</fieldset>
       <button type="submit" class="button primary">Comprobar respuesta</button>`;
   }
+  function prizeCaption(item){
+    const amount=item.earned??item.prize??1;
+    return ' · '+amount+(amount===1?' llave':' llaves')+(item.earned?' ya en tu llavero':' por la primera resolución');
+  }
   function challengeCard(item,calendar) {
     const edition=calendar?scheduleKinds[item.schedule.kind]+' · ':'';
-    const reward=calendar?item.prize+(item.prize===1?' llave':' llaves'):'Temporada '+Math.ceil(item.caseId/12)+' · Caso '+((item.caseId-1)%12+1);
-    return `<details class="account-card" name="reto-en-juego"><summary>${esc(edition+item.title)}<span data-reto-progreso></span></summary>
-      <p>${esc(reward)} · ${item.total} ${item.total===1?'prueba':'pruebas'}${scheduleCaption(item.schedule,calendar)}</p><div data-mesa-reto></div>
+    const kind={simple:'Reto sencillo',advanced:'Reto avanzado',mission:'Misión secreta'}[item.rewardType]||'Reto sencillo';
+    const provenance=calendar?'':kind+' · Temporada '+Math.ceil(item.caseId/12)+' · Caso '+((item.caseId-1)%12+1)+' · ';
+    return `<details class="account-card" name="reto-en-juego"><summary>${esc(edition+item.title)}<span data-challenge-payout>${esc(prizeCaption(item))}</span><span data-reto-progreso></span></summary>
+      <p>${esc(provenance)}${item.total} ${item.total===1?'prueba':'pruebas'}${scheduleCaption(item.schedule,calendar)}</p><div data-mesa-reto></div>
       <form data-challenge="${esc(item.id)}"><p role="status" aria-live="polite"></p><div data-question></div></form>
       <button type="button" class="text-link" data-repasar hidden>Repasar la última prueba</button></details>`;
   }
@@ -105,6 +110,8 @@
     }
     function paintQuestion(){
       const done=item.solved&&!reviewing;
+      const payout=summary.querySelector('[data-challenge-payout]');
+      if(payout)payout.textContent=prizeCaption(item);
       saved.textContent=item.solved?' · Resuelto':item.index?' · Guardado '+item.index+' de '+item.total:'';
       review.hidden=!done;fields.hidden=done;
       fields.innerHTML=done?'':question(item,!!mesa);
@@ -172,7 +179,7 @@
       if (!panel.isConnected) return;
       if(calendar)panel.querySelector('.reto-periodos').hidden=items.length>0;
       if(!calendar&&!items.length){panel.hidden=true;return;}
-      status.textContent=calendar?(items.length?'':'Tu cuenta todavía no tiene acceso a las pruebas del calendario.'):'Una llave por la primera resolución.';
+      status.textContent=calendar&&!items.length?'Tu cuenta todavía no tiene acceso a las pruebas del calendario.':'';
       if(calendar&&!items.length){
         list.innerHTML='<div class="calendar-access"><a class="button primary" href="/#planes">Ver la suscripción</a><a class="text-link" href="/#perfil">Consultar mi cuenta</a></div>';
         return;
@@ -247,13 +254,21 @@
     panel.dataset.bound='1';
     const open=panel.querySelector('[data-open-editor]'), host=panel.querySelector('[data-editor]'), message=panel.querySelector('[role=status]');
     let items=[], draft;
-    function stageFields(stage={},optional=false,metrics){
-      return `<fieldset data-stage><legend>${optional?'Prueba adicional':'Primera prueba'}</legend>
-        ${metrics?`<p class="mg-note">Han respondido ${Number(metrics.attempted)} cuentas. Han resuelto la prueba ${Number(metrics.solved)}. Pendientes: ${Number(metrics.attempted)-Number(metrics.solved)}.</p>`:''}
-        <label>Enunciado y pistas<textarea name="prompt" required rows="3" maxlength="1500">${esc(stage.prompt)}</textarea></label>
+    function questionFields(stage={}){
+      return `<label>Enunciado y pistas<textarea name="prompt" required rows="3" maxlength="1500">${esc(stage.prompt)}</textarea></label>
         <label>Opciones, una por línea (de 2 a 6)<textarea name="options" required rows="4" maxlength="1090">${esc((stage.options || []).join('\n'))}</textarea></label>
         <label>Número de la opción correcta<input type="number" name="answer" required min="1" max="6" value="${(stage.answer || 0)+1}"></label>
-        <label>Explicación al acertar<textarea name="explanation" required maxlength="800">${esc(stage.explanation)}</textarea></label>
+        <label>Explicación al acertar<textarea name="explanation" required maxlength="800">${esc(stage.explanation)}</textarea></label>`;
+    }
+    function variantFields(stage){
+      return '<fieldset data-variant><legend>Versión alternativa</legend>'+questionFields(stage)+'<button class="mg-refresh" type="button" data-remove-variant>Quitar variante</button></fieldset>';
+    }
+    function stageFields(stage={},optional=false,metrics){
+      return `<fieldset data-stage><legend>${optional?'Prueba adicional':'Primera prueba'}</legend>
+        ${metrics?`<p class="mg-note">Intentos de las versiones vigentes: ${Number(metrics.attempted)}. Resueltos: ${Number(metrics.solved)}. Pendientes: ${Number(metrics.attempted)-Number(metrics.solved)}.</p>`:''}
+        ${questionFields(stage)}
+        <div data-variants>${(stage.variants||[]).map(variantFields).join('')}</div>
+        <button class="mg-refresh" type="button" data-add-variant ${stage.variants?.length>=3?'disabled':''}>Añadir variante de esta prueba</button>
         ${optional?'<button class="mg-refresh" type="button" data-remove-stage>Quitar esta prueba</button>':''}</fieldset>`;
     }
     function fields(item){
@@ -261,6 +276,8 @@
       return `<form class="mg-review">
         <label>Título<input name="title" required maxlength="90" value="${esc(draft.title)}"></label>
         <label>Caso que da acceso<select name="caseId">${Array.from({length:48},(_,i)=>`<option value="${i+1}" ${draft.caseId===i+1?'selected':''}>Tablero ${Math.floor(i/12)+1} · Caso ${i%12+1}</option>`).join('')}</select></label>
+        <label>Tipo y premio de la primera resolución<select name="reward">${[['simple/1','Reto sencillo · 1 llave'],['advanced/2','Reto avanzado · 2 llaves'],['mission/1','Misión secreta · 1 llave'],['mission/2','Misión secreta · 2 llaves'],['mission/3','Misión secreta · 3 llaves']].map(([key,label])=>`<option value="${key}" ${key===(draft.rewardType||'simple')+'/'+(draft.prize||1)?'selected':''}>${label}</option>`).join('')}</select></label>
+        <p class="mg-note">Si añades variantes, cada cuenta recibe una versión de la prueba. El premio se entrega una vez por desafío.</p>
         <div data-stages>${stageFields(draft,false,draft.metrics?.[0])}${(draft.steps||[]).map((stage,i)=>stageFields(stage,true,draft.metrics?.[i+1])).join('')}</div>
         <button class="mg-refresh" type="button" data-add-stage ${(draft.steps||[]).length>=7?'disabled':''}>Añadir otra prueba</button>
         ${scheduleFields(draft.schedule)}
@@ -287,6 +304,14 @@
     });
     host.addEventListener('click',event=>{
       const add=host.querySelector('[data-add-stage]'), stages=host.querySelector('[data-stages]');
+      if(event.target.matches('[data-add-variant],[data-remove-variant]')){
+        const stage=event.target.closest('[data-stage]'),list=stage.querySelector('[data-variants]'),more=stage.querySelector('[data-add-variant]');
+        if(event.target.matches('[data-add-variant]')){
+          if(list.children.length>=3)return;
+          list.insertAdjacentHTML('beforeend',variantFields({}));list.lastElementChild.querySelector('textarea').focus();
+        }else{event.target.closest('[data-variant]').remove();more.disabled=false;more.focus();}
+        more.disabled=list.children.length>=3;return;
+      }
       if(event.target.matches('[data-add-stage]') && stages.children.length<8) {
         stages.insertAdjacentHTML('beforeend',stageFields({},true));
         stages.lastElementChild.querySelector('textarea').focus();
@@ -299,12 +324,14 @@
       const form=event.target, controls=form.elements;
       if(!canManage()||form.dataset.saving)return;
       const value=key=>controls.namedItem(key).value.trim();
-      const stages=Array.from(form.querySelectorAll('[data-stage]'),section=>{
+      function question(section){
         const field=key=>section.querySelector('[name="'+key+'"]').value.trim();
         return {prompt:field('prompt'),options:field('options').split(/\r?\n/).map(s=>s.trim()).filter(Boolean),
           answer:Number(field('answer'))-1,explanation:field('explanation')};
-      });
-      const payload={id:draft.id,revision:draft.revision,title:value('title'),caseId:Number(value('caseId')),
+      }
+      const stages=Array.from(form.querySelectorAll('[data-stage]'),section=>({...question(section),variants:Array.from(section.querySelectorAll('[data-variant]'),question)}));
+      const [rewardType,amount]=value('reward').split('/');
+      const payload={id:draft.id,revision:draft.revision,title:value('title'),caseId:Number(value('caseId')),prize:Number(amount),rewardType,
         ...stages[0],steps:stages.slice(1),schedule:readSchedule(controls),status:value('status')};
       const select=host.querySelector('[data-select-game]');
       form.dataset.saving='1'; select.disabled=true;

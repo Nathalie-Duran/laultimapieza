@@ -1,5 +1,15 @@
 import {inspectInventory} from './expedition.mjs';
 import {ApiError} from './auth-provider.mjs';
+import './web/motor-aventuras.js';
+
+// These controls describe how to handle the edition's existing evidence.
+// The answer, evidence IDs and scoring remain those of the release.
+const presentation={
+  2:{index:0,mode:'order',cue:'centralita',kind:'centralita'},
+  13:{index:2,mode:'order',cue:'boyas',kind:'boyas'},
+  25:{index:0,mode:'single',cue:'habitación',kind:'puertas'},
+  37:{index:1,mode:'multi',cue:'improntas',kind:'improntas'}
+};
 
 function outline({title,place,minutes}) {
   return {title,place,minutes};
@@ -35,6 +45,10 @@ export function readHour(story,record,role=null) {
   const current = record?.choice ? stages.length : count;
   const active = stages[current];
   const stage = active ? {...reading(active,role),mode:active.mode,options:active.options.map(({id,label}) => ({id,label}))} : null;
+  const design=presentation[story.id];
+  if(stage&&design?.index===current&&design.mode===stage.mode&&stage.task.toLowerCase().includes(design.cue)){
+    stage.interaction=design.kind;
+  }
   if (stage?.mode === 'order') stage.requiredCount = active.answer.length;
   if (active?.instrument) stage.instrument = active.instrument;
   if (active?.corroboration) {
@@ -72,8 +86,10 @@ export function evaluateHourStage(story,record,input) {
     throw new ApiError(400,'Elige las opciones del expediente que quieres contrastar.');
   }
   const {answer} = stage;
-  const hypothesisMatches = choice.length === answer.length && (stage.mode === 'multi'
-    ? answer.every(id => choice.includes(id)) : answer.every((id,i) => choice[i] === id));
+  const evaluate=globalThis.MotorAventuras.evaluarPrueba;
+  const hypothesisMatches=stage.mode==='single'
+    ? evaluate({tipo:'seleccion',respuesta:answer[0]},choice[0])
+    : evaluate({tipo:stage.mode==='multi'?'conjunto':'secuencia',respuesta:answer},choice);
   const corroboration = stage.corroboration;
   let sourcesMatch = true;
   if (corroboration && index === count) {
@@ -86,7 +102,7 @@ export function evaluateHourStage(story,record,input) {
         new Set(sources).size !== sources.length || !sources.every(id => evidenceIds.has(id))) {
       throw new ApiError(400,'Selecciona las fuentes que pide la etapa.');
     }
-    sourcesMatch = corroboration.answer.every(id => sources.includes(id));
+    sourcesMatch=evaluate({tipo:'conjunto',respuesta:corroboration.answer},sources);
   }
   const correct = hypothesisMatches && sourcesMatch;
   const advanced = index === count && correct;

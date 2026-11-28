@@ -495,3 +495,52 @@
 }
 .expedition-inventory .inventory-field-note :is(h4,p) { color: inherit; margin: .25rem 0; }
 .inventory-field-note [tabindex]:focus-visible { outline: 2px solid #226248; outline-offset: .2rem; }
+
+/* Work surfaces for the four cases. All drawing controls are also labelled buttons. */
+.vhour [data-vh-prueba] fieldset {min-inline-size:0}
+.vhour [data-vh-prueba] fieldset>h5 {font-size:1.16rem;color:#253a3b;margin:.9rem 0 .3rem}
+.vhour [data-vh-prueba] fieldset>p {line-height:1.5}
+.vhour [data-vh-prueba] :is(button,[role=button]) {min-block-size:44px}
+.vhour [data-vh-prueba] button:focus-visible {outline:3px solid #26655c;outline-offset:3px;box-shadow:0 0 0 2px #ffedb3}
+.vh-switchboard,.vh-contacts,.vh-door-lineup,.vh-rubbing-choices {display:grid;gap:.55rem;margin:.85rem 0}
+.vh-switchboard {grid-template-columns:repeat(3,minmax(0,1fr));padding:.65rem;border:1px solid #8b8568;border-radius:.45rem;background:#172823}
+.vh-contacts {grid-template-columns:repeat(2,minmax(0,1fr))}
+.vhour :is(.vh-socket,.vh-contact,.vh-buoy,.vh-door,.vh-rubbing-choice,.vh-overlay) {
+  box-sizing:border-box;min-inline-size:0;padding:.55rem .65rem;text-align:center;
+  background:#22332d;border:1px solid #839181;color:#fff4dd;border-radius:.3rem;
+  font:600 .93rem/1.35 var(--sans,system-ui,sans-serif);cursor:pointer;
+}
+.vhour [data-vh-prueba] button[aria-pressed=true] {color:#fff6cd;border-color:#ffda84;box-shadow:inset 0 -3px #ffda84}
+.vh-socket::before {content:"";display:block;margin:0 auto .45rem;inline-size:.9rem;block-size:.9rem;border:3px solid #cbb080;border-radius:50%;background:#090f0e}
+.vh-socket[data-connected=true]::before {background:#e5c27e;box-shadow:inset 0 0 0 2px #4c412e}
+.vh-contact {text-align:start!important}
+.vh-buoy-board {position:relative;isolation:isolate;background:#173337;border:1px solid #72978d;border-radius:.4rem;margin:.8rem 0;aspect-ratio:1.8;min-block-size:10rem}
+.vh-buoy-board svg {position:absolute;inset:0;inline-size:100%;block-size:100%;pointer-events:none}
+.vh-buoy-board polyline {fill:none;stroke:#ffdc83;stroke-width:4;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.vh-buoy-board .vh-buoy {position:absolute;transform:translate(-50%,-50%);padding:.4rem .65rem;max-inline-size:45%}
+.vh-buoy::before {content:"";display:block;margin:0 auto .2rem;background:#d8a570;inline-size:.66rem;block-size:.85rem;border-radius:65% 65% 28% 28%}
+.vh-door-lineup {grid-template-columns:repeat(4,minmax(0,1fr))}
+.vhour .vh-door {display:grid;justify-items:center;gap:.4rem}
+.vh-door-drawing {position:relative;display:block;inline-size:min(3rem,100%);aspect-ratio:3/5;background:linear-gradient(90deg,#604737,#8f7352 50%,#674e3d);border:.22rem solid #bdab85;box-shadow:inset 0 0 0 2px #4c3b2c}
+.vh-door-hinge {position:absolute;inset:18% auto auto -.1rem;height:8%;width:.31rem;background:#fce3a3;box-shadow:0 2rem #fce3a3}
+.vh-door-drawing[data-hinge=derecha] .vh-door-hinge {left:auto;right:-.1rem}
+.vh-door-mark {position:absolute;bottom:10%;left:30%;width:40%;height:0;border-bottom:3px solid #ffdc95}
+.vh-door-drawing[data-mark=arco] .vh-door-mark {height:.35rem;border:2px solid #ffdc95;border-bottom:0;border-radius:1rem 1rem 0 0}
+.vh-rubbing-choices {grid-template-columns:repeat(4,minmax(0,1fr))}
+.vh-rubbing-plate {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;position:relative;height:7.25rem;padding:.55rem;margin-bottom:.5rem;background:#1f2825;border:1px solid #8d8f78;border-radius:.4rem}
+.vh-rubbing-sheet {position:relative;display:grid;align-content:end;min-width:0;text-align:center;padding:.22rem;border-radius:.15rem;background:#e2d6b8;color:#3b3225;font-weight:700}
+.vh-rubbing-sheet[data-layer="1"] {background:#c5d9cc;color:#173b32}
+.vh-grooves {position:absolute;top:24%;left:25%;width:50%;height:1.35rem;display:flex;justify-content:center;gap:12%}
+.vh-grooves[data-height=bajo] {top:54%}
+.vh-grooves i {width:.28rem;height:100%;background:#674722;transform:skewX(-17deg)}
+.vh-rubbing-sheet[data-layer="1"] .vh-grooves i {background:#265d52}
+.vh-rubbing-plate[data-overlap=true] {display:grid;grid-template-columns:1fr}
+.vh-rubbing-plate[data-overlap=true] .vh-rubbing-sheet {grid-area:1/1;text-align:start;padding-inline:.4rem}
+.vh-rubbing-plate[data-overlap=true] .vh-rubbing-sheet[data-layer="1"] {background:transparent;text-align:end}
+.vh-rubbing-plate[data-overlap=true] [data-layer="1"] .vh-grooves {margin-left:.28rem}
+@media(max-width:620px) {
+  .vh-switchboard,.vh-contacts {grid-template-columns:1fr}
+  .vh-switchboard .vh-socket {text-align:start}
+  .vh-socket::before {display:inline-block;margin:0 .5rem 0 0;vertical-align:middle}
+  .vh-door-lineup,.vh-rubbing-choices {grid-template-columns:repeat(2,minmax(0,1fr))}
+}

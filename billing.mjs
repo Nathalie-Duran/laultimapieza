@@ -37,6 +37,19 @@ function purchasedBlocks(subscription) {
   return numbers;
 }
 
+function upcomingUnlock(data,subscription,at){
+  if(!at)return null;
+  const blocks=purchasedBlocks(subscription);
+  if(!blocks)return null;
+  const cycles=(data.cycles||[]).filter(c=>c.subscription===subscription.id);
+  if(!cycles.some(c=>!c.revoked&&c.end===at)||cycles.some(c=>c.start>=at||!blocks.includes(c.worldBlock)))return null;
+  const assigned=new Set(cycles.map(c=>c.worldBlock));
+  const ordered=blocks.find(block=>!assigned.has(block));
+  if(!ordered)return null;
+  const season=Math.ceil(ordered/3),block=(ordered-1)%3+1;
+  return {at,season,block,caseIds:Array.from({length:4},(_,i)=>(ordered-1)*4+i+1)};
+}
+
 // A late receipt must not move a previously granted block. For replacement
 // invoices covering the same month, keep one entitlement for that period.
 function journeyCycles(previous,receipts,blocks){
@@ -78,6 +91,38 @@ export function createBilling(env=process.env,fetcher=fetch){
     if(portal && !response.ok)throw new ApiError(503,'No se ha podido abrir el portal de suscripciones. Inténtalo más tarde.','BILLING_PORTAL_UNAVAILABLE');
     if(!response.ok)throw new ApiError(503,'No podemos comprobar el pago ahora. Inténtalo de nuevo.','BILLING_UNAVAILABLE');
     return response.json();
+  }
+  async function queueBillingNotice(store,type,event,customer,email,details){
+    if(!store.enqueueMail)return;
+    if(!email){
+      const contact=await stripe('customers/'+encodeURIComponent(customer),undefined,undefined,{serviceExisting:true});
+      if(contact.id===customer&&!contact.deleted)email=contact.email;
+    }
+    if(email)await store.enqueueMail(mailKey(type,event),email,type,details);
+  }
+  function queueCancellation(store,customer,subscription,effectiveAt,email){
+    return queueBillingNotice(store,'subscription_cancelled',subscription+'/'+effectiveAt,customer,email,{effectiveAt});
+  }
+  async function webhookNotice(store,uid,event,snapshot,priorCancellation){
+    if(!store.enqueueMail)return;
+    const {data,subscription}=snapshot,obj=event.data.object;
+    const reference=value=>typeof value==='string'?value:value?.id;
+    if(event.type==='invoice.payment_failed'){
+      const subId=reference(obj.parent?.subscription_details?.subscription||obj.subscription);
+      if(!obj.id||!subId||!(subscription?.id===subId||data.billingHistory?.[subId])||
+        !['subscription_cycle','subscription_create'].includes(obj.billing_reason)||obj.status==='paid'||
+        data.cycles?.some(cycle=>cycle.id===obj.id))return;
+      const lines=obj.lines?.data;
+      if(lines?.length&&!lines.some(line=>(line.pricing?.price_details?.price||line.price?.id)===env.STRIPE_PRICE_ID))return;
+      await queueBillingNotice(store,'payment_failed',obj.id,data.customer,obj.customer_email,{uid,invoice:obj.id});
+      return;
+    }
+    if(!['customer.subscription.updated','customer.subscription.deleted'].includes(event.type))return;
+    const history=data.billingHistory?.[obj.id];
+    if(!history)return;
+    const stop=data.renewalStop?.subscription===obj.id?data.renewalStop.effectiveAt:null;
+    const effectiveAt=stop||history.cancelScheduledAt||(history.reason==='voluntary'?(priorCancellation||history.endedAt):null);
+    if(effectiveAt)await queueCancellation(store,data.customer,obj.id,effectiveAt);
   }
   async function sync(store,uid,{readOnly=false}={}){
     const data=await store.getMemberData(uid,{readOnly});
@@ -297,7 +342,7 @@ export function createBilling(env=process.env,fetcher=fetch){
           }catch{ /* The paid period is still available when a future date cannot be confirmed. */ }
         }
       }
-      return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess,periodEnd:data.periodEnd||null,renewal,nextRenewalAt,waitlist:!!data.waitlist,hasCustomer:!!data.customer,partnerOffer:await accountOffer(store,uid,data.preferredPartnerEmail)};
+      return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess,periodEnd:data.periodEnd||null,renewal,nextRenewalAt,nextUnlock:upcomingUnlock(data,subscription,nextRenewalAt),waitlist:!!data.waitlist,hasCustomer:!!data.customer,partnerOffer:await accountOffer(store,uid,data.preferredPartnerEmail)};
     },
     async pollMembership(store,uid){
       const data=await store.getMemberData(uid,{readOnly:true});
@@ -362,9 +407,10 @@ export function createBilling(env=process.env,fetcher=fetch){
       }
       return {url:result.url};
     },
-    cancellation(store,uid,confirmation){
+    cancellation(store,uid,confirmation,verifiedEmail){
       return subscriptionCancellation({store,uid,confirmation,secret:env.STRIPE_SECRET_KEY,
-        stripe:(path,values,idem)=>stripe(path,values,idem,{serviceExisting:true})});
+        stripe:(path,values,idem)=>stripe(path,values,idem,{serviceExisting:true}),
+        onScheduled:(customer,subscription,effectiveAt)=>queueCancellation(store,customer,subscription,effectiveAt,verifiedEmail)});
     },
     async portal(store,uid){
       const data=await store.getMemberData(uid,{readOnly:true});
@@ -393,7 +439,9 @@ export function createBilling(env=process.env,fetcher=fetch){
           }
           if(receipts.length){const data=await store.getMemberData(uid);data.revokedInvoices=[...new Set([...(data.revokedInvoices||[]),...receipts])];await store.saveMemberData(uid,data);await indexPurchase(store,uid,data);}
         }
-        await sync(store,uid);
+        const prior=event.type==='customer.subscription.deleted'?await store.getMemberData(uid,{readOnly:true}):null;
+        const snapshot=await sync(store,uid);
+        await webhookNotice(store,uid,event,snapshot,prior?.billingHistory?.[obj.id]?.cancelScheduledAt);
         const billingStateChanged=event.type==='invoice.payment_failed' ||
           ['customer.subscription.deleted','customer.subscription.paused','customer.subscription.resumed'].includes(event.type) ||
           event.type==='customer.subscription.updated' &&

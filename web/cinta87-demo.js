@@ -12,9 +12,17 @@
   const objects = {piloto:'Carrete piloto',acetato:'Máscara de acetato',hoja:'Hoja de contactos'};
   const photos = {magnetofono:'/c87-magnetofono.webp',acetato:'/c87-acetato.webp',libro:'/c87-registro.webp',hoja:'/c87-fichero.webp'};
   const itemPhoto=id=>photos[id==='piloto'?'magnetofono':id];
-  const boxNames = {a4:'A4',b6:'B6',c2:'C2'};
   const marks = {circulo:'Precinto circular',triangulo:'Precinto triangular',cuadrado:'Precinto cuadrado'};
-  const manifests = {a4:{beats:[1,1,3],mark:'circulo'},b6:{beats:[1,3,3],mark:'triangulo'},c2:{beats:[1,1,3],mark:'triangulo'}};
+  const manifestRule={tipo:'mecanica',mecanica:'cotejar-ficha',parametros:{
+    senal:[1,1,3],precinto:'triangulo',fichas:[
+      {id:'a4',senal:[1,1,3],precinto:'circulo'},
+      {id:'b6',senal:[1,3,3],precinto:'triangulo'},
+      {id:'c2',senal:[1,1,3],precinto:'triangulo'}
+    ]
+  }};
+  const overlayMaterials={tipo:'conjunto',respuesta:['acetato','hoja']};
+  const overlayEdge={tipo:'seleccion',respuesta:'izquierda'};
+  const signalWords=beats=>beats.map(n=>n===1?'Corto':'Largo').join(' · ');
   function signalStrip(beats){
     return '<span class="c87-signal" aria-hidden="true">'+beats.map(length=>'<i class="'+(length===1?'short':'long')+'"></i>').join('')+'</span>';
   }
@@ -138,8 +146,7 @@
     }
     function table(){
       return '<div class="c87-table"><table><caption>Hoja de traslados · Último turno</caption><thead><tr><th scope="col">Caja</th><th scope="col">Señal de arranque</th><th scope="col">Precinto</th></tr></thead>'+
-        '<tbody><tr><th scope="row">A4</th><td>Corto · corto · largo</td><td>Circular</td></tr><tr><th scope="row">B6</th><td>Corto · largo · largo</td><td>Triangular</td></tr>'+
-        '<tr><th scope="row">C2</th><td>Corto · corto · largo</td><td>Triangular</td></tr></tbody></table></div>';
+        '<tbody>'+manifestRule.parametros.fichas.map(f=>'<tr><th scope="row">'+f.id.toUpperCase()+'</th><td>'+signalWords(f.senal)+'</td><td>'+marks[f.precinto]+'</td></tr>').join('')+'</tbody></table></div>';
     }
     function objectButton(id){
       if(!state.items.includes(id))return control('take','Guardar '+objects[id].toLowerCase(),id,true);
@@ -238,7 +245,7 @@
       if(!state.combined)missing.push('Revelar la hoja de traslados en el inventario.');
       const work=missing.length?'<p>Para identificar el original falta:</p><ul>'+missing.map(t=>'<li>'+t+'</li>').join('')+'</ul>'+feedback()+nextButton():
         '<details class="c87-manifest"><summary>Consultar la hoja de traslados en texto</summary>'+table()+'</details><form data-c87-form="deduce"><fieldset><legend>Identificar la grabación original</legend>'+
-        '<fieldset class="c87-choices c87-boxes"><legend>¿Qué caja abrirás?</legend>'+Object.entries(boxNames).map(([id,label])=>'<label><input type="radio" name="box" required value="'+id+'"'+(draft.box===id?' checked':'')+'><span class="c87-box-photo"><img src="/c87-caja-bobina.webp" width="420" height="420" alt=""><span class="c87-box-tag" aria-hidden="true"><i class="c87-stamp c87-stamp-'+manifests[id].mark+'"></i>'+label+'</span></span><strong>Caja '+label+'</strong>'+signalStrip(manifests[id].beats)+'<span class="c87-box-facts">'+manifests[id].beats.map(n=>n===1?'Corto':'Largo').join(' · ')+'</span><span class="c87-seal-label">'+marks[manifests[id].mark]+'</span></label>').join('')+'</fieldset>'+
+        '<fieldset class="c87-choices c87-boxes"><legend>¿Qué caja abrirás?</legend>'+manifestRule.parametros.fichas.map(({id,senal,precinto})=>'<label><input type="radio" name="box" required value="'+id+'"'+(draft.box===id?' checked':'')+'><span class="c87-box-photo"><img src="/c87-caja-bobina.webp" width="420" height="420" alt=""><span class="c87-box-tag" aria-hidden="true"><i class="c87-stamp c87-stamp-'+precinto+'"></i>'+id.toUpperCase()+'</span></span><strong>Caja '+id.toUpperCase()+'</strong>'+signalStrip(senal)+'<span class="c87-box-facts">'+signalWords(senal)+'</span><span class="c87-seal-label">'+marks[precinto]+'</span></label>').join('')+'</fieldset>'+
         '<fieldset class="c87-choices"><legend>¿Qué precinto acredita que es el original?</legend>'+Object.entries(marks).map(([id,label])=>'<label><input type="radio" name="mark" required value="'+id+'"'+(draft.mark===id?' checked':'')+'><span class="c87-stamp c87-stamp-'+id+'" aria-hidden="true"></span><span>'+label+'</span></label>').join('')+'</fieldset>'+
         '<button type="submit" class="c87-control c87-primary">Contrastar la deducción</button></fieldset></form>'+feedback();
       return '<section class="c87-paper"><p class="c87-kicker">Mesa compartida</p>'+heading('¿Dónde está la cinta 87?')+work+'</section>';
@@ -358,20 +365,19 @@
       const field=name=>form.elements.namedItem(name)?.value||'';
       if(form.dataset.c87Form==='combine' && state.view==='bag' && !state.combined && state.items.includes('acetato') && state.items.includes('hoja')){
         draft.first=field('first');draft.second=field('second');draft.side=field('side');
-        const selected=new Set([draft.first,draft.second]);
-        if(!selected.has('acetato')||!selected.has('hoja'))notice='La mesa necesita una lámina con ventana y una hoja impresa.';
-        else if(draft.side!=='izquierda')notice='Siguen viéndose dos tiradas. Comprueba dónde estaba la franja negra de la hoja.';
+        if(!window.MotorAventuras.evaluarPrueba(overlayMaterials,[draft.first,draft.second]))notice='La mesa necesita una lámina con ventana y una hoja impresa.';
+        else if(!window.MotorAventuras.evaluarPrueba(overlayEdge,draft.side))notice='Siguen viéndose dos tiradas. Comprueba dónde estaba la franja negra de la hoja.';
         else{state.combined=true;notice='Se ve una única tirada. La tabla de cajas está lista.';event('receipt');}
       }else if(form.dataset.c87Form==='deduce' && state.view==='deduction'&&!state.solved&&state.combined&&state.seen.length===2){
         draft.box=field('box');draft.mark=field('mark');
-        if(draft.box==='c2' && draft.mark==='triangulo'){state.solved=true;notice='Has localizado el original.';event('solved');}
+        if(window.MotorAventuras.evaluarPrueba(manifestRule,[draft.box,draft.mark])){state.solved=true;notice='Has localizado el original.';event('solved');}
         else notice='Esa combinación no coincide con las dos pruebas. Coteja la señal y el precinto en la misma fila.';
       }else return;
       commit();draw(state.solved?true:'notice');
     }
     function pilotText(){
       if(!transcript&&!window.GamePreferences?.transcripts)return control('transcript','Ver la señal y leer la transcripción');
-      const trace='<figure class="c87-trace" data-c87-transcript tabindex="-1">'+signalStrip([1,1,3])+'<figcaption>Clic de arranque. Dos pulsos cortos, seguidos de un pulso largo. Después se oye el soplo de la cinta y un clic de parada.</figcaption></figure>';
+      const trace='<figure class="c87-trace" data-c87-transcript tabindex="-1">'+signalStrip(manifestRule.parametros.senal)+'<figcaption>Clic de arranque. Dos pulsos cortos, seguidos de un pulso largo. Después se oye el soplo de la cinta y un clic de parada.</figcaption></figure>';
       return trace+(state.seen.includes('signal')?'':control('transcript','Anotar la señal en mi carpeta'));
     }
     function updatePilotText(){

@@ -1,0 +1,42 @@
+name: Ensayo de plataforma
+on:
+  pull_request:
+    branches: [la-ultima-pieza]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  plataforma:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_HOST: '%'
+          MYSQL_DATABASE: lup_qa
+        ports:
+          - 3306/tcp
+        options: --health-cmd="mysqladmin ping" --health-interval=5s --health-timeout=3s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm test
+      - name: Guardar y recuperar una partida con MySQL
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ job.services.mysql.ports['3306'] }}
+          DB_USER: ensayo
+          DB_PASSWORD: ensayo-sin-clientes
+        run: |
+          sql=(mysql --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u root)
+          "${sql[@]}" -e "CREATE DATABASE lup_qa_restore; CREATE USER 'ensayo'@'%' IDENTIFIED BY 'ensayo-sin-clientes'; GRANT ALL ON lup_qa.* TO 'ensayo'@'%'; GRANT ALL ON lup_qa_restore.* TO 'ensayo'@'%';"
+          DB_NAME=lup_qa node tests/mysql-aislado.mjs sembrar
+          mysqldump --protocol=tcp -h "$DB_HOST" -P "$DB_PORT" -u root --single-transaction --no-tablespaces lup_qa > "$RUNNER_TEMP/prueba.sql"
+          "${sql[@]}" lup_qa_restore < "$RUNNER_TEMP/prueba.sql"
+          DB_NAME=lup_qa_restore node tests/mysql-aislado.mjs verificar

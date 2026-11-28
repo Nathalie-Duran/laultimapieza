@@ -182,12 +182,41 @@
     {secciones:[1,2,1],alturas:[6,2,2]},p=>{const a=nums(p.secciones),h=nums(p.alturas);if(a.length!==h.length||a.some(n=>n<=0))fail('Vasos incompatibles.');return sum(a.map((n,i)=>n*h[i]))/sum(a);});
   add('caudal','Llenar una cisterna con fuga','Resta el caudal de fuga a los conductos de entrada para calcular cuándo se llena la cisterna.','numero',
     {litros:18,entradas:[3,2],fuga:2},p=>{const v=sum(nums(p.entradas))-int(p.fuga,0,10000);if(v<=0)fail('La cisterna nunca se llena.');return int(p.litros,1,100000)/v;});
+  function seguirTuberias(tubos, fuente, sinFugas) {
+    const cola = [fuente], alcanzadas = new Set([coord(fuente)]);
+    for (const celda of cola) {
+      for (const lado of str(at(tubos, celda) || '')) {
+        const vecina = step(celda, lado);
+        const opuesto = orderDirections[mod(orderDirections.indexOf(lado) + 2, 4)];
+        if (!at(tubos, vecina)?.includes(opuesto)) {
+          if (sinFugas) return null;
+          continue;
+        }
+        const id = coord(vecina);
+        if (!alcanzadas.has(id)) { alcanzadas.add(id); cola.push(vecina); }
+      }
+    }
+    return alcanzadas;
+  }
   add('tuberias','Rastrear una tubería abierta','Sigue las conducciones por sus empalmes recíprocos y enumera las salidas que reciben agua.','lista',
     {tubos:[['E','EO','O'],['N','N','N']],fuente:[0,0],salidas:[{id:'muelle',xy:[2,0]},{id:'bodega',xy:[0,1]}]},p=>{
-      const pipe=arr(p.tubos).map(row=>arr(row).map(str)),queue=[point(p.fuente)],seen=new Set(queue.map(coord));
-      for(let i=0;i<queue.length;i++){const pos=queue[i];for(const dir of str(at(pipe,pos)||'')){const q=step(pos,dir),cell=at(pipe,q),opp=orderDirections[mod(orderDirections.indexOf(dir)+2,4)];
-        if(cell?.includes(opp)&&!seen.has(coord(q))){seen.add(coord(q));queue.push(q);}}}
-      return arr(p.salidas).filter(exit=>seen.has(coord(point(exit.xy)))).map(e=>str(e.id));
+      const tubos=arr(p.tubos).map(row=>arr(row).map(str));
+      const alcanzadas=seguirTuberias(tubos,point(p.fuente),false);
+      return arr(p.salidas).filter(exit=>alcanzadas.has(coord(point(exit.xy)))).map(e=>str(e.id));
+    });
+  activa('circuito-rotatorio','Orientar los empalmes','Gira cada pieza entre cero y tres cuartos de vuelta en el sentido del reloj. El agua debe llegar a todas las salidas sin escapar por un extremo abierto.',
+    {tubos:[['E','NS','O']],fuente:[0,0],moviles:[[1,0]],salidas:[[2,0]]},[1],(p,giros)=>{
+      const tubos=arr(p.tubos).map(row=>arr(row).map(str));
+      if(tubos.some(row=>row.length!==tubos[0].length || row.some(cell=>!/^[NESO]{0,4}$/.test(cell) || unique([...cell]).length!==cell.length)))return false;
+      const moviles=arr(p.moviles).map(xy=>point(xy)),fuente=point(p.fuente);
+      if(!at(tubos,fuente) || giros.length!==moviles.length || new Set(moviles.map(coord)).size!==moviles.length)return false;
+      for(const [i,[x,y]] of moviles.entries()){
+        const giro=giros[i];
+        if(!at(tubos,[x,y]) || !/^[0-3]$/.test(String(giro)))return false;
+        tubos[y][x]=[...tubos[y][x]].map(d=>orderDirections[mod(orderDirections.indexOf(d)+Number(giro),4)]).join('');
+      }
+      const alcanzadas=seguirTuberias(tubos,fuente,true);
+      return alcanzadas!==null && arr(p.salidas).every(xy=>alcanzadas.has(coord(point(xy))));
     });
   add('pesas','Identificar un peso falso','Compara la masa de cada grupo con su masa nominal y devuelve la etiqueta del grupo alterado.','texto',
     {unidad:3,grupos:[{id:'junco',piezas:3,masa:9},{id:'loto',piezas:4,masa:13}]},p=>{
@@ -350,6 +379,22 @@
       const [a,b]=point(p.humedad),[c,d]=point(p.luz),hits=arr(p.viveros).filter(v=>v.humedad>=a&&v.humedad<=b&&v.luz>=c&&v.luz<=d);return hits.length===1?str(hits[0].id):fail('Cultivo sin emplazamiento único.');});
 
   family = 'Testimonios y documentos';
+  add('cotejar-ficha','Identificar una ficha por dos indicios','Busca en el registro la ficha que coincide con la secuencia observada y el precinto del original. Elige primero la ficha y después su precinto.','lista',
+    {senal:[2,1,2],precinto:'espiga',fichas:[
+      {id:'norte',senal:[2,1,2],precinto:'onda'},
+      {id:'sur',senal:[2,2,1],precinto:'espiga'},
+      {id:'oeste',senal:[2,1,2],precinto:'espiga'}
+    ]},p=>{
+      const senal=nums(p.senal),precinto=str(p.precinto),fichas=arr(p.fichas);
+      const ids=fichas.map(f=>norm(str(f.id)));
+      if(!precinto.trim()||ids.some(id=>!id)||unique(ids).length!==ids.length)fail('Identifica cada ficha y el precinto del original.');
+      const matches=fichas.filter(f=>{
+        const pulsos=nums(f.senal);
+        return norm(str(f.precinto))===norm(precinto)&&pulsos.length===senal.length&&pulsos.every((n,i)=>n===senal[i]);
+      });
+      if(matches.length!==1)fail('Los dos indicios deben identificar una sola ficha.');
+      return [matches[0].id,precinto];
+    });
   add('coartada','Descartar una coartada','Contrasta el lugar de la incidencia con los intervalos de presencia acreditados.','texto',
     {instante:45,lugar:'muelle',personas:[{id:'A',registros:[['mercado',35,50]]},{id:'B',registros:[['muelle',40,55]]}]},p=>{
       const possible=arr(p.personas).filter(person=>!arr(person.registros).some(([place,a,b])=>place!==p.lugar&&a<=p.instante&&b>=p.instante));
@@ -493,6 +538,59 @@
       return equalReading(supplied,rule.derivar(parametros));
     } catch { return false; }
   }
+  // Las ediciones privadas conservan la respuesta en el servidor. La demo
+  // sin cuenta utiliza el mismo evaluador con su propia evidencia local.
+  function intentoValido(forma, intento) {
+    if (forma?.tipo !== 'campos' || !Array.isArray(forma.campos) || !intento ||
+        typeof intento !== 'object' || Array.isArray(intento) || !withinBudget(intento)) return false;
+    const keys = forma.campos;
+    return keys.length === Object.keys(intento).length && new Set(keys).size === keys.length &&
+      keys.every(key => typeof key === 'string' && Object.hasOwn(intento,key) &&
+        typeof intento[key] === 'string' && intento[key].trim().length > 0);
+  }
+  function canonizarPiezas(tipo,piezas,cantidad) {
+    if (!['secuencia','conjunto'].includes(tipo) || !Number.isSafeInteger(cantidad) || cantidad < 1 ||
+        cantidad > 160 || !Array.isArray(piezas) || piezas.length !== cantidad) return null;
+    const lista=Array.from(piezas);
+    if (!lista.every(v => typeof v === 'string' || Number.isFinite(v))) return null;
+    if (tipo === 'secuencia') return lista;
+    if (new Set(lista).size !== cantidad) return null;
+    return lista.sort((a,b) => {
+      if (typeof a !== typeof b) return typeof a === 'number' ? -1 : 1;
+      return a < b ? -1 : Number(a > b);
+    });
+  }
+  function evaluarPrueba(regla, intento) {
+    if (!regla || typeof regla !== 'object') return false;
+    if (regla.tipo === 'mecanica') return comprobar(regla.mecanica, regla.parametros, intento);
+    const modelo = regla.respuesta;
+    if (!withinBudget(modelo) || !withinBudget(intento)) return false;
+    const identificador = value => typeof value === 'string' || Number.isFinite(value);
+    switch (regla.tipo) {
+      case 'seleccion':
+        return identificador(modelo) && intento === modelo;
+      case 'secuencia':
+      case 'conjunto': {
+        const esperado=canonizarPiezas(regla.tipo,modelo,modelo?.length);
+        const recibido=canonizarPiezas(regla.tipo,intento,modelo?.length);
+        return esperado!==null && recibido!==null && esperado.every((valor,i)=>valor===recibido[i]);
+      }
+      case 'campos': {
+        if (!modelo || !intento || typeof modelo !== 'object' || typeof intento !== 'object' ||
+            Array.isArray(modelo) || Array.isArray(intento)) return false;
+        const keys = Object.keys(modelo);
+        if (!intentoValido({tipo:'campos',campos:keys},intento)) return false;
+        const modo = regla.normalizacion ?? 'literal';
+        if (!['texto','literal'].includes(modo)) return false;
+        const comparar = modo === 'texto' ?
+          value => value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ') :
+          value => value;
+        return keys.every(key => Object.hasOwn(intento,key) && typeof modelo[key] === 'string' &&
+          typeof intento[key] === 'string' && comparar(modelo[key]) === comparar(intento[key]));
+      }
+      default: return false;
+    }
+  }
   const roles = ['A','B'];
   const types = ['ir','observar','inspeccionar','recoger','combinar','transferir','hablar','decidir','prueba','sincronizar'];
   const safeId = id => typeof id === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(id) && !['constructor','prototype'].includes(id);
@@ -505,7 +603,8 @@
   function graphicOk(g) {
     return !g || g.tipo === 'cuadricula' && listOf(g.filas,24,r=>textOk(r,32)) && g.filas.length>0 && g.filas.every(r=>r.length===g.filas[0].length) ||
       g.tipo === 'golpes' && listOf(g.tiempos,32,n=>Number.isInteger(n)&&n>=0&&n<=12000) && g.tiempos.length>0 ||
-      g.tipo === 'tonos' && listOf(g.frecuencias,8,n=>Number.isFinite(n)&&n>=50&&n<=4000) && g.frecuencias.length>0;
+      g.tipo === 'tonos' && listOf(g.frecuencias,8,n=>Number.isFinite(n)&&n>=50&&n<=4000) && g.frecuencias.length>0 ||
+      g.tipo === 'tintas' && listOf(g.marcas,32,m=>m&&textOk(m.letra,8)&&textOk(m.luz,32)) && g.marcas.length>0;
   }
   function validar(def) {
     if (!def || typeof def !== 'object' || !withinBudget(def,18000)) return ['El documento debe contener una aventura JSON de tamaño compatible.'];
@@ -606,7 +705,7 @@
     const scene=def.escenas.find(s=>s.id===state.posiciones[role]&&s.id===request.escena);
     const action=scene?.acciones.find(a=>a.id===request.accion);
     if(!action||!disponible(action,scene,state,role))return reject('Esta acción no está disponible en tu escena actual.');
-    if(action.tipo==='prueba'&&!comprobar(action.mecanica,action.parametros,request.intento))return reject(action.error||'Todavía no encaja. Revisa las evidencias y vuelve a probar.');
+    if(action.tipo==='prueba'&&!evaluarPrueba({tipo:'mecanica',mecanica:action.mecanica,parametros:action.parametros},request.intento))return reject(action.error||'Todavía no encaja. Revisa las evidencias y vuelve a probar.');
     const next=clone(state),key=scene.id+'/'+action.id,bag=next.inventarios[role];
     next.turnos++;
     if(action.tipo==='sincronizar'){
@@ -633,6 +732,17 @@
     return {ok:true,estado:next,mensaje:action.exito||(action.fin?'Aventura completada.':'Acción guardada.')};
   }
 
+  // El adaptador solo lo construye el juego con sus reglas y su estado inicial.
+  // La partida aporta los pasos; el motor exige que la victoria cierre el recorrido.
+  function reproducirPrueba(pasos, {maxPasos, aplicar, resuelta}) {
+    if (!Number.isInteger(maxPasos) || maxPasos < 1 || maxPasos > 1024 ||
+        !Array.isArray(pasos) || !pasos.length || pasos.length > maxPasos ||
+        typeof aplicar !== 'function' || typeof resuelta !== 'function') return false;
+    for (const paso of pasos) {
+      if (resuelta() || aplicar(paso) !== true) return false;
+    }
+    return resuelta() === true;
+  }
   function plantilla() {
     return {
       id:'el-farol-de-las-dos-mareas',titulo:'El farol de las dos mareas',inicio:'archivo',inicios:{A:'archivo',B:'puerto'},
@@ -676,6 +786,7 @@
     if(m.grafico){
       const key=({cuadricula:'filas',golpes:'tiempos',tonos:'frecuencias'})[m.grafico.tipo];
       if(key)result.grafico={tipo:m.grafico.tipo,[key]:[...m.grafico[key]]};
+      if(m.grafico.tipo==='tintas')result.grafico={tipo:'tintas',marcas:m.grafico.marcas.map(({letra,luz})=>({letra,luz}))};
     }
     return result;
   }
@@ -692,6 +803,7 @@
       const material={titulo,texto:muestraTexto(v)};
       if(['mapa','marco','tabla','rejilla','antes','despues','capa1','capa2','alturas'].includes(k)&&
           Array.isArray(v)&&v.length&&v.every(r=>typeof r==='string'&&r.length===v[0].length))material.grafico={tipo:'cuadricula',filas:v};
+      if(id==='ultravioleta'&&k==='marcas')material.grafico={tipo:'tintas',marcas:v.map(({letra,luz})=>({letra,luz}))};
       if(k==='golpes'&&v.every(Number.isInteger)&&v.length>1){
         const scale=Math.max(...v)<=40?150:1;
         material.grafico={tipo:'golpes',tiempos:v.map(n=>(n-v[0])*scale)};
@@ -700,6 +812,18 @@
       return material;
     });
     const action={id,tipo:'prueba',titulo:d.nombre,mecanica:id,parametros:p,materiales};
+    if(id==='cotejar-ficha'){
+      action.materiales=[
+        {titulo:'Señal observada',texto:'Los pulsos duran '+p.senal.join(' · ')+' tiempos.'},
+        {titulo:'Parte de salida',texto:'El original lleva el precinto «'+p.precinto+'».'},
+        {titulo:'Registro de fichas',texto:p.fichas.map(f=>'Ficha '+f.id+' · '+f.senal.join('–')+' · precinto '+f.precinto).join('\n')},
+        {titulo:'Entrega del original',texto:'Indica primero la ficha y después el precinto que acredita tu elección.'}
+      ];
+      action.opciones=[
+        ...p.fichas.map(f=>({id:f.id,label:'Ficha '+f.id})),
+        ...unique(p.fichas.map(f=>f.precinto)).map(id=>({id,label:'Precinto '+id}))
+      ];
+    }
     if(rule.validarIntento){
       const commands=({corredera:[...orderDirections],sokoban:[...orderDirections],tejer:[...orderDirections],esclusa:['cerrar','llenar','vaciar','salir'],grua:['E','O','recoger','soltar'],
         cubeta:[...p.muestras||[],'lavar'],torno:Object.keys(p.capacidad||{}),trazo:unique((p.puentes||[]).flat())})[id];
@@ -725,7 +849,7 @@
       if(g.tipo==='cuadricula'){
         const table=make('table');table.setAttribute('aria-label',m.titulo);
         for(const row of g.filas){const tr=make('tr');for(const mark of row)tr.append(make('td',mark));table.append(tr);}paper.append(table);
-      }else{
+      }else if(g.tipo==='golpes'||g.tipo==='tonos'){
         const button=make('button','Escuchar la señal'),msg=make('span');button.type='button';msg.setAttribute('role','status');
         button.addEventListener('click',async()=>{
           const C=root.AudioContext||root.webkitAudioContext;if(!C){msg.textContent='Consulta la lectura de la señal que aparece arriba.';return;}
@@ -747,5 +871,5 @@
     if(value&&typeof value==='object'&&!Object.isFrozen(value)){for(const child of Object.values(value))freeze(child);Object.freeze(value);}
     return value;
   }
-  root.MotorAventuras=Object.freeze({catalogo:freeze(catalogo),validar,iniciar,ejecutar,vista,plantilla,plantillaPrueba,montarMaterial,comprobar});
+  root.MotorAventuras=Object.freeze({catalogo:freeze(catalogo),validar,iniciar,ejecutar,vista,plantilla,plantillaPrueba,montarMaterial,comprobar,evaluarPrueba,reproducirPrueba,canonizarPiezas,intentoValido});
 })(globalThis);

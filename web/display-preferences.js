@@ -192,7 +192,7 @@
       nav.setAttribute('aria-label','Ayuda y navegación');
       const origin=new URLSearchParams(location.hash.split('?')[1]).get('volver');
       const back=origin==='ayuda'?['Volver a Ayuda y contacto','/ayuda.html']
-        :origin==='privacidad'?['Volver a Privacidad y datos','/privacidad.html']:origin==='perfil'?['Volver a Mi cuenta','/#perfil']:['Volver al inicio','/#inicio'];
+        :origin==='privacidad'?['Volver a Privacidad y datos','/privacidad.html']:origin==='perfil'?['Volver a Configuración','/#perfil?seccion=cuenta']:['Volver al inicio','/#inicio'];
       const links=origin==='ayuda'?[back]:[back,['Ayuda y contacto','/ayuda.html']];
       for(const [label,url] of links){
         const link=document.createElement('a');

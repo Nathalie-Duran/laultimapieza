@@ -1,4 +1,5 @@
 import {secretArchive} from './secret-archive.mjs';
+import './web/motor-aventuras.js';
 import {trialEvent} from './aventuras-autor.mjs';
 import {explorerCollection,explorerCase} from './explorador-lup.mjs';
 import {creditSecretMission,creditMansionMission,creditAdventureEnding,purchaseMansionHint} from './valdemar-wallet.mjs';
@@ -166,10 +167,9 @@ function visibleSide(side,role) {
 }
 
 function matchesSide(side,choice) {
-  if (!Array.isArray(choice) || choice.length !== side.answer.length || new Set(choice).size !== choice.length) return false;
-  return side.mode === 'multi'
-    ? side.answer.every(id=>choice.includes(id))
-    : side.answer.every((id,index)=>choice[index]===id);
+  return globalThis.MotorAventuras.evaluarPrueba({
+    tipo:side.mode==='multi'?'conjunto':'secuencia',respuesta:side.answer
+  },choice);
 }
 
 async function progressAction(store,uid,scope,story,action,input,pair) {
@@ -463,7 +463,7 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
       if (!sample || !Number.isInteger(input.answer) || input.answer < 0 || input.answer >= sample.answers.length) {
         throw new ApiError(400,'Elige una hipótesis de la mesa de pistas.');
       }
-      const correct = input.answer === sample.correct;
+      const correct = globalThis.MotorAventuras.evaluarPrueba({tipo:'seleccion',respuesta:sample.correct},input.answer);
       return {correct,explanation:correct ? sample.explain : null};
     }
     if (action === 'reward') {

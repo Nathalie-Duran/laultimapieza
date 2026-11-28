@@ -4,6 +4,7 @@ import {createBilling} from '../billing.mjs';
 import {createGameApi} from '../game-api.mjs';
 import {ApiError} from '../auth-provider.mjs';
 import {cancellationSummary} from '../subscription-cancellation.mjs';
+import {mailKey} from '../mail-service.mjs';
 
 function fixture({scheduled=true,existingService=false}={}){
  const now=Math.floor(Date.now()/1000),end=now+3600*24*14,start=now-3600*24*14;
@@ -33,6 +34,17 @@ function fixture({scheduled=true,existingService=false}={}){
  return {data,sub,schedule,calls,writes,billing,store,end,start,lose:()=>{loseResponse=true;}};
 }
 
+test('la vista previa no envía una baja y confirmar dos veces usa un solo recibo de correo',async()=>{
+ const f=fixture(),jobs=new Map(),email='member@example.test';
+ f.store.enqueueMail=async(id,to,type,data)=>{if(!jobs.has(id))jobs.set(id,{to,type,data});};
+ const quote=await f.billing.cancellation(f.store,'player',undefined,email);
+ assert.equal(jobs.size,0);
+ await f.billing.cancellation(f.store,'player',quote.confirmation,email);
+ await f.billing.cancellation(f.store,'player',quote.confirmation,email);
+ assert.equal(jobs.size,1);
+ assert.deepEqual(jobs.get(mailKey('subscription_cancelled','sub_self/'+f.end*1000)),{to:email,type:'subscription_cancelled',data:{effectiveAt:f.end*1000}});
+});
+
 test('La baja en preapertura conserva el periodo pagado, el descuento, la cuenta y el aviso',async()=>{
  const x=fixture(),read=()=>x.billing.cancellation(x.store,'player');
  const before=structuredClone(x.data),quote=await read();
@@ -58,6 +70,21 @@ test('Solo el calendario activo, vinculado y con otra fase de cobro confirma la 
   x.schedule.customer='otra';assert.equal((await read()).nextRenewalAt,null);x.schedule.customer=x.data.customer;
   x.schedule.phases[0].end_date=x.end;assert.equal((await read()).nextRenewalAt,null);
   x.sub.cancel_at_period_end=true;assert.equal((await read()).nextRenewalAt,null);
+  assert.equal(x.writes.length,0);
+});
+
+test('la previsión identifica solo el bloque contratado que se cargaría con el siguiente pago confirmado',async()=>{
+  const x=fixture({existingService:true});
+  Object.assign(x.data,{scheduleConfigured:true,schedule:'sched'});
+  Object.assign(x.data.cycles[0],{paidAt:x.start*1000,amountPaid:2995,worldBlock:4});
+  Object.assign(x.sub.metadata,{lup_plan:'four-boards-v1',lup_season:'2',lup_blocks:'4,6,7'});
+  const read=()=>x.billing.membership(x.store,'player',{readOnly:true,includeRenewalDate:true});
+  assert.deepEqual((await read()).nextUnlock,{at:x.end*1000,season:2,block:3,caseIds:[21,22,23,24]});
+  x.sub.metadata.lup_blocks='4';
+  assert.equal((await read()).nextUnlock,null);
+  x.sub.metadata.lup_blocks='4,6,7';
+  x.schedule.customer='otra';
+  assert.equal((await read()).nextUnlock,null);
   assert.equal(x.writes.length,0);
 });
 

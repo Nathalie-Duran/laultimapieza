@@ -69,7 +69,7 @@
 .vd-player[data-adventure-world] :is(.vd-tabs,.md-game-tabs) button {min-height:2.75rem;max-width:100%;white-space:normal;}
 .vd-player[data-adventure-world][data-play-mode="pending"] > :is(.vd-tabs,.md-game-tabs) {display:none;}
 @media (max-width:580px){
-  .ae-stage {aspect-ratio:1.35;min-height:17rem;}
+  .ae-stage {width:100%;aspect-ratio:1.35;min-height:17rem;}
   .vd-player .ae-marker {max-width:37%;font-size:.74rem;}
   .ae-marker:nth-child(1){left:25%;top:35%;}
   .ae-marker:nth-child(2){left:73%;top:27%;}

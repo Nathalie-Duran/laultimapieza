@@ -40,7 +40,8 @@
     node.setAttribute('role','status');
     return node;
   }
-  function valid(c) {return c === active;}
+  function identity(bridge) {return bridge.isSignedIn()?(bridge.playerId?.()||true):false;}
+  function valid(c) {return c===active&&c.identity===identity(c.bridge);}
   function sessionLive(c) {return valid(c) && c.bridge.isSignedIn();}
   function errorMessage(error) {
     if (error?.status === 401) return 'Tu sesión ha terminado. Entra de nuevo para recuperar la partida.';
@@ -56,6 +57,7 @@
     const previous = active;
     active = null;
     previous.modeControl?.destroy();
+    previous.entryObserver?.disconnect();
     previous.scene?.destroy();
     previous.legacyExtra?.destroy();
     previous.legacyExplorer?.destroy();
@@ -64,9 +66,9 @@
     pauseAudio(previous.frame);
     previous.frame?.remove();
   }
-  function reopen(c) {
+  function reopen(c,resume=true) {
     if(!valid(c))return;
-    clear();render(c.id,c.bridge,{catalogHref:c.catalog,resume:true});
+    clear();render(c.id,c.bridge,{catalogHref:c.catalog,resume,freshMode:!resume});
   }
   async function request(c, action, payload) {
     if (!sessionLive(c)) throw new Error('Inicia sesión para seguir jugando.');
@@ -299,7 +301,7 @@
     c.restart=button('Reiniciar el reto',()=>mountGame(c));c.restart.hidden=true;
     const title=c.game.title,meta=c.id>1?window.RetosTemporada?.ficha(c.id):null;
     const heading=window.AventuraEscena.challengeHeader({
-      id:c.id,world:'valdemar',title,caseTitle:c.data.story.title,embedded:!c.scene,
+      id:c.id,world:'valdemar',title,caseTitle:c.data.story.title,embedded:!c.scene||c.id<=4,
       photo:meta?.photo||(c.id===1?'/tren-detenido.jpg':'/valdemar-art-'+String(c.id).padStart(2,'0')+'.webp')
     });
     c.deskToggle=button('Consultar expediente junto al reto',()=>{
@@ -389,12 +391,50 @@
     c.modeControl=window.ModalidadJuego.create(c.frame,story,c.data.mode,save,onPaper,options);
     host.append(c.modeControl.entry);
   }
+  function blockEntry(c,{title,question,photo,alt,mode,choice,locked}={}) {
+    const number=String(c.id).padStart(2,'0'),item=window.ValdemarCatalog?.get(c.id)||{};
+    const entry=element('header',null,'vd-block-entry'),nav=element('nav',null,'vd-block-links');
+    nav.setAttribute('aria-label','Navegación del juego');
+    nav.append(link('Volver a la ficha','/valdemar/'+number+'/'),link('Ver en el plano','/#mapa?mes=1&lugar='+c.id));
+    if(c.balance)nav.append(c.balance);
+    const content=element('div',null,'vd-block-cover'),copy=element('div',null,'vd-block-copy');
+    const photoNode=element('img',null,'vd-block-photo');
+    photoNode.src=photo||item.image||'/valdemar-art-'+number+'.webp';
+    photoNode.alt=alt||item.coverAlt||'';photoNode.width=768;photoNode.height=512;photoNode.decoding='async';
+    const heading=element('h1',title||item.title||'Código Valdemar');heading.tabIndex=-1;
+    const pitch=element('p',question||item.question,'vd-block-pitch');
+    copy.append(element('p','Código Valdemar · Bloque 1 · Juego '+number,'vd-block-label'),heading,pitch);
+    if(mode){
+      const setup=element('details',null,'vd-block-mode'),summary=element('summary');
+      const description=element('p','A solas, investigas con los dos papeles. En pareja, cada persona abre su carpeta desde su cuenta y compartís los hallazgos.','vd-block-mode-note');
+      setup.append(summary,mode.entry,description);copy.append(setup);
+      let previous;
+      function sync(){
+        const current=c.frame.dataset.playMode||'pending';
+        if(previous===current)return;
+        const selecting=setup.contains(document.activeElement);
+        setup.open=current==='pending';
+        summary.textContent=current==='pending'?'Cómo quieres jugar':'Modalidad · '+(current==='duo'?'En pareja':'En solitario');
+        description.hidden=current!=='pending';entry.dataset.state=current==='pending'?'entry':'playing';
+        if(previous==='pending'&&current!=='pending'&&selecting)heading.focus({preventScroll:true});
+        previous=current;
+      }
+      sync();c.entryObserver=new MutationObserver(sync);
+      c.entryObserver.observe(c.frame,{attributes:true,attributeFilter:['data-play-mode']});
+    }else entry.dataset.state='entry';
+    if(choice)copy.append(choice);
+    if(locked)copy.append(locked);
+    content.append(photoNode,copy);entry.append(nav,content);
+    c.frame.dataset.blockEntry='true';
+    return entry;
+  }
   function build(c) {
     const {story}=c.data;
     const number=String(c.id).padStart(2,'0');
     const catalogItem=c.id===1 && c.episode?.legacy?{image:'/valdemar-art-01.webp',place:'La estación'}:window.ValdemarCatalog?.get(c.id);
     c.frame.dataset.vdCase=number;
-    const head=element('header',null,'vd-intro');
+    const common=c.id<=4&&Boolean(c.data.hour);
+    const head=element(common?'section':'header',null,'vd-intro');
     const cover=element('img',null,'vd-cover');
     cover.addEventListener('error',()=>{cover.alt='';cover.src='/'+covers[c.id-1]+'.jpg';},{once:true});
     cover.src=catalogItem?.image || '/valdemar-art-'+number+'.webp';cover.alt=coverDescriptions[c.id-1];
@@ -426,7 +466,7 @@
       },'vd-primary gm-enter'));
     }
     if(c.data.hour){
-      c.scene=window.AventuraEscena.mount(head,{world:'valdemar',id:c.id,frame:c.frame,story,resumed:c.resume,extra:c.id===1?{title:c.game.title,action:c.game.pitch}:null,
+      c.scene=window.AventuraEscena.mount(head,{world:'valdemar',id:c.id,frame:c.frame,story,resumed:c.resume||Boolean(c.data.mode),blockEntry:common,extra:c.id===1?{title:c.game.title,action:c.game.pitch}:null,
         image:c.id===1?'/tren-detenido.jpg':catalogItem?.image||'/valdemar-art-'+number+'.webp',alt:c.id===1?'El andén de la estación':coverDescriptions[c.id-1],place:c.id===1?'El andén':catalogItem?.place,
         toolbar:headlinks,modeControl:c.modeControl,read:()=>c.data,playerName:()=>c.bridge.playerName?.(),
         actions:(kind,id)=>{
@@ -454,6 +494,12 @@
     c.pair.append(c.gamePanel,c.desk);
     c.frame.replaceChildren(head,nav,c.pair,c.help,c.ending);
     c.scene?.attach();
+    if(common){
+      const legacy=c.id===1&&c.episode?.legacy;
+      c.frame.prepend(blockEntry(c,{title:story.title,question:legacy?story.question:undefined,
+        photo:legacy?'/tren-detenido.jpg':undefined,alt:legacy?'El andén de la estación':undefined,mode:c.modeControl,
+        choice:legacy?editionButton(c,'Abrir El secreto de los dos mundos','start'):null}));
+    }
     if(c.id===1&&c.scene)head.insertAdjacentHTML('afterend',window.RetosTemporada?.puertaSala('mapa')||'');
     const roomReward=async()=>{
       try{const value=await request(c);if(valid(c)){updateWallet(c,value);if(c.view==='help')renderHelp(c);}}catch{}
@@ -470,7 +516,10 @@
     const pending=c.frame.dataset.playMode==='pending';
     const hintsRequested=c.routeSection==='pistas';
     selectView(c,sideRequested?'game':hintsRequested?'help':ending?'ending':'desk',sideRequested||hintsRequested||c.resume&&(ending||pending));
-    if(c.resume&&!ending&&!sideRequested&&!hintsRequested&&!pending){if(c.scene)c.scene.focus();else c.hourView?.enter();}
+    if(c.resume&&!ending&&!sideRequested&&!hintsRequested&&!pending){
+      if(common)c.frame.querySelector('.vd-block-entry h1').focus({preventScroll:true});
+      else if(c.scene)c.scene.focus();else c.hourView?.enter();
+    }
   }
   function editionButton(c,label,op) {
     return button(label,()=>run(c,'edition',async()=>{
@@ -481,10 +530,13 @@
 
   function buildMansion(c) {
     const data=c.data,arcadeHost=element('div',null,'vd-room-entry');
-    const header=element('header',null,'vd-intro-copy');
-    const entranceTitle=element('h1','El secreto de los dos mundos');
-    header.append(link('Volver al catálogo',c.catalog,'vd-link'),element('p','Código Valdemar · Caso 01','vd-eyebrow'),
-      entranceTitle);
+    c.frame.dataset.vdCase='01';
+    function showBalance(amount){
+      if(!Number.isInteger(amount))return;
+      c.balance.textContent=amount===1?'1 llave':amount+' llaves';
+    }
+    c.balance=element('span','','vd-balance');c.balance.setAttribute('aria-live','polite');
+    showBalance(data.mansion?.balance??data.wallet?.balance);
     const game=element('section');
     let paper=c.data.partner?.role || (data.editorialPreview && data.mode==='duo'?'A':'solo');
     async function act(input){
@@ -493,6 +545,7 @@
         if(result.completed)await c.bridge.refreshSeasonAccess?.().catch(()=>null);
         if(result.edition!==data.edition){reopen(c);throw Error('Ha cambiado la edición de la partida.');}
         if(result.mansionRevision>=data.mansionRevision){data.mansion=result.mansion;data.mansionRevision=result.mansionRevision;}
+        showBalance(result.mansion?.balance??result.wallet?.balance);
         return result;
       }catch(error){
         if(sessionLive(c)&&[401,402,403].includes(error.status))showFailure(c,error);
@@ -501,9 +554,8 @@
     }
     function mountGame(state){
       c.mansionView?.destroy();
-      entranceTitle.hidden=true;
-      c.mansionView=window.MansionGame.mount(game,{state,role:paper,names:data.names,act,arcadeHost,resumed:c.resume,playerId:c.bridge.playerId?.(),
-        explore:roomId=>act({op:'inspect',roomId}),onExit:()=>{location.hash=c.catalog;}});
+      c.mansionView=window.MansionGame.mount(game,{state,role:paper,names:data.names,act,arcadeHost,blockEntry:true,
+        resumed:c.resume||Boolean(data.mode&&!c.freshMode)||state.current>1||Boolean(state.ending),playerId:c.bridge.playerId?.(),explore:roomId=>act({op:'inspect',roomId})});
       c.openArcade=()=>{
         const drawer=arcadeHost.querySelector('.mansion-arcade-drawer');
         if(drawer){drawer.open=true;const trigger=drawer.querySelector('summary');trigger?.focus();trigger?.scrollIntoView({block:'center'});}
@@ -513,15 +565,10 @@
       if(c.routeSection==='pistas')queueMicrotask(()=>{if(valid(c))c.mansionView.openHints();});
     }
     const story={roles:['Investiga la mansión habitada de Ada.','Explora las huellas que quedan en la mansión abandonada.']};
-    let modeHost=header;
-    if(data.mansion){
-      modeHost=element('details',null,'gm-entry-options');
-      modeHost.append(element('summary','Modalidad · '+(data.mode==='duo'?'En pareja':'En solitario')));
-      header.replaceChildren(modeHost);
-    }
+    const modeHost=element('div');
     attachModeControl(c,modeHost,story,async mode=>{
       const result=await request(c,'mode',{mode,mansionEntry:true});
-      if(sessionLive(c))reopen(c);
+      if(sessionLive(c))reopen(c,Boolean(data.mansion));
       return result;
     },next=>{
       const nextPaper=next||'solo';
@@ -535,14 +582,17 @@
         if(latest.edition!==data.edition){reopen(c);return true;}
         if(latest.mansionRevision<=data.mansionRevision)return false;
         data.mansionRevision=latest.mansionRevision;data.mansion=latest.mansion;
+        showBalance(latest.mansion?.balance??latest.wallet?.balance);
         c.mansionView?.update(latest.mansion);return true;
       },reopen:()=>reopen(c)
     });
+    let choice;
     if(data.edition==='choose'){
-      game.append(element('h2','Tu partida de la estación'),element('p','Puedes retomar el expediente de la estación o empezar a explorar la mansión. Tu progreso se guarda por separado.'),
+      choice=element('div',null,'vd-block-legacy');
+      choice.append(element('h2','Tu partida de la estación'),element('p','Puedes retomar el expediente de la estación o empezar a explorar la mansión. Tu progreso se guarda por separado.'),
         editionButton(c,'Continuar Mundos cruzados · La estación','legacy'),editionButton(c,'Empezar El secreto de los dos mundos','start'));
     }else {
-      if(data.legacy)header.append(editionButton(c,'Retomar Mundos cruzados · La estación','legacy'));
+      if(data.legacy)choice=editionButton(c,'Retomar Mundos cruzados · La estación','legacy');
       if(data.mansion){
         game.className='mansion-game-area';
         if(!window.MansionGame?.mount)throw Error('La mansión no se ha cargado. Vuelve a abrir la partida.');
@@ -550,27 +600,39 @@
       }
     }
     if(!arcadeHost.firstElementChild)arcadeHost.innerHTML=window.RetosTemporada?.puertaSala('mapa')||'';
-    c.frame.replaceChildren(header,arcadeHost,game);
+    const header=blockEntry(c,{title:'El secreto de los dos mundos',mode:data.edition==='choose'?null:c.modeControl,choice});
+    c.frame.replaceChildren(header,game,arcadeHost);
     c.modeControl.mount();
+    if(data.mansion&&c.routeSection!=='reto'&&c.routeSection!=='pistas'&&(c.resume||c.freshMode))header.querySelector('h1').focus({preventScroll:true});
   }
   function showFailure(c,e) {
     c.modeControl?.destroy();
+    c.entryObserver?.disconnect();
     c.mansionView?.destroy();
     c.hourView?.pause();pauseAudio(c.frame);
-    c.frame.replaceChildren(element('h1','La mesa de Código Valdemar'),element('p',errorMessage(e)));
-    if(new URLSearchParams(location.hash.split('?')[1]).get('seccion')==='reto')c.frame.append(link('Volver a los retos de Código Valdemar','/#desafios?mundo=mapa','vd-link'));
+    const common=c.id>=1&&c.id<=4;
+    const notice=element('div',null,'vd-entry-notice');
+    const guest=common&&!c.bridge.isSignedIn();
+    notice.append(element('p',guest?'Entra con tu cuenta para jugar o retomar tu partida guardada.':errorMessage(e)));
+    if(new URLSearchParams(location.hash.split('?')[1]).get('seccion')==='reto')notice.append(link('Volver a los retos de Código Valdemar','/#desafios?mundo=mapa','vd-link'));
     if(!c.bridge.isSignedIn() || e?.status===401){
       const login=element('button','Entrar','vd-primary');
-      login.type='button';login.dataset.action='auth-login';c.frame.append(login);
-    } else if(e?.status===402 || e?.code==='CASE_NOT_RELEASED') c.frame.append(link('Ver mi suscripción','#planes','vd-link'));
-    else c.frame.append(button('Volver a intentar',()=>{const {id,bridge,catalog,resume}=c;clear();render(id,bridge,{catalogHref:catalog,resume});}));
-    c.frame.append(link('Volver al catálogo',c.catalog,'vd-link'));
-    if(c.id===1)c.frame.insertAdjacentHTML('beforeend',window.RetosTemporada?.puertaSala('mapa')||'');
+      login.type='button';login.dataset.action='auth-login';notice.append(login);
+      if(guest)notice.append(link('Ver la suscripción','/#planes','vd-link'));
+    } else if(e?.status===402 || e?.status===403 || e?.code==='CASE_NOT_RELEASED')notice.append(link('Ver la suscripción','/#planes','vd-link'));
+    else notice.append(button('Volver a intentar',()=>{const {id,bridge,catalog,resume}=c;clear();render(id,bridge,{catalogHref:catalog,resume});}));
+    if(common){
+      c.balance=null;
+      c.frame.replaceChildren(blockEntry(c,{locked:notice}));
+    }else{
+      c.frame.replaceChildren(element('h1','La mesa de Código Valdemar'),notice,link('Volver al catálogo',c.catalog,'vd-link'));
+    }
   }
   function render(value,bridge,options={}) {
     const id=Number(value),host=document.getElementById('valdemar-player');
     if(!host || !bridge)return;
-    if(active?.id===id && active.bridge===bridge){
+    const account=identity(bridge);
+    if(active?.id===id && active.bridge===bridge && active.identity===account){
       if(host!==active.frame.parentElement)host.replaceChildren(active.frame);
       const section=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
       if(active.gamePanel && section!==active.routeSection){
@@ -582,7 +644,7 @@
     }
     clear();
     const catalog=options.catalogHref?.startsWith('#')?options.catalogHref:'#casos';
-    const c={id,bridge,catalog,resume:options.resume===true,frame:element('div',null,'vd-player'),pending:new Set()};active=c;
+    const c={id,bridge,identity:account,catalog,resume:options.resume===true,freshMode:options.freshMode===true,frame:element('div',null,'vd-player'),pending:new Set()};active=c;
     host.replaceChildren(c.frame);
     if(!Number.isInteger(id)||id<1||id>12){c.frame.append(element('p','Este expediente no existe.'),link('Volver al catálogo',catalog));return;}
     if(!sessionLive(c)){showFailure(c,{status:401});return;}

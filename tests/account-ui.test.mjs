@@ -6,22 +6,27 @@ import {createContext,runInContext} from 'node:vm';
 const source=await readFile(new URL('../public/app.js',import.meta.url),'utf8');
 async function appHarness({fullAccess=false,navLinks=[]}={}){
   const elements=new Map();
+  const windowEvents=new Map();
   const element=selector=>{if(!elements.has(selector))elements.set(selector,{innerHTML:'',textContent:'',dataset:{},open:false,hidden:false,
     classList:{add(){},remove(){},toggle(){}},addEventListener(){},setAttribute(){},replaceChildren(){this.innerHTML='';},close(){this.open=false;},showModal(){this.open=true;}});return elements.get(selector);};
   let fetcher=async()=>Response.json({}),bridge;
-  const context=createContext({crypto:globalThis.crypto,structuredClone,AbortController,Response,URLSearchParams,console,
+  const context=createContext({crypto:globalThis.crypto,structuredClone,AbortController,Response,URL,URLSearchParams,console,
     document:{body:element('body'),getElementById:id=>element('#'+id),querySelector:element,querySelectorAll:selector=>selector==='[data-nav]'?navLinks:[],addEventListener(){}},
     location:{hash:'#perfil'},localStorage:{getItem:()=>null,setItem(){}},
     history:{replaceState(_state,_title,url){context.location.hash=url.slice(url.indexOf('#'));}},
     requestAnimationFrame(callback){callback();},setTimeout:()=>0,clearTimeout(){},setInterval(){},FormData,
     fetch:(...args)=>fetcher(...args),
-    AccountAccess:{token:async()=>'test-token'},
+    AccountAccess:{token:async()=>'test-token'},EditorialChallenges:{view:()=>'',mount(){}},
     AccountUI:{start:async value=>{bridge=value;},signInPanel:()=>'<h1>Iniciar sesión</h1>',header:()=>'',accountCard:()=>'',open(){}},
-    addEventListener(){},scrollTo(){}});
+    addEventListener(event,callback){windowEvents.set(event,callback);},scrollTo(){}});
   context.window=context;
   for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js',...(fullAccess?['membership-flow.js']:[]),'monthly-access.js','experience-ui.js','profile-notebook.js','archive.js','como-se-juega.js','retos-temporada.js','salas-mundos-catalogo.js','colecciones.js','valdemar-catalog.js','mundos-catalogo.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
   runInContext(source,context);bridge.cloud(true);bridge.loading(false);
   return {bridge,element,membership:context.ClubAccess,setFetch(value){fetcher=value;},credential(value){context.AccountAccess.user=value;},
+    followHash(from,hash){
+      const oldURL='https://juego.test/'+from;
+      context.location.hash=hash;windowEvents.get('hashchange')({oldURL});
+    },
     visit(hash){context.location.hash=hash;bridge.render();return element('#main').innerHTML;}};
 }
 test('el menú de escritorio y el móvil ofrecen los mismos destinos y adaptan la cuenta al entrar y salir',async()=>{
@@ -149,6 +154,63 @@ test('las rutas del cuaderno de un titular sin cuota conservan cuenta, archivo y
   for(const [route,expected] of routes)assert.ok(app.visit(route).includes(expected),route);
   app.bridge.reset();assert.equal(app.bridge.playerName(),'');
   for(const [route] of routes)assert.match(app.visit(route),/Iniciar sesión/);
+});
+
+test('al abrir Mis hallazgos desde el perfil o una partida el foco va a las muestras de la colección',async()=>{
+  const app=await appHarness();
+  app.setFetch(async()=>Response.json({profile:{userId:'lectora',name:'Alicia'},sessions:[]}));
+  await app.bridge.load();
+  const focused=[],scrolled=[];
+  const target=label=>({focus(){focused.push(label);},scrollIntoView(){scrolled.push(label);}});
+  const summary=target('Mis hallazgos'),tab=target('Colección'),main=app.element('#main');
+  Object.assign(app.element('lup-explorador[collection] summary'),summary);
+  main.focus=()=>focused.push('contenido principal');
+  main.querySelector=selector=>selector.includes('summary')?summary:tab;
+  for(const origin of ['#perfil?seccion=coleccion','#valdemar-jugar?id=1']){
+    focused.length=0;scrolled.length=0;
+    app.followHash(origin,'#perfil?seccion=coleccion&ver=hallazgos');
+    assert.equal(focused.at(-1),'Mis hallazgos',origin);
+    assert.equal(scrolled.at(-1),'Mis hallazgos',origin);
+  }
+});
+
+test('el directorio de Mi cuenta enlaza cada tarea a su panel y conserva el acceso directo a la suscripción',async()=>{
+  const app=await appHarness({fullAccess:true});
+  const home=app.visit('#inicio');
+  assert.match(home,/Cuatro juegos de misterio al mes/);
+  assert.match(home,/demo gratis/i);
+  assert.match(home,/habilidades de tu personaje/);
+  assert.match(home,/retos extra te dan llaves/i);
+  assert.doesNotMatch(app.visit('#perfil'),/data-personal-menu/);
+  app.setFetch(async()=>Response.json({profile:{userId:'jugadora',name:'Ada'},sessions:[],membership:{canPlay:false}}));
+  await app.bridge.load();
+  const menu=app.visit('#perfil').match(/<nav class="notebook-nav"[^>]*data-personal-menu>[\s\S]*?<\/nav>/)[0];
+  assert.match(menu,/<details class="pn-menu-group"><summary>Personaje y recompensas<\/summary>/);
+  const expected=[
+    ['Mi aventura',/class="pn-dashboard"/],['Los cuatro mundos',/id="universe-heading"/],
+    ['Retos extra',/adventure-challenges/],['Mis partidas',/id="pn-sessions-title"/],
+    ['Mi personaje',/<profile-collection data-career>/],['Mi compañero',/<preferred-partner>/],
+    ['Mis llaves',/<profile-collection data-keys>/],['Mis logros',/<profile-collection>/],
+    ['Archivo secreto',/<profile-collection data-archive>/],['Mi colección',/<profile-collection data-collection>/],
+    ['Mi suscripción',/Dar de baja mi suscripción/],['Configuración',/<play-notice-preferences>/]
+  ];
+  const links=[...menu.matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)].map(([,href,label])=>({href,label}));
+  for(const [label,content] of expected){
+    const matches=links.filter(link=>link.label===label);
+    assert.equal(matches.length,1,label);
+    const page=app.visit(matches[0].href);
+    assert.match(page,content,label);
+    if(matches[0].href.includes('#perfil?seccion=')&&label!=='Configuración'){
+      assert.ok(page.includes(' aria-current="page">'+label+'</a>'),label);
+      assert.match(page,/<details class="pn-menu-group" open>/);
+    }
+  }
+  assert.match(menu,/<div class="pn-menu-shortcuts">[^<]*(?:<a [^>]+>[^<]+<\/a>)*<a href="#suscripcion">Mi suscripción<\/a>/);
+  const settings=app.visit('#perfil?seccion=cuenta');
+  assert.match(settings,/href="#accesibilidad\?volver=perfil"/);
+  assert.match(app.visit('#accesibilidad?volver=perfil'),/<display-preferences>/);
+  app.bridge.reset();
+  assert.doesNotMatch(app.visit('#perfil?seccion=llaves'),/data-personal-menu/);
 });
 
 test('cada entrada del cuaderno muestra la acción de acceso, pareja y archivo en su destino',async()=>{

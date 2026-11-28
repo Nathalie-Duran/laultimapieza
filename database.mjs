@@ -162,7 +162,7 @@ export function createDatabase(env=process.env) {
           return typeof row?.reviews==='string' ? JSON.parse(row.reviews) : row?.reviews || {};
         },
         async lookupManagementAccounts(name){
-          const rows=await query(`SELECT p.name, p.created_at,
+          const rows=await query(`SELECT p.name, p.created_at,p.updated_at,SHA2(CONCAT('perfil-soporte/',p.user_id),256) AS support_ref,
             JSON_EXTRACT(m.data_json,'$.cycles') AS cycles,
             JSON_UNQUOTE(JSON_EXTRACT(m.data_json,'$.subscription')) AS subscription,
             JSON_UNQUOTE(JSON_EXTRACT(m.data_json,'$.active')) AS active,
@@ -171,7 +171,17 @@ export function createDatabase(env=process.env) {
             WHERE p.name=? AND NOT EXISTS (SELECT 1 FROM lup_editorial_users e WHERE e.user_id=p.user_id)
             ORDER BY p.created_at DESC,p.user_id LIMIT 11`,[name]);
           const now=Date.now();
-          return {accounts:rows.slice(0,10).map(row=>summarizeManagementAccount(row,now)),more:rows.length>10};
+          return {accounts:rows.slice(0,10).map(row=>({...summarizeManagementAccount(row,now),supportRef:row.support_ref,updatedAt:row.updated_at})),more:rows.length>10};
+        },
+        async renameSupportProfile(ref,previous,updatedAt,name){
+          const stamp=new Date().toISOString();
+          const result=await query(`UPDATE lup_profiles p SET name=?,updated_at=?
+            WHERE p.name=? AND BINARY p.name=BINARY ? AND p.updated_at=?
+            AND SHA2(CONCAT('perfil-soporte/',p.user_id),256)=?
+            AND NOT EXISTS (SELECT 1 FROM lup_editorial_users e WHERE e.user_id=p.user_id)`,
+            [name,stamp,previous,previous,updatedAt,ref]);
+          if(!result.affectedRows)throw new ApiError(409,'La ficha ha cambiado. Vuelve a buscar el perfil antes de editarlo.');
+          return {name,updatedAt:stamp};
         },
         async addOpeningNotice(email,receiptHash){
           const result=await query('INSERT IGNORE INTO lup_opening_notices(email,receipt_hash) VALUES (?,?)',[email,receiptHash]);

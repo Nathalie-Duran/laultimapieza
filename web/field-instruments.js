@@ -127,8 +127,13 @@
       return control;
     });
     function show() {
-      const [a,b,c] = switches.map(control=>control.checked);
-      const signals = [a!==b,b&&!c,a||c];
+      const [a,b,c] = switches.map(control=>Number(control.checked));
+      const board=definition.placa;
+      const signals=board&&window.MotorAventuras?.evaluarPrueba
+        ?board.salidas.map(salida=>window.MotorAventuras.evaluarPrueba({
+          tipo:'mecanica',mecanica:'circuito',parametros:{interruptores:{a,b,c},puertas:board.puertas,salida}
+        },1))
+        :[a!==b,Boolean(b&&!c),Boolean(a||c)];
       bulbs.forEach(({bulb,state},i)=>{
         bulb.setAttribute('data-lit',String(signals[i]));
         state.textContent=signals[i]?'Encendido':'Apagado';

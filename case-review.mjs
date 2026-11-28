@@ -2,6 +2,15 @@ import {ApiError} from './auth-provider.mjs';
 import {SEASON_NAMES} from './progression.mjs';
 import {worldSeasonAccess} from './valdemar-wallet.mjs';
 
+export async function renameSupportProfile(store,input){
+  const name=typeof input?.name==='string'?input.name.trim():'';
+  if(!name||name.length>32||typeof input.previous!=='string'||!input.previous||input.previous.length>32||
+    typeof input.ref!=='string'||!/^[a-f0-9]{64}$/.test(input.ref)||typeof input.updatedAt!=='string'||input.updatedAt.length>30||!Number.isFinite(Date.parse(input.updatedAt))){
+    throw new ApiError(400,'Vuelve a buscar la ficha y escribe un nombre de hasta 32 caracteres.');
+  }
+  return store.renameSupportProfile(input.ref,input.previous,input.updatedAt,name);
+}
+
 export function summarizeManagementAccount(row, now) {
   const parse = value => typeof value === 'string' ? JSON.parse(value) : value;
   const cycles = parse(row.cycles) || [];

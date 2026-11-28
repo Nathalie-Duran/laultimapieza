@@ -94,6 +94,27 @@ aventura-resumen {display:block;min-width:0;margin-block:1rem}
   background: var(--pn-gold); color: #241d16; border-color: #f3c687; font-weight: 750;
 }
 .notebook-nav .pn-parent {border-color:var(--pn-gold);color:var(--pn-gold)}
+.notebook-nav[data-personal-menu] {
+  display: grid; grid-template-columns: minmax(0,1fr); gap: .5rem; align-items: start;
+}
+.pn-menu-shortcuts {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .35rem;
+}
+.pn-menu-groups {
+  display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,16rem),1fr));
+  align-items: start; gap: .5rem;
+}
+.pn-menu-group {
+  min-width: 0; margin: 0; padding: 0; border: 1px solid #586660; border-radius: .45rem;
+  background: #18231f; color: #eef1e7;
+}
+.pn-menu-group > summary {
+  box-sizing: border-box; min-height: 44px; padding: .7rem .85rem; cursor: pointer;
+  font: 650 .96rem/1.4 system-ui,sans-serif;
+}
+.pn-menu-group > summary:focus-visible { outline: 3px solid #efc77f; outline-offset: 1px; }
+.pn-menu-group[open] > summary { border-bottom: 1px solid #586660; }
+.pn-menu-group > div { display: flex; flex-wrap: wrap; gap: .15rem; padding: .3rem; }
 .notebook-nav.pn-subnav {border-top:0;margin-top:-1.25rem;gap:.25rem;padding:.25rem 0 .4rem}
 .pn-subnav a {font-size:.88rem;padding:.42rem .7rem}
 .pn-access h1 {margin:.1rem 0 .5rem}

@@ -1,8 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {saveCaseReview,summarizeManagementAccount} from '../case-review.mjs';
+import {saveCaseReview,summarizeManagementAccount,renameSupportProfile} from '../case-review.mjs';
 import {summarizeSeasonActivity} from '../season-activity.mjs';
 import {createGameApi} from '../game-api.mjs';
+
+test('soporte envía solo un nombre válido con la versión de la ficha y rechaza la edición de cuentas ordinarias',async()=>{
+  const args=[],ref='a'.repeat(64),updatedAt='2026-11-27T12:00:00.000Z';
+  const store={renameSupportProfile(...values){args.push(values);return {name:values[3]};}};
+  const input={ref,previous:'Luna',updatedAt,name:'  Alba  '};
+  assert.deepEqual(await renameSupportProfile(store,input),{name:'Alba'});
+  assert.deepEqual(args,[[ref,'Luna',updatedAt,'Alba']]);
+  for(const invalid of [{ref:'Luna'},{name:' '},{name:'X'.repeat(33)},{updatedAt:null},{previous:3}]){
+    await assert.rejects(renameSupportProfile(store,{...input,...invalid}),{status:400});
+  }
+  const origin='https://example.test',api=createGameApi({origins:[origin],verify:async()=>({userId:'reader',email:'reader@example.test',emailVerified:true}),
+    withStore(){assert.fail('Un lector no debe llegar a la ficha de soporte.');}});
+  const response=await api(new Request(origin+'/api/admin/accounts/profile',{method:'PUT',headers:{origin,'content-type':'application/json'},body:JSON.stringify(input)}));
+  assert.equal(response.status,403);
+});
 
 test('las revisiones editoriales conservan el resto del perfil y detectan cambios simultáneos',async()=>{
   const owner = {active:true};

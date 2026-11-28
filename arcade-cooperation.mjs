@@ -1,4 +1,5 @@
 import {randomInt,randomUUID} from 'node:crypto';
+import './web/motor-aventuras.js';
 import {ApiError} from './auth-provider.mjs';
 import {hasGameConsent,partnerScope} from './partner-api.mjs';
 import {markRoomCooperation} from './valdemar-wallet.mjs';
@@ -102,7 +103,7 @@ export async function playArcadePair({store,pair,input,caseId,validate,award,pri
       rounds[id]=newRound(s,role);changed=true;break;
     case 'prepare':
       if(s.joined!==3||s.solved)throw conflict();
-      correct=coop.answer===preparation(id,s.variant,role).answer;
+      correct=globalThis.MotorAventuras.evaluarPrueba({tipo:'seleccion',respuesta:preparation(id,s.variant,role).answer},coop.answer);
       if(correct&&!has(s.prepared,role)){s.prepared|=flag;changed=true;}
       break;
     case 'solve':

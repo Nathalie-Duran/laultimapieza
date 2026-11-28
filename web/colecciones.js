@@ -30,6 +30,8 @@
     let href='/#tableros?mundo='+season.board,label='Mapa de temporadas';
     if(playing&&query.get('seccion')==='reto'){
       href='/#desafios?mundo='+season.board;label='Retos extra';
+    }else if(route==='valdemar'&&caseId>=1&&caseId<=4){
+      href='/#casos?mes=1';label='Volver al bloque 1';
     }else if(!map||query.get('seccion')==='ficha'){
       const local=map?Number(query.get('lugar')):((caseId-1)%12)+1;
       href=catalogRoute(season.board,Math.ceil(local/4)||1);label='Juegos';
@@ -55,14 +57,33 @@
   function illustratedMap({primary=false,home=false,letter=false}={}) {
     const heading=primary?'h1':'h2';
     const pins=seasons.map((season,i)=>`<a class="universe-pin universe-pin-${i+1}" href="/#${season.board}" aria-label="Explorar ${esc(season.name)}"><span class="universe-pin-light" aria-hidden="true"></span><span><small>${esc(season.genre)}</small><strong>${esc(season.name)}</strong></span></a>`).join('');
+    const description=home&&letter
+      ?'Cada mundo reúne doce juegos. Al resolver pruebas ganas experiencia y desarrollas las habilidades de tu personaje. Los retos extra te dan llaves para pedir pistas cuando las necesites.'
+      :'Elige un destino del mapa para explorar sus doce juegos.';
     return `<section class="universe-front" aria-labelledby="universe-heading"><div class="universe-front-copy">
-      <${heading} id="universe-heading">Mapa de temporadas</${heading}><p>Elige un destino del mapa para explorar sus doce juegos.</p></div>
+      <${heading} id="universe-heading">Mapa de temporadas</${heading}><p>${description}</p></div>
       <nav class="universe-chart" aria-label="Explorar las cuatro temporadas"><img src="/atlas-cuatro-mundos.webp" width="1520" height="855" alt="" ${primary?'fetchpriority="high"':'loading="lazy"'}>${pins}</nav>
       ${home?`<div class="universe-front-actions"><a class="universe-progress" href="/#tableros">Ver el recorrido de las cuatro temporadas <span aria-hidden="true">→</span></a>
       ${letter?'<div class="universe-front-first"><span>Primer juego · Código Valdemar</span><h3>El secreto de los dos mundos</h3><p>Ada os envía una foto de vuestra infancia. Reconocéis vuestras caras, pero ninguno recuerda esa casa.</p><a class="universe-door" href="/valdemar/01/?carta=1">Abrir la carta de Ada <span aria-hidden="true">→</span></a></div>':''}</div>`:''}</section>`;
   }
   const two = value => String(value).padStart(2,'0');
   const placeHref = (season,local) => '/#'+season.board+'?lugar='+local;
+  function proximoBloque(id,membership=window.ClubAccess?.state) {
+    const next=membership?.nextUnlock,season=Math.ceil(id/12),block=Math.floor(((id-1)%12)/4)+1;
+    if(membership?.renewal?.status!=='active'||!next?.caseIds?.includes(id)||next.season!==season||next.block!==block||
+      !Number.isSafeInteger(next.at)||next.at<=Date.now()||next.at!==membership.nextRenewalAt)return '';
+    const date=new Date(next.at);
+    if(!Number.isFinite(date.getTime()))return '';
+    const human=new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'long',year:'numeric',timeZone:'Europe/Madrid'}).format(date);
+    return '<p class="atlas-unlock-date">Bloque '+block+' · Próximo pago previsto el <time datetime="'+date.toISOString()+'">'+human+'</time>. Se abonarán estos cuatro juegos si se confirma la renovación.</p>';
+  }
+  function reliquiaDeJuego(id,access=window.ClubAccess?.state?.seasonAccess) {
+    const number=Math.ceil(id/12),season=seasons[number-1];
+    if(!season)return '';
+    const pass=access?.seasons?.find(entry=>entry.number===number);
+    const count=Number.isInteger(pass?.completed)?' · '+pass.completed+'/12 piezas':'';
+    return '<a class="extra-mapa-link atlas-file-relic" href="/#'+season.board+'?seccion=sello">Reliquia · '+esc(season.seal)+count+'</a>';
+  }
   function territoryData(index,access) {
     const number=index+1,base=index*12,season=seasons[index];
     const games=(index===0?window.ValdemarCatalog?.items:window.MundosCatalogo)||[];
@@ -106,9 +127,9 @@
         const local=item.id-base;
         const state=earned.has(local)?'done':allowed.has(item.id)?'open':pass?'closed':'preview';
         const status={done:'Pieza recuperada',open:'Disponible para jugar',closed:'Vista previa',preview:'Ver lugar'}[state];
-        return `<li><a href="${placeHref(season,local)}" data-atlas-state="${state}" aria-label="${esc('Paso '+local+'. '+item.title+'. '+status)}"><span class="atlas-stop-n">${two(local)}</span><span>${esc(item.title)}</span>${state==='done'?'<i aria-hidden="true">✓</i>':''}</a></li>`;
+        return `<li><a href="${placeHref(season,local)}" data-atlas-state="${state}" data-atlas-game="${item.id}" aria-label="${esc('Paso '+local+'. '+item.title+'. '+status)}"><span class="atlas-stop-n">${two(local)}</span><span>${esc(item.title)}</span>${state==='done'?'<i aria-hidden="true">✓</i>':''}</a></li>`;
       }).join('');
-      return `<section class="atlas-block"${pending?' data-current':''} aria-labelledby="atlas-block-${number}-${block}"><h3 id="atlas-block-${number}-${block}">Bloque ${block+1}<small>${two(first)}–${two(first+3)} / 12${pending?' · Siguiente paso':''}</small></h3><ol start="${first}">${links}</ol></section>`;
+      return `<section class="atlas-block"${pending?' data-current':''} aria-labelledby="atlas-block-${number}-${block}"><h3 id="atlas-block-${number}-${block}">Bloque ${block+1}<small>${two(first)}–${two(first+3)} / 12${pending?' · Siguiente paso':''}</small></h3>${proximoBloque(base+first)}<ol start="${first}">${links}</ol></section>`;
     }).join('');
   }
   function territoryPanel(data,selected) {
@@ -165,6 +186,13 @@
           if(!this.isConnected || !bridge.isSignedIn() || !Array.isArray(games))return;
           const records=games.filter(game=>game.available && !game.finished)
             .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)||b.current-a.current||a.id-b.id);
+          const running=new Set(records.filter(game=>game.edition!=='legacy'&&(game.mode||game.current>0)).map(game=>game.id));
+          for(const stop of this.querySelectorAll('[data-atlas-game]')){
+            if(!running.has(Number(stop.dataset.atlasGame)))continue;
+            stop.dataset.atlasState='playing';
+            stop.setAttribute('aria-label',stop.getAttribute('aria-label').replace('Disponible para jugar','En curso'));
+            const label=document.createElement('small');label.textContent='En curso';stop.append(label);
+          }
           for(const [index,season] of seasons.entries()){
             const game=records.find(game=>Math.ceil(game.id/12)===index+1);
             if(!game)continue;
@@ -279,5 +307,5 @@
       return `<li><a href="/#${s.board}?seccion=sello">${s.seal}</a><small>${s.name} · ${editorial?'12 juegos':(pass?.completed||0)+'/12 piezas'}</small></li>`;
     }).join('')+'</ul></section>';
   }
-  window.Colecciones=Object.freeze({seasons:Object.freeze(seasons),catalogBoard,catalogRoute,breadcrumb,menu,discover,illustratedMap,boards,seals,challenges,sala});
+  window.Colecciones=Object.freeze({seasons:Object.freeze(seasons),catalogBoard,catalogRoute,breadcrumb,menu,discover,illustratedMap,boards,seals,challenges,sala,proximoBloque,reliquiaDeJuego});
 })();

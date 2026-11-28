@@ -109,7 +109,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           if(!origin||!origins.includes(origin))fail(403,'Confirma la baja desde tu perfil.');
           if(input?.confirm!==true||typeof input.confirmation!=='string'||input.confirmation.length>120)fail(400,'Revisa la fecha y confirma la baja.');
         }
-        return json(await withStore(store=>billing.cancellation(store,uid,method==='POST'?input.confirmation:undefined)));
+        return json(await withStore(store=>billing.cancellation(store,uid,method==='POST'?input.confirmation:undefined,user.emailVerified===true?user.email:undefined)));
       }
       if(path==='/api/me/play-notices'){
         if(user.emailVerified!==true)fail(403,'Confirma tu correo para gestionar estos avisos.');
@@ -159,6 +159,12 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         const name=typeof input.name==='string' ? input.name.trim() : '';
         if(!name || name.length>32)fail(400,'Escribe el nombre de perfil completo.');
         return json(await withStore(store=>store.lookupManagementAccounts(name)));
+      }
+      if(path==='/api/admin/accounts/profile'){
+        if(!canManageSite(user)||!origin||!origins.includes(origin))fail(403,'La edición de perfiles está reservada a la propietaria.');
+        if(method!=='PUT')fail(405,'Método no permitido.');
+        const {renameSupportProfile}=await import('./case-review.mjs');
+        return json(await withStore(store=>renameSupportProfile(store,input)));
       }
       if(path==='/api/admin/challenges'){
         if(!canManageSite(user))fail(403,'Esta edición está reservada a la propietaria.');

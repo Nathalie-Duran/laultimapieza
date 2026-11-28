@@ -36,7 +36,9 @@
     const mesaHost=el('div','mansion-objective mj-mansion-host');
     const shared=window.MesaDeJuego?.mount(mesaHost,{family:'mansion',title:state?.title||'El secreto de los dos mundos'});
     const dock=el('aside','mj-objective-dock');dock.hidden=true;dock.setAttribute('aria-label','Objetivo de la aventura');
-    root.append(header,dock,tabs,panel,message);host.replaceChildren(root);shared?.dockObjective?.(dock);
+    if(options.blockEntry){tabs.classList.add('vd-block-tools');root.append(dock,tabs,header,panel,message);}
+    else root.append(header,dock,tabs,panel,message);
+    host.replaceChildren(root);shared?.dockObjective?.(dock);
     const arcade=el('details','mansion-arcade-drawer');
     const summary=el('summary','season-room-door','Sala de juegos de Ada · 6 minijuegos');
     const room=window.RetosTemporada?.puertaSala('mapa',true);
@@ -127,7 +129,8 @@
       const chapter=Math.max(1,Math.min(5,Number(state.stage?.chapter)||Math.ceil(Math.min(state.current||1,15)/3)));
       const completed=state.ending?15:Math.max(0,Math.min(15,(state.current||1)-1));
       const details=el('div','mansion-heading-group');
-      details.append(el('p','mansion-eyebrow','Capítulo '+chapters[chapter-1]+(state.stage?.chapter?' · '+state.stage.chapter:'')),el('h1','mansion-title',state.title||'El secreto de los dos mundos'));
+      details.append(el('p','mansion-eyebrow','Capítulo '+chapters[chapter-1]+(state.stage?.chapter?' · '+state.stage.chapter:'')));
+      if(!options.blockEntry)details.append(el('h1','mansion-title',state.title||'El secreto de los dos mundos'));
       header.append(details);
       if(shared){
         const stage=state.stage;
@@ -377,7 +380,7 @@
       panel.setAttribute('aria-labelledby','mansion-tab-'+tab);
       panel.replaceChildren();
       if(tab==='scene')drawScene();else if(tab==='bag')drawBag();else if(tab==='evidence')drawEvidence();else drawHints();
-      if(shared&&(tab!=='scene'||!state.stage))root.insertBefore(mesaHost,tabs);
+      if(shared&&(tab!=='scene'||!state.stage))root.insertBefore(mesaHost,options.blockEntry?panel:tabs);
       message.textContent=notice;message.dataset.error=String(noticeError);
     }
     function update(value){
