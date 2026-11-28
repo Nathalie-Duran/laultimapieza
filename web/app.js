@@ -25,7 +25,7 @@ function seasonId() {
   return Number(params.has('id') ? params.get('id') : document.body.dataset.valdemarCase);
 }
 function resumeCaseRequested(){return new URLSearchParams(location.hash.split('?')[1]||'').get('retomar')==='1';}
-function experienceCatalog(){return window.ValdemarCatalog.list({...valdemarState(window.ClubAccess.state),month:seasonMonth()});}
+function experienceCatalog(){return window.ValdemarCatalog.list({...valdemarState(window.ClubAccess.state),month:seasonMonth()})+(online?'<aventuras-publicadas></aventuras-publicadas>':'');}
 
 function valdemarDetail(membership){return window.ValdemarCatalog.detail(seasonId(),valdemarState(membership));}
 function valdemarGame(){
@@ -104,10 +104,10 @@ function avatarPicker(p){const value=Object.hasOwn(portraits,p?.avatar)?p.avatar
 function notebookNav(section){
   const collection=[['logros','Logros'],['archivo-secreto','Archivo secreto'],['llaves','Mi llavero']];
   const classic=['estilo','Mi estilo de juego'];
-  const sections=[['progreso','Mi progreso'],...(cloudMode?[['suscripcion','Suscripción']]:[]),['partidas','Mis partidas'],...(cloudMode?[['trayectoria','Trayectoria'],['coleccion','Colección'],['pareja','Jugar en pareja']]:[classic]),['cuenta','Cuenta']];
+  const sections=[['progreso','Mi progreso'],...(cloudMode?[['suscripcion','Suscripción']]:[]),['partidas','Mis partidas'],...(cloudMode?[['trayectoria','Trayectoria'],['coleccion','Colección'],['pareja','Jugar en pareja']]:[classic]),['cuenta','Cuenta'],['preferencias','Preferencias']];
   const parent=collection.some(([id])=>id===section)?'coleccion':section==='estilo'&&cloudMode?'trayectoria':section;
   const links=rows=>rows.map(([id,label])=>{
-    const href=id==='progreso'?'#perfil':id==='suscripcion'?'#suscripcion':id==='partidas'?'#archivo':'#perfil?seccion='+id;
+    const href=id==='progreso'?'#perfil':id==='suscripcion'?'#suscripcion':id==='partidas'?'#archivo':id==='preferencias'?'#accesibilidad?volver=perfil':'#perfil?seccion='+id;
     const selected=section===id?' aria-current="page"':parent===id?' class="pn-parent"':'';
     return `<a href="${href}"${selected}>${label}</a>`;
   }).join('');
@@ -168,7 +168,7 @@ function puzzleAvailable(s){const puzzle=story(s.caseId)?.puzzle;if(!puzzle)retu
 function puzzlePanel(s){const puzzle=puzzleAvailable(s);return puzzle?window.InvestigationUI.render(s,puzzle):'';}
 function sceneHints(node){const hints=(node.hints?.length?node.hints:[node.hint]).filter(Boolean).slice(0,3);return `<section class="panel scene-hints"><h3>Una pequeña ayuda.</h3>${hints.map((hint,i)=>`<details><summary>Ayuda ${i+1}${i===0?' · una orientación':i===1?' · dónde mirar':' · la conexión'}</summary><p class="hint-box">${esc(hint)}</p></details>`).join('')}<p class="micro">Abridlas en orden y solo si las necesitáis. Pedir ayuda no resta puntos.</p></section>`;}
 
-function transcriptBlock(a){return `<details class="media-transcript"><summary>${a.type==='video'?'Leer el registro completo':a.type==='audio'?'Leer transcripción':'Leer versión accesible'}</summary><p>${esc(a.transcript||'')}</p></details>`;}
+function transcriptBlock(a){return `<details class="media-transcript" data-game-transcript><summary>${a.type==='video'?'Leer el registro completo':a.type==='audio'?'Leer transcripción':'Leer versión accesible'}</summary><p>${esc(a.transcript||'')}</p></details>`;}
 function mediaCard(a){
   const meta=mediaTypes[a.type]||{label:'Pista',icon:'◇'},src=resolveAsset(a.src),pilot=current()?.caseId==='habitacion-309';
   let content='';
@@ -288,7 +288,7 @@ function archivePage(){
   const finished=data.sessions.some(s=>s.status==='finished' && s.members?.some(member=>member.userId===p.userId));
   const memories=finished?'<details class="archive-memories"><summary>Mis desenlaces guardados</summary>'+
     window.NightArchive.render(archiveArgs()).replace(/<h1(\s[^>]*)?>/,'<h2$1>').replace('</h1>','</h2>')+'</details>':'';
-  return notebookNav('partidas')+list+pieces+memories+'<details class="pn-archive-options"><summary>Opciones de guardado</summary><div class="pn-actions">'+button('Reiniciar mi progreso','progress-reset-open')+'</div></details>';
+  return notebookNav('partidas')+list+'<aventuras-publicadas en-curso></aventuras-publicadas>'+pieces+memories+'<details class="pn-archive-options"><summary>Opciones de guardado</summary><div class="pn-actions">'+button('Reiniciar mi progreso','progress-reset-open')+'</div></details>';
 }
 function openProgressReset(){
   const userId=me()?.userId;
@@ -340,7 +340,7 @@ function renderPendingAccount(route) {
 }
 function updateSiteNavigation(route,personal,management){
   const section=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
-  const groups={valdemar:'casos',invitacion:'casos',
+  const groups={aventura:'casos',valdemar:'casos',invitacion:'casos',
     partida:'archivo',equipo:'perfil',suscripcion:'perfil','alta-club':'planes','edicion-valdemar':'gestion'};
   let destination=groups[route]||route;
   if(['mapa','expedicion','umbravia','necropolis'].includes(route))destination=section==='ficha'?'casos':'tableros';
@@ -357,7 +357,7 @@ function updateSiteNavigation(route,personal,management){
   }
 }
 function updatePageTitle(route){
-  const fixed={inicio:'Juegos de misterio online','como-se-juega':'Cómo se juega',casos:'Juegos',tableros:'Mapa de temporadas',perfil:'Mi cuenta',equipo:'Mi equipo',archivo:'Mis partidas',partida:'Mi partida',gestion:'Gestión'};
+  const fixed={aventura:'Aventura de autor',inicio:'Juegos de misterio online','como-se-juega':'Cómo se juega',casos:'Juegos',tableros:'Mapa de temporadas',perfil:'Mi cuenta',equipo:'Mi equipo',archivo:'Mis partidas',partida:'Mi partida',gestion:'Gestión'};
   let label=fixed[route];
   if(route==='casos'&&window.Colecciones)label='Juegos · '+window.Colecciones.catalogBoard().name;
   if(route==='valdemar'||route==='valdemar-jugar'){
@@ -391,7 +391,7 @@ function canonicalPage(){
 function render(){canonicalPage();window.CartasWorkspace?.capture();window.EscenaClasica?.clearMesa?.();const route=(location.hash.slice(1)||(document.body.dataset.valdemarCase?'valdemar':'inicio')).split('?')[0];if(route!=='valdemar-jugar')window.ValdemarPlayer?.clear();if(route!=='mundos-jugar')window.Mundos?.clear();const management=!accountLoading&&online&&window.ClubAccess.state?.canManage===true;document.body.classList.toggle('management-owner',management);document.querySelector('.management-nav').hidden=!management;if(route!=='gestion'||!management)window.ManagementUI?.clear();$('#membership-dock').hidden=true;updateSiteNavigation(route,!accountLoading&&(online||Boolean(me())),management);
 const mapCrumb=window.Colecciones?.breadcrumb?.(route,seasonId());
 if(mapCrumb)$('#breadcrumb').innerHTML=mapCrumb;
-else $('#breadcrumb').textContent=({'como-se-juega':'Guía de juego',desafios:'Actividades opcionales',inicio:'Inicio',casos:'Catálogo',tableros:'Mapas y progreso','mundos-jugar':'LA PARTIDA',equipo:'TU EQUIPO',perfil:'MI CUADERNO',gestion:'GESTIÓN DE LA WEB',partida:'DENTRO DE LA HISTORIA',planes:'SUSCRIPCIÓN AL CLUB','alta-club':'SUSCRIBIRME AL CLUB',valdemar:'Código Valdemar','valdemar-jugar':'MESA DE JUEGO','edicion-valdemar':'Edición de Código Valdemar',archivo:'VUESTRO ARCHIVO',suscripcion:'MI SUSCRIPCIÓN'})[route]||'VUESTRO ESPACIO';
+else $('#breadcrumb').textContent=({'como-se-juega':'Guía de juego',desafios:'Actividades opcionales',inicio:'Inicio',casos:'Catálogo',tableros:'Mapas y progreso',aventura:'MESA DE JUEGO','mundos-jugar':'LA PARTIDA',equipo:'TU EQUIPO',perfil:'MI CUADERNO',gestion:'GESTIÓN DE LA WEB',partida:'DENTRO DE LA HISTORIA',planes:'SUSCRIPCIÓN AL CLUB','alta-club':'SUSCRIBIRME AL CLUB',valdemar:'Código Valdemar','valdemar-jugar':'MESA DE JUEGO','edicion-valdemar':'Edición de Código Valdemar',archivo:'VUESTRO ARCHIVO',suscripcion:'MI SUSCRIPCIÓN'})[route]||'VUESTRO ESPACIO';
 if(accountLoading){
   document.body.classList.toggle('postal-visitor',['inicio','como-se-juega','invitacion','valdemar','valdemar-jugar','casos','tableros','desafios','mapa','expedicion','umbravia','necropolis','mundos-jugar','planes','alta-club'].includes(route));
   for(const id of ['sidebar-profile','account-shortcut','mode-note']) document.getElementById(id).replaceChildren();
@@ -403,7 +403,7 @@ if(route==='mapa')window.ValdemarPlano.mount();
   mountWorld(route);
   return;
 }
-const p=me();document.body.classList.toggle('postal-visitor', !p && !online && ['inicio','como-se-juega','invitacion','valdemar','valdemar-jugar','casos','tableros','desafios','mapa','expedicion','umbravia','necropolis','mundos-jugar','planes','alta-club'].includes(route));$('#sidebar-profile').innerHTML=p?`<a class="profile-mini" href="#perfil">${avatar(p)}<span><b>${esc(p.name)}</b><small>${online?'Tu cuenta':'Perfil local'}</small></span></a>`:(cloudMode?window.AccountUI.header():button('Crear mi perfil','new-profile'));$('#profile-button').innerHTML=p?portraitContent(p):'+';$('#connection-status').textContent=cloudMode?(accountLoading?'Cargando cuenta…':online?'Guardado':'Sin iniciar sesión'):'En este dispositivo';if(cloudMode&&online)showSaveState(saveState);$('#account-shortcut').innerHTML=cloudMode?window.AccountUI.header():'';$('#mode-note').innerHTML=window.ClubAccess.banner();const pageViews={inicio:homeWithPlans,casos:experienceCatalog,'como-se-juega':()=>window.ComoSeJuega.view(),accesibilidad:displaySettings,desafios:()=>window.Colecciones.challenges(window.ClubAccess.state?.seasonAccess),tableros:()=>window.Colecciones.boards(window.ClubAccess.state?.seasonAccess),expedicion:()=>worldView('expedicion',window.ClubAccess.state),umbravia:()=>worldView('umbravia',window.ClubAccess.state),necropolis:()=>worldView('necropolis',window.ClubAccess.state),'mundos-jugar':()=>window.Mundos.game(seasonId(),window.ClubAccess.state),valdemar:()=>valdemarDetail(window.ClubAccess.state),'valdemar-jugar':valdemarGame,'edicion-valdemar':()=>management?window.ValdemarEdicion.view():'<p>Acceso reservado a la propietaria.</p>',mapa:()=>seasonMap(online?window.ClubAccess.state:{}),equipo:team,perfil:profileWithSubscription,gestion:()=>management?window.ManagementUI.view():'<section class="account-card"><h1>Gestión de la web</h1><p>Esta sección está reservada a la cuenta propietaria.</p><a class="button" href="#perfil">Mi cuenta</a></section>',partida:game,planes:plans,'alta-club':enrollment,archivo:archivePage,suscripcion:subscription};
+const p=me();document.body.classList.toggle('postal-visitor', !p && !online && ['inicio','como-se-juega','invitacion','valdemar','valdemar-jugar','casos','tableros','desafios','mapa','expedicion','umbravia','necropolis','mundos-jugar','planes','alta-club'].includes(route));$('#sidebar-profile').innerHTML=p?`<a class="profile-mini" href="#perfil">${avatar(p)}<span><b>${esc(p.name)}</b><small>${online?'Tu cuenta':'Perfil local'}</small></span></a>`:(cloudMode?window.AccountUI.header():button('Crear mi perfil','new-profile'));$('#profile-button').innerHTML=p?portraitContent(p):'+';$('#connection-status').textContent=cloudMode?(accountLoading?'Cargando cuenta…':online?'Guardado':'Sin iniciar sesión'):'En este dispositivo';if(cloudMode&&online)showSaveState(saveState);$('#account-shortcut').innerHTML=cloudMode?window.AccountUI.header():'';$('#mode-note').innerHTML=window.ClubAccess.banner();const pageViews={aventura:()=>'<aventura-publicada></aventura-publicada>',inicio:homeWithPlans,casos:experienceCatalog,'como-se-juega':()=>window.ComoSeJuega.view(),accesibilidad:displaySettings,desafios:()=>window.Colecciones.challenges(window.ClubAccess.state?.seasonAccess),tableros:()=>window.Colecciones.boards(window.ClubAccess.state?.seasonAccess),expedicion:()=>worldView('expedicion',window.ClubAccess.state),umbravia:()=>worldView('umbravia',window.ClubAccess.state),necropolis:()=>worldView('necropolis',window.ClubAccess.state),'mundos-jugar':()=>window.Mundos.game(seasonId(),window.ClubAccess.state),valdemar:()=>valdemarDetail(window.ClubAccess.state),'valdemar-jugar':valdemarGame,'edicion-valdemar':()=>management?window.ValdemarEdicion.view():'<p>Acceso reservado a la propietaria.</p>',mapa:()=>seasonMap(online?window.ClubAccess.state:{}),equipo:team,perfil:profileWithSubscription,gestion:()=>management?window.ManagementUI.view():'<section class="account-card"><h1>Gestión de la web</h1><p>Esta sección está reservada a la cuenta propietaria.</p><a class="button" href="#perfil">Mi cuenta</a></section>',partida:game,planes:plans,'alta-club':enrollment,archivo:archivePage,suscripcion:subscription};
 $('#main').innerHTML=Object.hasOwn(pageViews,route)?pageViews[route]():'<section class="account-card"><h1>Página no encontrada</h1><p>Comprueba la dirección o elige un destino.</p><div class="actions"><a class="button primary" href="/#inicio">Ir al inicio</a><a class="button" href="/#tableros">Ver las temporadas</a></div></section>';
 if(route==='gestion'&&management)window.ManagementUI.mount();
 updatePageTitle(route);

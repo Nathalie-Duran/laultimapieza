@@ -52,7 +52,15 @@
     row.append(copy,label,status);box.append(summary,row);return box;
   }
   function exit(){
-    if(standalone){location.assign(casePath()||'/#casos');return;}
+    if(standalone){
+      const target=casePath()||'/#casos';
+      const navigation=window.navigation,previous=navigation?.entries?.()[navigation.currentEntry?.index-1]?.url;
+      if(previous){
+        const from=new URL(previous),expected=new URL(target,location.href);
+        if(from.origin===expected.origin&&from.pathname===expected.pathname&&from.hash===expected.hash){history.back();return;}
+      }
+      location.assign(target);return;
+    }
     if(owned()){close();history.back();}else close();
   }
   function close(){
