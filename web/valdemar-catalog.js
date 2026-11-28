@@ -60,7 +60,7 @@
     else if(world==='mapa'&&!seasonAccess)items.filter(item=>access(item,opts)).forEach(item=>allowed.add(item.id));
     const map=world==='mapa'?'mapa?mes='+month:world+'?lugar='+first;
     const monthLink=n=>collections?.catalogRoute?.(world,n)||'/#casos?mes='+n;
-    return `<section class="vd-section vd-list" data-catalog-world="${world}"><header class="vd-head"><div><h1>Juegos</h1><p class="vd-catalog-intro">Elige una temporada para ver sus juegos. Puedes explorar las fichas o jugar a las aventuras que tengas disponibles.</p><p class="vd-label">1–2 participantes · ≈ 60 min por juego</p></div><nav class="vd-route-links" aria-label="Mapa de la temporada elegida"><a class="vd-textlink" href="/#${map}">Ver el mapa de esta temporada ↗</a></nav></header>
+    return `<section class="vd-section vd-list" data-catalog-world="${world}"><header class="vd-head"><div><h1>Juegos</h1><p class="vd-catalog-intro">Elige una temporada para ver sus juegos. Puedes explorar las fichas o jugar a las aventuras que tengas disponibles.</p><p class="vd-label">1–2 participantes · ≈ 60 min por juego</p></div><nav class="vd-route-links" aria-label="Mapa de la temporada elegida"><a class="vd-textlink" href="/#${map}">Ver el mapa de esta temporada ↗</a><a class="vd-textlink" href="/#como-se-juega">Cómo se juega</a></nav></header>
       ${collections?.menu?.('casos')||''}
       <nav class="vd-months" aria-label="Bloques de ${esc(season.name)}">${[1,2,3].map(n=>`<a href="${esc(monthLink(n))}"${month===n?' aria-current="page"':''}>Bloque ${n} <small>${number((n-1)*4+1)}–${number(n*4)}</small></a>`).join('')}</nav>
       ${cards(month,{games,done,allowed})}

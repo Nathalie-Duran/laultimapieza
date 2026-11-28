@@ -73,5 +73,87 @@
       `<button type="button" data-action="game-section" data-target="${target}"><span class="pe-step-number" aria-hidden="true">${i+1}</span><span>${label}</span></button>`
     ).join('')}</nav>`;
   }
-  root.EscenaClasica = {chapter,shortcuts};
+  const objectives={
+    'ultima-funcion':'Relaciona el reloj de la cámara con el de sala y averigua quién pudo entrar en utilería.',
+    'archivo-ausencias':'Compara el folio en papel con el historial digital para reconocer la copia fiel.',
+    'marea-quieta':'Encuentra los diez minutos en que coinciden el paso habilitado, la archivera y el carro.',
+    'frecuencia-17':'Reconstruye la cadena de tarjetas de la emisora para identificar su canal.',
+    'jardin-invierno':'Contrasta las horas de las mismas temperaturas en el termómetro y en el sensor.',
+    'retrato-prestado':'Identifica la tabla custodiada en el armario a partir de las marcas del reverso.',
+    'mesa-13':'Reconstruye la distribución definitiva de la mesa después del cambio de plazas.',
+    'tren-detenido':'Usa el reloj del vagón y el horario de marcha para localizar la parada del depósito.',
+    'ciudad-invisible':'Sigue los giros desde el punto de partida y localiza el destino en la cuadrícula.',
+    'ultimo-coro':'Enlaza el comienzo de cada toma con el final de la anterior para reconstruir la cinta.',
+    'ultima-invitacion':'Relaciona las letras del catálogo con las doce casillas y lee el sello.'
+  };
+
+  let mesa;
+  function clearMesa(){mesa?.destroy();mesa=null;}
+  function mountMesa(scope,session,story,index,uid){
+    if(!root.MesaDeJuego||!scope||!session||story?.season!==1)return;
+    const coop=story.id==='cartas-medianoche',workspace=scope.querySelector('.coop-workspace');
+    const previous=coop?workspace?.querySelector('.case-compass'):scope.querySelector('.game-shortcuts');
+    if(!previous)return;
+    const host=document.createElement('div');host.className='pe-game-tools';previous.before(host);
+    const history=session.history,review=index<history.length,waiting=session.status==='waiting';
+    const final=session.status==='finished',solved=Boolean(session.investigation?.solvedAt);
+    const role=session.members.find(m=>m.userId===uid)?.role||'A';
+    const stages=story.puzzle?.stages||[],active=stages.find(s=>!session.investigation?.stages?.[s.id]?.solvedAt);
+    const pinnedVote=session.votes?.some(v=>v.userId===uid);
+    function go(target){
+      const el=scope.querySelector(target);
+      if(!el)return;
+      for(let parent=el.parentElement;parent&&parent!==scope;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;
+      if(!el.hasAttribute('tabindex')&&!el.matches('button,a,input,select'))el.tabIndex=-1;
+      el.focus({preventScroll:true});el.scrollIntoView({block:'nearest'});
+    }
+    function tab(name,target){
+      workspace?.querySelector('.case-tabs [data-coop-tab="'+name+'"]')?.click();
+      go(target||'[data-coop-panel="'+name+'"]');
+    }
+    const at=(selector,label)=>({label,run:()=>go(selector)});
+    const view=(name,label)=>({label,run:()=>tab(name)});
+    const puzzleHere=coop?active&&active.requiredDecisions<=history.length:scope.querySelector('#puzzle-form');
+    let objective=coop?active?.title:objectives[story.id];
+    let next,tools=[];
+    if(review){
+      objective='Estás releyendo una decisión guardada. Vuelve al punto actual para continuar la partida.';
+      const resume=scope.querySelector('[data-action="scene-view"][data-index="'+history.length+'"]');
+      if(resume)next={label:'Volver a mi avance',run:()=>resume.click()};
+    }else if(waiting){
+      objective='Abre las opciones del equipo y comparte la invitación con tu compañero.';
+      next=coop?{label:'Abrir el equipo',run:()=>{tab('historia');go('#game-team');}}:at('#game-team','Abrir el equipo');
+    }else if(final&&solved){
+      objective='El relato y el enigma están completos. Ya puedes leer el epílogo.';
+      next=coop?view('historia','Leer el desenlace'):at('#game-epilogue','Leer el epílogo');
+    }else if(final){
+      objective=coop?active?.title:objectives[story.id];
+      next=coop?view('resolver','Abrir el enigma pendiente'):at('#puzzle-title','Abrir el enigma pendiente');
+    }else if(coop&&puzzleHere){
+      next=view('pistas','Examinar las pistas del reto');
+    }else{
+      if(solved||coop)objective='Contrasta los dos caminos de esta escena y decide cómo continúa la historia.';
+      if(pinnedVote)objective='Tu voto está registrado. Podéis cambiar de opción hasta coincidir.';
+      next=coop?{label:'Comparar los caminos',run:()=>{tab('historia');go('#game-choices');}}:at('#game-choices','Comparar los caminos');
+    }
+    if(!coop){
+      tools=[at('#game-reading',final&&!review?'Desenlace':'Leer la escena')];
+      if(scope.querySelector('#media-desk-title'))tools.push(at('#media-desk-title','Documentos y pistas'));
+      if(!review&&!final&&puzzleHere)tools.push(at('#puzzle-title','Contrastar el enigma'));
+      tools=tools.map((tool,i)=>({...tool,id:String(i)}));
+    }
+    const directions=session.mode==='solo'?'En solitario puedes consultar los dos expedientes.':
+      'Juegas con el expediente '+role+'. Cuenta a tu compañero lo que observas y escuchad lo que aporta el otro papel. Los dos debéis coincidir para avanzar.';
+    const progress=coop?((stages.filter(s=>session.investigation?.stages?.[s.id]?.solvedAt).length)+' de '+stages.length+' retos resueltos · '+history.length+' de '+story.decisionCount+' decisiones'):
+      history.length+' de '+story.decisionCount+' decisiones';
+    mesa=root.MesaDeJuego.mount(host,{family:'clasico',title:story.title,objective,progress,next,tools,
+      help:{context:'clasico',text:directions,steps:coop?['Lee la escena en Historia.','Consulta las pistas del reto y prueba tu deducción en Resolver.','Cuando se abra una decisión, vuelve a Historia para elegir.']:
+        ['Lee la escena y compara los documentos disponibles.','Elige uno de los dos caminos. Puedes consultar después las decisiones guardadas.','Contrasta el enigma con las pruebas para completar el expediente.']}});
+    if(coop){
+      const skills=previous.querySelector('.coop-skill')?.parentElement;
+      if(skills){skills.className='pe-classic-skills';host.after(skills);}
+    }
+    previous.remove();
+  }
+  root.EscenaClasica = {chapter,shortcuts,mountMesa,clearMesa};
 })(window);

@@ -141,7 +141,8 @@
         const detail=stationDetails[g.id];
         return `<button type="button" class="ma87-station" data-act="detail" data-value="${esc(g.id)}" aria-haspopup="dialog"><img loading="lazy" alt="" src="/sala-${esc(g.id)}.webp"><span><small>${esc(detail.kind)}</small><strong>${esc(g.title)}</strong><small>${g.solved?'Resuelta · premio recibido':keyCount(g.prize)+' al resolver'}</small></span></button>`;
       }).join('');
-      return `<section class="ma87-lobby"><header class="ma87-hero"><img class="ma87-scene" src="/sala-de-ada.webp" alt=""><div class="ma87-intro"><p>Casa de Ada · Código Valdemar</p>${this.heading()}<p>Hay seis mesas preparadas. Puedes descifrar los sellos de la archivera, reparar un reloj o seguir las acequias hasta el jardín. Elige por dónde empezar.</p><button type="button" data-act="stations">Explorar las estaciones</button></div></header>${progress}<section class="ma87-section"><h2 tabindex="-1" data-stations>Las seis estaciones</h2><p>Gana hasta ocho llaves para pedir pistas en las aventuras. Cada estación entrega sus llaves la primera vez que la resuelves.</p><div class="ma87-stations">${tiles}</div></section>${back}</section>`;
+      const explore=this.shared?'':'<button type="button" data-act="stations">Explorar las estaciones</button>';
+      return `<section class="ma87-lobby"><header class="ma87-hero"><img class="ma87-scene" src="/sala-de-ada.webp" alt=""><div class="ma87-intro"><p>Casa de Ada · Código Valdemar</p>${this.heading()}<p>Hay seis mesas preparadas. Puedes descifrar los sellos de la archivera, reparar un reloj o seguir las acequias hasta el jardín. Elige por dónde empezar.</p>${explore}</div></header>${this.shared?'<div data-ma-mesa></div>':''}${progress}<section class="ma87-section"><h2 tabindex="-1" data-stations>Las seis estaciones</h2><p>Gana hasta ocho llaves para pedir pistas en las aventuras. Cada estación entrega sus llaves la primera vez que la resuelves.</p><div class="ma87-stations">${tiles}</div></section>${back}</section>`;
     }
     showDetail(id){
       const game=this.games.find(g=>g.id===id);
@@ -168,16 +169,32 @@
     }
     show(focusTitle=false) {
       const game=this.games.find(g=>g.id===this.current);
+      if(!this.shared&&window.MesaDeJuego){
+        this.mesaHost=document.createElement('div');
+        this.shared=window.MesaDeJuego.mount(this.mesaHost,{family:'sala'});
+      }
       const back=this.hasAttribute('embedded')?'<button type="button" class="ma-back" data-act="return">Volver a la aventura</button>':'';
       if(!game) {
         this.innerHTML=this.lobby(back);
       } else {
-        this.innerHTML=`<section class="ma-panel ma87-panel">${this.heading(game.title)}
+        this.innerHTML=`<section class="ma-panel ma87-panel">${this.heading(game.title)}${this.shared?'<div data-ma-mesa></div>':''}
           ${screens[game.id](this.states[game.id])}<div class="ma-actions ma87-actions"><button type="button" class="ma-check" data-act="check" ${this.busy?'disabled':''}>${checks[game.id]}</button>
-          <button type="button" data-act="back">Sala de minijuegos</button>${back}</div><p role="status" aria-live="polite">${esc(this.notice)}</p></section>`;
+          ${this.shared?'':'<button type="button" data-act="back">Sala de minijuegos</button>'}${back}</div><p data-ma-feedback role="status" aria-live="polite">${esc(this.notice)}</p></section>`;
+      }
+      if(this.shared){
+        this.querySelector('[data-ma-mesa]').append(this.mesaHost);
+        const goToStations={label:'Explorar las estaciones',run:()=>this.querySelector('[data-stations]')?.focus()};
+        const leave={id:'sala',label:'Volver a las estaciones',run:()=>this.backToStations()};
+        const complete=game&&this.states[game.id].complete;
+        this.shared.update({title:game?.title||'La sala de juegos de Ada',
+          progress:game?(game.solved?'Premio recibido':keyCount(game.prize)+' al resolver por primera vez'):'',
+          objective:game?.description||'',help:{context:'sala',text:game?stationDetails[game.id].text:'Cada estación es un juego independiente. Abre su ficha para ver en qué consiste.',
+            steps:game?['Examina el material de la mesa.','Manipula los objetos y comprueba tu propuesta.','Puedes volver a las estaciones al terminar.']:[]},
+          tools:game&&!complete?[leave]:[],next:!game?goToStations:complete?leave:null});
       }
       if(focusTitle)this.querySelector('h1,h2')?.focus();
     }
+    backToStations(){const old=this.current;this.current=null;this.show();this.focusControl('detail',old);}
     inputControl(event) {
       const field=event.target.dataset.field, state=this.states[this.current];
       if(!state || !field)return;
@@ -198,7 +215,7 @@
       this.busy=true;
       const control=this.querySelector('[data-act="check"]');
       control.disabled=true;
-      const status=this.querySelector('[role="status"]');
+      const status=this.querySelector('[data-ma-feedback]');
       status.textContent='Comprobando…';
       try {
         const result=await window.GameAccountBridge.request(endpoint,{id,attempt:attempt[id](this.states[id])},'POST');
@@ -240,9 +257,7 @@
         if(!this.states[value] || this.states[value].complete)this.states[value]=initial[value]();
         this.notice='';this.show(true);return;
       }
-      if(act==='back'){
-        const old=this.current;this.current=null;this.show();this.focusControl('detail',old);return;
-      }
+      if(act==='back'){this.backToStations();return;}
       if(act==='check'){this.check();return;}
       this.notice='';
       if(act==='look')state.examined=Number(value);

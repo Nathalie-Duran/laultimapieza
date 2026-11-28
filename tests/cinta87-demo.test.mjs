@@ -212,3 +212,25 @@ test('cada papel abre únicamente sus dos objetos ilustrados y conserva ambos ma
     assert.equal(photo.toString('ascii',8,12),'WEBP',object);
   }
 });
+
+test('la mesa gráfica coloca dos objetos y alinea la muesca antes de validar la misma deducción',async()=>{
+  const h=browser();gather(h,'solo');
+  h.click('place-item','first');
+  assert.match(h.html,/Selecciona un objeto de la bandeja/);
+  h.click('arm','hoja');h.click('place-item','first');
+  h.click('arm','acetato');h.click('place-item','second');
+  h.click('align','derecha');
+  assert.match(h.html,/class="c87-layer-first" src="\/c87-fichero.webp"/);
+  assert.match(h.html,/class="c87-layer-second" src="\/c87-acetato.webp"/);
+  assert.match(h.html,/data-aligned="derecha"/);
+  assert.match(h.html,/<option value="derecha" selected>/);
+  h.submit('combine',{...overlap,side:'derecha'});
+  assert.equal(h.saved.combined,false);
+  h.click('align','izquierda');
+  assert.match(h.html,/<option value="izquierda" selected>/);
+  h.submit('combine',overlap);h.click('next');
+  assert.equal((h.html.match(/class="c87-box-photo"/g)||[]).length,3);
+  assert.match(h.html,/Consultar la hoja de traslados en texto/);
+  assert.equal((await readFile(file('c87-caja-bobina.webp'))).toString('ascii',8,12),'WEBP');
+  h.submit('deduce',original);h.click('ending','emitir');assert.ok(h.demo.isComplete());
+});

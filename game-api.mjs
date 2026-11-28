@@ -4,6 +4,7 @@ import { readJourney, solveJourney } from './season-journey.mjs';
 import { checkPuzzle } from './progression.mjs';
 import { adminMembership, canManageSite } from './admin-access.mjs';
 import { worldSeasonAccess } from './valdemar-wallet.mjs';
+import { cancellationSummary } from './subscription-cancellation.mjs';
 import { mailKey } from './mail-service.mjs';
 import {noticePreferences,validateNoticePrefs} from './play-notices.mjs';
 import {checkRetiredSession, resetPersonalProgress} from './progress-reset.mjs';
@@ -92,6 +93,14 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       if(rate&&rate.until>now){if(++rate.count>180)fail(429,'Espera unos segundos antes de continuar.');}
       else {if(rates.size>10000)rates.clear();rates.set(uid,{count:1,until:now+60000});}
       const input=method==='GET'?null:await body(request,path==='/api/admin/challenges'&&canManageSite(user)?65536:16384);
+      if(path==='/api/billing/cancellation'&&billing){
+        if(!['GET','POST'].includes(method))fail(405,'Método no permitido.');
+        if(method==='POST'){
+          if(!origin||!origins.includes(origin))fail(403,'Confirma la baja desde tu perfil.');
+          if(input?.confirm!==true||typeof input.confirmation!=='string'||input.confirmation.length>120)fail(400,'Revisa la fecha y confirma la baja.');
+        }
+        return json(await withStore(store=>billing.cancellation(store,uid,method==='POST'?input.confirmation:undefined)));
+      }
       if(path==='/api/me/play-notices'){
         if(user.emailVerified!==true)fail(403,'Confirma tu correo para gestionar estos avisos.');
         if(method==='GET')return json(await withStore(async store=>{
@@ -185,8 +194,9 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           if(isAdministrator(user)&&store.markEditorial)await store.markEditorial(uid);
           if(billing?.refreshOfferIdentity)await billing.refreshOfferIdentity(store,user,isAdministrator(user)===true);
           const sessions=await store.listSessions(uid);
-          const membership=isAdministrator(user)
-            ? {...adminMembership(),seasonAccess:worldSeasonAccess(await store.getMemberData(uid),{editorial:true}),
+          const editorialData=isAdministrator(user)?await store.getMemberData(uid):null;
+          const membership=editorialData
+            ? {...adminMembership(),hasCustomer:Boolean(editorialData.customer),renewal:cancellationSummary(editorialData),seasonAccess:worldSeasonAccess(editorialData,{editorial:true}),
               ...(billing?.partnerOffer?{partnerOffer:await billing.partnerOffer(store,uid,null,true)}:{})}
             : billing?await billing.membership(store,uid):{canPlay:await authorizePlay({store,uid})===true,checkoutAvailable:false};
           membership.canManage=canManageSite(user);membership.ownAccess=membership.canPlay;membership.guestOwners=[];

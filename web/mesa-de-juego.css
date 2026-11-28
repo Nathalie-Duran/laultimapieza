@@ -1,0 +1,45 @@
+.mesa-juego {
+  --mj-accent:var(--ae-accent,#eac986);
+  --mj-dark:#152b27;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  gap:.85rem clamp(.85rem,2.4vw,1.65rem); min-width:0; padding:.85rem clamp(1rem,2.7vw,2rem);
+  background:linear-gradient(105deg,var(--mj-dark),#1c332d 75%); color:#fff5e1;
+  border-block:1px solid #61705d; border-inline-start:3px solid var(--mj-accent);
+  font:400 1rem/1.45 var(--sans,system-ui,sans-serif); text-align:start;
+}
+.mesa-juego [hidden],.mesa-juego[hidden] { display:none !important }
+.mesa-juego,.mesa-juego * { box-sizing:border-box }
+.mesa-juego[data-family="umbravia"] { --mj-dark:#1c302b }
+.mesa-juego[data-family="necropolis"] { --mj-dark:#382d25 }
+.mesa-juego[data-family="expedicion"] { --mj-dark:#203738 }
+.mesa-juego .mj-reading { flex:1 1 21rem; min-width:0 }
+.mesa-juego .mj-progress,.mesa-juego .mj-label { margin:0; color:var(--mj-accent); font:650 .78rem/1.35 var(--sans,system-ui,sans-serif); letter-spacing:.04em }
+.mesa-juego .mj-label { color:#d9dfc7; display:block; letter-spacing:.025em; }
+.mesa-juego .mj-progress:not([hidden])+.mj-objective { margin-top:.35rem }
+.mesa-juego .mj-goal { margin:.1rem 0 0; max-width:74ch; color:#fff4df; font:500 clamp(1.01rem,1.55vw,1.17rem)/1.43 var(--serif,Georgia,serif); text-wrap:pretty }
+.mesa-juego .mj-result { margin:.5rem 0 0; padding-inline-start:.55rem; border-inline-start:2px solid var(--mj-accent); color:#f3e3ba; font:500 .94rem/1.4 var(--sans,system-ui,sans-serif) }
+.mesa-juego .mj-actions,.mesa-juego .mj-tools { display:flex; flex-wrap:wrap; align-items:center; gap:.33rem .45rem; min-width:0 }
+.mesa-juego .mj-actions { justify-content:flex-start }
+.mesa-juego :is(.mj-tool,.mj-next,.mj-help) {
+  min-height:2.75rem; max-width:100%; display:inline-flex; align-items:center; justify-content:center;
+  margin:0; padding:.45rem .8rem; border:1px solid #82927a; border-radius:.35rem; background:#233c32;
+  color:#fff4de; cursor:pointer; font:600 .91rem/1.27 var(--sans,system-ui,sans-serif); text-align:center; white-space:normal; overflow-wrap:break-word;
+}
+.mesa-juego .mj-next { color:#242318; background:var(--mj-accent); border-color:var(--mj-accent) }
+.mesa-juego .mj-help { background:transparent; border-color:transparent; color:var(--mj-accent); text-decoration:underline; text-underline-offset:.22em }
+.mesa-juego :is(.mj-tool,.mj-next,.mj-help):hover { text-decoration:underline; text-underline-offset:.19em }
+.mesa-juego :is(button,a):focus-visible { outline:3px solid #b8e6ff; outline-offset:3px }
+.mesa-juego.mj-compact { padding-block:.35rem; justify-content:flex-start }
+.mansion-panel > .mansion-objective.mj-mansion-host { background:none; padding:0; border:0 }
+.mj-mansion-host .mesa-juego { height:100%; align-content:center; }
+.mansion-game:has(.mansion-arcade-drawer[open] .mesa-juego) .mj-mansion-host .mj-help { display:none }
+.md-game-side:has(> .ae-mesa .mj-goal:not([hidden])) > .md-question,
+.vd-game:has(> .ae-mesa .mj-goal:not([hidden])) > .vd-game-heading .vd-note { display:none }
+@media(max-width:40rem) {
+  .mesa-juego { gap:.55rem; padding:.65rem .8rem }
+  .mesa-juego .mj-reading { flex-basis:100% }
+  .mesa-juego .mj-actions { width:100% }
+}
+@media(forced-colors:active) {
+  .mesa-juego,.mesa-juego :is(.mj-tool,.mj-next,.mj-help) { border:1px solid ButtonText }
+}

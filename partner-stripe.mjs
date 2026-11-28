@@ -85,12 +85,20 @@ function phaseForm(phase,index,eligible,known,price){
     const request=discountRef(entry,known).request;if(!request)throw conflict();return request;
   });
   kept.items=[row];put(form,prefix,kept);
-  const replacement=discountsFor(phase.discounts,eligible,known);
+  const replacement=eligible===null?null:discountsFor(phase.discounts,eligible,known);
   const keptDiscounts=replacement || (phase.discounts||[]).map(entry=>{
     const request=discountRef(entry,known).request;if(!request)throw conflict();return request;
   });
   putDiscounts(form,prefix+'[discounts]',keptDiscounts);
   return {form,changed:replacement!==null};
+}
+
+// Preserve the paid phase, including its current discounts and billing settings.
+export function finalPaidPhase(phase,index,periodEnd,price){
+  const {form}=phaseForm(phase,index,null,new Map(),price);
+  form['phases['+index+'][end_date]']=String(Math.min(phase.end_date,periodEnd));
+  form['phases['+index+'][proration_behavior]']='none';
+  return form;
 }
 
 // Re-read before each reconciliation and express every mutation as an absolute

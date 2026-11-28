@@ -1,0 +1,55 @@
+.site-how-link { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 .35rem; color:#ead8aa; font:600 .85rem/1.25 var(--sans,system-ui,sans-serif); text-decoration:underline; text-underline-offset:.25em; white-space:nowrap; }
+.site-how-link:is(:hover,[aria-current="page"]) { color:#fff4da; }
+.how-guide,.how-quick { --how-ink:#f4eddb; --how-muted:#c7c8bb; --how-edge:#475951; --how-link:#efcf8e; color:var(--how-ink); font-family:var(--sans,system-ui,sans-serif); }
+.how-guide { max-inline-size:64rem; margin-inline:auto; }
+.how-guide :is(h1,h2),.how-quick h2 { color:var(--how-ink); font-family:var(--serif,Georgia,serif); font-weight:500; }
+.how-guide h1 { margin:0; font-size:clamp(2.55rem,6.3vw,5.4rem); line-height:1.03; }
+.how-guide h2,.how-quick h2 { margin:0 0 .55rem; font-size:clamp(1.55rem,3vw,2.3rem); line-height:1.16; text-wrap:balance; }
+.how-guide p,.how-quick p,.how-guide dd,.how-guide li,.how-quick li { color:var(--how-muted); line-height:1.55; }
+.how-guide :is(a,summary),.how-quick a { color:var(--how-link); text-underline-offset:.20em; }
+.how-heading { margin:.5rem 0 clamp(1.3rem,3vw,2.55rem); }
+.how-heading p { margin:.65rem 0 0; max-width:56ch; font-size:clamp(1rem,1.7vw,1.18rem); }
+.how-practice { display:grid; grid-template-columns:minmax(12rem,.7fr) minmax(0,1.3fr); gap:clamp(1rem,3vw,2.5rem); padding:clamp(1rem,2.4vw,1.65rem); background:#172620; border:1px solid var(--how-edge); border-radius:.65rem; }
+.how-practice p { margin:0; }
+guide-comparison { display:block; min-inline-size:0; }
+.how-objects { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+.how-objects button { display:grid; overflow:hidden; min-inline-size:0; min-height:44px; padding:0; color:var(--how-ink); background:#101b18; border:1px solid #6e7766; border-radius:.4rem; text-align:start; cursor:pointer; }
+.how-objects button:is(:hover,[aria-pressed="true"]) { border-color:#eed297; }
+.how-objects button[aria-pressed="true"] { box-shadow:0 0 0 2px #eed297; }
+.how-objects button span { display:grid; gap:.06rem; padding:.4rem .6rem .55rem; }
+.how-objects img { display:block; width:100%; height:auto; aspect-ratio:1.85; object-fit:cover; }
+.how-objects small { color:#c6c8b7; font:500 .77rem/1.25 var(--sans,system-ui,sans-serif); }
+.how-objects strong { font:600 clamp(.98rem,1.7vw,1.12rem)/1.25 var(--sans,system-ui,sans-serif); overflow-wrap:anywhere; }
+.how-practice .how-finding { min-block-size:3.5em; margin:.8rem 0 0; padding-inline-start:.7rem; border-inline-start:2px solid #c6ac6f; color:#f2e4c4; }
+.how-roles,.how-actions,.how-reference { margin-top:clamp(1.8rem,4.5vw,3.35rem); }
+.how-roles dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:clamp(.9rem,3vw,2.7rem); margin:.85rem 0 0; }
+.how-roles dt,.how-actions strong { color:var(--how-ink); font-weight:650; }
+.how-roles dt { margin-bottom:.25rem; }
+.how-roles dd { margin:0; }
+.how-actions ol,.how-quick ol { margin:0; padding-inline-start:1.2rem; }
+.how-actions li,.how-quick li { padding-inline-start:.3rem; margin-bottom:.45rem; }
+.how-actions li::marker,.how-quick li::marker{color:var(--how-link);}
+.how-reference p { margin:.45rem 0 .9rem; max-inline-size:72ch; }
+.how-reference details { border-top:1px solid var(--how-edge); }
+.how-reference summary { width:fit-content; padding:.7rem .15rem; min-block-size:44px; cursor:pointer; font-weight:600; }
+.how-start,.how-quick-actions { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem 1.1rem; margin-top:1.25rem; }
+.how-start a,.how-quick-actions :is(button,a),gameplay-help button { min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
+.how-start a:first-child,.how-quick-actions button { padding:.65rem 1rem; border:1px solid #dfc17e; border-radius:.3rem; background:#efd292; color:#15221c; font:650 .94rem/1.2 var(--sans,system-ui,sans-serif); text-decoration:none; cursor:pointer; }
+.how-quick { box-sizing:border-box; width:min(32rem,calc(100vw - 1.5rem)); max-height:calc(100dvh - 1.5rem); overflow:auto; overscroll-behavior:contain; padding:clamp(1rem,3vw,1.75rem); background:#15231f; border:1px solid #978360; border-radius:.55rem; box-shadow:0 18px 70px #0008; }
+.how-quick::backdrop { background:#080d10ba; }
+.how-quick p { margin:.6rem 0 .95rem; }
+gameplay-help button { color:#f4e5c0; padding:.45rem .7rem; border:1px solid #766d54; background:#1d2b25; border-radius:.3rem; cursor:pointer; }
+.how-guide :is(button,a,summary):focus-visible,.how-quick :is(button,a):focus-visible,.site-how-link:focus-visible { outline:3px solid #ffe2a7; outline-offset:3px; }
+@media(max-width:700px){
+  .how-practice,.how-roles dl{grid-template-columns:minmax(0,1fr);}
+  .how-roles dl{gap:.75rem;}
+  .how-practice .how-finding{min-block-size:3.2em;}
+}
+@media(max-width:475px){
+  .site-how-link{max-inline-size:4.2rem; white-space:normal; text-align:center; padding:0 .1rem; font-size:.78rem;}
+  .how-objects{gap:.5rem;}
+}
+@media(max-width:360px){
+  .postal-visitor .sidebar .public-account-actions { gap:.2rem; }
+  .postal-visitor .sidebar .public-account-actions .postal-login { padding-inline:.45rem; }
+}

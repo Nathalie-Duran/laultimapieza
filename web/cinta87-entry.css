@@ -3,6 +3,12 @@
 #scene-preview.c87-dialog::backdrop { background:rgb(6 14 12 / 85%); }
 #scene-preview.c87-dialog:not([open]) { display:none; }
 .c87-page { width:min(100%,70rem); min-height:100dvh; margin:0 auto; }
+body.c87-standalone:has(.c87-page) { display:block; min-height:100dvh; margin:0; padding:clamp(.4rem,2vw,1.7rem); color:#f6efdc; background:#0c1918 }
+body.c87-standalone .c87-page { width:min(100%,68rem); max-width:none; min-height:0 }
+body.c87-standalone .c87-utilities { max-width:none; width:100%; margin:0; box-sizing:border-box }
+#scene-preview.c87-dialog[open] { display:block; margin:auto; inset:0; min-width:0; height:auto; max-width:calc(100% - 1rem); overscroll-behavior:contain }
+.c87-dialog [data-c87-heading],.c87-page [data-c87-heading] { scroll-margin-block:1rem }
+.c87-dialog .c87-utilities,.c87-page .c87-utilities { font:400 .92rem/1.5 system-ui,sans-serif }
 .c87-utilities { display:block; margin:0; padding:.5rem clamp(.8rem,4vw,2rem); border:0; border-top:1px solid #657360; text-align:left; }
 .c87-utilities summary,.c87-utilities button,.c87-utilities label { min-height:44px; line-height:1.5; }
 .c87-utilities summary { display:list-item; padding:.7rem 0; color:#eaca8f; cursor:pointer; }
@@ -13,5 +19,6 @@
 .c87-utilities :focus-visible { outline:3px solid #f4d696; outline-offset:2px; }
 .md-file-copy .md-demo-link { display:inline-flex; align-items:center; min-height:44px; color:var(--md-light); text-decoration:underline; text-underline-offset:.2em; }
 @media (max-width:600px) {
-  #scene-preview.c87-dialog { width:100%; height:100dvh; max-height:100dvh; border:0; border-radius:0; }
+  #scene-preview.c87-dialog[open] { width:100%; max-width:100%; height:100dvh; max-height:100dvh; border:0; border-radius:0; margin:0; }
+  body.c87-standalone:has(.c87-page) { padding:0 }
 }

@@ -389,6 +389,16 @@
 .pase-condiciones a{color:#2c483d;text-underline-offset:.2em}
 .pase-condiciones .pase-pareja{margin-bottom:0}
 .pase-login{background:none;color:inherit;border:0;font:inherit;padding:.65rem 0;text-decoration:underline;text-underline-offset:.2em;cursor:pointer}
+.renewal-controls{margin:1rem 0;padding-block:1rem;border-block:1px solid #8a8779}
+.renewal-controls h3{font:650 1.13rem/1.35 var(--sans,system-ui,sans-serif);color:inherit;margin:0 0 .35rem}
+.renewal-controls p{line-height:1.55;margin:.45rem 0}
+.renewal-controls [hidden]{display:none!important}
+.renewal-buttons{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1rem}
+.renewal-controls .button{min-height:44px;white-space:normal}
+.renewal-controls .renewal-confirm{background:#762e26;color:#fff;border-color:#762e26}
+.renewal-controls :focus-visible{outline:3px solid #bc8c44;outline-offset:3px}
+.pase-sencillo .account-card a:not(.button){color:#edcca0;text-underline-offset:.2em}
+.pase-sencillo .account-card>.button{display:inline-flex;align-items:center;min-height:44px;margin:.2rem .3rem .2rem 0}
 @media(max-width:720px){
  .pase-temporada .pase-resumen .pase-apertura{width:100%;align-self:end;padding:1.4rem}
  .pase-temporada .pase-resumen::before{background:linear-gradient(0deg,rgb(16 24 23 / 50%) 0%,transparent 45%)}

@@ -90,6 +90,7 @@
     if(!standalone&&!host.open)host.showModal();
     const exitLabel=standalone?(caseCode()?'Volver a la ficha':'Volver al catálogo'):'Cerrar la demo';
     running=window.Cinta87Demo.mount(game,{exitLabel,onArchive:()=>location.assign(archiveUrl()),onExit:exit,onEvent:track});
+    if(!standalone)game.querySelector?.('[data-c87-heading]')?.focus();
   }
   window.CasePreview={open:(_format,origin)=>open(origin),close:exit,
     hasProgress:()=>Boolean(window.Cinta87Demo?.hasProgress()),isComplete:()=>Boolean(window.Cinta87Demo?.isComplete())};

@@ -58,10 +58,90 @@
     return '<section class="account-card reto-calendario" id="calendar-challenges">'+heading+'<ul class="reto-periodos"><li><strong>Desafío diario</strong><span>Una prueba · 1 llave</span></li><li><strong>Misión semanal</strong><span>Tres pruebas de lunes a domingo · 2 llaves</span></li></ul><p>Elige una prueba y marca tu respuesta. Si dejas pasar una edición, conservas las llaves y el avance de tus aventuras. Los periodos cambian a medianoche, hora de Madrid.</p><p role="status" aria-live="polite"></p><div data-challenges></div></section>'+
       (signed||!standalone?published:'');
   }
-  function question(item){
-    return `<fieldset><legend>Prueba ${item.index+1} de ${item.total} · ${esc(item.prompt)}</legend>
+  function question(item,withMesa) {
+    const legend=withMesa?'Opciones de respuesta':'Prueba '+(item.index+1)+' de '+item.total+' · '+item.prompt;
+    return `<fieldset${withMesa?' aria-describedby="reto-objetivo-'+esc(item.id)+'"':''}><legend>${esc(legend)}</legend>
       ${item.options.map((opt,index)=>`<label class="field"><span><input name="option" type="radio" value="${index}" required> ${esc(opt)}</span></label>`).join('')}</fieldset>
       <button type="submit" class="button primary">Comprobar respuesta</button>`;
+  }
+  function challengeCard(item,calendar) {
+    const edition=calendar?scheduleKinds[item.schedule.kind]+' · ':'';
+    const reward=calendar?item.prize+(item.prize===1?' llave':' llaves'):'Temporada '+Math.ceil(item.caseId/12)+' · Caso '+((item.caseId-1)%12+1);
+    return `<details class="account-card" name="reto-en-juego"><summary>${esc(edition+item.title)}<span data-reto-progreso></span></summary>
+      <p>${esc(reward)} · ${item.total} ${item.total===1?'prueba':'pruebas'}${scheduleCaption(item.schedule,calendar)}</p><div data-mesa-reto></div>
+      <form data-challenge="${esc(item.id)}"><p role="status" aria-live="polite"></p><div data-question></div></form>
+      <button type="button" class="text-link" data-repasar hidden>Repasar la última prueba</button></details>`;
+  }
+  function bindChallenge(details,item,path,reload) {
+    const form=details.querySelector('form'),fields=form.querySelector('[data-question]');
+    const feedback=form.querySelector('[role=status]'),review=details.querySelector('[data-repasar]'),summary=details.querySelector('summary');
+    const saved=summary.querySelector('[data-reto-progreso]');
+    const host=details.querySelector('[data-mesa-reto]');
+    let mesa=null,busy=false,reviewing=false,note='';
+    function focusOptions(){(fields.querySelector('input:checked')||fields.querySelector('input'))?.focus();}
+    function renderBoard(){
+      const done=item.solved&&!reviewing;
+      if(!mesa){
+        feedback.textContent=note||(done?'Reto completado. El premio ya figura en tu llavero.':'');
+        return;
+      }
+      const count=item.total===1?'prueba resuelta':'pruebas resueltas';
+      mesa.update({family:'reto',title:item.title,progress:done?item.total+' de '+item.total+' '+count:(reviewing?'Repaso · ':'')+'Prueba '+(item.index+1)+' de '+item.total,
+        objective:done?'':item.prompt,result:note||(done?'Reto completado. El premio ya figura en tu llavero.':''),
+        help:{context:'reto',text:done?'Ya completaste esta edición. Puedes consultar de nuevo la última pregunta.':'Lee toda la pregunta, marca una de las opciones y pulsa «Comprobar respuesta».',
+          steps:item.total>1?['Las pruebas se abren en orden.','Un acierto guarda el paso y muestra la pregunta siguiente.','Si fallas, puedes volver a responder la misma pregunta.']:['Marca una opción y comprueba tu decisión.','Si fallas, puedes elegir otra respuesta.']},
+        next:done?{label:'Elegir otro reto',run(){details.open=false;summary.focus();}}:{label:'Ir a las respuestas',run:focusOptions}});
+    }
+    function paintQuestion(){
+      const done=item.solved&&!reviewing;
+      saved.textContent=item.solved?' · Resuelto':item.index?' · Guardado '+item.index+' de '+item.total:'';
+      review.hidden=!done;fields.hidden=done;
+      fields.innerHTML=done?'':question(item,!!mesa);
+      renderBoard();
+    }
+    function enter(){
+      if(!details.open||mesa||!window.MesaDeJuego)return;
+      mesa=window.MesaDeJuego.mount(host,{family:'reto',title:item.title});
+      const goal=host.querySelector('.mj-goal');
+      if(goal)goal.id='reto-objetivo-'+item.id;
+      feedback.hidden=true;paintQuestion();
+    }
+    paintQuestion();details.addEventListener('toggle',enter);
+    if(details.open)enter();
+    review.addEventListener('click',()=>{
+      reviewing=true;note='Puedes repasar esta pregunta. El premio ya está registrado.';paintQuestion();focusOptions();
+    });
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const chosen=fields.querySelector('input:checked');
+      if(!chosen||busy||item.solved&&!reviewing)return;
+      busy=true;
+      const button=fields.querySelector('button[type="submit"]');
+      button.disabled=true;
+      try {
+        const result=await request(path,{id:item.id,revision:item.revision,index:item.index,option:Number(chosen.value)},'POST');
+        if(!form.isConnected)return;
+        if(!result.correct){
+          note='Esa opción no encaja. Revisa la pregunta y elige otra respuesta.';renderBoard();focusOptions();return;
+        }
+        const wasSolved=item.solved;
+        item=result.next;reviewing=false;note=result.explanation||'Respuesta correcta.';
+        if(item.solved){
+          if(!wasSolved){
+            details.dispatchEvent(new CustomEvent('editorial-challenge-solved',{bubbles:true}));
+          }
+          note+=' Reto completado. El premio ya figura en tu llavero.';
+        }
+        paintQuestion();
+        if(item.solved)(host.querySelector('.mj-next')||review).focus();else focusOptions();
+      }catch(error){
+        if(!form.isConnected)return;
+        if(error.status===404||error.status===409)await reload();
+        else{note=error.message||'No se ha podido comprobar la respuesta. Vuelve a intentarlo.';renderBoard();}
+      }finally{
+        busy=false;if(button.isConnected)button.disabled=false;
+      }
+    });
   }
   async function mount() {
     await Promise.all([mountPanel('published-challenges',publicPath,false),mountPanel('calendar-challenges','/api/calendar-challenges',true)]);
@@ -83,41 +163,18 @@
       if(calendar)panel.querySelector('.reto-periodos').hidden=items.length>0;
       if(!calendar&&!items.length){panel.hidden=true;return;}
       status.textContent=calendar?(items.length?'':'El calendario se abre con el primer caso de Código Valdemar.'):'Una llave por la primera resolución.';
-      list.innerHTML=items.map(item=>`<details class="account-card"><summary>${calendar?esc(scheduleKinds[item.schedule.kind])+' · ':''}${esc(item.title)}${item.solved?' · Resuelto':''}</summary>
-        <p>${calendar?item.prize+(item.prize===1?' llave':' llaves'):'Temporada '+Math.ceil(item.caseId/12)+' · Caso '+((item.caseId-1)%12+1)} · ${item.total} ${item.total===1?'prueba':'pruebas'}${scheduleCaption(item.schedule,calendar)}</p>
-        <form data-challenge="${esc(item.id)}" data-index="${item.index}" data-revision="${item.revision}">
-        <p role="status" aria-live="polite"></p><div data-question>${question(item)}</div></form></details>`).join('');
-      list.onsubmit=async event=>{
-        const form=event.target;
-        if(!form.matches('[data-challenge]'))return;
-        event.preventDefault();
-        const button=form.querySelector('button'), feedback=form.querySelector('[role=status]');
-        if(button.disabled)return;
-        button.disabled=true;
-        try {
-          const result=await request(path,{id:form.dataset.challenge,revision:Number(form.dataset.revision),index:Number(form.dataset.index),option:Number(form.elements.option.value)},'POST');
-          if(!panel.isConnected)return;
-          feedback.textContent=result.correct?result.explanation:'Revisa las pistas y prueba otra respuesta.';
-          if(result.correct && !result.next.solved){
-            form.dataset.index=String(result.next.index);
-            form.querySelector('[data-question]').innerHTML=question(result.next);
-            form.querySelector('input').focus();
-          }
-          if(result.correct && result.next.solved){
-            const summary=form.closest('details').querySelector('summary');
-            if(!summary.textContent.endsWith(' · Resuelto'))summary.textContent+=' · Resuelto';
-            panel.dispatchEvent(new CustomEvent('editorial-challenge-solved',{bubbles:true}));
-          }
-        } catch(error){
-          if(!panel.isConnected)return;
-          if(calendar && error.status===404){
-            delete panel.dataset.bound;
-            await mountPanel(panelId,path,true);
-            status.textContent='El calendario ha cambiado. Elige una de las ediciones disponibles.';
-          }else feedback.textContent=error.message||'No se ha podido comprobar la respuesta.';
-        }
-        finally{button.disabled=false;}
-      };
+      list.innerHTML=items.map(item=>challengeCard(item,calendar)).join('');
+      const cards=list.querySelectorAll('details');
+      items.forEach((item,index)=>bindChallenge(cards[index],item,path,async()=>{
+        delete panel.dataset.bound;
+        await mountPanel(panelId,path,calendar);
+        if(!panel.isConnected)return;
+        status.textContent='Esta edición ha cambiado. Consulta la lista actualizada.';
+        const refreshed=[...list.querySelectorAll('form[data-challenge]')].find(form=>form.dataset.challenge===item.id)?.closest('details');
+        const destination=refreshed?.querySelector('summary')||list.querySelector('summary')||status;
+        if(destination===status)status.tabIndex=-1;
+        destination.focus();
+      }));
     } catch(error) {
       if(!panel.isConnected)return;
       status.textContent=error.message||'No se pudieron cargar los retos.';

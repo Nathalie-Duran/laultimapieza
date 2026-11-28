@@ -62,7 +62,7 @@ function blockGames(number,block){
    return `<li><a href="${link}"><img src="${esc(image)}" alt="" width="320" height="180" loading="lazy"><span><small>Juego ${id}</small><strong>${esc(game.title)}</strong></span></a></li>`;
   }).join('')}</ol></section>`;
 }
-function adminCard(){return '<section class="account-card"><span class="club-kicker">Acceso editorial</span><h2>Tienes los 48 juegos abiertos</h2><p>Para jugar en pareja, guarda a tu compañero en Mi cuenta y pulsad «En pareja» en el mismo juego desde vuestras cuentas.</p><a class="button" href="/#casos">Abrir Juegos</a> <a class="button" href="/#perfil?seccion=pareja">Ver mi compañero de juego</a></section>';}
+function adminCard(){return '<section class="account-card"><span class="club-kicker">Acceso editorial</span><h2>Tienes los 48 juegos abiertos</h2><p>Para jugar en pareja, guarda a tu compañero en Mi cuenta y pulsad «En pareja» en el mismo juego desde vuestras cuentas.</p><a class="button" href="/#casos">Abrir Juegos</a> <a class="button" href="/#perfil?seccion=pareja">Ver mi compañero de juego</a>'+(state.hasCustomer?'<h3>Facturación personal</h3>'+renewalControls()+'<button class="button" data-action="billing-portal">Ver mis facturas</button>':'')+'</section>';}
 function catalogPaid(access){return (access?.seasons||[]).reduce((sum,season)=>sum+season.paidBlocks.length,0)>=12;}
 function duesRemaining(access,held){
  if(catalogPaid(access))return false;
@@ -97,7 +97,7 @@ function questions(){
    <details><summary>¿Qué ocurre si me salto un desafío diario o una misión semanal?</summary><p>Tu partida y tus llaves se conservan. Desde el primer caso de Código Valdemar puedes jugar una prueba diaria por una llave y una misión de tres etapas por dos llaves cada semana. Cada edición indica cuándo cierra, en horario de Madrid. <a href="/#desafios">Ver los Retos extra disponibles</a></p></details>
    <details><summary>¿Cómo paso a la siguiente temporada?</summary><p>Al guardar los doce desenlaces de una temporada puedes jugar los bloques ya abonados de la siguiente. Cada cuota nueva se acumula aunque avances más despacio. <a href="/#tableros">Ver las cuatro temporadas en orden</a></p></details>
    <h2>Cobros, privacidad y avisos</h2>
-   <details><summary>¿Cómo gestiono o cancelo mi suscripción?</summary><p>En Mi cuenta, abre Cuenta y elige «Gestionar mi suscripción». Puedes cancelar antes del siguiente cobro. Conservas el acceso durante el periodo abonado. Después podrás terminar las temporadas que hayas abonado por completo, en orden. Con la suscripción mensual actual los cobros terminan automáticamente cuando quedan abonados los 48 juegos. Los pases de temporada contratados anteriormente conservan su calendario original. <a href="/#perfil?seccion=cuenta">Ir a Mi cuenta</a></p></details>
+   <details><summary>¿Cómo gestiono o cancelo mi suscripción?</summary><p>En tu perfil, abre Suscripción y pulsa «Dar de baja mi suscripción». Comprueba la fecha y elige «Confirmar la baja» para detener las renovaciones. Conservas el acceso durante el periodo abonado. Después podrás terminar las temporadas que hayas abonado por completo, en orden. Con la suscripción mensual actual los cobros terminan automáticamente cuando quedan abonados los 48 juegos. Los pases de temporada contratados anteriormente conservan su calendario original. <a href="/#suscripcion">Abrir Suscripción</a></p></details>
    <details><summary>¿Qué datos guardáis y cómo puedo gestionarlos?</summary><p>La cuenta conserva tus partidas, etapas y desenlaces para que puedas volver a ellos. La demo recuerda tu avance en el navegador. Consulta tus controles o escribe al Equipo de LaUltimaPieza.es en <a href="mailto:info@laultimapieza.es">info@laultimapieza.es</a> para ejercer tus derechos. <a href="/privacidad.html">Ver privacidad y datos</a></p></details>
    <details><summary>¿Puedo retirar el aviso de apertura?</summary><p>Abre la gestión de avisos en el navegador donde lo solicitaste. Si usas otro dispositivo, puedes retirarlo desde una cuenta con ese mismo correo verificado. <a href="/#planes?gestion=aviso">Gestionar mi aviso</a></p></details>
  </section>`;
@@ -114,6 +114,50 @@ function noticeManagement(){
  <p class="pase-links"><a href="/privacidad.html#avisos">Privacidad del aviso</a> · <a href="/#planes">Volver al pase</a></p>
  </article></div></section>`;
 }
+function renewalControls(){
+ const info=state.renewal||{};
+ if(!state.hasCustomer||info.status==='none')return '';
+ const date=info.effectiveAt?new Date(info.effectiveAt).toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric',timeZone:'Europe/Madrid'}):'';
+ let content;
+ if(info.status==='scheduled')content='<h3>Baja programada</h3><p>La renovación está cancelada.'+(date?' El periodo termina el '+date+'.':'')+'</p>';
+ else if(info.status==='ended')content='<h3>Suscripción finalizada</h3><p>Esta suscripción ya no se renueva.</p>';
+ else if(info.status==='ending'||catalogPaid(state.seasonAccess)||state.seasonAccess?.billingPlan==='season'&&state.seasonAccess?.seasons?.filter(s=>s.paidBlocks?.length&&s.previousReady!==false).at(-1)?.paidBlocks.length===3)content='<h3>Último periodo abonado</h3><p>Este pase ha completado sus cuotas y ya no se renueva.</p>';
+ else content='<button type="button" class="button renewal-open" data-renewal="review">Dar de baja mi suscripción</button>';
+ return '<section class="renewal-controls" aria-label="Baja de la suscripción">'+content+'<div class="renewal-status" aria-live="polite"></div></section>';
+}
+async function handleRenewal(event){
+ const button=event.target.closest?.('[data-renewal]');
+ if(!button||button.disabled)return;
+ const box=button.closest('.renewal-controls');
+ const label=box.querySelector('.renewal-status');
+ const opener=box.querySelector('[data-renewal="review"]');
+ if(button.dataset.renewal==='back'){label.replaceChildren();opener.hidden=false;opener.focus();return;}
+ const verify=button.dataset.renewal==='confirm';
+ if(verify)for(const b of label.querySelectorAll('button'))b.disabled=true;
+ button.disabled=true;
+ const bridge=root.GameAccountBridge;
+ try{
+  const response=verify?await bridge.request('/api/billing/cancellation',{confirm:true,confirmation:button.dataset.confirmation},'POST'):await bridge.request('/api/billing/cancellation',undefined,'GET');
+  if(!box.isConnected)return;
+  const date=response.effectiveAt?new Date(response.effectiveAt).toLocaleDateString('es-ES',{timeZone:'Europe/Madrid',day:'numeric',month:'long',year:'numeric'}):'';
+  if(response.status==='available'&&!verify&&typeof response.confirmation==='string'){
+    opener.hidden=true;
+    label.innerHTML='<h3 tabindex="-1">¿Confirmas la baja de tu suscripción?</h3><p>Las renovaciones se detendrán el <strong>'+esc(date)+'</strong>. Conservarás el tiempo ya abonado, tu cuenta y tus partidas. Las facturas ya emitidas mantienen su estado.</p><div class="renewal-buttons"><button class="button" type="button" data-renewal="back">Mantener mi suscripción</button><button class="button renewal-confirm" type="button" data-renewal="confirm">Confirmar la baja</button></div>';
+    label.querySelector('[data-renewal="confirm"]').dataset.confirmation=response.confirmation;
+  }else if(['scheduled','ended','ending','none'].includes(response.status)){
+    state={...state,renewal:{status:response.status,effectiveAt:response.effectiveAt}};
+    opener.hidden=true;
+    const message=response.status==='scheduled'?['Baja programada','Las renovaciones quedan canceladas. El periodo termina el '+date+'.']:response.status==='ending'?['Último periodo de la suscripción','El pase termina el '+date+' sin otra renovación.']:['Sin renovaciones pendientes','Esta cuenta no tiene una suscripción pendiente de renovación.'];
+    label.innerHTML='<h3 tabindex="-1">'+message[0]+'</h3><p>'+message[1]+'</p>';
+  }else{throw Error('No hemos podido confirmar el estado de la suscripción.');}
+  label.querySelector('h3')?.focus();
+ }catch(error){
+  if(!box.isConnected)return;
+  label.innerHTML='<p role="alert"></p>';label.firstElementChild.textContent=error.message||'No se ha podido verificar la baja. Consulta de nuevo su estado.';
+  opener.hidden=false;opener.focus();
+ }finally{if(opener)opener.disabled=false;}
+}
+if(typeof document!=='undefined')document.addEventListener('click',handleRenewal);
 function presentOffer(number,held,offer,reviewing,focused,signed){
  const access=state.seasonAccess,paid=catalogPaid(access);
  const ready=configStatus==='ready',eligible=!signed||!access||Boolean(offer);
@@ -140,7 +184,7 @@ function presentOffer(number,held,offer,reviewing,focused,signed){
  const status=paid?'Los 48 juegos están abonados. Los cobros del catálogo han terminado.':completedSeason?'Has abonado los doce juegos. Los cobros de este pase de temporada han terminado.':state.ownAccess?(access?.billingPlan==='season'?'Tu pase de temporada termina cuando abones los tres bloques.':'Cada renovación confirmada abona el siguiente bloque de cuatro juegos.') : !eligible?'Consulta los juegos y bloques disponibles en tu cuenta.':waiting?'La contratación aún está cerrada. Te avisamos por correo cuando abra.':configStatus==='error'?'No hemos podido consultar si la contratación está abierta.':'La primera cuota se cobra al contratar.';
  const detail=paid||completedSeason?'Puedes terminar a tu ritmo las temporadas abonadas, en orden.':state.ownAccess&&access?.billingPlan==='season'?'Puedes cancelar antes del siguiente cobro. Tu pase conserva su calendario original.':'Puedes cancelar antes del siguiente cobro. Si continúas, la suscripción termina automáticamente al abonar los 48 juegos de las cuatro temporadas.';
  const price=returning?'':'<p class="pase-cuota"><strong>'+monthlyPrice()+'</strong> <span>por persona al mes · IVA incluido</span></p>';
- const partner=paid||completedSeason||!partnerTerms()?'':partnerOfferCard(signed,qualified);
+ const partner=paid||completedSeason||['scheduled','ended','ending'].includes(state.renewal?.status)||!partnerTerms()?'':partnerOfferCard(signed,qualified);
  if(focused)return `<section class="pase-temporada pase-sencillo"><p class="pase-links">${goBack}</p><article class="pase-ficha"><h1 id="pass-review-title" tabindex="-1">${reviewing?'Revisa tu suscripción':'Suscripción mensual'}</h1>
     ${price}<p>Cuatro juegos por cuota. El bloque ${block} corresponde a ${seasonNames[number-1]}.</p><p>${status} ${detail}</p>
     <div class="pase-decision">${action}${terms?'<p>'+terms+'</p>':''}</div>${partner}</article><p class="pase-links">${help}</p></section>`;
@@ -195,7 +239,7 @@ root.ClubAccess={...old,plans,enrollment:plans,gate(){
  const current=access?.seasons?.filter(s=>s.paidBlocks.length && s.previousReady!==false).at(-1);
  const next=access?.nextPurchase;
  const canFinish=current?.finishAccess && current.completed<12;
- const title=catalogPaid(access)?'Catálogo abonado':current?.finishAccess&&current.completed===12?'Temporada completada':state.ownAccess?'Tu temporada está activa':canFinish?'Tu temporada está pendiente de terminar':current?'Tu pase está en pausa':'Cuenta gratuita';
+ const title=catalogPaid(access)?'Catálogo abonado':state.renewal?.status==='scheduled'?'Tu periodo abonado':state.renewal?.status==='ended'?'Tu suscripción ha finalizado':state.renewal?.status==='active'?'Tu suscripción está activa':current?.finishAccess&&current.completed===12?'Temporada completada':state.ownAccess?'Tu temporada está activa':canFinish?'Tu temporada está pendiente de terminar':current?'Tu pase está en pausa':'Cuenta gratuita';
  const progress=(access?.seasons||[]).filter(s=>s.paidBlocks.length).map(s=>{
    const name=seasonNames[s.number-1];
    const paid=s.finishAccess?'Temporada abonada':s.paidBlocks.length+' de 3 bloques abonados';
@@ -205,11 +249,11 @@ root.ClubAccess={...old,plans,enrollment:plans,gate(){
  const noticeLink='<p><a href="/#planes?gestion=aviso">Gestionar avisos de apertura</a> · <a href="/privacidad.html">Privacidad y datos</a></p>';
  const nextLink=!state.ownAccess&&next?'<a class="button" href="#planes">Ver la suscripción mensual</a>':'';
  const period=state.periodEnd?'<p>Periodo abonado hasta el '+new Date(state.periodEnd).toLocaleDateString('es-ES')+'.</p>':'';
- const billing=state.hasCustomer?'<button class="button" data-action="billing-portal">Gestionar mi suscripción</button>':'';
+ const billing=state.hasCustomer?'<button class="button" data-action="billing-portal">Ver facturas y métodos de pago</button>':'';
  const subtitle=standalone?'':'<span class="club-kicker">Mi suscripción</span>';
- const personalOffer=standalone&&state.ownAccess&&duesRemaining(access,current)&&partnerTerms()&&state.partnerOffer?.eligible===true&&state.partnerOffer?.status==='eligible'?partnerOfferCard(true,true):'';
+ const personalOffer=standalone&&!['scheduled','ended','ending'].includes(state.renewal?.status)&&state.ownAccess&&duesRemaining(access,current)&&partnerTerms()&&state.partnerOffer?.eligible===true&&state.partnerOffer?.status==='eligible'?partnerOfferCard(true,true):'';
  const action=!current&&!billing&&!nextLink?'<a class="button" href="/#planes">Ver plan y disponibilidad</a>':'';
- return '<section class="account-card">'+subtitle+'<h2>'+title+'</h2>'+(catalogPaid(access)?'<p>Las doce cuotas están cubiertas. Puedes seguir jugando sin nuevas renovaciones.</p>':'')+progress+period+personalOffer+billing+nextLink+action+noticeLink+'</section>';
+ return '<section class="account-card">'+subtitle+'<h2>'+title+'</h2>'+(catalogPaid(access)?'<p>Las doce cuotas están cubiertas. Puedes seguir jugando sin nuevas renovaciones.</p>':'')+renewalControls()+progress+period+personalOffer+billing+nextLink+action+noticeLink+'</section>';
 }};
 fetch('/api/billing/config',{cache:'no-store'}).then(async response=>{
  if(!response.ok)throw Error('config');

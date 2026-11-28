@@ -4,6 +4,7 @@ import {orderedCycles,releaseCalendar,SEASON_NAMES} from './progression.mjs';
 import {mailKey} from './mail-service.mjs';
 import {creditValdemarWelcome,worldSeasonAccess} from './valdemar-wallet.mjs';
 import {accountOffer,emailKey,indexPurchase,paidPassInvoice,publicPartnerOffer,regularAmountCents} from './partner-offer.mjs';
+import {subscriptionCancellation,cancellationSummary} from './subscription-cancellation.mjs';
 import {PARTNER_COUPON,applyRenewalOffer} from './partner-stripe.mjs';
 
 function publicDocumentUrl(value) {
@@ -64,13 +65,14 @@ export function validSignature(raw,header,secret,now=Date.now()){
   return fields.filter(x=>x.startsWith('v1=')).some(x=>{const value=x.slice(3);return /^[0-9a-f]{64}$/.test(value)&&timingSafeEqual(expected,Buffer.from(value,'hex'));});
 }
 export function createBilling(env=process.env,fetcher=fetch){
-  const configured=!!(env.STRIPE_SECRET_KEY&&env.STRIPE_WEBHOOK_SECRET&&env.STRIPE_PRICE_ID&&env.STRIPE_PORTAL_CONFIGURATION&&env.BILLING_TERMS_URL&&env.BILLING_PRIVACY_URL&&env.BILLING_ENABLED==='true');
+  const serviceConfigured=Boolean(env.STRIPE_SECRET_KEY&&env.STRIPE_WEBHOOK_SECRET&&env.STRIPE_PRICE_ID);
+  const configured=!!(serviceConfigured&&env.STRIPE_PORTAL_CONFIGURATION&&env.BILLING_TERMS_URL&&env.BILLING_PRIVACY_URL&&env.BILLING_ENABLED==='true');
   const portalConfigured=Boolean(env.STRIPE_SECRET_KEY?.trim() && env.STRIPE_PORTAL_CONFIGURATION?.trim());
   const origin='https://laultimapieza.es';
-  async function stripe(path,values,idem,{allowMissing=false}={}){
+  async function stripe(path,values,idem,{allowMissing=false,serviceExisting=false}={}){
     const portal=path==='billing_portal/sessions';
     if(portal && !portalConfigured)throw new ApiError(503,'El portal de gestión de suscripciones no está disponible en este momento.','BILLING_PORTAL_UNAVAILABLE');
-    if(!portal && !configured)throw new ApiError(503,'La contratación todavía no está abierta.','BILLING_UNAVAILABLE');
+    if(!portal && !(serviceExisting&&env.STRIPE_SECRET_KEY?.trim()) && !serviceConfigured)throw new ApiError(503,'La contratación todavía no está abierta.','BILLING_UNAVAILABLE');
     const response=await fetcher('https://api.stripe.com/v1/'+path,{method:values?'POST':'GET',headers:{Authorization:'Bearer '+env.STRIPE_SECRET_KEY,'Stripe-Version':'2026-10-28.endive',...(values?{'Content-Type':'application/x-www-form-urlencoded'}:{}),...(idem?{'Idempotency-Key':idem}:{})},...(values?{body:new URLSearchParams(values)}:{}),signal:AbortSignal.timeout(15000)});
     if(allowMissing && response.status===404)return null;
     if(portal && !response.ok)throw new ApiError(503,'No se ha podido abrir el portal de suscripciones. Inténtalo más tarde.','BILLING_PORTAL_UNAVAILABLE');
@@ -79,7 +81,7 @@ export function createBilling(env=process.env,fetcher=fetch){
   }
   async function sync(store,uid,{readOnly=false}={}){
     const data=await store.getMemberData(uid,{readOnly});
-    if(!configured||!data.customer)return {data,active:false};
+    if(!serviceConfigured||!data.customer)return {data,active:false};
     const subs=await stripe('subscriptions?customer='+encodeURIComponent(data.customer)+'&status=all&limit=10');
     const candidates=subs.data.filter(s=>s.metadata?.lup_uid===uid&&s.items?.data?.some(i=>i.price?.id===env.STRIPE_PRICE_ID));
     const purchaseHeld=candidates.some(s=>!['canceled','incomplete_expired'].includes(s.status));
@@ -92,6 +94,12 @@ export function createBilling(env=process.env,fetcher=fetch){
     }
     if(data.subscription!==sub.id){data.scheduleConfigured=false;data.schedule=null;}
     data.subscription=sub.id;
+    const stop=data.renewalStop;
+    if(stop&&stop.subscription===sub.id&&sub.status==='active'&&!sub.cancel_at_period_end&&sub.cancel_at*1000!==stop.effectiveAt){
+      // The customer or the provider may have reinstated this subscription.
+      const live=sub.schedule?await stripe('subscription_schedules/'+encodeURIComponent(sub.schedule)):null;
+      if(!live||live.end_behavior!=='cancel'||live.phases?.at(-1)?.end_date*1000!==stop.effectiveAt)delete data.renewalStop;
+    }
     const invoices=await stripe('invoices?subscription='+encodeURIComponent(sub.id)+'&status=paid&limit=100&expand[]=data.discounts&expand[]=data.total_discount_amounts.discount');
     const cycles=[];
     for(const invoice of invoices.data||[]){
@@ -125,7 +133,8 @@ export function createBilling(env=process.env,fetcher=fetch){
       const expectedInvoices=purchasedBlocks(item)?.length||3;
       const finalEnd=paid.length>=expectedInvoices?Math.max(...paid.map(c=>c.end)):null;
       const scheduledEnd=item.cancel_at?item.cancel_at*1000:null;
-      const requested=item.cancellation_details?.reason==='cancellation_requested';
+      const localStop=data.renewalStop?.subscription===item.id?data.renewalStop.effectiveAt:null;
+      const requested=item.cancellation_details?.reason==='cancellation_requested'||Boolean(localStop&&(endedAt||scheduledEnd===localStop))||Boolean(item.metadata?.lup_stop_at&&scheduledEnd===Number(item.metadata.lup_stop_at)*1000);
       const scheduledByUser=item.cancel_at_period_end||Boolean(requested&&scheduledEnd);
       const fullSeason=finalEnd&&endedAt&&endedAt>=finalEnd-1000;
       data.billingHistory[item.id]={id:item.id,startedAt:previous.startedAt||firstPaid,
@@ -134,7 +143,9 @@ export function createBilling(env=process.env,fetcher=fetch){
     }
     // Set the complete finite schedule on the provider before granting access.
     // Retries recover the schedule attached to the subscription; a rollback cannot duplicate it.
-    if(sub.status==='active'&&!sub.cancel_at_period_end&&!data.scheduleConfigured){
+    const currentEnd=sub.items?.data?.[0]?.current_period_end||sub.current_period_end;
+    const endingThisPeriod=sub.cancel_at&&currentEnd&&sub.cancel_at<=currentEnd;
+    if(sub.status==='active'&&!sub.cancel_at_period_end&&!endingThisPeriod&&!data.scheduleConfigured){
       if(readOnly)return {data,active:false,purchaseHeld};
       const schedule=sub.schedule?await stripe('subscription_schedules/'+sub.schedule):await stripe('subscription_schedules',{from_subscription:sub.id},'lup-season-'+sub.id);
       const start=schedule.current_phase?.start_date||schedule.phases?.[0]?.start_date;
@@ -209,7 +220,7 @@ export function createBilling(env=process.env,fetcher=fetch){
     return Math.floor(boundary/1000);
   }
   async function reconcileOffer(withStore,uid,version){
-    if(!configured)return;
+    if(!serviceConfigured)return;
     await withStore(async store=>{
       let data=await store.getMemberData(uid);
       if(version!==undefined && !await store.lockOfferJob(uid,version))return;
@@ -259,7 +270,7 @@ export function createBilling(env=process.env,fetcher=fetch){
     },
     refreshPartnerOffer:reconcileOffer,
     async processPartnerOffers(withStore){
-      if(!configured || processingOffers)return;
+      if(!serviceConfigured || processingOffers)return;
       processingOffers=true;
       try{
         await withStore(store=>store.expireOfferPurchases?.());
@@ -271,11 +282,11 @@ export function createBilling(env=process.env,fetcher=fetch){
         }
       }finally{processingOffers=false;}
     },
-    async membership(store,uid,options){const {data,active,purchaseHeld}=await sync(store,uid,options);return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess:worldSeasonAccess(data,{active,purchaseHeld}),periodEnd:data.periodEnd||null,waitlist:!!data.waitlist,hasCustomer:!!data.customer,partnerOffer:await accountOffer(store,uid,data.preferredPartnerEmail)};},
+    async membership(store,uid,options){const {data,active,purchaseHeld}=await sync(store,uid,options);return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess:worldSeasonAccess(data,{active,purchaseHeld}),periodEnd:data.periodEnd||null,renewal:cancellationSummary(data),waitlist:!!data.waitlist,hasCustomer:!!data.customer,partnerOffer:await accountOffer(store,uid,data.preferredPartnerEmail)};},
     async pollMembership(store,uid){
       const data=await store.getMemberData(uid,{readOnly:true});
       const now=Date.now();
-      if(!configured || !data.customer)return {canPlay:false,seasonAccess:worldSeasonAccess(data,{active:false})};
+      if(!serviceConfigured || !data.customer)return {canPlay:false,seasonAccess:worldSeasonAccess(data,{active:false})};
       if(!data.billingVerifiedAt || data.billingVerifiedAt>now || now-data.billingVerifiedAt>=60000)return this.membership(store,uid);
       const active=data.active===true && data.periodEnd>now && (data.cycles||[]).some(c=>
         c.subscription===data.subscription && !c.revoked && c.start<=now && now<c.end);
@@ -335,6 +346,10 @@ export function createBilling(env=process.env,fetcher=fetch){
       }
       return {url:result.url};
     },
+    cancellation(store,uid,confirmation){
+      return subscriptionCancellation({store,uid,confirmation,secret:env.STRIPE_SECRET_KEY,
+        stripe:(path,values,idem)=>stripe(path,values,idem,{serviceExisting:true})});
+    },
     async portal(store,uid){
       const data=await store.getMemberData(uid,{readOnly:true});
       if(!data.customer)throw new ApiError(409,'Todavía no tienes una suscripción.');
@@ -343,7 +358,7 @@ export function createBilling(env=process.env,fetcher=fetch){
       return {url:session.url};
     },
     async webhook(request,withStore){
-      const raw=await request.text();if(!configured||!validSignature(raw,request.headers.get('stripe-signature'),env.STRIPE_WEBHOOK_SECRET))return Response.json({error:'Firma no válida.'},{status:400});
+      const raw=await request.text();if(!serviceConfigured||!validSignature(raw,request.headers.get('stripe-signature'),env.STRIPE_WEBHOOK_SECRET))return Response.json({error:'Firma no válida.'},{status:400});
       let event;try{event=JSON.parse(raw);}catch{return Response.json({error:'Evento no válido.'},{status:400});}
       const obj=event.data?.object;
       const charge=event.type==='charge.dispute.created' && obj?.charge
