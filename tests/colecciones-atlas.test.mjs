@@ -47,3 +47,25 @@ test('el enlace al mundo elegido sobrevive al recargado y el epílogo depende de
   assert.match(html,/href="\/#mapa\?seccion=sello">Leer el epílogo/);
   assert.equal((html.match(/Leer el epílogo/g)||[]).length,1);
 });
+
+test('cada territorio conduce a una actividad secundaria real y solo los casos abiertos lanzan el reto',async()=>{
+  const publicAtlas=await atlas(),guest=publicAtlas.boards();
+  assert.equal((guest.match(/class="atlas-side-stop"/g)||[]).length,4);
+  assert.match(guest,/href="\/#desafios\?seccion=sala">Visitar la sala de juegos/);
+  const room=await atlas('#desafios?seccion=sala');
+  assert.match(room.challenges(),/<mansion-arcade><\/mansion-arcade>/);
+  const {mansionArcadeCatalog}=await import('../web/mansion-arcade-catalog.js');
+  assert.deepEqual(mansionArcadeCatalog.map(game=>game.id),['archivo','relojero','museo','cartas','jardin','espejo']);
+  for(const [index,board] of ['expedicion','umbravia','necropolis'].entries()){
+    const id=17+12*index,link='/#mundos-jugar?id='+id+'&amp;seccion=reto';
+    assert.ok(guest.includes('/#desafios?mundo='+board));
+    assert.ok(guest.includes('/#'+board+'?lugar=1&amp;seccion=ficha'));
+    const chosen=await atlas('#desafios?mundo='+board);
+    assert.ok(!chosen.challenges().includes('seccion=reto'));
+    const choices=chosen.challenges({availableCases:[id]});
+    assert.equal((choices.match(/<li>/g)||[]).length,12);
+    assert.equal((choices.match(/seccion=reto/g)||[]).length,1);
+    assert.ok(choices.includes(link));
+    assert.ok(publicAtlas.boards({availableCases:[id]}).includes(link));
+  }
+});

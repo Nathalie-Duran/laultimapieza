@@ -3,6 +3,11 @@ import { Script, createContext, runInContext } from 'node:vm';
 import assert from 'node:assert/strict';
 const publicDir = new URL('./public/', import.meta.url);
 for (const name of await readdir(publicDir)) {
+  if (name === 'mansion-arcade-catalog.js') {
+    const {mansionArcadeCatalog} = await import(new URL(name, publicDir));
+    assert.equal(mansionArcadeCatalog.length, 6, 'La sala de juegos de Valdemar debe tener seis juegos.');
+    continue;
+  }
   if (name.endsWith('.js')) new Script(await readFile(new URL(name, publicDir), 'utf8'), {filename:name});
 }
 const context = createContext({structuredClone, crypto:globalThis.crypto});

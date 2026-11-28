@@ -204,7 +204,12 @@
       target.scrollIntoView({block:'center'});
       return true;
     }
-    return {node, update, startExploring};
+    function openBag(){
+      node.open=true;
+      summary.focus({preventScroll:true});
+      summary.scrollIntoView({block:'center'});
+    }
+    return {node, update, startExploring, openBag};
   }
   window.ExpeditionInventory = Object.freeze({create});
 })();

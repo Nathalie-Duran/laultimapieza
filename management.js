@@ -23,6 +23,8 @@
   let report = null;
   let sessionGoalCents;
   let goalPersisted = false;
+  const sections=[['resumen','Resumen'],['partidas','Partidas'],['edicion','Edición'],['cuentas','Cuentas']];
+  let currentSection='resumen';
 
   function permitted() { return root.ClubAccess?.state?.canManage === true; }
   function host() { return document.getElementById('management-panel'); }
@@ -65,9 +67,26 @@
   function view() {
     if (!permitted()) return '';
     return `<section class="management" id="management-panel" aria-labelledby="management-title">
-      <header class="mg-head"><div><p class="mg-kicker">Administración</p><h1 id="management-title">Evolución de la web</h1></div>
+      <header class="mg-head"><div><p class="mg-kicker">La Última Pieza</p><h1 id="management-title">Administración</h1></div>
       <div class="mg-toolbar"><div class="mg-range" role="group" aria-label="Periodo de análisis">${ranges.map(value => `<button type="button" data-mg-days="${value}" aria-pressed="${value === days}">${value} días</button>`).join('')}</div><button class="mg-refresh" type="button" data-mg-refresh>Actualizar</button></div></header>
       <p class="mg-status" role="status" aria-live="polite"></p><p class="mg-sr" data-mg-goal-announcement role="status" aria-live="polite" aria-atomic="true"></p><div class="mg-content" aria-busy="true"></div></section>`;
+  }
+  function sectionNavigation() {
+    return '<div class="mg-sections" role="tablist" aria-label="Áreas de administración">'+sections.map(([id,label])=>
+      `<button type="button" role="tab" data-mg-section="${id}" id="mg-tab-${id}" aria-controls="mg-area-${id}" aria-selected="${id===currentSection}" tabindex="${id===currentSection?0:-1}">${label}</button>`).join('')+'</div>';
+  }
+  function area(id,html) {
+    return `<div id="mg-area-${id}" role="tabpanel" tabindex="0" aria-labelledby="mg-tab-${id}" ${currentSection===id?'':'hidden'}>${html}</div>`;
+  }
+  function selectSection(el,id) {
+    if(!sections.some(([key])=>id===key))return;
+    currentSection=id;
+    for(const tab of el.querySelectorAll('[data-mg-section]')){
+      const selected=tab.dataset.mgSection===id;
+      tab.setAttribute('aria-selected',String(selected));
+      tab.tabIndex=selected?0:-1;
+      el.querySelector('#'+tab.getAttribute('aria-controls')).hidden=!selected;
+    }
   }
   function summary(data) {
     const s = data.stock, t = data.totals;
@@ -327,7 +346,7 @@
         data.accounts.length ? 'Perfiles encontrados: '+format(data.accounts.length)+'.' : 'Ningún perfil coincide con ese nombre.';
       const seasons = report?.seasonActivity?.seasons || [];
       results.innerHTML = data.accounts.map(account => `<article><h3>${escape(account.name)}</h3><p>Alta el ${dateText(account.registeredAt)} · ${account.paidPeriod ? 'Con cuota vigente' : 'Sin cuota vigente'} según el último pago registrado.</p>
-        <div class="mg-table-wrap"><table><thead><tr><th>Tablero</th><th>Bloques pagados</th><th>Casos disponibles</th><th>Casos resueltos</th></tr></thead><tbody>${account.boards.map(board=>
+        <div class="mg-table-wrap" tabindex="0" role="region" aria-label="Progreso por tablero de ${escape(account.name)}"><table><caption class="mg-sr">Bloques y casos de ${escape(account.name)}</caption><thead><tr><th scope="col">Tablero</th><th scope="col">Bloques pagados</th><th scope="col">Casos disponibles</th><th scope="col">Casos resueltos</th></tr></thead><tbody>${account.boards.map(board=>
           `<tr><th scope="row">${escape(seasons[board.number-1]?.name || 'Tablero '+board.number)}</th><td>${format(board.blocks)}</td><td>${format(board.available)}</td><td>${format(board.completed)}</td></tr>`).join('')}</tbody></table></div></article>`).join('');
     } catch (error) {
       if (permitted() && form.isConnected) status.textContent = error.message || 'No se ha podido consultar el perfil.';
@@ -350,13 +369,17 @@
       <p class="mg-note" role="status" aria-live="polite">${review?.updatedAt ? 'Última revisión el '+dateText(review.updatedAt, updatedFormat)+' (hora de Madrid).' : ''}</p>`;
   }
   function reviewPanel(data) {
-    if (!data.seasonActivity || !data.caseReviews) return '';
+    if (!data.seasonActivity || !data.caseReviews) return '<section class="mg-panel mg-block"><h2>Revisión de contenidos</h2><p class="mg-note">El estado editorial de los casos todavía no está disponible.</p></section>';
+    const cases=data.seasonActivity.seasons.flatMap(s=>s.cases.map(c=>(s.number-1)*12+c.number));
+    const totals=Object.fromEntries(Object.keys(reviewLabels).map(k=>[k,0]));
+    for(const id of cases){const status=data.caseReviews[id]?.status;totals[Object.hasOwn(reviewLabels,status)?status:'pending']++;}
     const options = data.seasonActivity.seasons.map(s => `<optgroup label="${escape(s.name)}">${s.cases.map(c => {
       const id = (s.number-1)*12+c.number;
-      return `<option value="${id}">${String(c.number).padStart(2,'0')} · ${escape(caseName(id))}</option>`;
+      return `<option value="${id}">${String(c.number).padStart(2,'0')} · ${escape(caseName(id))} — ${reviewLabels[data.caseReviews[id]?.status]||reviewLabels.pending}</option>`;
     }).join('')}</optgroup>`).join('');
     return `<section class="mg-panel mg-block"><h2>Revisión de contenidos</h2><p class="mg-note">Guarda las incidencias de las pruebas, los audios y las pistas de cada caso. Estas notas solo aparecen en gestión.</p>
-      <form class="mg-review" data-mg-review><label>Caso<select name="caseId">${options}</select></label><div data-mg-review-fields>${reviewFields(1, data)}</div></form></section>`;
+      <dl class="mg-review-counts" aria-label="Estado de los casos">${Object.entries({pending:'Pendientes',reviewing:'En revisión',ready:'Revisados'}).map(([k,label])=>`<div><dt>${label}</dt><dd data-mg-count="${k}">${format(totals[k])}</dd></div>`).join('')}</dl>
+      ${cases.length?`<form class="mg-review" data-mg-review><label>Caso<select name="caseId">${options}</select></label><div data-mg-review-fields>${reviewFields(cases[0], data)}</div></form>`:'<p class="mg-empty">Todavía no hay casos disponibles para revisar.</p>'}</section>`;
   }
   async function saveReview(form) {
     const previousReport = report;
@@ -369,7 +392,16 @@
     try {
       const review = await root.GameAccountBridge.request('/api/admin/case-review',input,'PUT');
       if (report !== previousReport || !permitted() || !form.isConnected) return;
+      const before=previousReport.caseReviews[id]?.status||'pending';
       previousReport.caseReviews[id] = review;
+      if(before!==review.status){
+        for(const [key,delta] of [[before,-1],[review.status,1]]){
+          const count=host()?.querySelector('[data-mg-count="'+key+'"]');
+          if(count)count.textContent=format(Number(count.textContent)+delta);
+        }
+        const option=form.elements.caseId.selectedOptions[0];
+        if(option)option.textContent=String((id-1)%12+1).padStart(2,'0')+' · '+caseName(id)+' — '+reviewLabels[review.status];
+      }
       status.textContent = 'Revisión guardada.';
     } catch (error) {
       if (permitted() && form.isConnected) status.textContent = error.message || 'No se ha podido guardar la revisión.';
@@ -420,7 +452,7 @@
     const labels = {open:'Primera pista', second:'Segunda pista', solution:'Solución'};
     const undated = Object.values(hints).reduce((sum, h) => sum + h.undated, 0);
     return `<h3>Coste de las ayudas en llaves</h3>
-      <div class="mg-table-wrap"><table><thead><tr><th scope="col">Ayuda</th><th scope="col">Aperturas registradas</th><th scope="col">Llaves gastadas</th></tr></thead>
+      <div class="mg-table-wrap" tabindex="0" role="region" aria-label="Coste de las ayudas"><table><caption class="mg-sr">Aperturas de ayudas y llaves gastadas en el periodo</caption><thead><tr><th scope="col">Ayuda</th><th scope="col">Aperturas registradas</th><th scope="col">Llaves gastadas</th></tr></thead>
       <tbody>${Object.entries(labels).map(([kind,label])=>`<tr><th scope="row">${label}</th><td>${format(hints[kind].uses)}</td><td>${format(hints[kind].keys)}</td></tr>`).join('')}</tbody></table></div>
       <p class="mg-note">Se suman los cargos registrados durante el periodo, incluso en casos iniciados antes. Una pista compartida cuenta en el llavero de quien la abre. Las aperturas gratuitas cuentan con coste cero. Solo se conservan los movimientos posteriores al último reinicio de cada titular.${undated ? ' Aperturas históricas sin fecha o coste verificable, excluidas del periodo: ' + format(undated) + '.' : ''}</p>`;
   }
@@ -440,8 +472,11 @@
     if (!el || !permitted()) return;
     const content = el.querySelector('.mg-content');
     saveGoalField(el);
-    content.innerHTML = summary(data) + monthlyGoal(data) + comparison(data) + chart(data)
-      + boardReport(data) + reviewPanel(data) + (root.EditorialChallenges?.adminView() || '') + accountLookupPanel() + '<div class="mg-columns mg-block">' + activation(data) + renewals(data) + '</div>' + activity(data) + details(data);
+    content.innerHTML = sectionNavigation()
+      + area('resumen',summary(data)+monthlyGoal(data)+comparison(data)+chart(data)+'<div class="mg-columns mg-block">'+activation(data)+renewals(data)+'</div>'+details(data))
+      + area('partidas',boardReport(data)+activity(data))
+      + area('edicion',reviewPanel(data)+(root.EditorialChallenges?.adminView() || ''))
+      + area('cuentas',accountLookupPanel());
     root.EditorialChallenges?.adminMount();
     const goal = el.querySelector('[data-mg-target]');
     goal.dataset.lastHandled = goal.value;
@@ -500,13 +535,29 @@
         if (!permitted()) { clear(); return; }
         const button = event.target.closest('button');
         if (!button) return;
-        if (button.matches('[data-mg-days]')) {
+        if(button.matches('[data-mg-section]'))selectSection(el,button.dataset.mgSection);
+        else if (button.matches('[data-mg-days]')) {
           const next = Number(button.dataset.mgDays);
           if (!ranges.includes(next) || days === next) return;
           days = next;
           load();
         } else if (button.matches('[data-mg-refresh],[data-mg-retry]') && !loading) load();
         else if (button.matches('[data-mg-export]') && report) downloadDaily(report, el);
+      });
+      el.addEventListener('keydown',event=>{
+        const tab=event.target.closest?.('[data-mg-section]');
+        if(!tab||!permitted())return;
+        const index=sections.findIndex(([id])=>id===tab.dataset.mgSection);
+        let next;
+        if(event.key==='ArrowLeft')next=(index+sections.length-1)%sections.length;
+        else if(event.key==='ArrowRight')next=(index+1)%sections.length;
+        else if(event.key==='Home')next=0;
+        else if(event.key==='End')next=sections.length-1;
+        else return;
+        event.preventDefault();
+        const id=sections[next][0];
+        selectSection(el,id);
+        el.querySelector('#mg-tab-'+id).focus();
       });
       el.addEventListener('submit', event => {
         if (event.target.matches('[data-mg-account]')) {
@@ -546,6 +597,7 @@
     goalPersisted = false;
     days = 30;
     selectedChart = 'accounts';
+    currentSection = 'resumen';
     host()?.replaceChildren();
   }
   root.ManagementUI = { view, mount, clear };

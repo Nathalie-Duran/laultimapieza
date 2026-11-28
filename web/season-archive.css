@@ -1,4 +1,8 @@
 season-archive { display:block; min-width:0 }
+.sa-progress {display:block;width:min(100%,12rem);height:.42rem;margin:.55rem 0;accent-color:#dcb778}
+.sa-recap {grid-column:1/-1;border-top:1px solid #495b50;padding-top:.4rem}
+.sa-recap>summary {cursor:pointer;color:#f2d59f;min-height:2.75rem;align-content:center}
+.sa-recap>div {margin-bottom:.5rem}
 season-archive:empty { display:none }
 .sa-head,.sa-filter { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap }
 .sa-head { justify-content:space-between; padding-block:1rem }

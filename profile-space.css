@@ -1,4 +1,50 @@
 /* Player profile, journal and identity picker. */
+.profile-dashboard .notebook-heading {
+  box-sizing:border-box;position:relative;isolation:isolate;overflow:hidden;
+  padding:clamp(1.25rem,4vw,3rem);min-height:clamp(8rem,17vw,12rem);
+  border:1px solid #8d7958;border-radius:.75rem;
+  background:#182824 url('/cuaderno-investigacion.jpg') right 45%/cover no-repeat;
+}
+.profile-dashboard .notebook-heading::before {
+  content:"";position:absolute;inset:0;z-index:-1;
+  background:linear-gradient(95deg,rgba(11,27,25,.98) 8%,rgba(14,30,28,.9) 50%,rgba(14,28,26,.64));
+}
+.profile-dashboard .notebook-heading h1 {margin:.15rem 0;font:500 clamp(2.05rem,5vw,4rem)/1.02 Georgia,serif;color:#fff4da}
+.profile-dashboard .notebook-heading .button {margin-left:auto}
+.pn-overview,.pn-relics {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:.95rem}
+.pn-overview {margin-top:1.4rem}
+.pn-overview>section,.pn-recap,.pn-key-challenge {
+  padding:clamp(1rem,2.5vw,1.8rem);border:1px solid #655d47;border-radius:.7rem;
+  background:linear-gradient(125deg,#222f29,#152225);color:#f7efdb;
+}
+.pn-overview h2,.pn-recap h2 {margin:.25rem 0;font:500 clamp(1.55rem,3.3vw,2.6rem)/1.1 Georgia,serif;color:#fff1d3}
+.pn-overview p,.pn-recap p {margin:.6rem 0 1rem;color:#d1d9cd}
+.pn-overview .pn-meter {display:block;max-width:19rem;margin:.55rem 0}
+.pn-relics {list-style:none;padding:0; margin:1rem 0;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))}
+.pn-relics li {min-width:0;overflow:hidden;border:1px solid #74694e;border-radius:.5rem;background:#172626}
+.pn-relics a {height:100%;display:flex;flex-direction:column;text-decoration:none;color:#f4e8cc}
+.pn-relics img {display:block;width:100%;aspect-ratio:2.3;object-fit:cover}
+.pn-relics a>div {padding:.9rem 1rem;display:flex;gap:.35rem;flex:1;flex-direction:column;align-items:stretch}
+.pn-relics strong {font:550 1.2rem/1.2 Georgia,serif}
+.pn-relics small,.pn-recap .pn-kicker {color:#e3bc80}
+.pn-relics span {margin-top:auto;color:#e4dfd1;font-size:.88rem}
+.pn-relics .pn-meter {width:100%;height:.4rem}
+.pn-key-challenge {margin:1rem 0}
+.pn-key-challenge h3 {margin:0}
+aventura-resumen {display:block;min-width:0;margin-block:1rem}
+.pn-recap-numbers {display:flex;gap:1rem;flex-wrap:wrap;margin:1rem 0}
+.pn-recap-numbers>div {display:flex;flex-direction:column-reverse;justify-content:end;align-items:start;border-left:2px solid #bc9b65;padding:.15rem 1rem}
+.pn-recap-numbers dt {font-size:.87rem;color:#d3d6c8}
+.pn-recap-numbers dd {margin:0;color:#f9dd9d;font-size:1.4rem;font-weight:700}
+.pn-skill-gains {display:flex;flex-wrap:wrap;gap:.5rem .9rem;list-style:none;padding:0}
+.pn-skill-gains li {border:1px solid #71806c;border-radius:.4rem;padding:.35rem .7rem}
+.pn-recap details summary {cursor:pointer;min-height:2.75rem}
+.pn-relics a:focus-visible,.pn-recap :is(a,summary):focus-visible {outline:3px solid #f4d288;outline-offset:-3px}
+@media(max-width:38rem) {
+  .profile-dashboard .notebook-heading .button{margin-left:0}
+  .pn-recap-numbers {gap:.65rem}
+  .pn-recap-numbers>div {padding:.15rem .65rem}
+}
 .management-nav[hidden] { display: none !important; }
 .avatar img,
 .avatar-top img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }

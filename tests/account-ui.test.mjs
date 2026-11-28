@@ -18,9 +18,10 @@ async function appHarness(){
     AccountUI:{start:async value=>{bridge=value;},signInPanel:()=>'<h1>Iniciar sesión</h1>',header:()=>'',accountCard:()=>'',open(){}},
     addEventListener(){},scrollTo(){}});
   context.window=context;
-  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js','monthly-access.js','experience-ui.js','profile-notebook.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
+  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js','monthly-access.js','experience-ui.js','profile-notebook.js','archive.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
   runInContext(source,context);bridge.cloud(true);bridge.loading(false);
-  return {bridge,element,membership:context.ClubAccess,setFetch(value){fetcher=value;}};
+  return {bridge,element,membership:context.ClubAccess,setFetch(value){fetcher=value;},
+    visit(hash){context.location.hash=hash;bridge.render();return element('#main').innerHTML;}};
 }
 test('Cambiar de cuenta limpia la vista y una respuesta anterior no puede restaurar sus datos',async()=>{
   const app=await appHarness();
@@ -42,4 +43,18 @@ test('Cambiar de cuenta limpia la vista y una respuesta anterior no puede restau
 test('Cerrar sesión durante una carga quita el estado de espera y los datos de la cuenta',async()=>{
   const app=await appHarness();app.bridge.loading(true);assert.match(app.element('#main').innerHTML,/Cargando/);
   app.bridge.reset();app.bridge.render();assert.match(app.element('#main').innerHTML,/Iniciar sesión/);assert.doesNotMatch(app.element('#main').innerHTML,/Cargando/);
+});
+
+test('las rutas del cuaderno de un titular sin cuota conservan cuenta, archivo y colección y cierran al salir',async()=>{
+  const app=await appHarness();
+  app.setFetch(async()=>Response.json({profile:{userId:'lector',name:'Alicia'},sessions:[],activeSessionId:null}));
+  await app.bridge.load();
+  assert.equal(app.bridge.playerName(),'Alicia');
+  const routes=[['#perfil','Cuaderno del aventurero'],['#perfil?seccion=trayectoria','profile-collection data-career'],
+    ['#perfil?seccion=coleccion','lup-explorador collection'],['#perfil?seccion=logros','<profile-collection>'],
+    ['#perfil?seccion=archivo-secreto','profile-collection data-archive'],['#perfil?seccion=llaves','profile-collection data-keys'],
+    ['#perfil?seccion=pareja','<profile-partners>'],['#perfil?seccion=cuenta','<play-notice-preferences>'],['#archivo','Mis partidas']];
+  for(const [route,expected] of routes)assert.ok(app.visit(route).includes(expected),route);
+  app.bridge.reset();assert.equal(app.bridge.playerName(),'');
+  for(const [route] of routes)assert.match(app.visit(route),/Iniciar sesión/);
 });

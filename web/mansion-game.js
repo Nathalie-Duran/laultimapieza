@@ -31,6 +31,7 @@
     tabs.setAttribute('aria-label','Cuaderno de la mansión');panel.setAttribute('role','tabpanel');panel.id='mansion-content';
     root.append(header,tabs,panel,message);host.replaceChildren(root);
     const arcade=el('details','mansion-arcade-drawer');arcade.append(el('summary',null,'Sala de juegos'));
+    const explorer=el('lup-explorador');explorer.setAttribute('case-id','1');
     arcade.addEventListener('toggle',()=>{
       if(arcade.open&&!arcade.querySelector('mansion-arcade')){
         const games=el('mansion-arcade');games.setAttribute('embedded','');arcade.append(games);
@@ -209,6 +210,7 @@
         reveal.alt=state.ending.imageAlt||'La fotografía completa';reveal.style.cssText='width:100%;display:block;max-height:26rem;object-fit:cover';
         end.append(reveal,el('h3',null,state.ending.title),el('p',null,state.ending.text));
         if(state.ending.recording)end.append(recording(state.ending.recording));
+        const rewards=el('aventura-resumen');rewards.dataset.case='1';end.append(rewards);
         panel.append(end);
       }
       const room=state.rooms.find(entry=>entry.id===roomId)||state.rooms[0];if(!room)return;
@@ -253,7 +255,7 @@
       }
       panel.append(drawMap());
       panel.append(recording(storm));
-      panel.append(arcade);
+      panel.append(explorer,arcade);
     }
     function missions(){
       const list=el('section','mansion-missions');list.append(el('h3',null,'Misiones opcionales'));

@@ -18,7 +18,7 @@
     if(context)a.setAttribute('aria-label',label+' · '+context);
     return a;
   }
-  function caseCard(game,featured=false) {
+  function caseCard(game,featured,report,games) {
     const first = game.id <= 12;
     const catalogStory = caseInfo(game.id);
     const story = catalogStory && game.title ? {...catalogStory,title:game.title,...(game.edition==='legacy'?{image:'/valdemar-art-01.webp'}:{})} : catalogStory;
@@ -33,7 +33,12 @@
     info.append(element('small',season.name),element('h4',story.title));
     const stage = game.finished ? 'Desenlace guardado' :
       game.current >= game.total ? 'Pendiente de desenlace' : 'Etapa '+(game.current+1)+' de '+game.total;
-    info.append(element('p',(modes[game.mode] || modes.legacy)+' · '+stage));
+    info.append(element('p',(window.PlayerNotebook?.teamLabel?.(game)||modes[game.mode]||modes.legacy)+' · '+stage));
+    if(!game.finished){
+      const meter=element('progress',null,'sa-progress');
+      meter.max=game.total;meter.value=game.current;meter.setAttribute('aria-label','Etapas completadas de '+story.title);
+      info.append(meter);
+    }
     if(featured){
       const checkpoint=game.checkpoint;
       if(checkpoint?.title)info.append(element('strong',checkpoint.title,'sa-stage-title'));
@@ -49,6 +54,15 @@
       actions.append(actionLink('Ver mi sello','#'+season.board+'?lugar='+local+'&seccion=sello',season.seal));
     }
     item.append(cover,info,actions);
+    if(game.finished && report?.career?.caseResults?.[game.id] && window.PlayerNotebook?.caseRecap){
+      const details=element('details',null,'sa-recap'), summary=element('summary','Resumen de la aventura');
+      details.append(summary);
+      details.addEventListener('toggle',()=>{
+        if(!details.open || details.childElementCount>1)return;
+        const view=element('div');view.innerHTML=window.PlayerNotebook.caseRecap(game.id,report,games);details.append(view);
+      });
+      item.append(details);
+    }
     return item;
   }
   function nextVisit(games,access) {
@@ -92,19 +106,23 @@
       status.setAttribute('role','status');
       this.replaceChildren(status);
       try {
-        const {games,access} = await bridge.request('/api/valdemar/partidas');
+        const report=await bridge.request('/api/valdemar/partidas');
+        if(this.requestId!==requestId || !bridge.isSignedIn())return;
+        const games=window.PlayerNotebook?.pairedGames?await window.PlayerNotebook.pairedGames(report.games,bridge):report.games;
+        const {access}=report;
         if (this.requestId !== requestId || !bridge.isSignedIn()) return;
         if (!games.length) {
           this.replaceChildren();
           if (!this.hasAttribute('data-with-classic')) {
-            const empty = element('p','Todavía no tienes partidas guardadas.','sa-message');
-            const link = element('a','Explorar los casos','button primary');
-            link.href = '#casos';
+            const next=window.PlayerNotebook?.nextAdventure?.(games,access);
+            const empty = element('p',next?'Tu primer caso está disponible.':'Todavía no tienes partidas guardadas.','sa-message');
+            const link = element('a',next?'Empezar '+next.title:'Explorar los casos','button primary');
+            link.href = next?'#'+next.route:'#casos';
             this.append(empty,link);
           }
           return;
         }
-        this.draw(games,access);
+        this.draw(games,access,report);
       } catch {
         if (this.requestId !== requestId || !bridge.isSignedIn()) return;
         status.textContent = 'No se han podido cargar tus partidas de temporada.';
@@ -115,28 +133,30 @@
         if (this.requestId === requestId) this.removeAttribute('aria-busy');
       }
     }
-    draw(games,access) {
+    draw(games,access,report) {
       const ordered=[...games].sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)||b.current-a.current||a.id-b.id);
       const head = element('div',null,'sa-head');
       head.append(element('h2','Temporadas'));
       const body = element('div');
       const visibleModes = new Set(games.map(game=>game.mode || 'legacy'));
-      const groups = (mode='all') => {
+      let mode='all',board=0;
+      const groups = () => {
         body.replaceChildren();
-        const visible = ordered.filter(game => mode==='all' || (game.mode || 'legacy')===mode);
+        const visible = ordered.filter(game => (mode==='all' || (game.mode || 'legacy')===mode) && (!board || Math.ceil(game.id/12)===board));
+        if(!visible.length){body.append(element('p','No hay partidas guardadas con estos filtros.','sa-message'));return;}
         const resume=visible.find(game=>game.available&&!game.finished);
         if(resume){
-          const card=caseCard(resume,true);
+          const card=caseCard(resume,true,report,games);
           if(card){
             const group=element('section',null,'sa-group'),list=element('ul',null,'sa-list');
             list.append(card);group.append(element('h3','Retomar la investigación'),list);body.append(group);
           }
-        }else if(mode==='all'){
+        }else if(mode==='all' && !board){
           const suggestion=nextVisit(ordered,access);
           if(suggestion)body.append(suggestion);
         }
         for (const complete of [false,true]) {
-          const items = visible.filter(game=>game!==resume && Boolean(game.finished)===complete).map(game=>caseCard(game)).filter(Boolean);
+          const items = visible.filter(game=>game!==resume && Boolean(game.finished)===complete).map(game=>caseCard(game,false,report,games)).filter(Boolean);
           if (!items.length) continue;
           const group = element('section',null,'sa-group');
           const heading = element('h3',complete ? 'Terminadas' : 'En curso');
@@ -153,7 +173,14 @@
           const option = element('option',label); option.value=id; select.append(option);
         }
         filter.append(element('span','Modalidad'),select); head.append(filter);
-        select.addEventListener('change',()=>groups(select.value));
+        select.addEventListener('change',()=>{mode=select.value;groups();});
+      }
+      const playedBoards=[...new Set(games.map(g=>Math.ceil(g.id/12)))].sort((a,b)=>a-b);
+      if(playedBoards.length>1){
+        const filter=element('label',null,'sa-filter'),select=element('select'),all=element('option','Todos');all.value='0';select.append(all);
+        for(const n of playedBoards){const opt=element('option',window.Colecciones.seasons[n-1].name);opt.value=String(n);select.append(opt);}
+        filter.append(element('span','Tablero'),select);head.append(filter);
+        select.addEventListener('change',()=>{board=Number(select.value);groups();});
       }
       groups(); this.replaceChildren(head,body);
     }

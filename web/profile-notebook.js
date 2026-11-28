@@ -27,6 +27,54 @@
   const browse = (text, primary = true, context = '') => link('casos', text, primary, context);
   const plans = (primary = true, context = '') => link('planes', 'Ver la suscripción', primary, context);
 
+  function adventure(id, game) {
+    const info=id<=12?root.ValdemarCatalog?.get(id):root.Mundos?.story(id);
+    if(!info)return null;
+    return {id,title:game?.title||info.title,question:game?.checkpoint?.task||info.question,
+      image:game?.edition==='legacy'?'/valdemar-art-01.webp':id<=12?info.image:'/mundo-'+id+'.webp',
+      route:(id<=12?'valdemar-jugar':'mundos-jugar')+'?id='+id};
+  }
+
+  function nextAdventure(games,access,after) {
+    if(!Array.isArray(access?.availableCases))return null;
+    const earned=new Set(access.completed||[]);
+    const open=access.availableCases.filter(id=>Number.isInteger(id)&&id>=1&&id<=48&&!earned.has(id));
+    const ongoing=[...games].filter(g=>g.id!==after&&g.available&&!g.finished&&access.availableCases.includes(g.id))
+      .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)||b.current-a.current||a.id-b.id);
+    if(ongoing.length)return adventure(ongoing[0].id,ongoing[0]);
+    const candidates=open.filter(id=>id!==after).sort((a,b)=>a-b);
+    const next=(after && candidates.find(id=>id>after && Math.ceil(id/12)===Math.ceil(after/12)))||candidates[0];
+    return next?adventure(next):null;
+  }
+
+  async function pairedGames(games,bridge) {
+    if(!games.some(g=>g.mode==='duo'))return games;
+    let records;
+    try{records=(await bridge.request('/api/partners')).invitations;}catch{return games;}
+    const confirmed=new Map((records||[]).filter(p=>p.status==='accepted').map(p=>[p.caseId,p]));
+    return games.map(game=>{
+      const pair=game.mode==='duo'&&confirmed.get(game.id);
+      return pair?{...game,partnerName:pair.partnerName,role:pair.direction==='sent'?'A':'B'}:game;
+    });
+  }
+
+  function teamLabel(game) {
+    if(!game)return '';
+    if(game.mode==='solo')return 'En solitario · ambos papeles';
+    if(game.mode!=='duo')return '';
+    return [game.partnerName?'Con '+game.partnerName:'En pareja',game.role?'Tu papel '+game.role:''].filter(Boolean).join(' · ');
+  }
+
+  function collectionPanel(pieces) {
+    const seasons=root.Colecciones?.seasons||[];
+    return '<section class="pn-career pn-collection"><h2>Mis reliquias</h2><p>Recupera las doce piezas de cada tablero para abrir su epílogo.</p><ul class="pn-relics">'+pieces.map((count,i)=>{
+      const s=seasons[i];if(!s)return '';
+      return '<li><a href="#'+escape(s.board)+'?seccion=sello">'+(s.art?'<img src="/'+escape(s.art)+'" alt="" loading="lazy">':'')+
+        '<div><small>'+escape(s.name)+'</small><strong>'+escape(s.seal)+'</strong><span>'+(count===12?'Reliquia conseguida · ':'')+
+        count+' de 12 piezas</span><progress class="pn-meter" max="12" value="'+count+'" aria-label="Piezas de '+escape(s.seal)+'"></progress></div></a></li>';
+    }).join('')+'</ul></section>';
+  }
+
   function control(action, id, label, primary, context = '') {
     return '<button class="button' + (primary ? ' primary' : '') + '" type="button" data-action="' + action +
       '" data-id="' + escape(id) + '"' + accessibleLabel(label, context) + '>' + escape(label) + '</button>';
@@ -198,27 +246,19 @@
           '</strong><small>' + (earned ? 'Conseguido' : Math.min(item.progress, item.goal) + ' de ' +
           item.goal + ' · ' + escape(item.unit)) + '</small></li>';
       });
-      const collection = pieces.map((count, index) => {
-        const season = root.Colecciones.seasons[index];
-        return '<li class="' + (count === 12 ? 'is-earned' : '') + '"><strong><a href="#' +
-          escape(season.board) + '?seccion=sello">' + escape(season.seal) +
-          '</a></strong><span>' + escape(season.name) + '</span><small>' +
-          (count === 12 ? 'Reliquia conseguida' : count + ' de 12 piezas') + '</small></li>';
-      });
       return '<section class="pn-career"><h2>Mis logros</h2><ul class="pn-career-grid">' +
-        cards.join('') + '</ul><h2>Mis reliquias</h2><p>Cada aventura terminada aporta una pieza al sello de su tablero.</p>' +
-        '<ul class="pn-career-grid">' + collection.join('') + '</ul></section>';
+        cards.join('') + '</ul></section>'+collectionPanel(pieces);
     }
     const cards = skills.map(skill => '<li><strong>' + escape(skill.name) + '</strong><span>' + skill.points +
       (skill.points === 1 ? ' punto' : ' puntos') + '</span><small>' + escape(skill.criterion) + '</small></li>');
     const lines = rewards.map(item => '<li><span>' + escape(item.name) + '</span><strong>' +
       item.count + ' × ' + item.unit + ' XP</strong></li>');
-    return '<section class="pn-career"><div class="pn-section-heading"><h2>Mi personaje</h2><span class="pn-count">Nivel ' +
+    return '<section class="pn-career pn-character"><div class="pn-section-heading"><h2>Mi trayectoria</h2><span class="pn-count">Nivel ' +
       level + '</span></div><p><strong>' + xp + ' XP</strong> · ' + (nextLevelXp - xp) + ' XP para el nivel ' +
       (level + 1) + '</p><progress class="pn-meter" max="500" value="' + (xp % 500) +
       '" aria-label="Avance dentro del nivel ' + level + '"></progress><details><summary>Cómo he ganado experiencia</summary>' +
       '<ul class="pn-xp-list">' + lines.join('') + '</ul></details><h3>Mis ocho habilidades</h3>' +
-      '<p>Cada acción indicada suma un punto de habilidad la primera vez que la completas en cada etapa, reto o aventura.</p>' +
+      '<p>Estas habilidades recogen las acciones y recompensas que ya has conseguido.</p>' +
       '<ul class="pn-career-grid">' + cards.join('') + '</ul><a class="button" href="#perfil?seccion=logros">Ver mis logros y reliquias</a></section>';
   }
 
@@ -287,23 +327,78 @@
         link('casos', 'Explorar los tableros', false)) + '</section>';
   }
 
+  function caseRecap(id,report,games) {
+    const game=games.find(item=>item.id===id && item.finished);
+    const result=report.career?.caseResults?.[id];
+    if(!game || !result)return '';
+    const seasonIndex=Math.floor((id-1)/12), season=root.Colecciones?.seasons?.[seasonIndex];
+    if(!season)return '';
+    const pieces=report.career.pieces[seasonIndex], title=adventure(id,game)?.title || game.title || 'Caso '+id;
+    const skills=result.skills.map(s=>'<li><span>'+escape(s.name)+'</span> <strong>+'+s.points+'</strong></li>').join('');
+    const next=nextAdventure(games,report.access,id),team=teamLabel(game);
+    const metric=(value,label)=>'<div><dt>'+escape(label)+'</dt><dd>'+escape(value)+'</dd></div>';
+    const keys=Number.isInteger(result.earnedKeys)?metric(result.earnedKeys,'Llaves ganadas en este caso'):'';
+    return '<section class="pn-recap" aria-label="Resumen de la aventura"><p class="pn-kicker">'+escape(season.name)+'</p>'+
+      '<h2>Aventura completada</h2><p>'+escape(title)+'</p>'+(team?'<p>Modalidad guardada · '+escape(team)+'</p>':'')+
+      '<dl class="pn-recap-numbers">'+metric(result.xp+' XP','Experiencia de este caso')+metric(pieces+' de 12','Piezas del tablero')+keys+'</dl>'+
+      '<p>El desenlace aporta '+result.completionXp+' XP y una pieza de '+escape(season.seal)+'.</p>'+
+      (skills?'<details><summary>Habilidades ganadas en esta aventura</summary><ul class="pn-skill-gains">'+skills+'</ul></details>':'')+
+      '<div class="pn-actions">'+(next?link(next.route,'Continuar con '+next.title):'')+
+      link(season.board+'?seccion=sello',pieces===12?'Abrir el sello completo':'Ver mi sello',!next)+
+      link('perfil?seccion=trayectoria','Ver mi trayectoria',false)+'</div></section>';
+  }
+
+  if(root.customElements && !root.customElements.get('aventura-resumen')){
+    root.customElements.define('aventura-resumen',class extends HTMLElement{
+      async connectedCallback(){
+        const bridge=root.GameAccountBridge,id=Number(this.dataset.case),token=this.token=Symbol();
+        if(!bridge?.isSignedIn()||!Number.isInteger(id)||id<1||id>48)return;
+        const current=()=>this.isConnected&&this.token===token&&bridge.isSignedIn();
+        try{
+          const data=await bridge.request('/api/valdemar/partidas');
+          if(!current())return;
+          const games=await pairedGames(data.games,bridge);
+          if(current())this.innerHTML=caseRecap(id,data,games);
+        }catch{
+          if(current())this.innerHTML='<p class="pn-empty">Puedes consultar el resumen desde '+link('archivo','Mis partidas',false)+'.</p>';
+        }
+      }
+      disconnectedCallback(){this.token=null;}
+    });
+  }
+
+  function keyChallenge(result) {
+    const id=result.availableCases?.find(id=>id>1&&!result.wallet.won?.includes(id));
+    const next=id&&adventure(id);
+    if(!next)return '';
+    const prize=(id-1)%12>=8?2:1;
+    return '<div class="pn-key-challenge"><h3>Ganar más llaves</h3><p>'+escape(next.title)+' · Reto paralelo · '+
+      prize+(prize===1?' llave':' llaves')+'</p>'+link(next.route+'&seccion=reto','Abrir el reto')+'</div>';
+  }
+
   if (root.customElements && !root.customElements.get('profile-collection')) {
     root.customElements.define('profile-collection', class extends HTMLElement {
       async connectedCallback() {
         const bridge = root.GameAccountBridge;
         const token = this.readToken = Symbol();
+        if(!bridge?.isSignedIn())return;
         const keys = this.hasAttribute('data-keys');
         const archive = this.hasAttribute('data-archive');
+        const trajectory=this.hasAttribute('data-career'), collection=this.hasAttribute('data-collection');
         this.textContent = archive ? 'Cargando mi archivo secreto.' : keys ? 'Cargando mi llavero.' : 'Cargando mis logros.';
         try {
           const result = await bridge.request(keys ? '/api/valdemar/seasons' : '/api/valdemar/partidas');
           if (!this.isConnected || this.readToken !== token || !bridge.isSignedIn()) return;
           if (archive) {
             this.innerHTML = archiveFindings(result.archive);
+          } else if(trajectory) {
+            this.innerHTML=careerPanel(result.career);
+          } else if(collection) {
+            this.innerHTML=collectionPanel(result.career.pieces);
           } else if (keys) {
             this.innerHTML = '<section class="pn-career"><h2>Mi llavero</h2><p><strong>' +
               escape(result.wallet.balance) + (result.wallet.balance === 1 ? ' llave disponible' : ' llaves disponibles') +
-              '</strong></p></section>';
+              '</strong></p>'+keyChallenge(result)+'</section>';
             this.querySelector('section').append(root.Keyring.history(result.wallet));
           } else {
             this.innerHTML = careerPanel(result.career, true);
@@ -329,11 +424,18 @@
         if (!bridge?.isSignedIn()) return;
         const token = this.readToken = Symbol();
         try {
-          const {games,career} = await bridge.request('/api/valdemar/partidas');
-          if (!this.isConnected || this.readToken !== token || !bridge.isSignedIn() || !Array.isArray(games)) return;
+          const data = await bridge.request('/api/valdemar/partidas');
+          if (!this.isConnected || this.readToken !== token || !bridge.isSignedIn() || !Array.isArray(data.games)) return;
+          const games=await pairedGames(data.games,bridge),{career,access}=data;
+          if(!this.isConnected || this.readToken!==token || !bridge.isSignedIn())return;
           const tally = this.closest('.pn-dashboard')?.querySelector('[data-notebook-ongoing]');
           const character = this.closest('.pn-dashboard')?.querySelector('[data-player-career]');
-          if (character && career) character.innerHTML = careerPanel(career);
+          if (character && career) character.innerHTML = '<div class="pn-overview">'+
+            '<section><p class="pn-kicker">Mi personaje</p><h2>Nivel '+career.level+'</h2><strong>'+career.xp+' XP</strong>'+
+            '<progress class="pn-meter" max="500" value="'+(career.xp%500)+'" aria-label="Avance de nivel"></progress>'+
+            '<p>'+Math.max(0,career.nextLevelXp-career.xp)+' XP hasta el nivel '+(career.level+1)+'</p>'+link('perfil?seccion=trayectoria','Ver mis ocho habilidades',false)+'</section>'+
+            '<section><p class="pn-kicker">Mi colección</p><h2>'+career.pieces.reduce((sum,n)=>sum+n,0)+' de 48 piezas</h2>'+
+            '<p>'+career.pieces.filter(n=>n===12).length+' de 4 reliquias completas</p>'+link('perfil?seccion=coleccion','Abrir mi colección',false)+'</section></div>'+collectionPanel(career.pieces);
           if (tally) {
             tally.querySelector('strong').textContent = Number(this.dataset.classicOngoing) + games.filter(game => !game.finished).length;
             tally.querySelector('span').textContent = 'Partidas en curso';
@@ -341,10 +443,14 @@
           const latest = root.ExperienceUI.seasonReturn(games);
           let card;
           if (latest && latest.time >= Number(this.dataset.classicTime)) {
+            const game=games.find(g=>g.available&&!g.finished&&(latest.href||'').includes('?id='+g.id+'&'));
+            const objective=[game?.checkpoint?.task,teamLabel(game)].filter(Boolean).join(' · ');
             const action = link(latest.href.slice(1), 'Continuar mi partida', true, latest.title);
-            card = featureCard(latest.image, 'Tu partida en curso', latest.title, latest.detail, action);
-          } else if (games.length && this.hasAttribute('data-without-classic')) {
-            card = featureCard(notebookCover, 'Mis partidas', 'Tus investigaciones guardadas',
+            card = featureCard(latest.image, latest.detail, latest.title, objective||'Retoma tu etapa guardada.', action);
+          } else if (this.hasAttribute('data-without-classic')) {
+            const next=nextAdventure(games,access);
+            if(next)card=featureCard(next.image,'Siguiente aventura disponible',next.title,next.question,link(next.route,'Abrir la aventura'));
+            else if(games.length)card = featureCard(notebookCover, 'Mis partidas', 'Tus investigaciones guardadas',
               'Consulta los casos que has empezado y los desenlaces que has guardado.', link('archivo', 'Ver mis partidas'));
           }
           if (card) {
@@ -406,5 +512,5 @@
       (showSeasons ? 'Mis partidas del archivo clásico' : current ? 'Mis otras partidas' : 'Mis partidas') + '</h2><a class="text-link" href="#archivo">Ver mi archivo</a></div>' + otherRows + '</section></div>';
   }
 
-  root.PlayerNotebook = {...root.PlayerNotebook, progress, archive};
+  root.PlayerNotebook = {...root.PlayerNotebook, progress, archive, pairedGames,teamLabel,nextAdventure,caseRecap};
 })(window);

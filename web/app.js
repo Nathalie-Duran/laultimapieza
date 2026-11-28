@@ -99,10 +99,13 @@ function avatar(p,large=false){
 
 function avatarPicker(p){const value=Object.hasOwn(portraits,p?.avatar)?p.avatar:'detective';return `<fieldset class="portrait-field"><legend>Tu avatar</legend><div class="portrait-choices">${Object.entries(portraits).map(([key,label])=>`<label><input type="radio" name="avatarChoice" value="${key}" ${value===key?'checked':''}><span class="portrait-tile">${key==='detective'?`<span class="portrait-initials">${esc(initials(p?.name||'Yo'))}</span>`:`<img src="/avatar-${key}.jpg" width="64" height="64" alt="">`}<span>${label}</span></span></label>`).join('')}</div></fieldset>`;}
 
-function notebookHeader(p,section){return `<header class="profile-heading notebook-heading">${avatar(p,true)}<div><span class="eyebrow sage">Mi cuaderno</span><h1>${esc(p.name)}</h1></div>${button('Editar perfil y avatar','edit-profile')}</header><nav class="notebook-nav" aria-label="Secciones de mi cuenta">${[['progreso','Mi progreso'],...(cloudMode?[['logros','Logros y reliquias'],['archivo-secreto','Archivo secreto'],['llaves','Mi llavero'],['pareja','Jugar en pareja']]:[]),['estilo','Mi estilo del archivo clásico'],['cuenta','Cuenta y suscripción']].map(([id,label])=>`<a href="${id==='progreso'?'#perfil':'#perfil?seccion='+id}" ${section===id?'aria-current="page"':''}>${label}</a>`).join('')}${window.ClubAccess.state?.canManage===true?'<a class="notebook-management" href="#gestion">Gestión de la web</a>':''}</nav>`;}
+function notebookHeader(p,section){
+  const sections=[['progreso','Mi progreso'],...(cloudMode?[['trayectoria','Trayectoria'],['coleccion','Colección'],['logros','Logros'],['archivo-secreto','Archivo secreto'],['llaves','Mi llavero'],['pareja','Jugar en pareja']]:[]),['estilo','Mi estilo del archivo clásico'],['cuenta','Cuenta y suscripción']];
+  return `<header class="profile-heading notebook-heading">${avatar(p,true)}<div><span class="eyebrow sage">Cuaderno del aventurero</span><h1>${esc(p.name)}</h1></div>${button('Editar perfil y avatar','edit-profile')}</header><nav class="notebook-nav" aria-label="Secciones de mi cuenta">${sections.map(([id,label])=>`<a href="${id==='progreso'?'#perfil':'#perfil?seccion='+id}" ${section===id?'aria-current="page"':''}>${label}</a>`).join('')}<a href="#archivo">Mis partidas</a>${window.ClubAccess.state?.canManage===true?'<a class="notebook-management" href="#gestion">Gestión de la web</a>':''}</nav>`;
+}
 
 function playerViewModel(p,sessions,totals){const model=experienceModel();return {sessions,stories:window.STORIES,activeSessionId,pieces:journeyState?.completed??null,totals,canPlay:window.ClubAccess.canPlay,membership:window.ClubAccess.state,userId:p.userId,online,caseAllowed:id=>{const item=story(id);return !!item&&window.MonthlyAccess.allowed(item,{...model,sessions:[]});}};}
-function notebookProgress(p,sessions,totals){return window.PlayerNotebook.progress(playerViewModel(p,sessions,totals))+(window.Colecciones?.seals(window.ClubAccess.state?.seasonAccess)||'');}
+function notebookProgress(p,sessions,totals){return window.PlayerNotebook.progress(playerViewModel(p,sessions,totals));}
 function button(text,action,attrs='',primary=false){const small=attrs.includes('class="small"');return `<button class="button${primary?' primary':''}${small?' small':''}" data-action="${action}" ${attrs.replace('class="small"','')}>${text}</button>`;}
 function showSaveState(value){saveState=value;const status=$('#connection-status');if(status&&cloudMode&&online){status.dataset.save=value;status.textContent=value==='saving'?'Guardando…':value==='error'?'Sin guardar · reintenta':'Guardado';}}
 async function api(path,body,method){
@@ -237,9 +240,11 @@ function profile(initialSection){
   const p=me();if(!p)return `<div class="title-row"><span class="eyebrow sage">TU SELLO EN CADA HISTORIA</span><h1>Descubre cómo<br><em>juegas tú.</em></h1><p>Conecta pruebas, comprende a los personajes, imagina caminos y atrévete a elegir. Tus elecciones en el archivo clásico darán forma a tu estilo narrativo.</p>${button('Crear mi perfil','new-profile','',true)}</div>`;
   const model=window.ProfileModel.describe(data.sessions,p.userId,window.STORIES),t=model.totals,sessions=data.sessions.filter(s=>s.members.some(m=>m.userId===p.userId));
   const requested=initialSection||new URLSearchParams(location.hash.split('?')[1]||'').get('seccion');
-  const section=['estilo','cuenta',...(cloudMode?['pareja','logros','archivo-secreto','llaves']:[])].includes(requested)?requested:'progreso';
+  const section=['estilo','cuenta',...(cloudMode?['pareja','trayectoria','coleccion','logros','archivo-secreto','llaves']:[])].includes(requested)?requested:'progreso';
   const top='<div class="profile-dashboard">'+notebookHeader(p,section);
-  if(section==='progreso')return top+(online?'<preferred-partner></preferred-partner>':'')+notebookProgress(p,sessions,t)+'</div>';
+  if(section==='progreso')return top+notebookProgress(p,sessions,t)+(online?'<preferred-partner></preferred-partner>':'')+'</div>';
+  if(section==='trayectoria')return top+'<profile-collection data-career></profile-collection></div>';
+  if(section==='coleccion')return top+'<profile-collection data-collection></profile-collection><lup-explorador collection></lup-explorador></div>';
   if(section==='logros')return top+'<profile-collection></profile-collection></div>';
   if(section==='archivo-secreto')return top+'<profile-collection data-archive></profile-collection></div>';
   if(section==='llaves')return top+'<profile-collection data-keys></profile-collection></div>';
@@ -439,6 +444,7 @@ window.addEventListener('hashchange',event=>{
   (selected||main).focus({preventScroll:true});
 });
 window.GameAccountBridge={
+  playerName:()=>me()?.name||'',
   cloud(value){cloudMode=value;if(value)this.reset();},isCloud(){return cloudMode;},
   loading(value){accountLoading=value;render();},
   reset(){window.Mundos?.clear();window.ValdemarPlayer?.clear();window.ManagementUI?.clear();window.ClubAccess.set(null);journeyState=null;accountGeneration++;accountAbort.abort();accountAbort=new AbortController();accountLoading=false;online=false;saveState='saved';data={profiles:[],activeId:null,sessions:[]};activeSessionId=null;theoryChecks.clear();puzzleHintCounts.clear();sceneViews.clear();},

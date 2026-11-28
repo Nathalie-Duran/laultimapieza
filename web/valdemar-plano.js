@@ -42,15 +42,18 @@
     return `<a class="vdp-chip" href="${route(month,stay)}" data-vdp-focus="month-${month}"${current===month?' aria-current="true"':''}>${month?'Mes '+month:'Todos'}</a>`;
   }
 
-  function pin(item, current, month, recovered) {
-    const [x,y] = positions[item.id - 1];
-    return `<a href="${route(month,item.id)}" class="vdp-pin" style="--x:${x}%;--y:${y}%" data-edge="${x<25?'oeste':x>75?'este':'centro'}" data-top="${y<22}" data-vdp-focus="pin-${item.id}" data-vdp-id="${item.id}"${recovered?' data-recovered':''} aria-label="${esc(item.place)}. ${esc(item.title)}.${recovered?' Pieza recuperada.':''} Ver lugar" aria-controls="vdp-place"${current===item.id?' aria-current="location"':''}><span class="vdp-pin-number" aria-hidden="true">${num(item.id)}</span><span class="vdp-pin-label" aria-hidden="true">${esc(item.place)}</span></a>`;
+  function stopStatus(item,options,recovered) {
+    if(recovered.has(item.id))return {name:'Pieza recuperada',key:'done'};
+    if(window.ValdemarCatalog.access(item,options))return {name:'Disponible para jugar',key:'open'};
+    return {name:'Vista previa',key:'preview'};
   }
-
-  function indexRow(item, current, month) {
-    return `<li><a class="vdp-index-link" href="${route(month,item.id)}" data-vdp-focus="idx-${item.id}" data-vdp-id="${item.id}" aria-controls="vdp-place"${current===item.id?' aria-current="location"':''}><span class="vdp-index-number" aria-hidden="true">${num(item.id)}</span><span class="vdp-index-name">${esc(item.place)}</span><small class="vdp-index-title">${esc(item.title)}</small></a></li>`;
+  function pin(item,current,month,status) {
+    const [x,y]=positions[item.id-1];
+    return `<a href="${route(month,item.id)}" class="vdp-pin" style="--x:${x}%;--y:${y}%" data-edge="${x<25?'oeste':x>75?'este':'centro'}" data-top="${y<22}" data-vdp-focus="pin-${item.id}" data-vdp-id="${item.id}" data-access="${status.key}"${status.key==='done'?' data-recovered':''} aria-label="${esc(item.place+'. '+item.title+'. '+status.name+'. Ver lugar')}" aria-controls="vdp-place"${current===item.id?' aria-current="location"':''}><span class="vdp-pin-number" aria-hidden="true">${num(item.id)}</span><span class="vdp-pin-label" aria-hidden="true">${esc(item.place)}</span></a>`;
   }
-
+  function indexRow(item,current,month,status) {
+    return `<li><a class="vdp-index-link" href="${route(month,item.id)}" data-vdp-focus="idx-${item.id}" data-vdp-id="${item.id}" aria-controls="vdp-place"${current===item.id?' aria-current="location"':''}><span class="vdp-index-number" aria-hidden="true">${num(item.id)}</span><span class="vdp-index-name">${esc(item.place)}</span><small class="vdp-index-title">${esc(item.title)} · ${status.name}</small></a></li>`;
+  }
   function nearby(places, item, month, step) {
     const pos = places.indexOf(item);
     const neighbor = places[(pos + step + places.length) % places.length];
@@ -65,7 +68,7 @@
       allowed ? 'Incluida en tu acceso actual.' : options.canPlay ? `Se abre con el mes ${item.month} de tu pase.` :
       `Incluida en el mes ${item.month} del recorrido por los cuatro tableros.`;
     const path = catalog.path(item.id);
-    const primary = allowed ? `<a class="vdp-primary" href="/#valdemar-jugar?id=${item.id}">Abrir la investigación</a><a class="vdp-secondary" href="${path}">Ver la ficha</a>` :
+    const primary = allowed ? `<a class="vdp-primary" href="/#valdemar-jugar?id=${item.id}">${recovered?'Ver mi desenlace':'Abrir la investigación'}</a><a class="vdp-secondary" href="${path}">Ver la ficha</a>` :
       `<a class="vdp-primary" href="${path}">Ver la historia</a><a class="vdp-secondary" href="/#planes">Ver el pase</a>`;
     return `<aside class="vdp-place" id="vdp-place" aria-labelledby="vdp-title">
       <header class="vdp-still"><img class="vdp-cover" src="${esc(item.image)}" alt="${esc(item.coverAlt)}" width="764" height="508" decoding="async">
@@ -99,12 +102,12 @@
     const recovered = new Set(options.completed || []);
     const enlarged = !!previous?.enlarged;
     return `<section class="vdp" aria-labelledby="vdp-heading" data-place="${selected.id}">
-      <header class="vdp-head"><div class="vdp-mast-copy"><p class="vdp-eyebrow">Temporada 01 · Misterio</p><h1 id="vdp-heading">Plano secreto de <em>Valdemar</em></h1></div><p class="vdp-intro">En la estación quedó una cinta. En el hotel, tres llaves abren la misma habitación. Elige dónde investigar.</p></header>
+      <header class="vdp-head"><div class="vdp-mast-copy"><p class="vdp-eyebrow">Temporada 01 · Misterio</p><h1 id="vdp-heading">Plano secreto de <em>Valdemar</em></h1></div><p class="vdp-intro">La carta de Ada te lleva a la mansión. Tres llaves esperan en el Hotel Medianoche. Elige un lugar del plano para abrir su expediente.</p></header>
       <div class="vdp-layout"><div class="vdp-map-column"><nav class="vdp-toolbar" aria-label="Filtrar lugares por mes"><div class="vdp-filter">${[0,1,2,3].map(n=>filterLink(n,month,selected)).join('')}</div><span class="vdp-count">${places.length} lugares</span></nav>
-        <div class="vdp-inset"><div class="vdp-viewport" id="vdp-viewport" tabindex="0" data-vdp-focus="viewport" data-enlarged="${enlarged}" role="region" aria-label="Plano ilustrado de Valdemar"><div class="vdp-map" role="group" aria-label="Elegir un lugar"><img class="vdp-base" src="/valdemar-cartografia.webp" alt="Carta ilustrada del puerto de Valdemar con calles, vías de tren y una isla frente a la costa." width="1536" height="1024" fetchpriority="high" decoding="async">${places.map(item=>pin(item,selected.id,month,recovered.has(item.id))).join('')}<a class="vdp-chart-rose" href="${sealRoute(month,selected.id)}" aria-label="Abrir el sello de la Rosa de los Doce Rumbos"><span aria-hidden="true">Ver mi sello</span></a></div></div></div>
+        <div class="vdp-inset"><div class="vdp-viewport" id="vdp-viewport" tabindex="0" data-vdp-focus="viewport" data-enlarged="${enlarged}" role="region" aria-label="Plano ilustrado de Valdemar"><div class="vdp-map" role="group" aria-label="Elegir un lugar"><img class="vdp-base" src="/valdemar-cartografia.webp" alt="Carta ilustrada del puerto de Valdemar con calles, vías de tren y una isla frente a la costa." width="1536" height="1024" fetchpriority="high" decoding="async">${places.map(item=>pin(item,selected.id,month,stopStatus(item,options,recovered))).join('')}<a class="vdp-chart-rose" href="${sealRoute(month,selected.id)}" aria-label="Abrir el sello de la Rosa de los Doce Rumbos"><span aria-hidden="true">Ver mi sello</span></a></div></div></div>
         <div class="vdp-map-foot"><a class="vdp-seal-link" href="${sealRoute(month,selected.id)}"><i aria-hidden="true"></i>Ver la Rosa de los Doce Rumbos</a><span class="vdp-drag-hint">Arrastra para explorar</span><button type="button" class="vdp-zoom" data-vdp-focus="zoom" aria-controls="vdp-viewport" aria-pressed="${enlarged}"><i aria-hidden="true"></i><span>${enlarged ? 'Ver plano completo' : 'Ampliar plano'}</span></button></div></div>
         ${detail(selected,options,catalog,places,month,recovered.has(selected.id))}</div>
-      <div class="vdp-references"><details class="vdp-index"${previous?.index?' open':''}><summary data-vdp-focus="index"><span class="vdp-index-glyph" aria-hidden="true"></span>Índice de lugares</summary><ol class="vdp-index-list">${places.map(item=>indexRow(item,selected.id,month)).join('')}</ol></details><footer class="vdp-footer"><a href="#mapa-clasico">Plano del archivo clásico</a><a href="#mapa-clasico?seccion=sello">Ver el sello clásico</a></footer></div></section>`;
+      <div class="vdp-references"><details class="vdp-index"${previous?.index?' open':''}><summary data-vdp-focus="index"><span class="vdp-index-glyph" aria-hidden="true"></span>Índice de lugares</summary><ol class="vdp-index-list">${places.map(item=>indexRow(item,selected.id,month,stopStatus(item,options,recovered))).join('')}</ol></details><footer class="vdp-footer"><a href="/#casos?mes=${selected.month}">Catálogo de Valdemar</a><a href="/#tableros?mundo=mapa">Mapa de los cuatro tableros</a><a href="#mapa-clasico">Plano del archivo clásico</a><a href="#mapa-clasico?seccion=sello">Ver el sello clásico</a></footer></div></section>`;
   }
 
   function centerWhenHidden(root, pin) {

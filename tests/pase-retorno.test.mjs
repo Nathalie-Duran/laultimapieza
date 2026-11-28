@@ -80,6 +80,17 @@ test('La ayuda y la retirada del aviso están disponibles sin contratar',async()
   }
 });
 
+test('el pase explica el orden de cuatro tableros, los tres bloques y el retorno de un miembro',async()=>{
+  const shop=await storefront(false);
+  const guest=shop.page.ClubAccess.plans();
+  assert.deepEqual([...guest.matchAll(/<strong>(\d+)<span> \/ 12 aventuras/g)].map(match=>Number(match[1])),[4,8,12]);
+  for(const board of ['mapa','expedicion','umbravia','necropolis'])assert.ok(guest.includes('href="/#'+board+'"'));
+  assert.match(guest,/Ya tengo cuenta · Entrar/);
+  assert.match(guest,/Tarifa prevista · 29,95/);
+  shop.login(1);
+  assert.match(shop.page.ClubAccess.plans(),/Volver a mis partidas/);
+});
+
 test('El primer cobro y la recontratación siempre muestran el precio íntegro',async()=>{
   const policy={percentOff:50,regularAmountCents:2995,amountCents:null,currency:'eur'};
   const shop=await storefront(true,policy);

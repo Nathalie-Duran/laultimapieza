@@ -1,4 +1,5 @@
 import {secretArchive} from './secret-archive.mjs';
+import {explorerCollection,explorerCase} from './explorador-lup.mjs';
 import {creditSecretMission,creditMansionMission,creditMansionEnding,purchaseMansionHint} from './valdemar-wallet.mjs';
 import {createMansionRules,startMansion} from './mansion-episode.mjs';
 import {useInventory, inspectInventory} from './expedition.mjs';
@@ -318,6 +319,11 @@ async function mansionSession({store,data,uid,scope,editorial,pair,mode,partner,
 }
 
 export async function valdemarRequest({path,method,input,uid,editorial,withStore,billing,loadRelease=readValdemarRelease}) {
+  if(path==='/api/valdemar/explorer'){
+    if(method!=='GET')throw new ApiError(405,'Método no permitido.');
+    return withStore(async store=>explorerCollection(await store.getMemberData(uid,{readOnly:true}),editorial?'editorial':'paid'));
+  }
+  const explorer=/^\/api\/valdemar\/explorer\/([1-9]\d?)$/.exec(path);
   if(path==='/api/valdemar/mansion/arcade') {
     const {mansionArcadeRequest}=await import('./mansion-arcade.mjs');
     return mansionArcadeRequest({method,input,uid,editorial,withStore,billing});
@@ -327,12 +333,12 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
   const gamesRoute = path === '/api/valdemar/partidas';
   const sealRoute = /^\/api\/valdemar\/seals\/([1-9]\d?)$/.exec(path);
   const match = /^\/api\/valdemar\/cases\/([1-9]\d?)(?:\/(reward|open|second|solution|sample|deduce|ending|stage|mode|inventory|pair-state|mansion))?$/.exec(path);
-  const id = match ? Number(match[1]) : null;
-  if ((!walletRoute && !seasonsRoute && !gamesRoute && !sealRoute && !match) || id>WORLD_CASE_COUNT) throw new ApiError(404,'Esta historia no está disponible.');
+  const id = Number(explorer?.[1] || match?.[1]) || null;
+  if ((!walletRoute && !seasonsRoute && !gamesRoute && !sealRoute && !match && !explorer) || id>WORLD_CASE_COUNT) throw new ApiError(404,'Esta historia no está disponible.');
   const newWorld = id > CASE_ORDER.length;
-  const action = match?.[2] || 'read';
+  const action = explorer?'explorer':match?.[2] || 'read';
   if(action==='mansion' && id!==1)throw new ApiError(404,'Esta mansión pertenece al primer caso.');
-  if (action==='mansion' ? !['GET','POST'].includes(method) : method !== (action==='read' || action==='pair-state' ? 'GET' : 'POST')) throw new ApiError(405,'Método no permitido.');
+  if (action==='mansion' || explorer ? !['GET','POST'].includes(method) : method !== (action==='read' || action==='pair-state' ? 'GET' : 'POST')) throw new ApiError(405,'Método no permitido.');
   return withValdemarTransaction(withStore, async store => {
     const reservation=id && store.getCasePartner ? await store.getCasePartner(uid,id,Date.now()) : null;
     const poll=action==='pair-state';
@@ -388,6 +394,11 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     if(poll)return pair
       ? {partner,mode,waitingForPartner:false,...(id===1?{mansionRevision:record.mansion?.revision||0,edition:record.mansionEdition}:{}),sharedHintCount:record.sharedHints?.length||0,hour:{current:record.choice?5:record.hourStep||0,inventory:{revision:record.inventoryRevision||0}},progress:{deduced:record.deduced===true,choice:record.choice||null}}
       : {partner:null,mode,waitingForPartner};
+    if(explorer){
+      const story=releasedStory(await loadRelease(store),id);
+      return explorerCase({store,uid,scope,data,story,record,role:partner?.role||(editorial&&mode==='duo'?'A':null),
+        mode,waiting:waitingForPartner,pairId:pair?.id,input,method});
+    }
     if(action==='mansion')return mansionSession({store,data,uid,scope,editorial,pair,mode,partner,waitingForPartner,input,method,access,loadRelease});
     if (action==='mode') {
       const mode=input?.mode;

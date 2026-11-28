@@ -318,3 +318,29 @@
   .pase-temporada .pase-acciones { align-items: stretch; gap: .12rem; }
   .pase-temporada .pase-acciones > * { width: 100%; }
 }
+
+/* Itinerary and access controls for the personal pass. */
+.pase-temporada .pase-tarifa-portada{color:#f6d7a4;font-weight:650;margin:.95rem 0 0}
+.pase-temporada .pase-muestra{color:#fff0cc;display:inline-flex;align-items:center;min-height:44px;text-underline-offset:.24em}
+.pase-temporada .pase-recorrido{margin:clamp(2rem,5vw,4.8rem) 0;padding:clamp(1.2rem,3.8vw,3.3rem);background:#1a2623;border:1px solid #536159;border-radius:.4rem}
+.pase-recorrido h2,.pase-editorial>header h1{margin:0;color:#fbf0dc;font:400 clamp(2.05rem,4.5vw,3.8rem)/1.09 var(--pase-display);letter-spacing:-.035em;text-wrap:balance}
+.pase-recorrido>p{color:#dad8cb;max-width:68ch;margin:.7rem 0 1.1rem}
+.pase-recorrido h3{color:#fff1d7;font:400 clamp(1.4rem,2.5vw,2rem)/1.2 var(--pase-display);margin:1.65rem 0 .65rem}
+.pase-bloques,.pase-mundos{display:grid;list-style:none;padding:0;margin:0;gap:.55rem}
+.pase-bloques{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pase-bloques li{background:#eddfbf;color:#2f352a;border-top:4px solid #bb965d;padding:clamp(.65rem,2vw,1.3rem);display:grid;gap:.25rem}
+.pase-bloques li.pase-abonado{border-top-color:#6ca893;background:#dae4cb}
+.pase-bloques li>small,.pase-mundos small{font:650 .73rem/1.4 var(--sans,system-ui,sans-serif);text-transform:uppercase;letter-spacing:.06em}
+.pase-bloques li>strong{font:500 clamp(2rem,5vw,3.8rem)/1.05 var(--pase-display)}
+.pase-bloques strong>span,.pase-bloques li>span{font:550 .84rem/1.35 var(--sans,system-ui,sans-serif)}
+.pase-mundos{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pase-mundos a{display:flex;height:100%;flex-direction:column;background:#111c1a;border:1px solid #656858;color:#fff0d0;text-decoration:none}
+.pase-mundos a:hover strong,.pase-mundos a:focus-visible strong{text-decoration:underline}
+.pase-mundos img{display:block;aspect-ratio:2.25;object-fit:cover;width:100%;height:auto}
+.pase-mundos a>span{display:grid;align-content:start;padding:.7rem;gap:.2rem}
+.pase-mundos small{color:#d7cca8}.pase-mundos strong{font:500 clamp(1.02rem,1.8vw,1.4rem)/1.15 var(--pase-display)}
+.pase-acceso{max-width:58rem;margin:auto}.pase-acceso h1{color:#27291e;font:500 clamp(2.3rem,5vw,4rem)/1.05 var(--pase-display)}
+.pase-acceso a:not(.button){color:#374c35;text-underline-offset:.18em}
+.pase-editorial>header{margin-block:1.25rem}
+@media(max-width:680px){.pase-mundos{grid-template-columns:repeat(2,minmax(0,1fr))}.pase-bloques{gap:.3rem}.pase-bloques li{padding:.7rem .4rem}.pase-bloques strong>span{display:block;font-size:.74rem}.pase-mundos img{aspect-ratio:2.85}}
+@media(forced-colors:active){.pase-bloques li,.pase-mundos a{border:1px solid CanvasText}}

@@ -1,0 +1,71 @@
+import assert from 'node:assert/strict';
+import {readFile,access} from 'node:fs/promises';
+import {test} from 'node:test';
+import {createContext,runInContext} from 'node:vm';
+
+async function publicSite(){
+  const page=createContext({location:{hash:'#casos'},URLSearchParams});
+  page.window=page;
+  for(const name of ['colecciones','valdemar-catalog','mundos-catalogo','valdemar-plano','mundos-vista']){
+    runInContext(await readFile(new URL('../web/'+name+'.js',import.meta.url),'utf8'),page);
+  }
+  return page;
+}
+
+test('los doce bloques presentan exactamente los 48 destinos, con sus ilustraciones y sus fichas',async()=>{
+  const page=await publicSite(),ids=new Set(),assets=new Set();
+  for(const [index,season] of page.Colecciones.seasons.entries()){
+    for(const block of [1,2,3]){
+      page.location.hash=page.Colecciones.catalogRoute(season.board,block).split('#')[1];
+      const html=page.ValdemarCatalog.list({month:block});
+      assert.ok(html.includes('data-catalog-world="'+season.board+'"'));
+      assert.equal((html.match(/class="vd-card"/g)||[]).length,4);
+      for(let pos=1;pos<=4;pos++){
+        const local=(block-1)*4+pos,id=index*12+local;
+        const game=index?page.Mundos.story(id):page.ValdemarCatalog.get(id);
+        const href=index?'/#'+season.board+'?lugar='+local+'&amp;seccion=ficha':page.ValdemarCatalog.path(id);
+        assert.ok(html.includes('href="'+href+'"'),href);
+        assert.ok(html.includes(game.title),game.title);
+        assets.add((game.image||'/mundo-'+id+'.webp').slice(1));
+        ids.add(id);
+      }
+    }
+  }
+  assert.equal(ids.size,48);
+  await Promise.all([...assets].map(file=>access(new URL('../web/'+file,import.meta.url))));
+});
+
+test('las 36 fichas enlazan al bloque de origen y conservan los papeles y el acceso del titular',async()=>{
+  const page=await publicSite();
+  for(const [index,season] of page.Colecciones.seasons.entries()){
+    if(!index)continue;
+    for(let local=1;local<=12;local++){
+      const id=index*12+local,block=Math.ceil(local/4),game=page.Mundos.story(id);
+      page.location.hash='#'+season.board+'?lugar='+local+'&seccion=ficha';
+      const guest=page.Mundos.view(season.board);
+      assert.ok(guest.includes(game.title)&&guest.includes(game.roles[0])&&guest.includes(game.roles[1]));
+      assert.ok(guest.includes('/#casos?mundo='+season.board+'&amp;mes='+block));
+      assert.ok(!guest.includes('href="#mundos-jugar?id='));
+      const own=page.Mundos.view(season.board,{seasonAccess:{availableCases:[id],completed:[id]}});
+      assert.ok(own.includes('href="#mundos-jugar?id='+id+'">Ver mi desenlace'));
+    }
+  }
+});
+
+test('los expedientes, el plano y el catálogo de Valdemar respetan cada bloque y los accesos antiguos',async()=>{
+  const page=await publicSite(),options={canPlay:true,openedMonths:[2],completed:[5]};
+  for(let id=1;id<=12;id++){
+    page.location.hash='#mapa?lugar='+id;
+    const map=page.ValdemarPlano.view(options),detail=page.ValdemarCatalog.detail(id,options);
+    assert.ok(map.includes(page.ValdemarCatalog.get(id).title));
+    assert.ok(map.includes('data-access="'+(id===5?'done':id>=6&&id<=8?'open':'preview')+'"'));
+    if(id===2)assert.ok(detail.includes('data-vd-offhook'));
+    if(id===1)assert.ok(detail.includes('id="carta-de-ada"'));
+    if(id>=5&&id<=8)assert.ok(detail.includes('/#valdemar-jugar?id='+id));
+    else assert.ok(!detail.includes('href="/#valdemar-jugar?id='+id+'"'));
+  }
+  const list=page.ValdemarCatalog.list({...options,month:2});
+  assert.match(list,/Pieza recuperada/);
+  assert.match(list,/Disponible para jugar/);
+  assert.ok(page.Colecciones.menu('umbravia').includes('href="/#mapa"'));
+});

@@ -1,6 +1,7 @@
 import {ApiError} from './auth-provider.mjs';
 import {createHash} from 'node:crypto';
 import {normalizeChallengeSchedule,isChallengeAvailable} from './challenge-schedule.mjs';
+import {calendarEditions} from './calendar-challenges.mjs';
 import {worldSeasonAccess,creditPublishedChallenge,WORLD_CASE_COUNT} from './valdemar-wallet.mjs';
 
 export const challengeSchema = `CREATE TABLE IF NOT EXISTS lup_published_challenges (
@@ -79,22 +80,25 @@ export function challengeStore(query) {
     }
   };
 }
-export async function playPublished(store,{uid,billing,editorial,input}) {
+export async function playPublished(store,{uid,billing,editorial,input,calendar=false,now=Date.now()}) {
   const member=editorial ? null : await billing?.membership?.(store,uid,{readOnly:true});
   const data=await store.getMemberData(uid,{readOnly:!input});
   const access=editorial ? worldSeasonAccess(data,{editorial:true}) : member?.seasonAccess || {availableCases:[]};
   const scope=editorial?'editorial':'paid';
   const results=data.editorialMiniProgress?.[scope] || {};
+  const editions=calendar?calendarEditions(now):null;
+  const progressKey=id=>calendar?'calendar/'+id:id;
   if (!input) {
-    const rows=await store.listChallenges(true);
-    return {items:rows.filter(row=>isChallengeAvailable(row)&&access.availableCases.includes(row.caseId)).map(row=>playerItem(row,results[row.id]))};
+    const rows=editions||await store.listChallenges(true);
+    return {items:rows.filter(row=>isChallengeAvailable(row,now)&&access.availableCases.includes(row.caseId)).map(row=>playerItem(row,results[progressKey(row.id)]))};
   }
   if(!uuid.test(input.id))throw new ApiError(400,'Elige un desafío.');
-  const row=await store.lockChallenge(input.id);
-  if(!row||!isChallengeAvailable(row)||!access.availableCases.includes(row.caseId))throw new ApiError(404,'El desafío no está disponible.');
+  const row=editions?editions.find(item=>item.id===input.id):await store.lockChallenge(input.id);
+  if(!row||!isChallengeAvailable(row,now)||!access.availableCases.includes(row.caseId))throw new ApiError(404,'El desafío no está disponible.');
   if(input.revision!==row.revision)throw conflict();
-  const first=!Object.hasOwn(results,row.id);
-  const prior=results[row.id];
+  const keyForRow=progressKey(row.id);
+  const first=!Object.hasOwn(results,keyForRow);
+  const prior=results[keyForRow];
   const stages=[row,...(row.steps||[])];
   const completed=completedStages(stages,prior);
   const index=input.index ?? (stages.length===1?0:null);
@@ -110,13 +114,13 @@ export async function playPublished(store,{uid,billing,editorial,input}) {
     if(correct && index===completed.length)completed.push(key);
     const firstFinish=completed.length===stages.length && !prior?.solved;
     if(firstAttempt || firstSolution)visits[receipt]=correct?'solved':'attempted';
-    results[row.id]={solved:Boolean(prior?.solved||firstFinish),completed,stageVisits:visits};
-    if(firstFinish) creditPublishedChallenge(data,scope,row.id,row.caseId,false);
-    if(!editorial&&(first||firstFinish))await store.countChallenge(row.id,first,firstFinish);
-    if(!editorial&&(firstAttempt||firstSolution))await store.countStage(row.id,index,key,firstAttempt,firstSolution);
+    results[keyForRow]={solved:Boolean(prior?.solved||firstFinish),completed,stageVisits:visits};
+    if(firstFinish) creditPublishedChallenge(data,scope,row.id,row.caseId,calendar&&row.prize===2,calendar);
+    if(!calendar&&!editorial&&(first||firstFinish))await store.countChallenge(row.id,first,firstFinish);
+    if(!calendar&&!editorial&&(firstAttempt||firstSolution))await store.countStage(row.id,index,key,firstAttempt,firstSolution);
     await store.saveMemberData(uid,data);
   }
-  return {correct,...(correct?{explanation:stage.explanation,next:playerItem(row,results[row.id])}:{})};
+  return {correct,...(correct?{explanation:stage.explanation,next:playerItem(row,results[keyForRow])}:{})};
 }
 
 function signature(stage){
@@ -135,6 +139,6 @@ function completedStages(stages,record){
 function playerItem(row,record) {
   const stages=[row,...(row.steps||[])], count=completedStages(stages,record).length;
   const index=Math.min(count,stages.length-1), stage=stages[index];
-  return {id:row.id,caseId:row.caseId,title:row.title,revision:row.revision,index,total:stages.length,schedule:normalizeChallengeSchedule(row.schedule),
+  return {id:row.id,caseId:row.caseId,title:row.title,revision:row.revision,index,total:stages.length,schedule:normalizeChallengeSchedule(row.schedule),...(row.prize?{prize:row.prize}:{}),
     prompt:stage.prompt,options:stage.options,solved:count===stages.length};
 }
