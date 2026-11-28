@@ -158,7 +158,7 @@ export function createBilling(env=process.env,fetcher=fetch){
     const periodEnd=Math.max(0,...ownCycles.filter(c=>!c.revoked && c.start<=now).map(c=>c.end));
     const active=['active','canceled'].includes(sub.status)&&periodEnd>now&&!sub.pause_collection;
     data.periodEnd=periodEnd;data.active=active;
-    if(readOnly)return {data,active,purchaseHeld};
+    if(readOnly)return {data,active,purchaseHeld,subscription:sub};
     data.billingVerifiedAt=now;
     creditValdemarWelcome(data);
     if(active&&store.enqueueMail){
@@ -282,7 +282,23 @@ export function createBilling(env=process.env,fetcher=fetch){
         }
       }finally{processingOffers=false;}
     },
-    async membership(store,uid,options){const {data,active,purchaseHeld}=await sync(store,uid,options);return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess:worldSeasonAccess(data,{active,purchaseHeld}),periodEnd:data.periodEnd||null,renewal:cancellationSummary(data),waitlist:!!data.waitlist,hasCustomer:!!data.customer,partnerOffer:await accountOffer(store,uid,data.preferredPartnerEmail)};},
+    async membership(store,uid,options){
+      const {data,active,purchaseHeld,subscription}=await sync(store,uid,options);
+      const seasonAccess=worldSeasonAccess(data,{active,purchaseHeld}),renewal=cancellationSummary(data);
+      let nextRenewalAt=null;
+      if(options?.includeRenewalDate&&active&&renewal.status==='active'&&subscription?.status==='active'&&!subscription.cancel_at_period_end&&!subscription.pause_collection){
+        const end=subscription.items?.data?.[0]?.current_period_end||subscription.current_period_end;
+        const scheduleId=typeof subscription.schedule==='string'?subscription.schedule:subscription.schedule?.id;
+        if(Number.isSafeInteger(end)&&end*1000>Date.now()&&(!subscription.cancel_at||subscription.cancel_at>end)&&scheduleId){
+          try{
+            const schedule=await stripe('subscription_schedules/'+encodeURIComponent(scheduleId));
+            const final=schedule.phases?.at(-1)?.end_date;
+            if(schedule.status==='active'&&schedule.subscription===subscription.id&&schedule.customer===data.customer&&Number.isSafeInteger(final)&&final>end)nextRenewalAt=end*1000;
+          }catch{ /* The paid period is still available when a future date cannot be confirmed. */ }
+        }
+      }
+      return {canPlay:active,checkoutAvailable:configured,calendar:releaseCalendar(data.cycles||[],data.claims||[]),seasonAccess,periodEnd:data.periodEnd||null,renewal,nextRenewalAt,waitlist:!!data.waitlist,hasCustomer:!!data.customer,partnerOffer:await accountOffer(store,uid,data.preferredPartnerEmail)};
+    },
     async pollMembership(store,uid){
       const data=await store.getMemberData(uid,{readOnly:true});
       const now=Date.now();

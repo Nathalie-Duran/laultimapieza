@@ -76,7 +76,7 @@
       <div class="mg-content">
         ${area('resumen','<div data-mg-overview></div>')}
         ${area('partidas','<div data-mg-games></div>'+(root.Colecciones?.seals(root.ClubAccess.state.seasonAccess,true)||''))}
-        ${area('edicion','<div data-mg-reviews></div>'+(root.EditorialChallenges?.adminView()||'')+'<section class="mg-panel mg-block"><h2>Publicación de Código Valdemar</h2><p><a class="mg-return" href="#edicion-valdemar">Abrir el editor de publicación</a></p></section>')}
+        ${area('edicion','<author-workshop></author-workshop><div data-mg-reviews></div>'+(root.EditorialChallenges?.adminView()||'')+'<section class="mg-panel mg-block"><h2>Publicación de Código Valdemar</h2><p><a class="mg-return" href="#edicion-valdemar">Abrir el editor de publicación</a></p></section>')}
         ${area('cuentas',accountLookupPanel())}
       </div></section>`;
   }
@@ -103,7 +103,13 @@
       tab.tabIndex=selected?0:-1;
       el.querySelector('#'+tab.getAttribute('aria-controls')).hidden=!selected;
     }
-    if(id==='edicion')root.EditorialChallenges?.adminMount();
+    if(id==='edicion')mountEditors();
+  }
+  function mountEditors(){
+    root.EditorialChallenges?.adminMount();
+    if(root.customElements&&!root.customElements.get('author-workshop')){
+      import('/gestion-aventuras.js').catch(()=>{const panel=host()?.querySelector('author-workshop');if(panel)panel.textContent='No se ha podido abrir el taller. Recarga Gestión para reintentar.';});
+    }
   }
   function summary(data) {
     const s = data.stock, t = data.totals;
@@ -113,6 +119,7 @@
         ${tile('Avisos vigentes', format(s.notices), 'Correos únicos que esperan la apertura')}
         ${tile('Suscripciones activas', format(s.activeSubscriptions), 'Titulares con acceso de pago vigente', true)}
         ${tile('Cancelaciones previstas', format(s.scheduledCancellations), 'Pendientes de hacerse efectivas')}
+        ${data.economics?tile('MRR observado',format(data.economics.mrrCents,true),'Suma de las cuotas confirmadas del mes vigente en suscripciones activas')+tile('Ingreso mensual por suscriptor',format(data.economics.arpuCents,true),'Media de esas cuotas, con el descuento realmente aplicado')+tile('Ingreso acumulado por titular',format(data.economics.lifetimeCents,true),'Media histórica de facturas abonadas y no revocadas por pagador'):''}
       </dl></section>
       <section class="mg-block" aria-labelledby="mg-movements"><div class="mg-section-heading"><h2 id="mg-movements">Durante el periodo</h2><span>${dateText(data.from)} – ${dateText(data.to)} · UTC</span></div>
       <dl class="mg-tiles">
@@ -476,6 +483,27 @@
       <tbody>${Object.entries(labels).map(([kind,label])=>`<tr><th scope="row">${label}</th><td>${format(hints[kind].uses)}</td><td>${format(hints[kind].keys)}</td></tr>`).join('')}</tbody></table></div>
       <p class="mg-note">Se suman los cargos registrados durante el periodo, incluso en casos iniciados antes. Una pista compartida cuenta en el llavero de quien la abre. Las aperturas gratuitas cuentan con coste cero. Solo se conservan los movimientos posteriores al último reinicio de cada titular.${undated ? ' Aperturas históricas sin fecha o coste verificable, excluidas del periodo: ' + format(undated) + '.' : ''}</p>`;
   }
+  function trialReport(rows){
+    const title='<h2>Seguimiento de pruebas</h2>';
+    if(!rows?.length)return '<section class="mg-panel">'+title+'<p>Todavía no se han registrado intentos de las nuevas mediciones en este periodo.</p></section>';
+    const cell=v=>format(Number(v));
+    const body=rows.map(r=>{
+      const game=r.game.startsWith('juego/')?caseName(Number(r.game.slice(6))):r.game.slice(6);
+      return '<tr><th scope="row">'+escape(game)+'</th><td>'+escape(r.trial)+'</td><td>'+cell(r.started)+'</td><td>'+cell(r.solved)+'</td><td>'+cell(r.inactive)+'</td><td>'+averageElapsed({completed:Number(r.solved),elapsedMs:Number(r.elapsedMs)})+'</td></tr>';
+    }).join('');
+    return '<section class="mg-panel mg-block">'+title+'<p>Intentos iniciados en el periodo. Una partida sin resolver lleva 14 días inactiva si no ha enviado otra respuesta. El tiempo transcurrido entre el primer intento y la solución incluye pausas.</p><div class="mg-table-wrap" tabindex="0"><table><thead><tr><th>Juego</th><th>Prueba</th><th>Partidas que la intentaron</th><th>Resueltas</th><th>Inactivas 14 días</th><th>Tiempo medio hasta resolver</th></tr></thead><tbody>'+body+'</tbody></table></div></section>';
+  }
+  function rewardReport(data){
+    if(!data)return '';
+    const list=values=>Object.entries(values||{}).map(([k,v])=>metricRow(escape(k),format(v))).join('');
+    const kinds={challenge:'Desafío publicado',reward:'Reto paralelo',mansionArcade:'Sala de Ada',seasonArcade:'Sala de temporada',calendarChallenge:'Calendario'};
+    const games=data.extraWins.map(row=>metricRow(escape(kinds[row.kind])+(row.caseId?' · '+escape(caseName(row.caseId)):''),format(row.solved))).join('');
+    return '<details class="mg-details mg-panel"><summary>Llaves, habilidades y logros</summary><h3>Llavero</h3><p>'+format(data.keys)+' llaves disponibles en '+format(data.knownBalances)+' llaveros con historial confirmado.</p><h3>Extras resueltos en el periodo</h3>'+(games?'<dl class="mg-rows">'+games+'</dl>':'<p>Todavía no hay premios registrados en este periodo.</p>')+'<h3>Puntos de habilidad acumulados</h3><dl class="mg-rows">'+list(data.skills)+'</dl><h3>Perfiles con cada medalla</h3><dl class="mg-rows">'+list(data.medals)+'</dl><h3>Experiencia por recompensa</h3><dl class="mg-rows">'+data.rules.map(r=>metricRow(escape(r.name),format(r.unit)+' XP')).join('')+'</dl></details>';
+  }
+  function operationReport(data){
+    const mail=data.mail,pairs=data.pairs;
+    return '<details class="mg-details mg-panel"><summary>Parejas, comunicaciones e historial de publicación</summary><h3>Parejas</h3><dl class="mg-rows">'+metricRow('Vínculos recíprocos registrados',format(pairs.linked))+metricRow('Ambos miembros con periodo abonado vigente',format(pairs.bothPaid))+'</dl><h3>Comunicaciones automáticas</h3><dl class="mg-rows">'+metricRow('Pendientes de entrega',format(mail.pending||0))+metricRow('Enviadas al proveedor',format(mail.sent||0))+metricRow('Requieren revisión',format(mail.review||0))+'</dl><h3>Últimas publicaciones de aventuras</h3>'+(data.releases.length?'<ol>'+data.releases.map(r=>'<li>'+escape(r.title)+' · edición '+format(r.revision)+' · '+dateText(r.at)+'</li>').join('')+'</ol>':'<p>Todavía no se han publicado aventuras desde el taller.</p>')+'</details>';
+  }
   function details(data) {
     const t = data.totals, o = data.optional, since = data.noticeSince ? dateText(data.noticeSince) : '';
     const notes = [];
@@ -494,7 +522,9 @@
     el.querySelector('[data-mg-overview]').innerHTML=summary(data)+chart(data)+monthlyGoal(data)
       +'<details class="mg-details mg-more"><summary>Comparaciones, renovaciones y detalle de medición</summary>'
       +comparison(data)+'<div class="mg-columns mg-block">'+activation(data)+renewals(data)+'</div>'+details(data)+'</details>';
-    el.querySelector('[data-mg-games]').innerHTML=boardReport(data)+activity(data);
+    el.querySelector('[data-mg-games]').innerHTML=boardReport(data)+trialReport(data.trials)+rewardReport(data.rewards)+activity(data);
+    const overview=el.querySelector('[data-mg-overview]');
+    if(data.operations)overview.insertAdjacentHTML('beforeend',operationReport(data.operations));
     const reviews=el.querySelector('[data-mg-reviews]');
     const oldForm=reviews.querySelector('form');
     if(!oldForm || oldForm.dataset.mgEdited===undefined){
@@ -622,7 +652,7 @@
       });
     }
     setControls(el);
-    if(currentSection==='edicion')root.EditorialChallenges?.adminMount();
+    if(currentSection==='edicion')mountEditors();
     if (report) show(report);
     else if (!loading) load();
     else el.querySelector('.mg-status').textContent = 'Consultando los últimos ' + days + ' días…';

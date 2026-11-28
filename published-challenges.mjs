@@ -140,5 +140,6 @@ function playerItem(row,record) {
   const stages=[row,...(row.steps||[])], count=completedStages(stages,record).length;
   const index=Math.min(count,stages.length-1), stage=stages[index];
   return {id:row.id,caseId:row.caseId,title:row.title,revision:row.revision,index,total:stages.length,schedule:normalizeChallengeSchedule(row.schedule),...(row.prize?{prize:row.prize}:{}),
-    prompt:stage.prompt,options:stage.options,solved:count===stages.length};
+    prompt:stage.prompt,options:stage.options,solved:count===stages.length,
+    ...(stage.materials?{objective:stage.objective,materials:stage.materials}:{})};
 }

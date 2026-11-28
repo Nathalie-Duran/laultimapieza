@@ -2,7 +2,7 @@ import {mergeInventory} from './expedition.mjs';
 import {createHash,randomUUID} from 'node:crypto';
 import {ApiError} from './auth-provider.mjs';
 import {mailKey} from './mail-service.mjs';
-import {creditSecretMission,WORLD_CASE_COUNT,withValdemarTransaction} from './valdemar-wallet.mjs';
+import {creditSecretMission,creditAdventureEnding,WORLD_CASE_COUNT,withValdemarTransaction} from './valdemar-wallet.mjs';
 import {hasCaseActivity,recordCaseActivity} from './season-activity.mjs';
 import {mergeStageEvidence} from './season-career.mjs';
 import {notifyEnding} from './play-notices.mjs';
@@ -290,6 +290,7 @@ export async function syncPairProgress(store,row,action){
     if(row.progress.choice && (!record.choice || record.choice==='mansion-sealed')){
       const hadEnding=Boolean(record.choice);
       record.choice=row.progress.choice;
+      if(action==='end')creditAdventureEnding(data,scope,row.caseId);
       if(action==='end' && !hadEnding)await notifyEnding(store,uid,data,scope,row.caseId);
     }
     recordCaseActivity(data,scope,row.caseId,started,action);

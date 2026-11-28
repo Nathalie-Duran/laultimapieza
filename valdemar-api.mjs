@@ -1,6 +1,7 @@
 import {secretArchive} from './secret-archive.mjs';
+import {trialEvent} from './aventuras-autor.mjs';
 import {explorerCollection,explorerCase} from './explorador-lup.mjs';
-import {creditSecretMission,creditMansionMission,creditMansionEnding,purchaseMansionHint} from './valdemar-wallet.mjs';
+import {creditSecretMission,creditMansionMission,creditAdventureEnding,purchaseMansionHint} from './valdemar-wallet.mjs';
 import {createMansionRules,startMansion} from './mansion-episode.mjs';
 import {useInventory, inspectInventory} from './expedition.mjs';
 import {readFile} from 'node:fs/promises';
@@ -131,10 +132,21 @@ function mansionRules(story){
 
 function availableKeyChallenge(access,wallet,id,release) {
   if (!wallet.won.includes(id)) return null;
-  const other = access.availableCases.find(candidate => !wallet.won.includes(candidate) && releasedStory(release,candidate));
+  const boards=['mapa','expedicion','umbravia','necropolis'];
+  const current=Math.floor((id-1)/12);
+  const order=[current,...boards.map((_,index)=>index).filter(index=>index!==current)];
+  for(const index of order){
+    const caseId=1+index*12;
+    const kind=index===0?'mansionArcade':'seasonArcade';
+    if(access.availableCases.includes(caseId) && wallet.history.filter(row=>row.kind===kind && row.caseId===caseId).length<6){
+      return {room:boards[index],title:'la sala de minijuegos',href:'/#desafios?seccion=sala&mundo='+boards[index]};
+    }
+  }
+  if(access.availableCases.includes(1))return {calendar:true,title:'el calendario de retos',href:'/#desafios?seccion=calendario&mundo='+boards[current]};
+  const other = access.availableCases.find(candidate => candidate>1 && !wallet.won.includes(candidate) && releasedStory(release,candidate));
   if (!other) return null;
   const route = other <= CASE_ORDER.length ? 'valdemar-jugar' : 'mundos-jugar';
-  return {title:releasedStory(release,other).title,href:'#'+route+'?id='+other+'&seccion=reto'};
+  return {id:other,title:releasedStory(release,other).side?.title||'otro reto de aventura',href:'#'+route+'?id='+other+'&seccion=reto&desde='+id+'&volver=pistas'};
 }
 
 function visibleSample(sample) {
@@ -171,6 +183,7 @@ async function progressAction(store,uid,scope,story,action,input,pair) {
   async function save(event){
     if(keepMansionSeal)Object.assign(stored,record,{choice:record.choice || mansionEnding});
     if(pair)return syncPairProgress(store,pair,event);
+    if(event==='end')creditAdventureEnding(data,scope,story.id);
     recordCaseActivity(data,scope,story.id,alreadyStarted,event);
     if(scope==='paid')await store.touchNoticeActivity?.(uid);
     if(event==='end' && !keepMansionSeal)await notifyEnding(store,uid,data,scope,story.id);
@@ -185,7 +198,11 @@ async function progressAction(store,uid,scope,story,action,input,pair) {
     return {inventory:inspectInventory(story,record,role)};
   }
   if (action === 'stage') {
+    const index=record.hourStep||0;
     const {advanced,correct,feedback} = evaluateHourStage(story,record,input);
+    if(index===input.index&&scope==='paid'&&(!pair||[pair.ownerId,pair.guestId].every(id=>partnerScope(pair,id)==='paid'))){
+      await trialEvent(store,{game:'juego/'+story.id,edition:0,trial:'Etapa '+(index+1),participant:pair?'p/'+pair.id:'u/'+uid,solved:advanced});
+    }
     if (advanced) {
       rememberStage(record,input.index,story.hour.stages[input.index],Boolean(pair));
       await save('advance');
@@ -298,9 +315,9 @@ async function mansionSession({store,data,uid,scope,editorial,pair,mode,partner,
         copyMansionProgress(saved,record.mansion);
       }
       if (result.missionReward) creditMansionMission(account,memberScope,result.mission,result.missionReward);
-      if (result.completed) creditMansionEnding(account,memberScope);
-      if(pair && result.stageCompleted){
-        const stages=saved.mansionPairStages ||= [];
+      if (result.completed) creditAdventureEnding(account,memberScope,1,{mansion:true});
+      if(result.stageCompleted){
+        const stages=pair?(saved.mansionPairStages ||= []):(saved.mansionSoloStages ||= []);
         if(!stages.includes(result.stageCompleted))stages.push(result.stageCompleted);
       }
       const newlyClosed = result.completed && !saved.choice;

@@ -83,7 +83,7 @@ export function createMansionRules(edition) {
       completed:s.completed,revision:s.revision,stage,
       rooms:rooms.map(([id,title,min])=>({id,title,unlocked:min<=s.current})),
       explore:{id,title,evidence:seenBy(placeEvidence,role),actions:stage?.room===id?stage.actions:[]},
-      inventory:s.items.map(key=>({id:key,title:objects[key][0],world:objects[key][1]})),
+      inventory:s.items.filter(key=>!['A','B'].includes(role)||!['A','B'].includes(objects[key][1])||objects[key][1]===role).map(key=>({id:key,title:objects[key][0],world:objects[key][1]})),
       missions:sideQuests.map(q=>missionView(q,s,role)),
       album:[letterEntry,...sideQuests.filter(q=>s.missions.includes(q.id)).map(q=>q.album),...(s.completed?endingEntries:[])],
       ending:s.completed?{...conclusion,recording:media.final}:null};

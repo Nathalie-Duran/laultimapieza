@@ -5,6 +5,7 @@ import {challengeSchema,stageMetricsSchema,challengeStore} from './published-cha
 import {noticesSchema,publicationNoticeSchema,noticeStore} from './play-notices.mjs';
 import {mailKey} from './mail-service.mjs';
 import {partnerOfferSchema,partnerOfferStore} from './partner-offer-store.mjs';
+import {authorSchema,authorStore} from './aventuras-autor-store.mjs';
 
 const schema = [
   challengeSchema,
@@ -58,7 +59,8 @@ const schema = [
     PRIMARY KEY(session_id,user_id), INDEX lup_user (user_id),
     FOREIGN KEY(session_id) REFERENCES lup_sessions(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-  ...partnerOfferSchema
+  ...partnerOfferSchema,
+  ...authorSchema
 ];
 function profile(row) {
   return row ? { userId: row.user_id, name: row.name, color: row.color, avatar:row.avatar||'detective',
@@ -91,6 +93,7 @@ export function createDatabase(env=process.env) {
       await initialized;
       await connection.beginTransaction();
       const store = {
+        ...authorStore(query),
         ...challengeStore(query),
         ...noticeStore(query),
         ...partnerOfferStore(query),
