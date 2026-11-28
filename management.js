@@ -76,7 +76,7 @@
       <div class="mg-content">
         ${area('resumen','<div data-mg-overview></div>')}
         ${area('partidas','<div data-mg-games></div>'+(root.Colecciones?.seals(root.ClubAccess.state.seasonAccess,true)||''))}
-        ${area('edicion','<div data-mg-reviews></div>'+(root.EditorialChallenges?.adminView()||'')+'<section class="mg-panel mg-block"><h2>Publicación de Valdemar</h2><p><a class="mg-return" href="#edicion-valdemar">Abrir el editor de publicación</a></p></section>')}
+        ${area('edicion','<div data-mg-reviews></div>'+(root.EditorialChallenges?.adminView()||'')+'<section class="mg-panel mg-block"><h2>Publicación de Código Valdemar</h2><p><a class="mg-return" href="#edicion-valdemar">Abrir el editor de publicación</a></p></section>')}
         ${area('cuentas',accountLookupPanel())}
       </div></section>`;
   }

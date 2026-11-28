@@ -37,7 +37,7 @@ export function checkPuzzle(session,story,input,uid){
   return {correct,hints:p.hints.slice(0,progress.hints),message:correct?p.explanation:'Todavía hay una contradicción. Revisa las pruebas o abre una ayuda; puedes volver a intentarlo.'};
 }
 export const CASE_ORDER=['cartas-medianoche','ultima-funcion','archivo-ausencias','marea-quieta','frecuencia-17','jardin-invierno','retrato-prestado','mesa-13','tren-detenido','ciudad-invisible','ultimo-coro','ultima-invitacion'];
-export const SEASON_NAMES=Object.freeze(['Valdemar','El Tablero de Ámbar','Umbravía','La Necrópolis del Sol Velado']);
+export const SEASON_NAMES=Object.freeze(['Código Valdemar','La ruta prohibida','El tercer jugador','La ira de Ra']);
 // Each verified payment assigns the next fixed block immediately. Revocations keep
 // their ordinal so refunding month one never renumbers month two's cases.
 export function orderedCycles(cycles){
