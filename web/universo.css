@@ -23,3 +23,13 @@ main:has(.universe-front) .v87-cover .v87-cover-art img{max-height:22rem;object-
 @media(max-width:830px){.universe-front{grid-template-columns:minmax(0,1fr)}.universe-chart{min-height:clamp(15.5rem,53vw,27rem);grid-row:2}.universe-front-copy{padding:1.25rem}.universe-front .universe-front-copy h1{font-size:clamp(2.15rem,7.3vw,3.6rem)!important}.universe-front-first{margin-top:.85rem;padding-top:.7rem}.universe-front .universe-front-first p{display:none}.universe-door{margin-top:.35rem}.universe-pin{min-height:44px;max-width:49%;padding:.28rem .45rem}.universe-pin strong{font-size:.9rem}}
 @media(max-width:420px){.universe-front .universe-front-copy p:not(.universe-eyebrow){margin-bottom:.55rem}.universe-pin-4{left:74%}.universe-pin-light{width:6px;height:6px}}
 @media(forced-colors:active){.universe-door,.universe-pin{border:2px solid LinkText}.universe-pin-light{background:LinkText}}
+.universe-pin{width:max-content}
+@media(min-width:831px) and (max-height:850px){
+  .universe-front{grid-template-columns:minmax(19rem,.86fr) minmax(0,1.5fr)}
+  .universe-front-copy{padding:clamp(1.35rem,1.7vw,1.85rem)}
+  .universe-front .universe-front-copy h1{font-size:clamp(2.5rem,3.35vw,3.3rem)!important;line-height:1.02}
+  .universe-front .universe-front-copy p:not(.universe-eyebrow){margin:.4rem 0 .65rem;font-size:1rem;line-height:1.42}
+  .universe-front-first{padding-top:.7rem;margin-top:.85rem}
+  .universe-front .universe-front-first h2{font-size:clamp(1.55rem,1.85vw,1.95rem)}
+  .universe-chart{min-height:clamp(21rem,58vh,31rem)}
+}
