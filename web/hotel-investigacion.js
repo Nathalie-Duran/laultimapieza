@@ -499,7 +499,7 @@
  function node(tag,txt,cls){const n=document.createElement(tag);if(txt!=null)n.textContent=txt;if(cls)n.className=cls;return n;}
  function btn(label,fn){const b=node('button',label);b.type='button';b.onclick=fn;return b;}
  function speak(text){if('speechSynthesis' in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='es-ES';speechSynthesis.speak(u);}}
- window.HotelGuardia=function({index,controller,refresh}){
+ window.HotelGuardia=function({stage,index,controller,refresh}){
   let inv=controller.hotelShift(),busy=false;
   const root=node('section',null,'guard-desk'),nav=node('nav'),work=node('div'),status=node('p');
   status.setAttribute('role','status');root.append(nav,work,status);
@@ -511,6 +511,16 @@
   function save(){try{if(storage())localStorage.setItem(storage(),JSON.stringify(state));}catch{}}
   function redraw(){save();draw();}
   function draw(){
+   renderDesk();
+   const chapter=node('p','Capítulo '+['I','II','III','IV','V'][index]+' · '+stage.title,'hotel-chapter');
+   nav.prepend(chapter);
+   const scene=work.querySelector('.guard-scene'),title=work.querySelector('h3');
+   const objects=node('aside',null,'hotel-desk-objects');
+   objects.append(node('h3','Objetos de este puesto'),title);
+   for(const item of [...work.children])if(item!==scene)objects.append(item);
+   work.className='hotel-desk-layout';work.replaceChildren(scene,objects);
+  }
+  function renderDesk(){
    const side=state.side,key=side?'B':'A',d=state.desks[side],shift=inv.shift;
    const done=shift.done[index+key],both=shift.done[index+'A']&&shift.done[index+'B'];
    nav.replaceChildren();work.replaceChildren();

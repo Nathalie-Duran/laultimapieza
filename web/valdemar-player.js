@@ -433,8 +433,23 @@
   function hotelPanel(c,select){
     const shell=element('div',null,'hotel-partida'),host=element('div');
     const mesa=window.MesaDeJuego.mount(host,{family:'valdemar',title:c.data.story.title});
-    shell.append(host);
-    const screens=new Map(),labels={escenario:'Escenario',evidencias:'Evidencias',resolver:'Resolver',inventario:'Inventario',pistas:'Pistas',extra:'Reto extra',desenlace:'Desenlace'};
+    const dock=element('aside',null,'mj-objective-dock'),tabs=element('nav',null,'hotel-tabs');
+    dock.setAttribute('aria-label','Objetivo de la aventura');
+    tabs.setAttribute('aria-label','Panel de la aventura');
+    const more=element('nav',null,'hotel-related');
+    more.setAttribute('aria-label','Acciones de la partida');
+    shell.append(dock,tabs,host,more);
+    mesa.dockObjective(dock);
+    const screens=new Map(),buttons=new Map();
+    function command(parent,label,run){
+      const b=element('button',label);b.type='button';b.addEventListener('click',run);parent.append(b);return b;
+    }
+    for(const [key,label] of [['resolver','Escenario'],['inventario','Inventario'],['evidencias','Evidencias'],['pistas','Pistas']]){
+      buttons.set(key,command(tabs,label,()=>select(key==='resolver'&&!hour.stage?'desenlace':key,true)));
+    }
+    const back=command(more,'Volver al puesto',()=>select(hour.stage?'resolver':'desenlace',true));
+    const explore=command(more,'Explorar las estancias',()=>select('escenario',true));
+    const extra=command(more,'Reto extra',()=>select('extra',true));
     const goals=[
       'Conecta la llamada de Candela y prepara la entrega que corresponde a su aviso.',
       'Cruza los albaranes con los planos de las obras para identificar la puerta correcta.',
@@ -442,7 +457,7 @@
       'Recoge las tres declaraciones y contrasta el croquis con el recorte del rellano.',
       'Reconstruye el recado, devuelve los objetos a su casillero y llama a Candela.'
     ];
-    let hour=c.data.hour,active=null,saved='',pending=0,failed=false;
+    let hour=c.data.hour,active=null,saved=c.resume?'Partida recuperada':'',pending=0,failed=false;
     function update(){
       const stage=hour.stage,index=hour.current,shift=hour.inventory?.shift;
       const paired=c.frame.dataset.playMode==='duo',role=hour.inventory?.role||c.data.partner?.role;
@@ -450,25 +465,26 @@
       let target=stage?'resolver':'desenlace',objective=stage?(shift?goals[index]:stage.task||stage.brief):'Abre el desenlace para cerrar el caso.';
       if(stage&&shift){
         if(!shift.opensAt)objective=role==='B'?'Abre el puesto de guardia para iniciar el turno.':'Descuelga el teléfono de recepción para iniciar el turno.';
-        else if(a&&b)objective=index===4?'Vuelve al teléfono y llama a Candela a la hora indicada.':'Los dos puestos han terminado. Pulsa «Continuar la investigación» en Resolver.';
+        else if(a&&b)objective=index===4?'Vuelve al teléfono y llama a Candela a la hora indicada.':'Los dos puestos han terminado. Pulsa «Continuar la investigación» en Escenario.';
         else if(paired&&((role==='A'&&a)||(role==='B'&&b)))objective='Tu operación está guardada. Comparte tus hallazgos con el otro puesto mientras termina.';
-        else if(!paired&&(a||b))objective='Abre Resolver y cambia a '+(a?'Turno de noche':'Recepción')+' para completar la otra operación.';
+        else if(!paired&&(a||b))objective='En Escenario, cambia a '+(a?'Turno de noche':'Recepción')+' para completar la otra operación.';
         else if(index===3&&(hour.inventory?.hotel?.witnesses?.length||0)<3){target='escenario';objective=goals[index];}
       }
-      const first=stage&&index===0;
-      mesa.update({progress:(stage?index:hour.stages.length)+'/'+hour.stages.length+' etapas resueltas'+(stage?' · '+stage.title:''),
-        objective,saved,tutorial:first?(paired?'Abre Resolver y examina tu puesto. Describe a tu pareja lo que ves y usa sus indicios para manejar tu instrumento.':'Abre Resolver. Alterna entre Recepción y Turno de noche para comparar sus documentos y manejar los dos instrumentos.'):'',
-        help:{context:paired?'duo':'solo',text:objective,steps:['Consulta los documentos en Evidencias.','Abre Resolver para trabajar en tu puesto.','Usa Escenario para visitar las estancias y hablar con los testigos.']},
-        tools:Object.entries(labels).filter(([id])=>id!==(stage?'desenlace':'resolver')).map(([id,label])=>({id,label,selected:active===id,run:()=>select(id,true)})),
-        next:active!==target?{label:'Ir al objetivo',run:()=>select(target,true)}:null});
+      const selected=['desenlace','escenario'].includes(active)?'resolver':active==='extra'?'pistas':active;
+      for(const [key,b] of buttons)b.setAttribute('aria-pressed',String(key===selected));
+      back.hidden=active==='resolver'||active==='desenlace';
+      explore.hidden=active!=='resolver';
+      extra.hidden=active!=='pistas';
+      mesa.update({progress:(stage?index:hour.stages.length)+'/'+hour.stages.length+' pruebas resueltas'+(stage?' · '+stage.title:''),
+        objective,saved,help:false,tools:[],tutorial:'',next:null});
     }
     const observer=new MutationObserver(update);
     observer.observe(c.frame,{attributes:true,attributeFilter:['data-play-mode','data-play-paper']});
     return {shell,get active(){return active;},
-      bind(key,node){node.dataset.hotelPane=key;node.id='hotel-vista-'+key;node.tabIndex=-1;node.hidden=true;screens.set(key,node);shell.append(node);},
+      bind(key,node){node.dataset.hotelPane=key;node.id='hotel-vista-'+key;node.tabIndex=-1;node.hidden=true;screens.set(key,node);shell.insertBefore(node,more);},
       show(key,focus){if(!screens.has(key))return false;active=key;c.frame.dataset.hotelView=key;
         for(const [id,node] of screens)node.hidden=id!==key;
-        update();if(focus){screens.get(key).focus({preventScroll:true});host.scrollIntoView({block:'start'});}return true;},
+        update();if(focus){screens.get(key).focus({preventScroll:true});dock.scrollIntoView({block:'start'});}return true;},
       progress(value){hour=value;update();},enter(){update();},
       writing(){if(!pending)failed=false;pending++;saved='Guardando…';update();},
       written(ok){failed ||= ok===false;pending=Math.max(0,pending-1);saved=pending?'Guardando…':failed?'Última acción sin confirmar':ok===null?'Respuesta comprobada':'Progreso guardado';update();},
