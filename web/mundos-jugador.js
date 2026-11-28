@@ -20,7 +20,7 @@
   function clear() {
     if(!current)return;
     current.modeControl?.destroy();
-    current.scene?.destroy();
+    current.navigation?.destroy();
     current.hour?.pause();
     if(current.sideVoice)window.ValdemarHour?.stopVoice?.(current.sideVoice);
     current.observer?.disconnect();
@@ -40,6 +40,7 @@
   function showAccess(c,message,reason) {
     if(c!==current)return;
     c.modeControl?.destroy();
+    c.navigation?.destroy();
     c.hour?.pause();
     if(c.sideVoice)window.ValdemarHour?.stopVoice?.(c.sideVoice);
     c.observer?.disconnect();
@@ -62,16 +63,16 @@
   }
   async function request(c,action,payload) {
     if(!active(c))throw Error('Vuelve a abrir tu cuenta para continuar.');
-    const tracking=payload!==undefined&&c.scene;
-    if(tracking)c.scene.writing();
+    const tracking=payload!==undefined&&c.navigation;
+    if(tracking)c.navigation.writing();
     try {
       const body=payload===undefined?undefined:{...payload,partnerId:c.data?.partner?.id||null};
       const result=await c.bridge.request('/api/valdemar/cases/'+c.item.id+(action?'/'+action:''),body);
       if(!active(c))throw Error('Has salido de esta investigación.');
-        if(tracking)c.scene.written(result?.correct===false?null:true);
+      if(tracking)c.navigation.written(result?.correct===false?null:true);
       return result;
     } catch(error) {
-        if(tracking&&active(c))c.scene.written(false);
+      if(tracking&&active(c))c.navigation.written(false);
       if(c===current){
         if(error.code==='PAIR_CHANGED')reopen(c);
         else if(error.code==='CASE_NOT_RELEASED')showAccess(c,error.message,402);
@@ -94,18 +95,27 @@
     }
   }
   function select(c,tab,focus=false) {
-    if(!active(c))return;
-      if(tab==='side'&&c.tab&&tab!==c.tab)c.scene?.rememberExtra(c.tab);
-    if(tab!==c.tab){c.hour?.pause();if(c.sideVoice)window.ValdemarHour.stopVoice(c.sideVoice);}
-    c.tab=tab;
-    c.frame.dataset.openExtra=String(tab==='side');
-    for(const [k,panel] of Object.entries(c.panels))panel.hidden=k!==tab;
-    for(const [k,btn] of Object.entries(c.controls))btn.setAttribute('aria-pressed',String(k===tab));
-    c.scene?.returnFrom(c.panels[tab]);
-    if(focus && c.frame.dataset.playMode==='pending'){
-      c.modeControl.entry.querySelector('button')?.focus();return;
+    if(!active(c)||!c.navigation)return;
+    if(tab!==c.navigation.active){
+      c.hour?.pause();
+      if(c.sideVoice)window.ValdemarHour.stopVoice(c.sideVoice);
     }
-    if(focus){const p=c.panels[tab];p.focus({preventScroll:true});p.scrollIntoView({block:'start',behavior:'instant'});}
+    if(tab==='extra'&&!c.sideContent.hasChildNodes())renderSide(c);
+    c.navigation.show(tab,focus);
+  }
+  function initialSection(c,section) {
+    if(section==='reto')return 'extra';
+    if(['pistas','extra','inventario','escenario','evidencias'].includes(section))return section;
+    if(section==='resolver'&&c.data.hour.stage)return 'resolver';
+    return c.data.hour.stage?'evidencias':'desenlace';
+  }
+  function updateReturnLink(c,query){
+    const source=Number(query.get('desde'));
+    const returning=['reto','extra'].includes(query.get('seccion'))&&query.get('volver')==='pistas'&&
+      Number.isInteger(source)&&source>=1&&source<=48&&source!==c.item.id;
+    c.returnLink.hidden=!returning;
+    if(returning)c.returnLink.href='#'+(source<=12?'valdemar-jugar':'mundos-jugar')+'?id='+source+'&seccion=pistas&retomar=1';
+    else c.returnLink.removeAttribute('href');
   }
   function updateWallet(c,data) {
     window.Keyring.update(c.data,data);
@@ -113,10 +123,9 @@
     c.balance.textContent=n+(n===1?' llave':' llaves');
   }
   function refreshHelp(c) {
-    const h=c.panels.help;
+    const h=c.panels.pistas;
     h.replaceChildren(el('p',worlds.edition(c.item.world).notebook,'md-caption'),el('h2','Pistas del caso'));
-    if(c.tab==='help')c.scene?.returnFrom(h);
-    window.Keyring.render(h,{id:c.item.id,data:c.data,buttonClass:'md-action',play:()=>select(c,'side',true),
+    window.Keyring.render(h,{id:c.item.id,data:c.data,buttonClass:'md-action',play:()=>select(c,'extra',true),
       buy:async (op,quotedCost)=>{updateWallet(c,await request(c,op,{quotedCost}));refreshHelp(c);h.focus({preventScroll:true});}});
   }
   function concludeForm(c,options,prompt,label,action) {
@@ -138,7 +147,7 @@
         c.data.progress=r.progress;
         if(action==='ending')c.endingAccess=r.seasonAccess;
         if(action==='deduce' && !r.correct) status.textContent='Queda una prueba sin explicar. Contrasta las fuentes del cuaderno antes de volver a intentarlo.';
-        else{renderEnd(c);c.panels.end.focus({preventScroll:true});}
+        else{renderEnd(c);c.panels.desenlace.focus({preventScroll:true});}
       }catch(e){
         if(e.status===409 && active(c)){
           try{const latest=await request(c);c.data.progress=latest.progress;c.data.hour=latest.hour;c.hour.update(latest.hour);renderEnd(c);return;}catch{}
@@ -149,12 +158,10 @@
     return form;
   }
   function renderEnd(c) {
-    const target=c.panels.end,{hour,story,progress}=c.data;
-    c.scene?.update(hour);
+    const target=c.panels.desenlace,{hour,story,progress}=c.data;
     target.replaceChildren(el('p',worlds.nameOf(c.item.world),'md-caption'),el('h2','El desenlace'));
-    if(c.tab==='end')c.scene?.returnFrom(target);
     if(hour.stage && !progress.choice){
-      target.append(el('p','Has resuelto '+hour.current+' de '+hour.stages.length+' etapas. El cuaderno reúne las pruebas que necesitarás al final.'),button('Volver a la etapa actual',()=>select(c,'main',true),'md-cta'));return;
+      target.append(el('p','Has resuelto '+hour.current+' de '+hour.stages.length+' etapas. El cuaderno reúne las pruebas que necesitarás al final.'),button('Volver a la etapa actual',()=>select(c,'evidencias',true),'md-cta'));return;
     }
     if(!progress.deduced){
       target.append(concludeForm(c,story.hypotheses,story.challengePrompt||story.question,'Contrastar la deducción','deduce'));
@@ -168,14 +175,13 @@
     } else target.append(concludeForm(c,story.choices,'¿Cómo queréis cerrar esta historia? La decisión quedará guardada.','Guardar desenlace','ending'));
   }
   function renderSide(c,feedback,replay=false) {
-    const target=c.panels.side,side=c.data.side;
+    const target=c.sideContent,side=c.data.side;
     target.replaceChildren(window.AventuraEscena.challengeHeader({
       id:c.item.id,world:c.item.world,title:side.title,caseTitle:c.item.title,
       photo:window.RetosTemporada?.ficha(c.item.id)?.photo||'/mundo-'+c.item.id+'.webp'
     }));
-    if(c.tab==='side')c.scene?.returnFrom(target);
     if(!replay && c.data.wallet.won.includes(c.item.id)){
-      target.append(live(feedback||'Reto resuelto. Ya recibiste las llaves de esta actividad.'),button('Consultar mis pistas',()=>select(c,'help',true),'md-cta'),button('Repetir el reto sin premio adicional',()=>{
+      target.append(live(feedback||'Reto resuelto. Ya recibiste las llaves de esta actividad.'),button('Consultar mis pistas',()=>select(c,'pistas',true),'md-cta'),button('Repetir el reto sin premio adicional',()=>{
         renderSide(c,'',true);target.focus({preventScroll:true});
       }));
       return;
@@ -183,7 +189,7 @@
     target.append(el('p',side.brief,'md-question'));
     const work=el('div',null,'vhour-workbench');
     c.sideVoice={voice:null};
-    const sideContext={caseId:c.item.id,role:c.data.partner?.role,side:true};
+    const sideContext={caseId:c.item.id,role:c.role,side:true};
     const shelf=window.ValdemarHour.proofShelf(side.materials,c.sideVoice,sideContext.role);
     window.ArchivosDeCaso?.[c.item.id]?.({...sideContext,stage:side,index:0,shelf,controller:sideContext});
     work.append(shelf,window.ValdemarHour.decision(
@@ -201,89 +207,126 @@
     ));
     target.append(work);
   }
+  function entryHeader(c) {
+    const {item,frame}=c,edition=worlds.edition(item.world);
+    const header=el('header',null,'vd-block-entry'),links=el('nav',null,'vd-block-links');
+    links.setAttribute('aria-label','Navegación del juego');
+    const place=worlds.route(item.world,item.id);
+    c.balance=el('span','','vd-balance');c.balance.setAttribute('aria-live','polite');
+    links.append(link('Volver a la ficha',place+'&seccion=ficha'),link(edition.returnLabel,place),c.balance);
+    const cover=el('div',null,'vd-block-cover'),photo=el('img',null,'vd-block-photo');
+    photo.src='/mundo-'+item.id+'.webp';photo.alt=item.place;photo.width=768;photo.height=512;photo.decoding='async';
+    const copy=el('div',null,'vd-block-copy'),heading=el('h1',item.title);heading.tabIndex=-1;
+    const number=item.id-edition.offset;
+    copy.append(el('p',worlds.nameOf(item.world)+' · Bloque '+Math.ceil(number/4)+' · Juego '+String(number).padStart(2,'0'),'vd-block-label'),heading,el('p',item.question,'vd-block-pitch'));
+    const mode=el('details',null,'vd-block-mode'),summary=el('summary');
+    mode.append(summary,c.modeControl.entry);
+    copy.append(mode);cover.append(photo,copy);header.append(links,cover);
+    function syncMode(){
+      const current=frame.dataset.playMode||'pending';
+      if(current===c.headerMode)return;
+      const before=c.headerMode,wasChoosing=mode.contains(document.activeElement);
+      c.headerMode=current;
+      mode.open=current==='pending';header.dataset.state=mode.open?'entry':'playing';
+      summary.textContent=mode.open?'Cómo quieres jugar':'Modalidad · '+(current==='duo'?'En pareja':'En solitario');
+      if(before==='pending'&&current!=='pending'&&wasChoosing)heading.focus({preventScroll:true});
+    }
+    syncMode();c.syncHeader=syncMode;
+    return header;
+  }
   function build(c) {
     const {item,frame}=c,story=c.data.story;
-    frame.dataset.mdWorld=item.world;
-    const header=el('header');
-    const top=el('div',null,'md-game-top');c.balance=el('span','','md-wallet');c.balance.setAttribute('aria-live','polite');
-    top.append(link('← '+worlds.edition(item.world).returnLabel,worlds.route(item.world,item.id)),c.balance);
-    c.modeControl=window.ModalidadJuego.create(frame,story,c.data.mode,mode=>request(c,'mode',{mode}),null,{
+    frame.dataset.mdWorld=item.world;frame.dataset.blockEntry='true';
+    c.role=c.data.partner?.role||null;
+    c.modeControl=window.ModalidadJuego.create(frame,story,c.data.mode,mode=>request(c,'mode',{mode}),paper=>c.changeRole?.(paper),{
       caseId:item.id,partner:c.data.partner,data:c.data,partners:(path,body)=>c.bridge.request(path,body),
       readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
       onState:state=>{const advanced=window.ModalidadJuego.syncProgress(c.data,state,c.hour,()=>renderEnd(c));updateWallet(c,state);refreshHelp(c);return advanced;},reopen:()=>reopen(c)
     });
-    c.scene=window.AventuraEscena.mount(header,{world:item.world,id:item.id,frame,story,resumed:c.resume,image:'/mundo-'+item.id+'.webp',
-      place:item.place,alt:item.place,toolbar:top,modeControl:c.modeControl,read:()=>c.data,playerName:()=>c.bridge.playerName?.(),
+    const header=entryHeader(c);
+    const navigation=window.AventuraEscena.caseNavigation(frame,(key,focus)=>select(c,key,focus),{
+      world:item.world,id:item.id,story,image:'/mundo-'+item.id+'.webp',place:item.place,alt:item.place,read:()=>c.data,playerName:()=>c.bridge.playerName?.(),
       actions:(kind,id)=>{
-        if(kind==='restore'){select(c,id);return c.panels[id];}
-        if(kind==='hints'){select(c,'help',true);return;}
-        if(kind==='scene'){select(c,'main');return;}
-        if(kind==='ending'){select(c,'end',true);return;}
-        select(c,'main');c.hour.open(kind,id);
-      }});
-    const nav=el('nav',null,'md-game-tabs');nav.setAttribute('aria-label','Secciones de la partida');
-    c.controls={};c.panels={};
-    for(const [key,label] of [['main','Investigación'],['side','Reto de aventura'],['help','Pistas'],['end','Desenlace']]){
-      const b=button(label,()=>select(c,key,true),'md-tab');b.dataset.mdTab=key;
-      const p=el('section',null,'md-game-panel md-game-'+key+(key==='side'?' vhour':''));p.hidden=true;p.tabIndex=-1;
-      p.id='md-panel-'+key;p.setAttribute('aria-label',label);b.setAttribute('aria-controls',p.id);
-      c.panels[key]=p;c.controls[key]=b;nav.append(b);
+        if(kind==='decision'){select(c,'resolver',true);return;}
+        if(kind==='ending'){select(c,'desenlace',true);return;}
+        if(kind==='hints'){select(c,'pistas',true);return;}
+        select(c,kind==='inspect'?'inventario':'evidencias');
+        c.hour.open(kind,id);
+      }
+    });
+    c.navigation=navigation;c.panels={};
+    for(const [key,cls] of [['evidencias','vhour'],['resolver','vhour'],['inventario','vhour'],['pistas','md-game-help'],['extra','vhour md-game-side'],['desenlace','md-game-end']]){
+      const pane=el('section',null,'md-game-panel '+cls);
+      navigation.bind(key,pane);c.panels[key]=pane;
     }
+    c.sideContent=el('div');c.sideContent.tabIndex=-1;c.panels.extra.append(c.sideContent);
+    c.panels.extra.insertAdjacentHTML('beforeend',window.RetosTemporada?.salaDeAventura(item.id)||'');
+    const query=new URLSearchParams(location.hash.split('?')[1]);
+    c.returnLink=el('a','Volver a las pistas de la otra aventura','md-textlink');
+    c.panels.extra.append(c.returnLink);updateReturnLink(c,query);
     if(item.world==='umbravia'){
-      c.quiet=button('Lectura silenciosa',()=>quiet(c,!c.silent),'md-muted-toggle');nav.append(c.quiet);
+      c.quiet=button('Lectura silenciosa',()=>quiet(c,!c.silent),'md-muted-toggle');
+      header.querySelector('.vd-block-mode').append(c.quiet);
     }
-    frame.replaceChildren(header,nav,...Object.values(c.panels));
-    c.scene.attach();
+    frame.replaceChildren(header,navigation.shell);
     const roomReward=async()=>{
       try{const value=await request(c);if(active(c)){updateWallet(c,value);refreshHelp(c);}}catch{}
     };
     for(const event of ['season-room-reward','mansion-arcade-reward','editorial-challenge-solved'])frame.addEventListener(event,roomReward);
-    header.insertAdjacentHTML('afterend',window.RetosTemporada?.salaDeAventura(item.id)||'');
-    c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
-      caseId:item.id,role:c.data.partner?.role,
-      present:table=>c.scene.present(table),
-      onScene:(hour,main)=>{c.scene.update(hour);if(c.tab==='main')c.scene.returnFrom(main);},
-      sceneRoute:item.world==='expedicion',sceneBack:target=>c.scene.returnFrom(target),
+    let lastIndex=c.data.hour.current;
+    const controller={
+      caseId:item.id,role:c.role,screens:{reading:c.panels.evidencias,problem:c.panels.resolver,bag:c.panels.inventario},
       inventory:async input=>{
-          const result=await request(c,'inventory',input);
-          c.scene?.inventory(result.inventory);
-          if(result.wallet)updateWallet(c,result);
-          return result;
-        },
+        const result=await request(c,'inventory',input);if(result.wallet)updateWallet(c,result);
+        return result;
+      },
       submit:(index,choice,sources)=>request(c,'stage',{index,choice,...(sources?{sources}:{})}),
-      reload:async()=>{const result=await request(c);c.data.progress=result.progress;return result.hour;},
+      reload:async()=>{const result=await request(c);c.data.progress=result.progress;c.data.hour=result.hour;return result.hour;},
       change:hour=>{c.data.hour=hour;renderEnd(c);},
-      finish:()=>select(c,'end',true)
-    });
-    updateWallet(c,c.data);renderSide(c);refreshHelp(c);renderEnd(c);
+      onScene:hour=>{
+        c.data.hour=hour;navigation.progress(hour);
+        if(hour.current!==lastIndex){
+          lastIndex=hour.current;
+          if(['resolver','evidencias'].includes(navigation.active))select(c,hour.stage?'evidencias':'desenlace',true);
+        }
+      },
+      finish:()=>select(c,'desenlace',true)
+    };
+    c.changeRole=paper=>{
+      const next=c.data.partner?.role||paper||null;
+      if(next===c.role)return;
+      c.role=controller.role=next;c.hour?.update(c.data.hour);
+      if(c.sideContent.hasChildNodes()){
+        if(c.sideVoice)window.ValdemarHour.stopVoice(c.sideVoice);
+        renderSide(c);
+      }
+    };
+    c.hour=window.ValdemarHour.mount(el('div'),c.data.hour,controller);
+    updateWallet(c,c.data);refreshHelp(c);renderEnd(c);
     if(c.quiet){
       let value=false;try{value=sessionStorage.getItem('mundos-lectura-silenciosa')==='1';}catch{}
       quiet(c,value);
     }
     const enhance=()=>{
-      openTranscripts(c);
+      c.syncHeader();openTranscripts(c);
       window.MundosLaminas?.enhance(frame,item.world);
     };
-    enhance();
-    c.modeControl.mount();
+    c.modeControl.mount();enhance();
     c.observer=new MutationObserver(enhance);
-    c.observer.observe(frame,{childList:true,subtree:true});
-    const ending=Boolean(c.data.progress.choice || (c.resume && !c.data.hour.stage));
-    c.routeSection=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
-    const sideRequested=c.routeSection==='reto';
-    const pending=c.frame.dataset.playMode==='pending';
-    const hintsRequested=c.routeSection==='pistas';
-    select(c,sideRequested?'side':hintsRequested?'help':ending?'end':'main',sideRequested||hintsRequested||c.resume&&(ending||pending));
-    if(c.resume&&!ending&&!sideRequested&&!hintsRequested&&!pending)c.scene.focus();
+    c.observer.observe(frame,{childList:true,subtree:true,attributes:true,attributeFilter:['data-play-mode']});
+    c.routeSection=query.get('seccion');
+    select(c,initialSection(c,c.routeSection));
+    if(navigation.active==='evidencias')navigation.enter();
   }
   function mountGame(id,bridge,resume=false) {
     const host=document.getElementById('md-game-host'),item=worlds.story(id);
     if(!host || !item || !bridge)return;
     if(current?.item.id===item.id && current.bridge===bridge && current.signed===bridge.isSignedIn()){
       if(current.frame.parentElement!==host)host.replaceChildren(current.frame);
-      const section=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
+      const query=new URLSearchParams(location.hash.split('?')[1]),section=query.get('seccion');
+      if(current.returnLink)updateReturnLink(current,query);
       if(current.panels && section!==current.routeSection){
-          current.routeSection=section;select(current,section==='reto'?'side':section==='pistas'?'help':'main',true);
+        current.routeSection=section;select(current,initialSection(current,section),true);
       }
       return;
     }

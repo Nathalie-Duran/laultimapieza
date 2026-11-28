@@ -31,7 +31,7 @@
   function pressed(button, value) {
     button.setAttribute('aria-pressed',String(value));
   }
-  const roleNames = {A:'Papel 1',B:'Papel 2',AB:'Ambos papeles'};
+  const roleNames = {A:'Papel 1',B:'Papel 2',1:'Papel 1',2:'Papel 2',AB:'Ambos papeles'};
   const kinds = {text:'Documento',testimony:'Testimonio',ledger:'Registro',visual:'Lámina',audio:'Audio',web:'Archivo web'};
   const normalize = text => String(text).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const playingStates = new Set();
@@ -244,6 +244,7 @@
   function illustrateShelf(context){
     window.ArchivosDeCaso?.[context.caseId]?.(context);
     window.CompletarFuentesDeCaso?.[context.caseId]?.(context);
+    window.ValdemarMesa?.illustrate?.(context);
   }
   function filterByRole(root,role) {
     for(const shelf of root.querySelectorAll('.vhour-shelf')){
@@ -702,7 +703,14 @@
     const main=el('div',null,'vhour-chapter');
     const inventory=window.ExpeditionInventory?.create(controller.inventory, value=>{hour.inventory=value;});
     let hotel,currentShelf,currentTask,showActivePane,tableTitle;
-    const screens=controller.hotelScreens;
+    const screens=controller.screens||controller.hotelScreens;
+    function stageShelf(stage,index){
+      const sources=window.ValdemarMesa?.materials?.(controller.caseId,index,controller.sample)||[];
+      const displayStage=sources.length?{...stage,materials:[...(stage.materials||[]),...sources]}:stage;
+      const shelf=proofShelf(displayStage.materials||[],state,controller.role);
+      illustrateShelf({stage:displayStage,index,caseId:controller.caseId,role:controller.role,shelf,controller});
+      return shelf;
+    }
     const refreshHotelBag=initial.hotel&&inventory?window.HotelCuaderno?.bag({node:inventory.node,hotel:initial.hotel,read:()=>hour.inventory?.hotel,visit:controller.visitHotel}):null;
     if(initial.hotel)hotel=hotelMap(initial.hotel,state,initial.inventory?.hotel,async input=>{
       const {inventory:snapshot}=await controller.inventory(input);
@@ -711,7 +719,8 @@
       }
     });
     node.classList.add('vhour');
-    node.append(main); if(hotel)(controller.hotelNode||node).append(hotel.node);
+    if(!screens)node.append(main);
+    if(hotel)(controller.hotelNode||node).append(hotel.node);
     function render(data,feedback='',focus=false) {
       stopVoice(state);
       hour=data;
@@ -721,31 +730,35 @@
       const stages=hour.stages||[],index=hour.current,stage=hour.stage;
       if(stage)main.dataset.stage=String(index+1);
       else delete main.dataset.stage;
-      const nav=el('ol',null,'vhour-timeline');nav.setAttribute('aria-label','Recorrido de la investigación');
-      nav.tabIndex=0;
-      for(const [i,step] of stages.entries()){
-        const entry=el('li',null,i<index?'is-done':i===index?'is-current':'');
-        if(i===index)entry.setAttribute('aria-current','step');
-        const number=el('span',String(i+1).padStart(2,'0'),'vhour-number');
-        entry.append(number,el('span',step.place||step.title));nav.append(entry);
+      if(!screens&&!controller.sceneRoute){
+        const nav=el('ol',null,'vhour-timeline');nav.setAttribute('aria-label','Recorrido de la investigación');
+        nav.tabIndex=0;
+        for(const [i,step] of stages.entries()){
+          const entry=el('li',null,i<index?'is-done':i===index?'is-current':'');
+          if(i===index)entry.setAttribute('aria-current','step');
+          const number=el('span',String(i+1).padStart(2,'0'),'vhour-number');
+          entry.append(number,el('span',step.place||step.title));nav.append(entry);
+        }
+        main.append(nav);
       }
-      if(!controller.sceneRoute)main.append(nav);
       if(inventory && hour.inventory){
         inventory.update(hour.inventory,index);
         if(screens){screens.bag.replaceChildren(inventory.node);inventory.node.open=true;}
         else main.append(inventory.node);
       }
-      if(feedback){const message=live();message.className='vhour-status vhour-solved';message.textContent=feedback;main.append(message);}
+      if(feedback&&!screens){const message=live();message.className='vhour-status vhour-solved';message.textContent=feedback;main.append(message);}
       if(stage) {
-        main.append(el('p',(controller.sceneBack?'':'Etapa '+(index+1)+' de '+stages.length+' · ')+stage.minutes+' min orientativos','vhour-kicker'));
-        const heading=head('h3',controller.sceneBack?'Pruebas de la etapa':stage.title);
-        if(!controller.present)main.append(heading);
-        if(!controller.present&&stage.brief&&stage.brief!==stage.task)main.append(el('p',stage.brief,'vhour-lead'));
-        if(hotel && controller.visitHotel && !controller.sceneBack)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
-        const workbench=el('div',null,'vhour-workbench');
-        workbench.dataset.stage=String(index+1);
-        const shelf=proofShelf(stage.materials||[],state,controller.role);
-        illustrateShelf({stage,index,caseId:controller.caseId,role:controller.role,shelf,controller});
+        let heading,workbench;
+        if(!screens){
+          main.append(el('p',(controller.sceneBack?'':'Etapa '+(index+1)+' de '+stages.length+' · ')+stage.minutes+' min orientativos','vhour-kicker'));
+          heading=head('h3',controller.sceneBack?'Pruebas de la etapa':stage.title);
+          if(!controller.present)main.append(heading);
+          if(!controller.present&&stage.brief&&stage.brief!==stage.task)main.append(el('p',stage.brief,'vhour-lead'));
+          if(hotel && controller.visitHotel && !controller.sceneBack)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
+          workbench=el('div',null,'vhour-workbench');
+          workbench.dataset.stage=String(index+1);
+        }
+        const shelf=stageShelf(stage,index);
         const instrument=stage.instrument;
         const makeTool=instrument && window.ValdemarTalleres?.[instrument.id];
         if(typeof makeTool==='function') {
@@ -783,18 +796,20 @@
             card.append(next);
           }
         }
-        workbench.append(shelf,task);
+        if(workbench)workbench.append(shelf,task);
         if(screens){
+          shelf.dataset.readingTable='true';
+          const group='documentos-etapa-'+(++readingGroup);
+          for(const card of shelf.querySelectorAll('.vhour-material'))card.setAttribute('name',group);
           const first=[...shelf.querySelectorAll('.vhour-material')].find(card=>!card.hidden);
           if(first)first.open=true;
-          const evidenceNodes=[head('h2',stage.title),el('p',stage.task,'hotel-consigna'),shelf];
-          if(index===3)evidenceNodes.push(control('Volver a entrevistar a los testigos',controller.visitHotel,'vd-link'));
+          const evidenceNodes=[head('h2',stage.title),el('p',stage.task,controller.screens?'case-consigna':'hotel-consigna'),shelf];
+          if(controller.screens&&stage.brief&&stage.brief!==stage.task)evidenceNodes.push(fold('Leer el encargo',el('p',stage.brief)));
+          if(initial.hotel&&index===3&&controller.visitHotel)evidenceNodes.push(control('Volver a entrevistar a los testigos',controller.visitHotel,'vd-link'));
           if(feedback){const message=live();message.className='vhour-status vhour-solved';message.textContent=feedback;evidenceNodes.push(message);}
           screens.reading.replaceChildren(...evidenceNodes);
           screens.problem.replaceChildren(head('h2',stage.title),task);
-          for(const card of shelf.querySelectorAll('.vhour-material')){
-            card.addEventListener('toggle',()=>{if(card.open)for(const other of shelf.querySelectorAll('.vhour-material'))if(other!==card)other.open=false;});
-          }
+
         }else if(controller.present){
           shelf.dataset.readingTable='true';
           const table=el('section',null,'vhour-case-table');
@@ -822,17 +837,18 @@
         if(focus&&!screens){const target=controller.present?tableTitle:heading;target.focus({preventScroll:true});target.scrollIntoView?.({block:'start',behavior:'instant'});}
       } else {
         currentShelf=null;currentTask=null;showActivePane=null;tableTitle=null;controller.present?.(null);
-        if(screens){screens.reading.replaceChildren(head('h2','Evidencias del hotel'));screens.problem.replaceChildren();}
-        const heading=head('h3','Investigación completada');
-        main.append(heading,control('Ir a la resolución',controller.finish,'vd-primary'));
-        if(focus)heading.focus({preventScroll:true});
+        if(screens){screens.reading.replaceChildren(head('h2',initial.hotel?'Evidencias del hotel':'Evidencias de la aventura'));screens.problem.replaceChildren();}
+        else{
+          const heading=head('h3','Investigación completada');
+          main.append(heading,control('Ir a la resolución',controller.finish,'vd-primary'));
+          if(focus)heading.focus({preventScroll:true});
+        }
       }
       const notes=hour.journal||[];
       if(notes.length) {
         const box=el('div',null,'vhour-journal');
         for(const note of notes){
-          const shelf=proofShelf(note.materials||[],state,controller.role);
-          illustrateShelf({stage:note,index:note.index,caseId:controller.caseId,role:controller.role,shelf,controller});
+          const shelf=stageShelf(note,note.index);
           box.append(fold(note.title,el('p',note.success||note.brief,'vhour-clipping'),shelf));
         }
         (screens?.reading||main).append(fold('Cuaderno de etapas resueltas · '+notes.length,box));
@@ -841,7 +857,7 @@
     }
     render(hour);
     function focusStage(){
-      const heading=tableTitle||main.querySelector('h3');
+      const heading=tableTitle||screens?.reading.querySelector('h2')||main.querySelector('h3');
       if(!heading)return;
       heading.focus({preventScroll:true});
       heading.scrollIntoView({block:'start',behavior:'instant'});
@@ -853,7 +869,7 @@
       focusStage,
       open(kind,id){
         if(kind==='journal'){
-          const journal=main.querySelector('.vhour-journal'),entry=(hour.journal||[]).findIndex(note=>note.index===id);
+          const journal=(screens?.reading||main).querySelector('.vhour-journal'),entry=(hour.journal||[]).findIndex(note=>note.index===id);
           const chapter=journal?.children[entry];
           if(chapter){journal.parentElement.open=true;chapter.open=true;controller.sceneBack?.(chapter);const title=chapter.querySelector('summary');title.focus({preventScroll:true});title.scrollIntoView({block:'center'});return;}
         }
@@ -863,7 +879,12 @@
           if(inventory?.startExploring()){controller.sceneBack?.(inventory.node);return;}
           if(inventory&&hour.inventory){inventory.openBag();controller.sceneBack?.(inventory.node);return;}
         }
-        const cards=[...(currentShelf?.querySelectorAll('.vhour-material')||[])].filter(card=>!card.hidden);
+        const allCards=[...(currentShelf?.querySelectorAll('.vhour-material')||[])];
+        if(kind==='material'&&screens&&currentShelf&&!controller.role&&
+            !['A','B'].includes(shelfModes.get(currentShelf))&&allCards.some(card=>card.dataset.material===String(id)&&card.hidden)){
+          shelfFilters.get(currentShelf)?.('');
+        }
+        const cards=allCards.filter(card=>!card.hidden);
         const card=kind==='material'?cards.find(item=>item.dataset.material===String(id)):kind==='evidence'?(cards.find(item=>item.open)||cards[0]):null;
         if(card){showActivePane?.('evidence');card.open=true;controller.sceneBack?.(card);const title=card.querySelector('summary');title.focus({preventScroll:true});title.scrollIntoView({block:'start'});return;}
         if(kind==='decision'){
