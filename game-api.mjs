@@ -92,6 +92,14 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       if(rate&&rate.until>now){if(++rate.count>180)fail(429,'Espera unos segundos antes de continuar.');}
       else {if(rates.size>10000)rates.clear();rates.set(uid,{count:1,until:now+60000});}
       const input=method==='GET'?null:await body(request,path==='/api/admin/challenges'&&canManageSite(user)?65536:16384);
+      if(path==='/api/billing/cancellation'&&billing){
+        if(!['GET','POST'].includes(method))fail(405,'Método no permitido.');
+        if(method==='POST'){
+          if(!origin||!origins.includes(origin))fail(403,'Confirma la baja desde tu perfil.');
+          if(input?.confirm!==true||typeof input.confirmation!=='string'||input.confirmation.length>120)fail(400,'Revisa la fecha y confirma la baja.');
+        }
+        return json(await withStore(store=>billing.cancellation(store,uid,method==='POST'?input.confirmation:undefined)));
+      }
       if(path==='/api/me/play-notices'){
         if(user.emailVerified!==true)fail(403,'Confirma tu correo para gestionar estos avisos.');
         if(method==='GET')return json(await withStore(async store=>{
