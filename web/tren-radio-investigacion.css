@@ -79,7 +79,7 @@
 
 
 /* Radio Valdemar uses the same reading surface and scene proportions as the mansion. */
-#valdemar-player [data-vd-case="04"] .radio-desk {
+#valdemar-player [data-vd-case] .radio-desk {
   padding:0; margin:.8rem 0 0; min-width:0; background:#161513; color:#f5ead7;
   border:1px solid #5a4e3a; border-radius:.45rem; box-shadow:none;
 }
