@@ -130,3 +130,39 @@
 :is(#valdemar-player,#md-game-host) .investigation-layout .mansion-find-photo {position:static; grid-column:1; grid-row:1; width:100%; height:3.25rem; min-width:0; object-fit:cover; border-radius:.15rem;}
 :is(#valdemar-player,#md-game-host) .investigation-layout .mansion-find-label {grid-column:2;grid-row:1;min-width:0;}
 :is(#valdemar-player,#md-game-host) .investigation-layout .mansion-find::after {grid-column:3;grid-row:1;}
+
+/* Postal carriage: photographic props, working diagrams and paper folders. */
+#valdemar-player .rail-lock {background:#211c18;color:#f8edda;border:1px solid #78674d;border-radius:.55rem;overflow:hidden;margin:1rem 0;}
+#valdemar-player .rail-lock [hidden],#valdemar-player .tr-bench[hidden]{display:none!important;}
+#valdemar-player .rail-head {display:grid;grid-template-columns:minmax(10rem,36%) minmax(0,1fr);background:linear-gradient(115deg,#443128,#201c18);align-items:stretch;}
+#valdemar-player .rail-still {display:block;width:100%;height:100%;max-height:19rem;object-fit:cover;border:0;}
+#valdemar-player .rail-intro {align-self:center;padding:clamp(1rem,2.6vw,2.5rem);}
+#valdemar-player .rail-intro small {color:#efcb92;font:700 .81rem/1.4 'Segoe UI',sans-serif;letter-spacing:.055em;text-transform:uppercase;}
+#valdemar-player .rail-intro h4 {font:normal clamp(1.65rem,3vw,2.7rem)/1.07 Georgia,serif;color:#fff2d9;margin:.55rem 0;}
+#valdemar-player .rail-lock p {line-height:1.55;}
+#valdemar-player .rail-brief,#valdemar-player .rail-folders,#valdemar-player .rail-board,#valdemar-player .rail-actions,#valdemar-player .rail-hint,#valdemar-player .rail-feedback {margin:1rem clamp(.8rem,2vw,1.7rem);}
+#valdemar-player .rail-folders {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.7rem;align-items:start;}
+#valdemar-player .rail-paper {background:repeating-linear-gradient(0deg,transparent 0 23px,#92856830 24px),#f0e3c5;color:#322a25;border:1px solid #ae9472;border-left:5px solid #815947;padding:.75rem 1rem;box-shadow:0 3px 8px #0004;}
+#valdemar-player .rail-paper summary {color:#3a2922;font:bold 1.05rem Georgia,serif;cursor:pointer;}
+#valdemar-player .rail-paper p {color:#372a24;margin:.8rem 0 0;}
+#valdemar-player .rail-board {background:linear-gradient(135deg,#202a2a,#191f21);padding:clamp(.75rem,2vw,1.5rem);border:1px solid #766b53;box-shadow:inset 0 0 1.2rem #0005;}
+#valdemar-player .rail-pieces,#valdemar-player .rail-actions {display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;}
+#valdemar-player .rail-lock .rail-key {border:1px solid #96856b;border-radius:.24rem;background:#373630;color:#fff2da;padding:.58rem .9rem;min-height:44px;margin:0;cursor:pointer;}
+#valdemar-player .rail-lock .rail-key[aria-pressed=true],#valdemar-player .rail-actions button:last-child {background:#dfbb7d;color:#241c15;}
+#valdemar-player .rail-key:disabled {opacity:.55;}
+#valdemar-player .rail-punch {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));max-width:35rem;margin:auto;padding:1rem;background:radial-gradient(circle at 0 50%,#252626 0 4px,transparent 5px) 0 0/100% 15px,#cbb58c;border:2px dashed #706049;}
+#valdemar-player .rail-punch button,#valdemar-player .rail-scraps button {font:700 1.1rem Georgia,serif;color:#382c21;background:#f5e3b9;}
+#valdemar-player .rail-punch button[aria-pressed=true]{background:#796549;color:white;border:2px dashed #efc373;}
+#valdemar-player .rail-strip {display:block;margin:.8rem 0 0;padding:.5rem .75rem;border-top:1px dashed #a99775;font:1rem/1.5 monospace;color:#f2d8a9;}
+#valdemar-player .rail-map {position:relative;height:clamp(13rem,23vw,18rem);background:repeating-linear-gradient(0deg,transparent 0 19px,#ad9d7330 20px),#e5d8b7;border:1px solid #bca77d;}
+#valdemar-player .rail-map svg {width:100%;height:100%;position:absolute;inset:0;} .rail-map line{stroke:#79674c;stroke-width:3px;vector-effect:non-scaling-stroke;} .rail-map line.used{stroke:#965027;stroke-width:6px;}
+#valdemar-player .rail-map .rail-key {position:absolute;transform:translate(-50%,-50%);font-size:.9rem;padding:.3rem .45rem;}
+#valdemar-player .rail-glass {position:relative;max-width:35rem;height:clamp(10rem,20vw,16rem);background:#101112;border:.7rem solid #302524;overflow:hidden;margin:0 auto 1rem;}
+#valdemar-player .rail-glass img {width:100%;height:100%;object-fit:cover;filter:grayscale(1) sepia(.75) hue-rotate(155deg);}
+#valdemar-player .rail-glass[data-filter="1"] img {filter:sepia(.9) contrast(1.1);} #valdemar-player .rail-glass[data-filter="2"] img {filter:sepia(.9) hue-rotate(310deg) saturate(1.5);}
+#valdemar-player .rail-glass b {position:absolute;bottom:5%;left:4%;color:#fff3cc;background:#241a14;padding:.25rem .5rem;font:.85rem monospace;}
+#valdemar-player .rail-notch {position:absolute;top:12%;right:6%;font-size:2rem;color:#f5cd7c;text-shadow:0 1px 4px #000;}
+#valdemar-player .rail-clock {flex:1 1 10rem;padding:.7rem;text-align:center;background:#302d24;border:2px solid #a28c64;border-radius:.5rem;}#valdemar-player .rail-clock output {display:block;font:2rem monospace;padding:.3rem;color:#ffdd90;background:#191d19;margin:.4rem 0;}#valdemar-player .rail-clock button{margin:.15rem;}
+#valdemar-player .rail-scraps button{background:linear-gradient(110deg,#d4b888,#f3e3bb);border-left:3px dashed #8f7052;min-width:5.75rem;}
+#valdemar-player .rail-feedback:not(:empty){border-left:3px solid #d8b475;padding:.6rem .9rem;background:#342e23;}#valdemar-player .rail-lock[data-open=true] .rail-feedback{border-color:#9bb59d;}
+@media(max-width:650px){#valdemar-player .rail-head {grid-template-columns:1fr;}#valdemar-player .rail-still{max-height:10rem;}#valdemar-player .rail-map .rail-key{font-size:.75rem;padding:.25rem;}}
