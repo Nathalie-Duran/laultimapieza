@@ -59,14 +59,20 @@ test('cada territorio conduce a una actividad secundaria real y solo los casos a
   assert.deepEqual(mansionArcadeCatalog.map(game=>game.id),['archivo','relojero','museo','cartas','jardin','espejo']);
   for(const [index,board] of ['expedicion','umbravia','necropolis'].entries()){
     const id=17+12*index,link='/#mundos-jugar?id='+id+'&amp;seccion=reto';
-    assert.ok(guest.includes('/#desafios?mundo='+board));
-    assert.ok(guest.includes('/#'+board+'?lugar=1&amp;seccion=ficha'));
+    const modulePattern=new RegExp('<aside class="atlas-side-stop" aria-labelledby="atlas-side-'+(index+2)+'">([\\s\\S]*?)</aside>');
+    const guestModule=guest.match(modulePattern)[1];
+    assert.equal((guestModule.match(/<a /g)||[]).length,1);
+    assert.ok(guestModule.includes('href="/#desafios?mundo='+board+'">Explorar los retos'));
+    assert.doesNotMatch(guestModule,/lugar=|seccion=reto|Ver la parada/);
     const chosen=await atlas('#desafios?mundo='+board);
     assert.ok(!chosen.challenges().includes('seccion=reto'));
     const choices=chosen.challenges({availableCases:[id]});
     assert.equal((choices.match(/<li>/g)||[]).length,12);
     assert.equal((choices.match(/seccion=reto/g)||[]).length,1);
     assert.ok(choices.includes(link));
-    assert.ok(publicAtlas.boards({availableCases:[id]}).includes(link));
+    const memberModule=publicAtlas.boards({availableCases:[id]}).match(modulePattern)[1];
+    assert.equal((memberModule.match(/<a /g)||[]).length,2);
+    assert.ok(memberModule.includes(link));
+    assert.ok(memberModule.includes('href="/#desafios?mundo='+board+'"'));
   }
 });
