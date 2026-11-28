@@ -56,10 +56,10 @@
     const heading=primary?'h1':'h2';
     const pins=seasons.map((season,i)=>`<a class="universe-pin universe-pin-${i+1}" href="/#${season.board}" aria-label="Explorar ${esc(season.name)}"><span class="universe-pin-light" aria-hidden="true"></span><span><small>${esc(season.genre)}</small><strong>${esc(season.name)}</strong></span></a>`).join('');
     return `<section class="universe-front" aria-labelledby="universe-heading"><div class="universe-front-copy">
-      <${heading} id="universe-heading">Mapa de temporadas</${heading}><p>Elige un destino del mapa para explorar sus doce juegos.</p>
-      ${home?'<a class="universe-progress" href="/#tableros">Ver el recorrido de las cuatro temporadas <span aria-hidden="true">→</span></a>':''}
-      ${letter?`<div class="universe-front-first"><span>Primer juego · Código Valdemar</span><h3>El secreto de los dos mundos</h3><p>Ada os envía una foto de vuestra infancia. Reconocéis vuestras caras, pero ninguno recuerda esa casa.</p><a class="universe-door" href="/valdemar/01/?carta=1">Abrir la carta de Ada <span aria-hidden="true">→</span></a></div>`:''}</div>
-      <nav class="universe-chart" aria-label="Explorar las cuatro temporadas"><img src="/atlas-cuatro-mundos.webp" width="1520" height="855" alt="" ${primary?'fetchpriority="high"':'loading="lazy"'}>${pins}</nav></section>`;
+      <${heading} id="universe-heading">Mapa de temporadas</${heading}><p>Elige un destino del mapa para explorar sus doce juegos.</p></div>
+      <nav class="universe-chart" aria-label="Explorar las cuatro temporadas"><img src="/atlas-cuatro-mundos.webp" width="1520" height="855" alt="" ${primary?'fetchpriority="high"':'loading="lazy"'}>${pins}</nav>
+      ${home?`<div class="universe-front-actions"><a class="universe-progress" href="/#tableros">Ver el recorrido de las cuatro temporadas <span aria-hidden="true">→</span></a>
+      ${letter?'<div class="universe-front-first"><span>Primer juego · Código Valdemar</span><h3>El secreto de los dos mundos</h3><p>Ada os envía una foto de vuestra infancia. Reconocéis vuestras caras, pero ninguno recuerda esa casa.</p><a class="universe-door" href="/valdemar/01/?carta=1">Abrir la carta de Ada <span aria-hidden="true">→</span></a></div>':''}</div>`:''}</section>`;
   }
   const two = value => String(value).padStart(2,'0');
   const placeHref = (season,local) => '/#'+season.board+'?lugar='+local;

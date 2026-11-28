@@ -60,11 +60,16 @@
     else if(world==='mapa'&&!seasonAccess)items.filter(item=>access(item,opts)).forEach(item=>allowed.add(item.id));
     const map=world==='mapa'?'mapa?mes='+month:world+'?lugar='+first;
     const monthLink=n=>collections?.catalogRoute?.(world,n)||'/#casos?mes='+n;
-    return `<section class="vd-section vd-list" data-catalog-world="${world}"><header class="vd-head"><div><h1>Juegos</h1><p class="vd-catalog-intro">Elige una temporada para ver sus juegos. Puedes explorar las fichas o jugar a las aventuras que tengas disponibles.</p><p class="vd-label">1–2 participantes · ≈ 60 min por juego</p></div><nav class="vd-route-links" aria-label="Mapa de la temporada elegida"><a class="vd-textlink" href="/#${map}">Ver el mapa de esta temporada ↗</a><a class="vd-textlink" href="/#como-se-juega">Cómo se juega</a></nav></header>
+    const guest=!opts.canPlay&&!opts.admin&&!window.ClubAccess?.canPlay;
+    const offer=window.ClubAccess?.offerAction||{href:'/#planes',label:'Ver la suscripción'};
+    const price=window.ClubAccess?.price;
+    const intro=guest?'Abre una ficha para descubrir qué misterio te espera. La suscripción empieza con los cuatro primeros juegos de Código Valdemar. Cada temporada reúne doce.':'Elige una temporada para ver sus juegos. Abre una ficha o continúa una aventura disponible.';
+    const actions=guest?`<nav class="vd-actions" aria-label="Suscripción y demo"><a class="vd-cta" href="${esc(offer.href)}">${esc(offer.label)}</a><a class="vd-textlink" href="/cinta-87.html" data-action="preview-open">Probar la demo sin cuenta</a></nav>`:'';
+    return `<section class="vd-section vd-list" data-catalog-world="${world}"><header class="vd-head"><div><h1>Juegos</h1><p class="vd-catalog-intro">${intro}</p><p class="vd-label">1–2 participantes · ≈ 60 min por juego${guest&&price?' · '+esc(price)+' por persona al mes':''}</p>${actions}</div><nav class="vd-route-links" aria-label="Mapa y guía"><a class="vd-textlink" href="/#${map}">Ver el mapa de esta temporada ↗</a>${guest?'':'<a class="vd-textlink" href="/#como-se-juega">Cómo se juega</a>'}</nav></header>
       ${collections?.menu?.('casos')||''}
       <nav class="vd-months" aria-label="Bloques de ${esc(season.name)}">${[1,2,3].map(n=>`<a href="${esc(monthLink(n))}"${month===n?' aria-current="page"':''}>Bloque ${n} <small>${number((n-1)*4+1)}–${number(n*4)}</small></a>`).join('')}</nav>
       ${cards(month,{games,done,allowed})}
-      ${world==='mapa'?'<p class="vd-foot"><a href="/#archivo-clasico">Visitar el archivo de casos anteriores</a></p>':''}</section>`;
+      </section>`;
   }
   function entry(item,opts,unlocked) {
     const href=unlocked?'/#valdemar-jugar?id='+item.id:'/#planes';

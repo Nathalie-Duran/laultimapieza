@@ -57,7 +57,7 @@
     const guestActions='<div class="calendar-access"><a class="button primary" href="/#planes">Ver la suscripción</a><button type="button" class="text-link" data-action="auth-login">Ya tengo acceso · Entrar</button></div>';
     const published='<section class="account-card" id="published-challenges"><h2>Retos de la edición</h2><p role="status" aria-live="polite"></p><div data-challenges></div></section>';
     return '<section class="account-card reto-calendario" id="calendar-challenges">'+heading+
-      '<p>Los cuatro juegos comparten este calendario. Desde cualquier temporada encontrarás las mismas pruebas y se guardará el mismo progreso. Puedes jugarlas mientras tengas acceso a «El secreto de los dos mundos», la primera aventura de Código Valdemar.</p>'+
+      '<p>Las cuatro temporadas comparten este calendario. Puedes empezar una prueba desde una temporada y continuarla desde otra. Para jugar necesitas acceso a «El secreto de los dos mundos», la primera aventura de Código Valdemar.</p>'+
       '<ul class="reto-periodos"><li><strong>Desafío diario</strong><span>Una prueba · 1 llave</span></li><li><strong>Misión semanal</strong><span>Tres pruebas de lunes a domingo · 2 llaves</span></li></ul>'+
       '<p>Elige una prueba y marca tu respuesta. Las ediciones cambian a medianoche, hora de Madrid. Las llaves que hayas ganado se quedan en tu cuenta.</p>'+
       (signed?'':guestActions)+'<p role="status" aria-live="polite"></p><div data-challenges></div></section>'+
