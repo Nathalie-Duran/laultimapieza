@@ -76,6 +76,35 @@
 .rifa-revision {margin:.35rem 0;padding:.4rem .55rem;background:#34372b;border:1px solid #7c795b;}
 .rifa-viewer .rifa-revision summary {cursor:pointer;color:#ead7a3;}
 .vhour-material .rifa-written>summary {display:list-item;cursor:pointer;color:inherit;padding:.5rem .7rem;min-height:2.75rem;}
+@container (min-width: 42rem) {
+  .rifa-board-reader {
+    width:min(100%,61rem); margin-inline:auto; grid-template-columns:minmax(0,1.25fr) minmax(0,.85fr);
+    grid-template-rows:1fr auto auto auto 1fr; gap:0 clamp(1rem,3.2cqw,2.5rem); align-items:start; justify-items:stretch;
+  }
+  .rifa-board-reader>.rifa-board-frame {grid-area:1 / 1 / 6 / 2;align-self:center;width:100%;}
+  .rifa-board-reader>.rifa-enlarged {
+    grid-area:2 / 2; display:grid; justify-content:center; align-content:center; justify-items:center;
+    min-height:clamp(11rem,20cqw,17rem); padding:.8rem 1rem; margin:0; gap:.6rem;
+    border:4px double #a18a65; box-shadow:0 .2rem .6rem #16150f75, inset 0 0 2rem #a3855333;
+    text-align:center; font:600 clamp(1rem,1.8cqw,1.35rem)/1.25 Georgia,serif;
+  }
+  .rifa-board-reader>.rifa-enlarged .rifa-icon {width:clamp(7rem,14cqw,11rem);}
+  .rifa-board-reader>.rifa-enlarged:empty {
+    display:grid; position:relative; background:radial-gradient(ellipse at 48% 30%,#4d4a3c,#33362c 65%,#2b2c22);
+  }
+  .rifa-board-reader>.rifa-enlarged:empty::before {
+    content:""; width:4.4rem;aspect-ratio:1; border:.32rem double #b69c6b; border-radius:50%;
+    transform:translate(-.4rem,-.32rem); box-shadow:inset .15rem .2rem 1rem #f9e6a91a,0 .15rem .25rem #14140f77;
+    background:linear-gradient(130deg,#d1cbb015,transparent 40%,#171c174a);
+  }
+  .rifa-board-reader>.rifa-enlarged:empty::after {
+    content:""; position:absolute; top:calc(50% + 1rem);left:calc(50% + .85rem);width:2.1rem;height:.42rem;
+    border:1px solid #a48d64;border-radius:.16rem;background:#7b6b4b;transform:rotate(47deg);transform-origin:left center;
+  }
+  .rifa-board-reader>.rifa-readout {grid-area:3 / 2;margin:.8rem 0 0;font-size:1.02rem;line-height:1.5;}
+  .rifa-board-reader>.rifa-tools {grid-area:4 / 2;margin:.75rem 0 0;}
+  .rifa-board-reader>.rifa-tools:empty {display:none;}
+}
 @container (max-width: 22rem) {
   .rifa-board-frame {padding:.38rem;}
   .rifa-tile .rifa-icon {width:70%;}

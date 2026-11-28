@@ -87,8 +87,33 @@
     if(shared){mesaHome.append(mesaHost);caption.replaceChildren(place);host.replaceChildren(toolbar,heading,stage,party,setup,mesaHome,instrument);}
     else host.replaceChildren(toolbar,heading,stage,party,setup,objective,tools,instrument);
     if(options.blockEntry){toolbar.remove();heading.remove();setup.remove();}
+    const readingTable=options.id>1?el('div','ae-reading-table ae-play vhour'):null;
+    if(readingTable){readingTable.hidden=true;host.insertBefore(readingTable,stage);}
+    const jump=readingTable?button('Ver la prueba',()=>actions('evidence'),'ae-jump-proof'):null;
+    if(jump){jump.hidden=true;dock.append(jump);dock.className+=' ae-proof-dock';}
     if(story.intro||story.question)host.append(briefing);
     let lastMode,signature,currentHour,light=false,lastPoint,secondaryPanel=null,sceneContext={},area='scene',extraOrigin=null;
+    let entryFocus=null;
+    function cancelEntryFocus(){
+      entryFocus?.abort();
+      entryFocus=null;
+    }
+    function focusOpenEvidence(){
+      if(!entryFocus||secondaryPanel||!readingTable?.isConnected||readingTable.hidden)return;
+      const summary=readingTable.querySelector('.vhour-shelf:not([hidden]) .vhour-material[open]:not([hidden]) > summary');
+      if(!summary?.getClientRects().length)return;
+      cancelEntryFocus();
+      summary.focus({preventScroll:true});
+      summary.scrollIntoView({block:'start',behavior:'instant'});
+    }
+    function requestEntryFocus(){
+      if(!readingTable)return;
+      cancelEntryFocus();
+      entryFocus=new AbortController();
+      const opts={capture:true,signal:entryFocus.signal};
+      for(const type of ['pointerdown','keydown','click'])document.addEventListener(type,cancelEntryFocus,opts);
+      queueMicrotask(focusOpenEvidence);
+    }
     let writes=0,saveText=options.resumed?'Partida recuperada':'',saveIssue=false;
     host.addEventListener('click',event=>{const point=event.target.closest?.('button');if(point&&host.contains(point))lastPoint=point;},true);
     const back=button('Volver al escenario',()=>{
@@ -140,9 +165,11 @@
       const context=waiting?'Reto de aventura · '+ancestry:ancestry;
       if(contextLabel.textContent!==context)contextLabel.textContent=context;
       const section=frame.dataset.playMode==='pending'?null:secondaryPanel;
+      if(readingTable)readingTable.hidden=!!section||!readingTable.firstElementChild||
+        !['solo','duo'].includes(frame.dataset.playMode);
       if(entryTools){
         const holder=section?toolHome:host;
-        if(entryTools.parentElement!==holder)holder.insertBefore(entryTools,section?holder.firstChild:stage);
+        if(entryTools.parentElement!==holder)holder.insertBefore(entryTools,section?holder.firstChild:(readingTable||stage));
       }
       const ready=['solo','duo'].includes(frame.dataset.playMode);
       shared.dockObjective?.(dock.parentElement&&ready&&!sideOpen?dock:null);
@@ -200,6 +227,7 @@
       if(!state)return;
       const mode=frame.dataset.playMode||'pending',paper=frame.dataset.playPaper;
       const filter=paper==='A'||paper==='B'?paper:null;
+      const entering=lastMode==='pending'&&(mode==='solo'||mode==='duo')&&readingTable;
       if(lastMode!==mode){
         const active=setup.contains(document.activeElement);
         setup.open=mode==='pending';
@@ -233,6 +261,7 @@
       const next=JSON.stringify([state.current,phase?.title,mode,filter,visible.map(item=>[item.id,item.label]),data.progress?.choice,data.progress?.deduced]);
       if(next===signature)return;
       signature=next;markers.replaceChildren();instrumentBody.replaceChildren();
+      if(entering)requestEntryFocus();
       const total=state.stages?.length||0;
       progress.textContent=phase?'Etapa '+(state.current+1)+' de '+total:'Investigación completada';
       place.textContent=phase?.place||options.place||phase?.title||story.title;
@@ -248,7 +277,7 @@
           objective:ready?goal.textContent:'Elige la modalidad para abrir el escenario.',
           help:{context:together?'duo':'temporada',text:'Los puntos del escenario abren el lugar, sus pruebas y la decisión de esta etapa.',
             steps:['Examina las pruebas de tu carpeta.','Reúne los objetos en el inventario y contrasta lo que has observado.','Resuelve la etapa para abrir la siguiente estancia.']},
-          tutorial:ready&&phase&&state.current===0?'Empieza por «'+(firstProof?.label||style.inspect)+'» en la imagen. '+(together?'Describe tu hallazgo a tu pareja y escucha qué aporta su carpeta.':'Consulta las pruebas de ambos papeles en Evidencias.')+' Cuando tengas una explicación, abre la decisión de la etapa.':'',
+          tutorial:ready&&phase&&state.current===0?(readingTable?'Abre los documentos de la mesa y compara sus detalles. '+(together?'Describe lo que ves a tu pareja.':'Puedes consultar las dos carpetas.')+' Pulsa «Resolver la prueba» cuando tengas una hipótesis.':'Empieza por «'+(firstProof?.label||style.inspect)+'» en la imagen.'):'',
           next:null
         };
         syncMesa();
@@ -294,12 +323,22 @@
     }
     const observer=new MutationObserver(()=>update());
     observer.observe(frame,{attributes:true,attributeFilter:['data-play-mode','data-play-paper']});
-    return {update,returnFrom,attach(){if(shared){frame.prepend(dock);syncMesa();}},
+    return {update,returnFrom,present(table){
+      if(!readingTable)return;
+      readingTable.replaceChildren(...(table?[table]:[]));
+      jump.hidden=!table;
+      readingTable.hidden=!table||!!secondaryPanel||!['solo','duo'].includes(frame.dataset.playMode);
+      if(entryFocus)queueMicrotask(focusOpenEvidence);
+    },attach(){if(shared){frame.prepend(dock);syncMesa();}},
       inventory(snapshot){const hour=currentHour||read().hour;if(hour&&snapshot&&snapshot.revision>=(hour.inventory?.revision||0)){hour.inventory=snapshot;syncMesa();}},
       rememberExtra(view){if(view&&document.activeElement&&frame.contains(document.activeElement))extraOrigin={view,trigger:document.activeElement,label:document.activeElement.textContent};},
       writing(){writes++;if(writes===1)saveIssue=false;saveText='Guardando…';syncMesa();},
       written(ok){if(ok===false)saveIssue=true;writes=Math.max(0,writes-1);saveText=writes?'Guardando…':saveIssue?'Última acción sin confirmar':ok===null?'Respuesta comprobada':'Progreso guardado';syncMesa();},
-      focus(){markers.querySelector('button')?.focus({preventScroll:true});host.scrollIntoView({block:'start'});},destroy(){observer.disconnect();explorer.destroy();shared?.destroy();}};
+      focus(){
+        const entry=readingTable&&!readingTable.hidden&&readingTable.querySelector('.vhour-shelf:not([hidden]) .vhour-material[open]:not([hidden])>summary');
+        const target=entry||markers.querySelector('button');
+        target?.focus({preventScroll:true});(entry||host).scrollIntoView({block:'start',behavior:'instant'});
+      },destroy(){cancelEntryFocus();observer.disconnect();explorer.destroy();shared?.destroy();}};
   }
   window.AventuraEscena=Object.freeze({mount,mountExplorer,challengeHeader});
 })();
