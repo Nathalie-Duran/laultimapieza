@@ -16,7 +16,7 @@ export function explorerCollection(data,scope){
 
 // Samples describe optional observations in the current edition. They never contain campaign clues.
 export async function explorerCase({store,uid,scope,data,story,record,role,mode,waiting,pairId,input,method}){
-  if(!mode||waiting)fail(409,'Elige una modalidad y entra en la partida para usar el Explorador.');
+  if(!mode||waiting)fail(409,'Entra en la partida para examinar la muestra. En pareja, ambos debéis haber confirmado la modalidad.');
   const def=story?.explorador;
   if(!def || !Array.isArray(def.names) || def.names.length<3 || !def.signs?.A || !def.signs?.B)fail(503,'La ficha de campo todavía no está disponible.');
   const id=story.id;
@@ -41,7 +41,7 @@ export async function explorerCase({store,uid,scope,data,story,record,role,mode,
   const view=shown=>({...base,examined:shown,location:def.location,category:def.category,
     ...(shown?{clues:viewRoles.map(r=>({role:r,text:def.clues[r]})),names:order(names),signs:evidenceChoices}:{})});
   if(method==='GET')return view(ready);
-  if(!['examine','identify'].includes(input?.op))fail(400,'Elige una acción del Explorador.');
+  if(!['examine','identify'].includes(input?.op))fail(400,'Elige si quieres examinar la muestra o comprobar su identificación.');
   const persist=async state=>{
     const cases=(data.valdemarCaseProgress ||= {})[scope] ||= {};
     (cases[id] ||= {}).explorerLup=state;
