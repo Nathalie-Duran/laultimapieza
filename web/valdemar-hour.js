@@ -718,7 +718,7 @@
     if(initial.hotel)hotel=hotelMap(initial.hotel,state,initial.inventory?.hotel,async input=>{
       const {inventory:snapshot}=await controller.inventory(input);
       if(snapshot.revision>=(hour.inventory?.revision||0)){
-        hour.inventory=snapshot;hotel.update(snapshot.hotel);inventory?.update(snapshot,hour.current);refreshHotelBag?.();
+        hour.inventory=snapshot;currentTask?.refreshShift?.(snapshot);hotel.update(snapshot.hotel);inventory?.update(snapshot,hour.current);refreshHotelBag?.();
       }
     });
     node.classList.add('vhour');
