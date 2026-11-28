@@ -18,7 +18,7 @@ async function appHarness({fullAccess=false,navLinks=[]}={}){
     AccountUI:{start:async value=>{bridge=value;},signInPanel:()=>'<h1>Iniciar sesión</h1>',header:()=>'',accountCard:()=>'',open(){}},
     addEventListener(){},scrollTo(){}});
   context.window=context;
-  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js',...(fullAccess?['membership-flow.js']:[]),'monthly-access.js','experience-ui.js','profile-notebook.js','archive.js',...(navLinks.length?['colecciones.js','valdemar-catalog.js','mundos-catalogo.js']:[])])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
+  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js',...(fullAccess?['membership-flow.js']:[]),'monthly-access.js','experience-ui.js','profile-notebook.js','archive.js','como-se-juega.js',...(navLinks.length?['colecciones.js','valdemar-catalog.js','mundos-catalogo.js']:[])])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
   runInContext(source,context);bridge.cloud(true);bridge.loading(false);
   return {bridge,element,membership:context.ClubAccess,setFetch(value){fetcher=value;},credential(value){context.AccountAccess.user=value;},
     visit(hash){context.location.hash=hash;bridge.render();return element('#main').innerHTML;}};
@@ -49,6 +49,17 @@ test('el menú de escritorio y el móvil ofrecen los mismos destinos y adaptan l
   verify([...base,'Mis partidas','Mi cuenta'],'archivo');
   app.bridge.reset();app.visit('#casos');
   verify([...base,'Suscripción'],'casos');
+});
+
+test('la guía se abre sin cuenta incluso durante la carga y el catálogo la enlaza en un clic',async()=>{
+  const app=await appHarness();
+  assert.match(app.visit('#como-se-juega'),/<h1 id="how-title">Cómo se juega<\/h1>/);
+  app.bridge.loading(true);
+  assert.match(app.visit('#como-se-juega'),/<guide-comparison>/);
+  const shell=await readFile(new URL('../web/index.html',import.meta.url),'utf8');
+  assert.match(shell,/<a class="site-how-link" href="\/#como-se-juega"/);
+  const catalog=await readFile(new URL('../web/valdemar-catalog.js',import.meta.url),'utf8');
+  assert.match(catalog,/href="\/#como-se-juega">Cómo se juega<\/a>/);
 });
 test('Cambiar de cuenta limpia la vista y una respuesta anterior no puede restaurar sus datos',async()=>{
   const app=await appHarness();

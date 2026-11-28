@@ -235,3 +235,22 @@ test('Portada y pase comparten la disponibilidad y la tarifa general configurada
     assert.ok(shop.page.ClubAccess.plans().includes('<strong>'+shop.page.ClubAccess.price+'</strong>'));
   }
 });
+
+test('Mi suscripción identifica la baja, los avisos y las facturas con acciones distintas',async()=>{
+  const shop=await storefront(false);shop.login(1);shop.location.hash='#suscripcion';
+  const member={ownAccess:true,hasCustomer:true,seasonAccess:{seasons:[],billingPlan:'four-boards-v1'}};
+  shop.page.ClubAccess.set({...member,renewal:{status:'active'}});
+  const active=shop.page.ClubAccess.plans();
+  assert.match(active,/data-renewal="review">Dar de baja mi suscripción/);
+  assert.match(active,/billing-portal">Ver facturas y métodos de pago/);
+  assert.match(active,/Gestionar avisos de apertura/);
+  assert.doesNotMatch(active,/Confirmar la baja/);
+  for(const [status,label] of [['scheduled','Baja programada'],['ended','Suscripción finalizada']]){
+    shop.page.ClubAccess.set({...member,renewal:{status,effectiveAt:1805000000000}});
+    const page=shop.page.ClubAccess.plans();
+    assert.ok(page.includes(label));assert.doesNotMatch(page,/data-renewal="review"/);
+  }
+  for(const account of [{hasCustomer:false},{...member,renewal:{status:'none'}},{role:'admin'}]){
+    shop.page.ClubAccess.set(account);assert.doesNotMatch(shop.page.ClubAccess.plans(),/data-renewal="review"/);
+  }
+});

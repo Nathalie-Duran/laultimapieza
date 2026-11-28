@@ -40,6 +40,37 @@ function element(tag) {
 function all(root,tag){
   return [ ...(root.tag===tag?[root]:[]), ...root.children.flatMap(item=>all(item,tag)) ];
 }
+test('Las ruedas, las luces y las láminas representan el ajuste enviado al juego',()=>{
+  const browser={window:{},document:{createElement:element,createTextNode:text=>({...element('text'),textContent:text})}};
+  runInNewContext(browserCode,browser);
+  function setup(id){
+    const root=element('div');
+    const definition=getFieldInstrument(id);
+    browser.window.FieldInstruments.render(root,definition,false,async()=>false);
+    return {root,definition};
+  }
+  const lock=setup(1).root;
+  const code=all(lock,'input')[0],wheels=all(lock,'button');
+  code.value='0279';code.events.input();
+  wheels.find(x=>x['aria-label']==='Subir cifra 4').events.click();
+  assert.equal(code.value,'0270');
+  wheels.find(x=>x['aria-label']==='Bajar cifra 2').events.click();
+  assert.equal(code.value,'0170');
+  assert.equal(all(lock,'strong').map(x=>x.textContent).join(''),code.value);
+  const circuit=setup(13).root;
+  const controls=all(circuit,'input'),lamps=all(circuit,'span').filter(x=>x.className==='instrument-bulb');
+  controls[1].checked=true;controls[1].events.change();
+  assert.deepEqual(lamps.map(x=>x['data-lit']),['true','true','false']);
+  for(const [id,key] of [[25,'zones'],[37,'samples']]){
+    const {root,definition}=setup(id);
+    const label=definition[key][2].label;
+    const marker=all(root,'button').find(x=>x['aria-label']===label);
+    marker.events.click();
+    assert.equal(marker['aria-pressed'],'true');
+    const mode=id===25?'direct':'detail';
+    assert.equal(all(root,'p').find(x=>x.className==='instrument-reading').textContent,definition[key][2][mode]);
+  }
+});
 test('Cada mesa permite ajustar los controles nativos, corregir un intento y guardar el acierto',async()=>{
   const browser={window:{},document:{createElement:element,createTextNode:text=>({...element('text'),textContent:text})}};
   runInNewContext(browserCode,browser);
