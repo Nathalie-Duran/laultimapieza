@@ -9,9 +9,15 @@ async function load(file) {
   const document = {};
   function createElement(tag) {
     return {
-      tag, dataset:{}, attributes:{}, listeners:{}, children:[], isConnected:true,style:{setProperty(){}},
-      append(...items) { this.children.push(...items); },
-      replaceChildren(...items) { this.children = items; },
+      tag, dataset:{}, attributes:{}, listeners:{}, children:[], isConnected:true,style:{setProperty(){},removeProperty(){}},
+      classList:{toggle(){}},
+      insertBefore(item,before){item.remove();this.children.splice(before?this.children.indexOf(before):this.children.length,0,item);item.parentElement=this;},
+      append(...items) { for(const item of items)this.insertBefore(item,null); },
+      prepend(...items) {for(const item of [...items].reverse())this.insertBefore(item,this.children[0]);},
+      remove(){if(this.parentElement){this.parentElement.children=this.parentElement.children.filter(node=>node!==this);this.parentElement=null;}},
+      replaceChildren(...items) {for(const item of [...this.children])item.remove();this.append(...items);},
+      matches(selector){return selector.split(',').some(part=>(this.className||'').split(' ').includes(part.slice(1)));},
+      closest(selector){return this.matches(selector)?this:this.parentElement?.closest(selector);},
       setAttribute(key, value) { this.attributes[key] = value; },
       addEventListener(name, fn) { this.listeners[name] = fn; },
       nodes() { return [this, ...this.children.flatMap(child => child.nodes())]; },
@@ -29,6 +35,7 @@ async function load(file) {
   Object.assign(document, {createElement, body:createElement('body')});
   document.activeElement = document.body;
   const window = {ValdemarHour:{filterByRole() {}}, clearInterval() {}, setInterval() {}};
+  if(file==='aventura-escena.js')runInNewContext(await source('mesa-de-juego.js'),{window,document});
   runInNewContext(await source(file), {window, document, MutationObserver:class {observe(){} disconnect(){}}});
   return {window, document};
 }
@@ -81,6 +88,17 @@ test('La escena cambia con la etapa, respeta el papel y conecta cada punto con s
     const ui=window.AventuraEscena.mount(host,{world,id:14,frame,story:{title:'Caso de ensayo'},image:'/prueba.webp',
       place:'Taller',toolbar:node(),modeControl:{entry},read:()=>data,playerName:()=> 'Carmen',actions:(kind,id)=>calls.push([kind,id])});
     const nodes=()=>host.nodes(),marker=()=>nodes().filter(n=>n.className==='ae-marker');
+    assert.equal(nodes().filter(n=>n.className==='mesa-juego').length,1);
+    const common=nodes().find(n=>n.className==='mesa-juego');
+    assert.match(nodes().find(n=>n.className==='mj-progress').textContent,/Etapa 2 de 2/);
+    nodes().find(n=>n.dataset.tool==='bag').listeners.click();assert.deepEqual(calls.pop(),['bag',undefined]);
+    const side=node();side.className='md-game-side';data.side={brief:'Ajusta la rueda de muestra'};
+    ui.returnFrom(side);
+    assert.equal(side.nodes().find(n=>n.className==='mesa-juego'),common);
+    assert.equal(side.nodes().find(n=>n.className==='mj-goal').textContent,'Ajusta la rueda de muestra');
+    assert.equal(side.nodes().find(n=>n.className==='mj-help').textContent,'Cómo se juega');
+    ui.returnFrom(node());
+    assert.equal(nodes().find(n=>n.className==='mesa-juego'),common);
     assert.equal(nodes().filter(n=>n===entry).length,1);
     assert.equal(nodes().find(n=>n.className==='ae-team').textContent,'Papel 1 · Lola / Papel 2 · Carmen');
     assert.equal(marker().length,4);
