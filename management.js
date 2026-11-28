@@ -66,11 +66,21 @@
   }
   function view() {
     if (!permitted()) return '';
+    const requested=new URLSearchParams((root.location?.hash || '').split('?')[1]).get('seccion');
+    currentSection=sections.some(([id])=>id===requested)?requested:'resumen';
     return `<section class="management" id="management-panel" aria-labelledby="management-title">
-      <header class="mg-head"><div><p class="mg-kicker">La Última Pieza</p><h1 id="management-title">Administración</h1></div>
-      <div class="mg-toolbar"><div class="mg-range" role="group" aria-label="Periodo de análisis">${ranges.map(value => `<button type="button" data-mg-days="${value}" aria-pressed="${value === days}">${value} días</button>`).join('')}</div><button class="mg-refresh" type="button" data-mg-refresh>Actualizar</button></div></header>
-      <p class="mg-status" role="status" aria-live="polite"></p><p class="mg-sr" data-mg-goal-announcement role="status" aria-live="polite" aria-atomic="true"></p><div class="mg-content" aria-busy="true"></div></section>`;
+      <header class="mg-head"><h1 id="management-title">Administración</h1><a class="mg-return" href="#inicio">Volver al inicio</a></header>
+      ${sectionNavigation()}
+      <div class="mg-toolbar" data-mg-analysis ${isAnalysis()?'':'hidden'}><div class="mg-range" role="group" aria-label="Periodo de análisis">${ranges.map(value => `<button type="button" data-mg-days="${value}" aria-pressed="${value === days}">${value} días</button>`).join('')}</div><button class="mg-refresh" type="button" data-mg-refresh>Actualizar</button></div>
+      <p class="mg-status" role="status" aria-live="polite" ${isAnalysis()?'':'hidden'}></p><p class="mg-sr" data-mg-goal-announcement role="status" aria-live="polite" aria-atomic="true"></p>
+      <div class="mg-content">
+        ${area('resumen','<div data-mg-overview></div>')}
+        ${area('partidas','<div data-mg-games></div>'+(root.Colecciones?.seals(root.ClubAccess.state.seasonAccess,true)||''))}
+        ${area('edicion','<div data-mg-reviews></div>'+(root.EditorialChallenges?.adminView()||'')+'<section class="mg-panel mg-block"><h2>Publicación de Valdemar</h2><p><a class="mg-return" href="#edicion-valdemar">Abrir el editor de publicación</a></p></section>')}
+        ${area('cuentas',accountLookupPanel())}
+      </div></section>`;
   }
+  function isAnalysis(){return currentSection==='resumen'||currentSection==='partidas';}
   function sectionNavigation() {
     return '<div class="mg-sections" role="tablist" aria-label="Áreas de administración">'+sections.map(([id,label])=>
       `<button type="button" role="tab" data-mg-section="${id}" id="mg-tab-${id}" aria-controls="mg-area-${id}" aria-selected="${id===currentSection}" tabindex="${id===currentSection?0:-1}">${label}</button>`).join('')+'</div>';
@@ -81,12 +91,19 @@
   function selectSection(el,id) {
     if(!sections.some(([key])=>id===key))return;
     currentSection=id;
+    el.querySelector('[data-mg-analysis]').hidden=!isAnalysis();
+    el.querySelector('.mg-status').hidden=!isAnalysis();
+    if(root.location?.hash.split('?')[0]==='#gestion'){
+      const address='#gestion'+(id==='resumen'?'':'?seccion='+id);
+      root.history.replaceState(root.history.state,'',address);
+    }
     for(const tab of el.querySelectorAll('[data-mg-section]')){
       const selected=tab.dataset.mgSection===id;
       tab.setAttribute('aria-selected',String(selected));
       tab.tabIndex=selected?0:-1;
       el.querySelector('#'+tab.getAttribute('aria-controls')).hidden=!selected;
     }
+    if(id==='edicion')root.EditorialChallenges?.adminMount();
   }
   function summary(data) {
     const s = data.stock, t = data.totals;
@@ -385,15 +402,18 @@
     const previousReport = report;
     if (!permitted() || !previousReport || form.dataset.saving) return;
     const id = Number(form.elements.caseId.value);
-    const input = {caseId:id,status:form.elements.status.value,note:form.elements.note.value,version:previousReport.caseReviews[id]?.version || 0};
+    const input = {caseId:id,status:form.elements.status.value,note:form.elements.note.value,
+      version:form.dataset.mgEdited!==undefined?Number(form.dataset.mgEdited):previousReport.caseReviews[id]?.version || 0};
     const status = form.querySelector('[role="status"]');
     form.dataset.saving = '1';
     for (const field of form.elements) field.disabled = true;
     try {
       const review = await root.GameAccountBridge.request('/api/admin/case-review',input,'PUT');
-      if (report !== previousReport || !permitted() || !form.isConnected) return;
+      if (!permitted() || !form.isConnected) return;
       const before=previousReport.caseReviews[id]?.status||'pending';
       previousReport.caseReviews[id] = review;
+      if(report&&report!==previousReport && (!report.caseReviews[id]||report.caseReviews[id].version<=review.version))report.caseReviews[id]=review;
+      delete form.dataset.mgEdited;
       if(before!==review.status){
         for(const [key,delta] of [[before,-1],[review.status,1]]){
           const count=host()?.querySelector('[data-mg-count="'+key+'"]');
@@ -470,14 +490,22 @@
   function show(data) {
     const el = host();
     if (!el || !permitted()) return;
-    const content = el.querySelector('.mg-content');
     saveGoalField(el);
-    content.innerHTML = sectionNavigation()
-      + area('resumen',summary(data)+monthlyGoal(data)+comparison(data)+chart(data)+'<div class="mg-columns mg-block">'+activation(data)+renewals(data)+'</div>'+details(data))
-      + area('partidas',boardReport(data)+activity(data))
-      + area('edicion',reviewPanel(data)+(root.EditorialChallenges?.adminView() || ''))
-      + area('cuentas',accountLookupPanel());
-    root.EditorialChallenges?.adminMount();
+    el.querySelector('[data-mg-overview]').innerHTML=summary(data)+chart(data)+monthlyGoal(data)
+      +'<details class="mg-details mg-more"><summary>Comparaciones, renovaciones y detalle de medición</summary>'
+      +comparison(data)+'<div class="mg-columns mg-block">'+activation(data)+renewals(data)+'</div>'+details(data)+'</details>';
+    el.querySelector('[data-mg-games]').innerHTML=boardReport(data)+activity(data);
+    const reviews=el.querySelector('[data-mg-reviews]');
+    const oldForm=reviews.querySelector('form');
+    if(!oldForm || oldForm.dataset.mgEdited===undefined){
+      const selected=oldForm?.elements.caseId.value;
+      reviews.innerHTML=reviewPanel(data);
+      const nextForm=reviews.querySelector('form');
+      if(nextForm && selected && Array.from(nextForm.elements.caseId.options).some(option=>option.value===selected)){
+        nextForm.elements.caseId.value=selected;
+        nextForm.querySelector('[data-mg-review-fields]').innerHTML=reviewFields(Number(selected),data);
+      }
+    }
     const goal = el.querySelector('[data-mg-target]');
     goal.dataset.lastHandled = goal.value;
     const onGoalInput = () => {
@@ -489,7 +517,8 @@
     goal.addEventListener('change', onGoalInput, true);
     announceAfterEdit(el, goal, goal, data.month?.grossCents);
     announceAfterEdit(el, el.querySelector('[data-mg-deductions]'), goal, data.month?.grossCents);
-    content.setAttribute('aria-busy', 'false');
+    el.querySelector('[data-mg-overview]').setAttribute('aria-busy','false');
+    el.querySelector('[data-mg-games]').setAttribute('aria-busy','false');
     el.querySelector('.mg-status').textContent = 'Actualizado el ' + dateText(data.generatedAt, updatedFormat) + ' (hora de Madrid).';
   }
   function setControls(el) {
@@ -500,13 +529,11 @@
     if (!permitted() || !host()) { clear(); return; }
     const current = ++generation;
     loading = true;
-    report = null;
     const el = host();
     saveGoalField(el);
     setControls(el);
     el.querySelector('.mg-status').textContent = 'Consultando los últimos ' + days + ' días…';
-    el.querySelector('.mg-content').replaceChildren();
-    el.querySelector('.mg-content').setAttribute('aria-busy', 'true');
+    for(const region of el.querySelectorAll('[data-mg-overview],[data-mg-games]'))region.setAttribute('aria-busy','true');
     try {
       const data = await root.GameAccountBridge.request('/api/admin/analytics?days=' + days);
       if (generation !== current || !host() || !permitted()) return;
@@ -517,8 +544,9 @@
       if (generation !== current || !host() || !permitted()) return;
       const panel = host();
       panel.querySelector('.mg-status').textContent = 'No se han podido cargar los datos. Puedes volver a intentarlo.';
-      panel.querySelector('.mg-content').innerHTML = '<button type="button" class="mg-refresh" data-mg-retry>Reintentar</button>';
-      panel.querySelector('.mg-content').setAttribute('aria-busy', 'false');
+      for(const region of panel.querySelectorAll('[data-mg-overview],[data-mg-games]'))region.setAttribute('aria-busy','false');
+      const reviews=panel.querySelector('[data-mg-reviews]');
+      if(!reviews.querySelector('form'))reviews.innerHTML='<section class="mg-panel"><h2>Revisión de contenidos</h2><p>No se han podido cargar los casos.</p><button type="button" class="mg-refresh" data-mg-retry>Reintentar</button></section>';
     } finally {
       if (generation === current) {
         loading = false;
@@ -572,8 +600,13 @@
       el.addEventListener('change', event => {
         if (!permitted()) { clear(); return; }
         if (event.target.matches('[data-mg-review] [name="caseId"]') && report) {
+          delete event.target.form.dataset.mgEdited;
           event.target.form.querySelector('[data-mg-review-fields]').innerHTML = reviewFields(Number(event.target.value),report);
           return;
+        }
+        if(event.target.matches('[data-mg-review] [name="status"]') && report){
+          const form=event.target.form;
+          form.dataset.mgEdited??=String(report.caseReviews[form.elements.caseId.value]?.version||0);
         }
         if (!event.target.matches('[data-mg-chart]') || !Object.hasOwn(charts, event.target.value) || !report) return;
         selectedChart = event.target.value;
@@ -581,10 +614,15 @@
       });
       el.addEventListener('input', event => {
         if (!permitted()) { clear(); return; }
+        if(event.target.matches('[data-mg-review] textarea') && report){
+          const form=event.target.form;
+          form.dataset.mgEdited??=String(report.caseReviews[form.elements.caseId.value]?.version||0);
+        }
         if (event.target.matches('[data-mg-deductions]') && report) simulate(el, report.month?.grossCents);
       });
     }
     setControls(el);
+    if(currentSection==='edicion')root.EditorialChallenges?.adminMount();
     if (report) show(report);
     else if (!loading) load();
     else el.querySelector('.mg-status').textContent = 'Consultando los últimos ' + days + ' días…';

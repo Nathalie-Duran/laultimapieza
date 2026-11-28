@@ -200,6 +200,15 @@
 }
 .management .mg-sections button:hover { color: var(--mg-paper); border-color: var(--mg-rule); }
 .management .mg-sections button[aria-selected="true"] { background: var(--mg-gold); color: #281e12; }
+.management [data-mg-analysis][hidden],.management .mg-status[hidden] { display:none; }
+.management .mg-return,.release-editor .text-link { display:inline-flex; align-items:center; min-height:44px; text-underline-offset:.22em; }
+.management .mg-return { color:var(--mg-gold); }
+.management .mg-more { margin-top:1.5rem; }
+.management .mg-more > summary { padding-block:.9rem; font-weight:650; }
+.release-editor form { display:grid; grid-template-columns:minmax(0,1fr); max-width:37rem; gap:1rem; }
+.release-editor input[type="file"] { max-width:100%; min-width:0; }
+.release-editor .release-actions { display:flex; flex-wrap:wrap; align-items:center; gap:.25rem 1.2rem; }
+.release-editor [hidden] { display:none!important; }
 .management [role="tabpanel"] { min-width: 0; }
 .management [role="tabpanel"][hidden] { display: none!important; }
 .management .mg-review-counts {

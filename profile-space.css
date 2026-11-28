@@ -93,6 +93,12 @@ aventura-resumen {display:block;min-width:0;margin-block:1rem}
 .notebook-nav a[aria-current]:not([aria-current="false"]) {
   background: var(--pn-gold); color: #241d16; border-color: #f3c687; font-weight: 750;
 }
+.notebook-nav .pn-parent {border-color:var(--pn-gold);color:var(--pn-gold)}
+.notebook-nav.pn-subnav {border-top:0;margin-top:-1.25rem;gap:.25rem;padding:.25rem 0 .4rem}
+.pn-subnav a {font-size:.88rem;padding:.42rem .7rem}
+.pn-access h1 {margin:.1rem 0 .5rem}
+.pn-archive-options {margin-top:1.5rem;border-top:1px solid #58615a;padding-top:.55rem}
+.pn-archive-options summary {min-height:2.75rem;align-content:center;cursor:pointer}
 
 /* Unfinished cases and the personal archive share the same cover language. */
 .pn-dashboard { width: 100%; max-width: 88rem; margin-inline: auto; }
