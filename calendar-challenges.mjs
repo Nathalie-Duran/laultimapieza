@@ -82,7 +82,7 @@ export function calendarEditions(now=Date.now()){
   }
   const rows=[
     row('dia/'+today,dailyTitle,[one],{kind:'daily',startsOn:today},1),
-    row('semana/'+monday,'La valija '+halls[weeklySeed%4],weekly(weeklySeed),{kind:'weekly',startsOn:monday},2)
+    row('semana/'+monday,'La valija de las cuatro salas',weekly(weeklySeed),{kind:'weekly',startsOn:monday},2)
   ];
   if(holidayType){
     const key=holidayType+'/'+parts.year,[title,stages]=holiday(holidayType,seed(key));
