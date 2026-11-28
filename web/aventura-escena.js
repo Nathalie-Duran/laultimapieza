@@ -54,7 +54,8 @@
     const contextLabel=el('p','ae-world-name',ancestry),caseTitle=el('h1','ae-title',story.title);
     heading.append(contextLabel,caseTitle);
     const stage=el('div','ae-stage'),photo=el('img','ae-image');
-    photo.src=options.image;photo.alt=options.alt||options.place||'Escenario del caso';
+    let currentPhoto=options.image;
+    photo.src=currentPhoto;photo.alt=options.alt||options.place||'Escenario del caso';
     photo.width=768;photo.height=512;photo.decoding='async';
     const caption=el('div','ae-caption'),progress=el('span','ae-progress'),place=el('h2','ae-place');
     caption.append(progress,place);
@@ -224,6 +225,10 @@
       party.textContent=crew;party.hidden=!crew;
       label.textContent=mode==='pending'?'Cómo quieres jugar':'Cambiar modalidad';
       const phase=state.stage;
+      const sceneImage=phase && window.EscenasDeCaso?.[options.id]?.(state.current);
+      const imageUrl=sceneImage||options.image;
+      if(currentPhoto!==imageUrl){currentPhoto=imageUrl;photo.src=imageUrl;}
+      photo.alt=sceneImage?(phase.place||phase.title):(options.alt||options.place||'Escenario del caso');
       const visible=(phase?.materials||[]).filter(item=>!filter||!item.role||item.role==='AB'||item.role===filter||item.role===(filter==='A'?1:2));
       const next=JSON.stringify([state.current,phase?.title,mode,filter,visible.map(item=>[item.id,item.label]),data.progress?.choice,data.progress?.deduced]);
       if(next===signature)return;

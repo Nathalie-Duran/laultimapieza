@@ -183,8 +183,12 @@
     target.append(el('p',side.brief,'md-question'));
     const work=el('div',null,'vhour-workbench');
     c.sideVoice={voice:null};
-    work.append(window.ValdemarHour.proofShelf(side.materials,c.sideVoice,c.data.partner?.role),window.ValdemarHour.decision(
+    const sideContext={caseId:c.item.id,role:c.data.partner?.role,side:true};
+    const shelf=window.ValdemarHour.proofShelf(side.materials,c.sideVoice,sideContext.role);
+    window.ArchivosDeCaso?.[c.item.id]?.({...sideContext,stage:side,index:0,shelf,controller:sideContext});
+    work.append(shelf,window.ValdemarHour.decision(
       {...side,task:side.task||'¿Qué solución encaja con las pruebas del reto?'},0,{
+        ...sideContext,
         submit:async(_index,choice)=>{
           try {
             const result=await request(c,'reward',{proof:{choice}});
@@ -236,7 +240,7 @@
     for(const event of ['season-room-reward','mansion-arcade-reward','editorial-challenge-solved'])frame.addEventListener(event,roomReward);
     header.insertAdjacentHTML('afterend',window.RetosTemporada?.salaDeAventura(item.id)||'');
     c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
-      role:c.data.partner?.role,
+      caseId:item.id,role:c.data.partner?.role,
       onScene:(hour,main)=>{c.scene.update(hour);if(c.tab==='main')c.scene.returnFrom(main);},
       sceneRoute:item.world==='expedicion',sceneBack:target=>c.scene.returnFrom(target),
       inventory:async input=>{
@@ -290,6 +294,7 @@
     (async()=>{
       try{
         c.data=await request(c);if(!active(c))return;
+        await window.ArchivoObjetos?.open(item.id);if(!active(c))return;
         build(c);c.frame.removeAttribute('aria-busy');
       }catch(e){
         if(c===current && !c.frame.querySelector('.md-unavailable'))showAccess(c,e.message||'No se ha podido abrir la investigación.',e.status);

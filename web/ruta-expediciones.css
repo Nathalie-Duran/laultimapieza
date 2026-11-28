@@ -1,0 +1,117 @@
+.rx-desk {
+  --rx-gold: #e3be73;
+  --rx-ink: #edf2de;
+  --rx-line: #617865;
+  margin-block: 1rem;
+  overflow-wrap: anywhere;
+  font: 1rem/1.48 system-ui, sans-serif;
+  color: var(--rx-ink);
+  background: #18251f;
+  border: 1px solid #68755c;
+  border-radius: .65rem;
+  overflow: hidden;
+  text-align: left;
+  container-type: inline-size;
+}
+.rx-desk *, .rx-desk *::after, .rx-desk *::before {box-sizing:border-box}
+.rx-desk :is(h4,h5,p,figure){margin:0}
+.rx-desk :is(button,select,input){max-width:100%;font:inherit}
+.rx-desk :is(button,select,summary,input):focus-visible {outline:3px solid #a8eddd;outline-offset:2px}
+.rx-desk button {cursor:pointer;letter-spacing:normal;text-transform:none}
+.rx-desk .rx-station {display:grid;grid-template-columns:minmax(0,30%) minmax(0,1fr);background:#10231e}
+.rx-desk .rx-portrait {display:grid;align-items:center;background:#07170f;border-inline-end:1px solid #435748;min-height:11rem;overflow:hidden}
+.rx-desk .rx-portrait img {display:block;width:100%;height:auto;aspect-ratio:1;object-fit:contain}
+.rx-desk .rx-portrait {position:relative}
+.rx-desk .rx-zoom-key {position:absolute;right:.4rem;bottom:.4rem;min-height:2.75rem;color:#fff3d7;background:#13241df0;border:1px solid #b39e70;border-radius:.25rem;padding:.4rem .6rem;font-size:.8rem}
+.rx-desk dialog.rx-zoom {position:fixed;inset:0;margin:auto;width:min(94vw,39rem);max-height:92dvh;padding:.8rem;background:#14241d;border:1px solid #af9a67;border-radius:.45rem;color:#fae7ba;overflow:auto}
+.rx-desk .rx-zoom::backdrop {background:#09120de6}
+.rx-desk .rx-zoom .rx-zoom-head {display:flex;align-items:center;justify-content:space-between;gap:.55rem}
+.rx-desk .rx-zoom h3 {font:500 1.3rem/1.2 Georgia,serif;margin:.2rem 0}
+.rx-desk .rx-zoom img {width:100%;height:auto;max-height:70dvh;object-fit:contain;margin:.5rem auto 0}
+.rx-desk .rx-intro {padding:clamp(1rem,3cqi,1.7rem);align-self:center;min-width:0}
+.rx-desk .rx-site {font-size:.76rem;color:#e3bd76;letter-spacing:.1em;text-transform:uppercase;font-weight:720}
+.rx-desk .rx-intro h4 {margin:.25rem 0 .55rem;color:#f8e9c8;font:500 clamp(1.4rem,4cqi,2.2rem)/1.12 Georgia,serif}
+.rx-desk .rx-guidance,.rx-desk .rx-small {color:#d6dfd4;font-size:.94rem;line-height:1.48}
+.rx-desk .rx-model {margin-top:.9rem;display:grid;gap:.55rem;min-width:0}
+.rx-desk .rx-switches,.rx-desk .rx-seat-tools,.rx-desk .rx-pipes {display:flex;flex-wrap:wrap;gap:.4rem}
+.rx-desk .rx-switch,.rx-desk .rx-pipe,.rx-desk .rx-seat-tools button {
+  min-height:2.75rem;padding:.45rem .72rem;color:#f1ecda;background:#26392f;border:1px solid #71816d;border-radius:.26rem;font-size:.88rem;line-height:1.25;
+}
+.rx-desk .rx-switch:hover,.rx-desk .rx-seat-tools button:hover {background:#3a5042}
+.rx-desk .rx-switch[aria-pressed=true],.rx-desk .rx-pipe[aria-pressed=true] {background:#e7c785;color:#19231b;border-color:#edcd90}
+.rx-desk .rx-readout {display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;padding:.45rem .6rem;background:#0a1914;color:#f2e5bd;border-inline-start:3px solid var(--rx-gold);line-height:1.4;font-size:.9rem}
+.rx-desk .rx-dial {display:grid;grid-template-columns:minmax(0,1fr) minmax(6rem,40%);align-items:center;gap:.6rem;margin:0;color:#ebeddb;font-size:.88rem}
+.rx-desk .rx-dial b {color:#f4d48e;margin-left:.4rem;white-space:nowrap}
+.rx-desk .rx-dial input {accent-color:#e4bf76;width:100%;min-height:2.75rem;cursor:pointer;margin:0}
+.rx-desk .rx-archive {padding:.85rem clamp(.85rem,3cqi,1.55rem);background:#23372e;border-block:1px solid #4c6251;color:#f4e7c4}
+.rx-desk .rx-archive summary {min-height:2.75rem;align-content:center;padding:.3rem 0;cursor:pointer;font-weight:650}
+.rx-desk .rx-archive[open] summary {margin-bottom:.45rem}
+.rx-desk .rx-record {display:grid;gap:.3rem;color:#eee7cb;margin:.7rem 0;font-size:.88rem;font-weight:650}
+.rx-desk .rx-record select {display:block;width:100%;min-width:0;min-height:2.75rem;background:#f2ead5;color:#26362d;border-radius:.25rem;padding:.4rem}
+.rx-desk .rx-excerpt {padding:.45rem 0 .85rem;color:#eef1dc}
+.rx-desk .rx-pair {display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-top:.65rem}
+.rx-desk .rx-note {background:#eee2bd;border-top:3px solid #b48d51;color:#292c22;padding:.65rem;min-width:0}
+.rx-desk .rx-note b {font:600 1rem/1.2 Georgia,serif}.rx-desk .rx-note p {font-size:.88rem;margin-top:.4rem;color:inherit}
+.rx-desk .rx-rack {padding:clamp(.9rem,3cqi,1.5rem);background:linear-gradient(110deg,#1c3028,#14251e)}
+.rx-desk .rx-rack h5 {color:#f7e7c6;font:550 1.28rem/1.25 Georgia,serif}
+.rx-desk .rx-rack>.rx-small {margin:.28rem 0 .7rem}
+.rx-desk .rx-seats {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(8.8rem,100%),1fr));gap:.45rem}
+.rx-desk .rx-seat {min-width:0;padding:.65rem;background:#15271f;min-height:3.9rem;border:1px dashed #81917a;border-radius:.25rem;color:#d4dfcf}
+.rx-desk .rx-seat small,.rx-desk .rx-seat strong {display:block}
+.rx-desk .rx-seat small {color:#ddc993;font-size:.74rem;font-weight:650}
+.rx-desk .rx-seat strong {font-size:.91rem;line-height:1.35}
+.rx-desk .rx-filled {border-style:solid;border-color:#c5a56b;background:#354237;color:#fff6df}
+.rx-desk .rx-seat-tools {margin-top:.45rem}
+.rx-desk .rx-seat-tools button {font-size:.8rem}
+.rx-desk .rx-seat-tools button:disabled {opacity:.5;cursor:default}
+.rx-desk .rx-rack>.rx-readout {border:0;background:transparent;padding:.45rem 0;color:#d6dfcf;font-size:.82rem}
+.rx-desk .rx-pieces {display:grid;gap:.45rem;grid-template-columns:repeat(auto-fit,minmax(min(13rem,100%),1fr))}
+.rx-desk button.rx-piece {
+  display:flex;align-items:center;text-align:left;gap:.65rem;min-height:2.9rem;padding:.5rem .65rem;color:#f2eedf;
+  border:1px solid #6d806d;border-radius:.25rem;background:#25392e;font-size:.93rem;line-height:1.3;
+}
+.rx-desk button.rx-piece:hover {background:#364e3e}
+.rx-desk button.rx-piece[aria-pressed=true] {background:#e3c78d;border-color:#e3c78d;color:#17261e}
+.rx-desk button.rx-piece[aria-disabled=true] {opacity:.62;cursor:default}
+.rx-desk .rx-piece-serial {flex:0 0 1.55rem;display:grid;place-items:center;aspect-ratio:1;border-radius:50%;border:1px solid currentColor;font-size:.78rem;font-family:Georgia,serif}
+.rx-desk .rx-plot {display:grid;grid-template-columns:repeat(var(--columns),1fr);grid-template-rows:repeat(var(--rows),1fr);aspect-ratio:2.4/1;border:1px solid #53675a;background-color:#102329;background-image:linear-gradient(90deg,#39504e 1px,transparent 1px),linear-gradient(#39504e 1px,transparent 1px);background-size:calc(100% / var(--columns)) calc(100% / var(--rows))}
+.rx-desk .rx-mark {margin:auto;color:#f2d28e;font-weight:bold;text-shadow:0 0 .45rem #d0a457}.rx-desk .rx-mark::before {content:'✦';padding-right:.15rem}
+.rx-desk .rx-stop,.rx-desk .rx-wagon {padding:.25rem .45rem;background:#263e35;color:#f3dba1;border:1px solid #6d8577;border-radius:.2rem}
+.rx-desk .rx-train,.rx-desk .rx-waves {display:flex;gap:.3rem;align-items:stretch;justify-content:center}
+.rx-desk .rx-train {border-bottom:3px double #b7a16d;padding-bottom:.3rem;flex-wrap:wrap}
+.rx-desk .rx-wagon {font-size:.8rem;border-radius:.32rem .32rem .12rem .12rem}
+.rx-desk .rx-balance {height:2rem;display:grid;place-items:center;position:relative}
+.rx-desk .rx-balance::before {content:'';position:absolute;bottom:.1rem;border:.75rem solid transparent;border-bottom:1.2rem solid #ae9764}
+.rx-desk .rx-beam {position:relative;width:65%;height:3px;background:#d9bd80}
+.rx-desk .rx-beam::before,.rx-desk .rx-beam::after {content:'';position:absolute;width:1.4rem;height:.5rem;background:#bfa36c;border-radius:0 0 50% 50%;top:2px}
+.rx-desk .rx-beam::after {right:0}
+.rx-desk .rx-waves {height:2.6rem;align-items:center;background:#10251f;border:1px solid #415d49}
+.rx-desk .rx-wave {width:20%;height:68%;background:repeating-linear-gradient(90deg,#9bb490 0 2px,transparent 2px 6px);clip-path:polygon(0 45%,12% 30%,25% 45%,45% 5%,60% 35%,75% 15%,100% 45%,100% 55%,75% 85%,60% 65%,45% 95%,25% 55%,12% 70%,0 55%)}
+.rx-desk .rx-wave-1 {height:38%}.rx-desk .rx-wave-2 {height:78%;width:35%}.rx-desk .rx-current {background:repeating-linear-gradient(90deg,#ffd580 0 2px,transparent 2px 6px)}
+.rx-desk .rx-caravan {background:linear-gradient(#1a3131 49%,#bd9c66 49% 51%,#384239 51%);padding:.65rem;border-radius:.25rem}
+.rx-desk .rx-cars {display:flex;height:3.4rem;gap:6%;align-items:center;justify-content:center}
+.rx-desk .rx-cart {width:18%;height:55%;background:#e2bd80;border-bottom:4px solid #5c4b37}
+.rx-desk .rx-cart-0 {height:35%}.rx-desk .rx-cart-1 {clip-path:polygon(0 0,35% 0,47% 30%,59% 0,100% 0,100% 100%,0 100%)}
+.rx-desk .rx-cart-2 {clip-path:polygon(50% 0,96% 80%,55% 80%,55% 100%,45% 100%,45% 80%,4% 80%)}
+.rx-desk .rx-pipes {align-items:flex-end}.rx-desk .rx-pipe {min-height:var(--height);border-top:4px double #d3b878;background:linear-gradient(90deg,#28362c,#655b3c,#28362c)}
+.rx-desk .rx-ticket,.rx-desk .rx-window {display:grid;grid-template-columns:1fr 1fr;gap:2px;max-width:19rem}
+.rx-desk .rx-window {grid-template-columns:repeat(3,1fr)}
+.rx-desk .rx-ticket span,.rx-desk .rx-pane {background:#ece1bf;color:#28342b;padding:.55rem;text-align:center;font-size:.85rem;border-radius:2px}
+.rx-desk .rx-ticket .rx-dark,.rx-desk .rx-pane.rx-level-1 {background:#435648;color:#f1e8cb}
+.rx-desk .rx-pane.rx-level-2 {background:#b77a67;color:#241811}
+.rx-desk .rx-holes {display:grid;grid-template-columns:minmax(0,1.6fr) repeat(8,minmax(0,.4fr));gap:2px;align-items:center}
+.rx-desk .rx-holes b {font-size:.75rem}.rx-desk .rx-holes i {font-size:.75rem;text-align:center;color:#e7d9bc}
+.rx-desk .rx-holes .rx-punched {border:1px solid #ebcb84;border-radius:50%;color:#f7e8b8}
+.rx-desk .rx-holes .rx-probe {background:#7c6135}
+@container(max-width:540px){
+  .rx-desk .rx-station {grid-template-columns:minmax(0,1fr)}
+  .rx-desk .rx-portrait {height:9.5rem;min-height:0;border-inline-end:0;border-bottom:1px solid #435748;background:radial-gradient(at center,#1c2d23,#07170f)}
+  .rx-desk .rx-portrait>img {height:100%;max-height:9.5rem;aspect-ratio:auto}
+  .rx-desk .rx-dial {grid-template-columns:1fr;gap:0}
+  .rx-desk .rx-pair {grid-template-columns:1fr}
+}
+.vd-player .vhour-task:has(.rx-desk) {background:#12231d;color:#f2e9d2}
+.vd-player .vhour-task:has(.rx-desk) .vhour-decision-title {color:#edcf92}
+.vd-player .vhour-task:has(.rx-desk) legend,.vd-player .vhour-task:has(.rx-desk) .vhour-status {color:#f1e9ce}
+.vd-player .vhour-task:has(.rx-desk)>.vd-primary {background:#d9bd7d;color:#17271e;border-color:#d9bd7d}
+.vd-player .vhour-task:has(.rx-desk)>.vd-primary:disabled {background:#3a4b3e;color:#d2d9cd;border-color:#62745f;opacity:1}

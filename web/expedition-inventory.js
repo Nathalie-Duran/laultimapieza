@@ -158,9 +158,15 @@
         body.append(folders);
       }
       const visibleItems=room.items.filter(item=>!papers||folder==='all'||!item.role||item.role==='AB'||item.role===folder);
+      const loose=element('div','');
+      loose.className='inventario-objetos';
       for (const item of visibleItems.filter(item => !item.held && item.canCollect)) {
-        body.append(button('Recoger ' + item.label, () => act({operation:'collect', item:item.id}, 'Prueba guardada.')));
+        const collect=button('Recoger ' + item.label, () => act({operation:'collect', item:item.id}, 'Prueba guardada.'));
+        const image=window.ArchivoObjetos?.thumbnail(item);
+        if(image)collect.prepend(image);
+        loose.append(collect);
       }
+      if(loose.childElementCount)body.append(loose);
       const held = visibleItems.filter(item => item.held);
       if (!held.length) {
         body.append(element('p', room.items.length ? 'Recoge una prueba para guardarla en tu inventario.' : 'Tu compañero puede recoger las pruebas de este lugar.'));
@@ -168,10 +174,14 @@
       }
       const field = document.createElement('fieldset');
       field.append(element('legend', 'Pruebas recogidas en este lugar'));
+      const collection=element('div','');
+      collection.className='inventario-objetos';
+      field.append(collection);
       const combine = button('Crear ficha de contraste', () => act({operation:'combine', items:picks.slice()}, 'Ficha de contraste guardada.'));
       function ready() { combine.disabled = busy || picks.length !== 2; }
       for (const item of held) {
-        const line = document.createElement('p');
+        const line = document.createElement('section');
+        line.className='inventario-ficha';
         const name = document.createElement('label');
         const tick = document.createElement('input');
         tick.type = 'checkbox';
@@ -187,15 +197,17 @@
           picks = tick.checked ? [...picks, item.id] : picks.filter(id => id !== item.id);
           ready();
         });
+        const image=window.ArchivoObjetos?.thumbnail(item);
+        if(image)name.append(image);
         name.append(tick, document.createTextNode(' ' + item.label));
-        line.append(name); field.append(line);
+        line.append(name); collection.append(line);
         if (!item.contributed && item.canCollect) {
-          field.append(button('Aportar mi observación de ' + item.label, () => act({operation:'collect', item:item.id}, 'Tu observación está guardada.')));
+          line.append(button('Aportar mi observación de ' + item.label, () => act({operation:'collect', item:item.id}, 'Tu observación está guardada.')));
         }
         if (item.detail) {
           const detail = document.createElement('details');
           detail.append(element('summary','Examinar ' + item.label),element('p',item.detail));
-          field.append(detail);
+          line.append(detail);
         }
       }
       body.append(field);

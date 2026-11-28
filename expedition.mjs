@@ -43,7 +43,7 @@ export function inspectInventory(story, record, role) {
     const held = new Set(page?.items);
     const materials = (stage.materials || []).filter(item => item.id != null);
     const items = page ? materials.filter(item => allowedRole(item, role) || held.has(item.id)).map(item => ({
-      id: item.id, label: item.label, held: held.has(item.id),
+      id: item.id, label: item.label, kind:item.kind, held: held.has(item.id),
       role:item.role===1||item.role==='A'?'A':item.role===2||item.role==='B'?'B':'AB',
       canCollect: allowedRole(item, role),
       contributed: !role || Boolean(page.contributions?.[role]?.includes(item.id)),

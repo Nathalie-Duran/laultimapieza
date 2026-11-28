@@ -48,8 +48,16 @@
     }
     body.append(node('p','Tu saldo: '+keys(data.wallet.balance)+'.'));
     if(data.partner)body.append(node('p','Si abres una pista, se descuenta de tu saldo y ambos podéis leerla en esta partida.'));
+    const tray=node('div');
+    tray.className='archivo-pistas';
     for(const hint of data.hintOptions||[]) {
       const line=node('section');
+      line.className='archivo-pista';
+      const pictures={open:'lupa',second:'cuaderno',solution:'carta'};
+      if(pictures[hint.op]){
+        const photo=node('img');photo.src='/mansion-pista-'+pictures[hint.op]+'.webp';photo.alt='';
+        photo.loading='lazy';line.append(photo);
+      }
       if(hint.text){
         line.append(node('h3',titles[hint.op]),node('p',hint.text));
         if(data.partner&&!hint.shared)line.append(button('Compartir esta pista con mi pareja',el=>choose(el,hint)));
@@ -58,9 +66,11 @@
         const action=button(titles[hint.op]+' · '+price,el=>choose(el,hint));
         action.disabled=data.wallet.balance<hint.cost;
         line.append(action);
+        if(action.disabled)line.append(node('p','Te '+(hint.cost-data.wallet.balance===1?'falta ':'faltan ')+keys(hint.cost-data.wallet.balance)+'.'));
       }
-      body.append(line);
+      tray.append(line);
     }
+    if(tray.childElementCount)body.append(tray);
     if(!data.wallet.won.includes(id)){
       body.append(button('Jugar el reto de aventura · +'+keys(data.parallelPrize),play));
     } else if(data.keyChallenge) {

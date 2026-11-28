@@ -461,13 +461,23 @@
     const required = Number.isInteger(stage.requiredCount) && stage.requiredCount>0 && stage.requiredCount<=options.length
       ? stage.requiredCount : null;
     const sources=new Set();
-    const ready=()=>(required?selected.length===required:stage.interaction==='improntas'?selected.length===2:selected.length>0) &&
-      (!stage.corroboration || sources.size===stage.corroboration.count);
+    const ready=()=>{
+      const count=required||Number(field.dataset.requiredChoices)||(stage.interaction==='improntas'?2:0);
+      return (count?selected.length===count:selected.length>0) &&
+        (!stage.corroboration || sources.size===stage.corroboration.count);
+    };
     let sending=false;
     const special={centralita:switchboard,boyas:buoyRoute,puertas:doorLineup,improntas:rubbingDesk}[stage.interaction];
     const supported=special&&Array.isArray(stage.materials)&&
       (stage.interaction!=='boyas'||options.length===4)&&(!ordering||required);
-    if(supported){
+    const change=()=>{status.textContent='';submit.disabled=!ready();};
+    const mounted=window.MesasDeCaso?.[controller.caseId]?.({
+      field,stage,index,caseId:controller.caseId,role:controller.role,selected,change,controller
+    });
+    if(mounted){
+      form.dataset.vhPrueba=field.dataset.vhPrueba||'mesa-de-caso';
+      change();
+    }else if(supported){
       form.dataset.vhPrueba=stage.interaction;
       special(field,stage,selected,()=>{status.textContent='';submit.disabled=!ready();});
     }else if(ordering) {
@@ -629,8 +639,13 @@
         const pick=control(held.has(obj.id)?'En tu carpeta: '+obj.label:'Examinar '+obj.label,()=>{
           act({operation:'hotel-collect',object:obj.id},'Guardado en tu carpeta: '+obj.label+'.');
         });
+        pick.dataset.hotelObject=obj.id;
         pick.disabled=pending||held.has(obj.id);pane.append(pick);
-        if(held.has(obj.id))pane.append(el('p',obj.detail,'vhour-clipping'));
+        if(held.has(obj.id)){
+          pane.append(el('p',obj.detail,'vhour-clipping'));
+          const plate=window.FotosHotel?.(obj);
+          if(plate)pane.append(plate);
+        }
       }
       for(const [i,w] of witnesses.entries()){
         if(located(w,i)!==current.id)continue;
@@ -709,6 +724,7 @@
         const workbench=el('div',null,'vhour-workbench');
         workbench.dataset.stage=String(index+1);
         const shelf=proofShelf(stage.materials||[],state,controller.role);
+        window.ArchivosDeCaso?.[controller.caseId]?.({stage,index,caseId:controller.caseId,role:controller.role,shelf,controller});
         const instrument=stage.instrument;
         const makeTool=instrument && window.ValdemarTalleres?.[instrument.id];
         if(typeof makeTool==='function') {

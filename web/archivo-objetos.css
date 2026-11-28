@@ -1,0 +1,52 @@
+.expedition-inventory .inventario-objetos,.archivo-pistas {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));
+  gap:.8rem;
+  margin:.8rem 0;
+}
+.expedition-inventory .inventario-objetos>button,.expedition-inventory .inventario-ficha,.archivo-pista {
+  min-width:0;
+  box-sizing:border-box;
+  padding:.8rem;
+  margin:0;
+  text-align:start;
+  overflow-wrap:anywhere;
+  border:1px solid #677466;
+  border-radius:.45rem;
+  background:#18251f;
+  color:#fff1d4;
+}
+.expedition-inventory .inventario-objetos>button {
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+  width:100%;
+  line-height:1.35;
+}
+.expedition-inventory .inventario-ficha label {
+  display:grid;
+  grid-template-columns:4.3rem auto 1fr;
+  align-items:center;
+  gap:.45rem;
+  line-height:1.4;
+  cursor:pointer;
+}
+.expedition-inventory .inventario-ficha input {width:1.2rem;height:1.2rem;margin:0}
+.archivo-objeto {
+  display:inline-block;
+  width:4.3rem;
+  aspect-ratio:1;
+  flex:0 0 4.3rem;
+  border-radius:.3rem;
+  box-shadow:0 0 0 1px #77806b;
+  background:#172121 url("/archivo-objetos.webp") var(--archivo-x,0%) var(--archivo-y,0%)/400% 300% no-repeat;
+}
+.archivo-objeto.archivo-formato {background-position:center;background-size:cover}
+.expedition-inventory .inventario-ficha details {margin:.7rem 0 0}
+.expedition-inventory .inventario-ficha label:has(:checked) {color:#ffe29b}
+.archivo-pistas>.archivo-pista {display:flex;flex-direction:column;gap:.6rem;margin:0}
+.archivo-pista>img {display:block;width:100%;height:clamp(6rem,12vw,9rem);object-fit:cover;border-radius:.2rem}
+.archivo-pistas>.archivo-pista>p,.archivo-pistas>.archivo-pista>h3 {margin:0;color:inherit}
+.archivo-pistas>.archivo-pista button {margin:0;white-space:normal;min-height:2.75rem}
+.archivo-pista button:disabled {opacity:1;color:#e1dbce;background:#333b33;cursor:default}
+@media(max-width:30rem){.expedition-inventory .inventario-ficha label{grid-template-columns:3rem auto 1fr}.archivo-objeto{width:3rem;flex-basis:3rem}}
