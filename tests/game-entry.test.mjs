@@ -64,7 +64,7 @@ test('Ambos jugadores montan un único selector y guardan la modalidad antes de 
   assert.equal(duo.attributes['aria-pressed'], 'false');
   for (const name of ['valdemar-player.js','mundos-jugador.js']) {
     const player = await source(name);
-    assert.equal(player.match(/AventuraEscena\.mount\(/g)?.length, 1, name);
+    assert.equal(player.match(/AventuraEscena\.caseNavigation\(/g)?.length, 1, name);
     assert.doesNotMatch(player, /modeControl\.change/, name);
     assert.match(player, /c\.hour(?:View)?\.open\(kind,id\)/, name);
   }
@@ -101,6 +101,58 @@ test('Hotel Medianoche muestra una sola vista y abre el desenlace al completar l
   assert.equal(navigation.show('resolver'),false);
   assert.equal(navigation.show('desenlace'),true);
   assert.equal(screens.get('desenlace').hidden,false);
+});
+
+test('En cada temporada las secciones se sustituyen al abrir un documento, volver y terminar',async()=>{
+  for(const [world,id] of [['valdemar',9],['expedicion',13],['umbravia',25],['necropolis',37]]){
+    const {window,document}=await load('aventura-escena.js');
+    const frame=document.createElement('main');
+    frame.dataset.playMode='duo';
+    frame.dataset.playPaper='B';
+    const stages=[{title:'Llegada'},{title:'Última sala'}];
+    const hour={current:1,stages,journal:[{index:0}],stage:{...stages[1],place:'Taller',materials:[
+      {id:'plano',label:'Plano de archivo',role:'A'},
+      {id:'foto',label:'Fotografía de campo',role:'B'},
+      {id:'carta',label:'Carta de ambos',role:'AB'}
+    ]}};
+    const opened=[];
+    const nav=window.AventuraEscena.caseNavigation(frame,(key,focus)=>nav.show(key,focus),{
+      world,id,story:{title:'Aventura'},image:'/portada.webp',read:()=>({hour}),
+      actions(kind,value){opened.push([kind,value]);nav.show({material:'evidencias',decision:'resolver',ending:'desenlace',journal:'inventario'}[kind]||'escenario',true);}
+    });
+    frame.append(nav.shell);
+    const buttons=nav.shell.nodes().filter(node=>node.dataset.caseGo);
+    for(const key of ['evidencias','resolver','inventario','pistas','extra','desenlace'])nav.bind(key,document.createElement('section'));
+    const panels=frame.nodes().filter(node=>node.dataset.casePane);
+    const active=key=>{
+      assert.equal(frame.dataset.caseView,key);
+      const visible=panels.filter(p=>!p.hidden);
+      assert.deepEqual(visible.map(p=>p.dataset.casePane),[key],world);
+      assert.deepEqual(buttons.filter(b=>b.attributes['aria-pressed']==='true').map(b=>b.attributes['aria-controls']),[visible[0].id]);
+      assert.equal(document.activeElement,visible[0]);
+    };
+    nav.progress(hour);
+    assert.equal(nav.show('desenlace'),false);
+    for(const button of buttons.filter(b=>!b.hidden)){
+      button.listeners.click();active(button.dataset.caseGo);
+    }
+    nav.show('escenario',true);
+    const scene=panels.find(p=>p.dataset.casePane==='escenario');
+    assert.equal(scene.querySelector('img').src,'/portada.webp');
+    assert.equal(scene.nodes().filter(n=>n.tag==='nav').length,0);
+    assert.ok(!scene.nodes().some(n=>n.textContent?.includes('Plano de archivo')));
+    const item=scene.nodes().find(n=>n.dataset.action==='material');
+    item.listeners.click();active('evidencias');
+    assert.deepEqual(opened.pop(),['material','foto']);
+    nav.show('escenario',true);
+    scene.nodes().find(n=>n.dataset.action==='decision').listeners.click();active('resolver');
+    nav.progress({...hour,current:2,stage:null});
+    assert.equal(nav.show('resolver'),false);
+    assert.equal(nav.show('desenlace',true),true);active('desenlace');
+    nav.show('escenario',true);
+    scene.nodes().find(n=>n.dataset.action==='ending').listeners.click();active('desenlace');
+    nav.destroy();
+  }
 });
 
 test('La escena cambia con la etapa, respeta el papel y conecta cada punto con su material',async()=>{
