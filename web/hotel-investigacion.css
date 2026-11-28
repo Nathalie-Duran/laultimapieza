@@ -217,10 +217,17 @@
 #valdemar-player [data-hotel-ui] .guard-desk>nav button{background:#211e19;border:1px solid #63543d;margin:0;font:inherit}
 #valdemar-player [data-hotel-ui] .guard-desk>nav button[aria-pressed=true]{background:#ebc78c;color:#201a13;outline:none}
 .hotel-desk-layout{display:grid;grid-template-columns:minmax(0,3.35fr) minmax(14rem,1fr);gap:1.2rem;padding:1.25rem;align-items:start}
-.hotel-desk-layout>.guard-scene{margin:0;width:100%;align-self:start}
-.hotel-desk-layout>.guard-scene img{width:100%;height:auto;display:block}
+.hotel-desk-instrument>.guard-scene{margin:0;width:100%;align-self:start}
+.hotel-desk-instrument>.guard-scene img{width:100%;height:auto;display:block}
 .hotel-desk-objects{min-width:0;border-inline-start:1px solid #66543b;padding-inline-start:1.2rem}
 .guard-desk .hotel-desk-objects>h3{font:normal 1.55rem/1.2 Georgia,serif;margin:0 0 .6rem}
 .guard-desk .hotel-desk-objects>h3+h3{font:600 1rem/1.4 var(--sans,system-ui)}
 .hotel-desk-objects fieldset{min-width:0}
 @media(max-width:760px){.hotel-desk-layout{grid-template-columns:1fr;padding:.75rem}.hotel-desk-objects{border:0;padding:0}.guard-desk .hotel-chapter{flex-basis:100%}.hotel-tabs button{font-size:.85rem}}
+
+.hotel-desk-instrument{min-width:0}
+.guard-controls{padding-block-start:.75rem}
+.guard-controls>p{margin:.25rem 0 .6rem}
+.guard-controls .guard-tray{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;padding:0;margin:.5rem 0}
+.guard-controls :is(.guard-tray,.hm-jackboard,.hm-rack) button{margin:0}
+@media(max-width:760px){.hotel-desk-instrument{display:contents}.hotel-desk-instrument>.guard-scene{grid-row:1}.hotel-desk-objects{grid-row:2}.guard-controls{grid-row:3;padding:0}}

@@ -517,8 +517,20 @@
    const scene=work.querySelector('.guard-scene'),title=work.querySelector('h3');
    const objects=node('aside',null,'hotel-desk-objects');
    objects.append(node('h3','Objetos de este puesto'),title);
-   for(const item of [...work.children])if(item!==scene)objects.append(item);
-   work.className='hotel-desk-layout';work.replaceChildren(scene,objects);
+   const instrument=node('div',null,'hotel-desk-instrument');
+   const controls=node('div',null,'guard-controls');
+   instrument.append(scene);
+   let operating=false;
+   for(const item of [...work.children]){
+    if(item===scene)continue;
+    if(item.matches('.guard-tray,.hm-picks,.hm-jackboard,.hm-rack')){
+     if(!operating&&objects.lastElementChild?.tagName==='P')controls.append(objects.lastElementChild);
+     operating=true;
+    }
+    (operating?controls:objects).append(item);
+   }
+   if(controls.childElementCount)instrument.append(controls);
+   work.className='hotel-desk-layout';work.replaceChildren(instrument,objects);
   }
   function renderDesk(){
    const side=state.side,key=side?'B':'A',d=state.desks[side],shift=inv.shift;
@@ -537,11 +549,11 @@
    }
    function finish(label,values){const b=btn(label,()=>send('hotel-operate',values));b.disabled=busy||values.some(v=>v<0);b.classList.add('hm-confirm');work.append(b);}
    function placeItems(items,bins){
-    const tray=node('div',null,'hm-tray');items.forEach((item,i)=>{const b=btn(item,()=>{d.tag=i;redraw()});b.setAttribute('aria-pressed',String(i===d.tag));tray.append(b)});work.append(tray);
+    const tray=node('div',null,'guard-tray');items.forEach((item,i)=>{const b=btn(item,()=>{d.tag=i;redraw()});b.setAttribute('aria-pressed',String(i===d.tag));tray.append(b)});work.append(tray);
     const rack=node('div',null,'hm-rack');bins.forEach((name,i)=>{const names=items.filter((_,j)=>d.v[j]===i);const b=btn(name+' · '+(names.join(', ')||'vacío'),()=>{d.v[d.tag]=i;const next=d.v.indexOf(-1);if(next>=0)d.tag=next;redraw()});rack.append(b)});work.append(rack);
    }
    function tools(label,items,select){
-    const row=node('div',null,'hm-tray');row.setAttribute('aria-label',label);
+    const row=node('div',null,'guard-tray');row.setAttribute('aria-label',label);
     items.forEach((t,i)=>{const b=btn(t,()=>{d.tool=i;redraw()});b.setAttribute('aria-pressed',String(i===d.tool));row.append(b)});work.append(row);
    }
    if(done)note('Operación guardada en '+roles[side]+'.');
@@ -564,7 +576,7 @@
     function move(x,y){d.x=Math.max(0,Math.min(4,x));d.y=Math.max(0,Math.min(4,y));redraw();}
     let point;map.onpointerdown=e=>{point=[e.clientX,e.clientY];map.setPointerCapture(e.pointerId)};
     map.onpointerup=e=>{if(point)move(d.x+Math.round((e.clientX-point[0])/(map.clientWidth*.09)),d.y+Math.round((e.clientY-point[1])/(map.clientHeight*.09)))};
-    const arrows=node('div',null,'hm-tray');for(const [caption,x,y] of [['←',-1,0],['↑',0,-1],['↓',0,1],['→',1,0]])arrows.append(btn(caption,()=>move(d.x+x,d.y+y)));work.append(arrows);
+    const arrows=node('div',null,'guard-tray');for(const [caption,x,y] of [['←',-1,0],['↑',0,-1],['↓',0,1],['→',1,0]])arrows.append(btn(caption,()=>move(d.x+x,d.y+y)));work.append(arrows);
     group('Marcar la entrada',[12,14,16],2);finish('Fijar los calcos',[d.x,d.y,d.v[2]]);
    }else if(index===2&&!side){
     note('Explora el positivo con la lupa. Marca el detalle personal y el adorno del rellano. El reverso conserva la hora para tu compañero.');
@@ -575,7 +587,7 @@
     function stamp(x,y){d.x=x;d.y=y;d.marks[d.tool]=[x,y];redraw();}
     scene.onclick=e=>stamp(...point(e));tools('Marca de inspección',['Detalle personal','Adorno de papel']);
     d.marks.forEach((m,i)=>{if(!m)return;const pin=node('span',String(i+1),'hm-pin-mark');pin.style.left=m[0]+'%';pin.style.top=m[1]+'%';scene.append(pin)});
-    const pad=node('div',null,'hm-tray');for(const [l,x,y] of [['←',-5,0],['↑',0,-5],['↓',0,5],['→',5,0]])pad.append(btn(l,()=>{d.x=Math.max(2,Math.min(98,(d.x||50)+x));d.y=Math.max(2,Math.min(98,(d.y||50)+y));redraw()}));pad.append(btn('Marcar bajo la lupa',()=>stamp(d.x||50,d.y||50)));work.append(pad);
+    const pad=node('div',null,'guard-tray');for(const [l,x,y] of [['←',-5,0],['↑',0,-5],['↓',0,5],['→',5,0]])pad.append(btn(l,()=>{d.x=Math.max(2,Math.min(98,(d.x||50)+x));d.y=Math.max(2,Math.min(98,(d.y||50)+y));redraw()}));pad.append(btn('Marcar bajo la lupa',()=>stamp(d.x||50,d.y||50)));work.append(pad);
     finish('Guardar las dos ampliaciones',d.marks[0]&&d.marks[1]?d.marks.flat():[-1]);
    }else if(index===2){
     note('Delimita la exposición entre dos marcas de la ronda. Cruza el intervalo con los asientos del registro.');
