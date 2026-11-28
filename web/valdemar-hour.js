@@ -239,9 +239,18 @@
     return node;
   }
   const shelfFilters=new WeakMap();
+  const shelfModes=new WeakMap();
+  let readingGroup=0;
+  function illustrateShelf(context){
+    window.ArchivosDeCaso?.[context.caseId]?.(context);
+    window.CompletarFuentesDeCaso?.[context.caseId]?.(context);
+  }
   function filterByRole(root,role) {
     for(const shelf of root.querySelectorAll('.vhour-shelf')){
-      if(shelf.dataset.roleFilter!==(role||'all'))shelfFilters.get(shelf)?.(role);
+      const mode=role||'all';
+      if(shelfModes.get(shelf)===mode)continue;
+      shelfModes.set(shelf,mode);
+      if(shelf.dataset.roleFilter!==mode)shelfFilters.get(shelf)?.(role);
     }
   }
   function proofShelf(items,state,assignedRole) {
@@ -265,11 +274,15 @@
         if(card.hidden && state.voice && card.contains(state.voice.button))stopVoice(state);
       }
       shelf.dataset.roleFilter=role||'all';
+      if(shelf.dataset.readingTable==='true'&&!records.some(({card})=>!card.hidden&&card.open)){
+        const first=records.find(({card})=>!card.hidden);
+        if(first)first.card.open=true;
+      }
       shelf.dataset.visibleCount=stack.dataset.visibleCount=String(visible);
       const count=visible===1?'Una prueba':visible+' pruebas';
       heading.textContent=fixedRole?roleNames[fixedRole]+' · '+count:count;
     }
-    if(!fixedRole && items.some(m=>m.role==='A'||m.role==='B')) {
+    if(!fixedRole && items.some(m=>['A','B',1,2].includes(m.role))) {
       for (const [role,label] of [['','Todas las pruebas'],['A','Papel 1'],['B','Papel 2']]){
         const b=control(label,()=>select(role));b.dataset.vhourRole=role||'all';buttons.push({role,button:b});filters.append(b);
       }
@@ -687,7 +700,7 @@
     let hour=initial;
     const main=el('div',null,'vhour-chapter');
     const inventory=window.ExpeditionInventory?.create(controller.inventory, value=>{hour.inventory=value;});
-    let hotel;
+    let hotel,currentShelf,currentTask,showActivePane,tableTitle;
     if(initial.hotel)hotel=hotelMap(initial.hotel,state,initial.inventory?.hotel,async input=>{
       const {inventory:snapshot}=await controller.inventory(input);
       if(snapshot.revision>=(hour.inventory?.revision||0)){
@@ -718,13 +731,13 @@
       if(stage) {
         main.append(el('p',(controller.sceneBack?'':'Etapa '+(index+1)+' de '+stages.length+' · ')+stage.minutes+' min orientativos','vhour-kicker'));
         const heading=head('h3',controller.sceneBack?'Pruebas de la etapa':stage.title);
-        main.append(heading);
-        if(stage.brief&&stage.brief!==stage.task)main.append(el('p',stage.brief,'vhour-lead'));
+        if(!controller.present)main.append(heading);
+        if(!controller.present&&stage.brief&&stage.brief!==stage.task)main.append(el('p',stage.brief,'vhour-lead'));
         if(hotel && controller.visitHotel && !controller.sceneBack)main.append(control(index===3?'Volver a interrogar a los huéspedes':'Explorar la recepción',controller.visitHotel,'vhour-visit'));
         const workbench=el('div',null,'vhour-workbench');
         workbench.dataset.stage=String(index+1);
         const shelf=proofShelf(stage.materials||[],state,controller.role);
-        window.ArchivosDeCaso?.[controller.caseId]?.({stage,index,caseId:controller.caseId,role:controller.role,shelf,controller});
+        illustrateShelf({stage,index,caseId:controller.caseId,role:controller.role,shelf,controller});
         const instrument=stage.instrument;
         const makeTool=instrument && window.ValdemarTalleres?.[instrument.id];
         if(typeof makeTool==='function') {
@@ -738,6 +751,7 @@
           } else if(tool)shelf.append(tool);
         }
         const task=decision(stage,index,controller,(next,note)=>{controller.change(next);render(next,note,true);});
+        currentShelf=shelf;currentTask=task;
         if(controller.station){
           const cards=()=>Array.from(shelf.querySelectorAll('.vhour-material')).filter(card=>!card.hidden);
           const inspect=(card)=>{
@@ -762,9 +776,33 @@
           }
         }
         workbench.append(shelf,task);
-        main.append(workbench);
-        if(focus){heading.focus({preventScroll:true});heading.scrollIntoView?.({block:'start',behavior:'instant'});}
+        if(controller.present){
+          shelf.dataset.readingTable='true';
+          const table=el('section',null,'vhour-case-table');
+          tableTitle=head('h2',stage.title||stage.place);
+          const header=el('header',null,'vhour-table-head');
+          const tabs=el('div',null,'vhour-table-switch');
+          tabs.setAttribute('role','group');tabs.setAttribute('aria-label','Mesa de investigación');
+          const read=control('Examinar evidencias',()=>showActivePane('evidence'));
+          const solve=control('Resolver la prueba',()=>showActivePane('decision'));
+          const brief=stage.brief&&stage.brief!==stage.task?el('details',null,'vhour-brief'):null;
+          if(brief)brief.append(el('summary','Leer el encargo'),el('p',stage.brief));
+          header.append(tableTitle,tabs);tabs.append(read,solve);
+          table.append(header,workbench);if(brief)table.append(brief);
+          showActivePane=kind=>{
+            const resolving=kind==='decision';
+            shelf.hidden=resolving;task.hidden=!resolving;
+            pressed(read,!resolving);pressed(solve,resolving);
+          };
+          const group='documentos-etapa-'+(++readingGroup);
+          for(const card of shelf.querySelectorAll('.vhour-material'))card.setAttribute('name',group);
+          const first=[...shelf.querySelectorAll('.vhour-material')].find(card=>!card.hidden);
+          if(first)first.open=true;
+          showActivePane(first?'evidence':'decision');controller.present(table);
+        }else main.append(workbench);
+        if(focus){const target=controller.present?tableTitle:heading;target.focus({preventScroll:true});target.scrollIntoView?.({block:'start',behavior:'instant'});}
       } else {
+        currentShelf=null;currentTask=null;showActivePane=null;tableTitle=null;controller.present?.(null);
         const heading=head('h3','Investigación completada');
         main.append(heading,control('Ir a la resolución',controller.finish,'vd-primary'));
         if(focus)heading.focus({preventScroll:true});
@@ -772,14 +810,18 @@
       const notes=hour.journal||[];
       if(notes.length) {
         const box=el('div',null,'vhour-journal');
-        for(const note of notes)box.append(fold(note.title,el('p',note.success||note.brief,'vhour-clipping'),proofShelf(note.materials||[],state,controller.role)));
+        for(const note of notes){
+          const shelf=proofShelf(note.materials||[],state,controller.role);
+          illustrateShelf({stage:note,index:note.index,caseId:controller.caseId,role:controller.role,shelf,controller});
+          box.append(fold(note.title,el('p',note.success||note.brief,'vhour-clipping'),shelf));
+        }
         main.append(fold('Cuaderno de etapas resueltas · '+notes.length,box));
       }
       controller.onScene?.(hour,main);
     }
     render(hour);
     function focusStage(){
-      const heading=main.querySelector('h3');
+      const heading=tableTitle||main.querySelector('h3');
       if(!heading)return;
       heading.focus({preventScroll:true});
       heading.scrollIntoView({block:'start',behavior:'instant'});
@@ -801,11 +843,12 @@
           if(inventory?.startExploring()){controller.sceneBack?.(inventory.node);return;}
           if(inventory&&hour.inventory){inventory.openBag();controller.sceneBack?.(inventory.node);return;}
         }
-        const cards=[...main.querySelectorAll('.vhour-workbench .vhour-material')].filter(card=>!card.hidden);
-        const card=kind==='material'?cards.find(item=>item.dataset.material===String(id)):kind==='evidence'?cards[0]:null;
-        if(card){card.open=true;controller.sceneBack?.(card);const title=card.querySelector('summary');title.focus({preventScroll:true});title.scrollIntoView({block:'center'});return;}
+        const cards=[...(currentShelf?.querySelectorAll('.vhour-material')||[])].filter(card=>!card.hidden);
+        const card=kind==='material'?cards.find(item=>item.dataset.material===String(id)):kind==='evidence'?(cards.find(item=>item.open)||cards[0]):null;
+        if(card){showActivePane?.('evidence');card.open=true;controller.sceneBack?.(card);const title=card.querySelector('summary');title.focus({preventScroll:true});title.scrollIntoView({block:'start'});return;}
         if(kind==='decision'){
-          const heading=main.querySelector('.vhour-task h4');
+          showActivePane?.('decision');
+          const heading=currentTask?.querySelector('h4');
           if(heading){controller.sceneBack?.(heading.parentElement);heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'center'});return;}
         }
         focusStage();

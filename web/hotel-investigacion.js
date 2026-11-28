@@ -206,16 +206,162 @@
     }
     reader.append(title,bar,drawing,caption);draw(0);return reader;
   }
+  // The filing cards read only the evidence actually supplied to this player.
+  // Choosing a tab changes the document under examination, never the case state.
+  const sourceDesk = {
+    voz:['Centralita de huéspedes','Elige una línea del conmutador','centralita'],
+    protocolo:['Placa de señales','Probar una señal','centralita'],
+    ronda:['Armarios de guardia','Girar una etiqueta','llaves'],
+    planta:['Planos del rellano','Comparar las plantas','planta'],
+    llaves:['Registro de cerrajería','Abrir un encargo','llaves'],
+    palabra:['Declaración del inspector','Seguir el testimonio','llaves'],
+    negativo:['Sobre del revelador','Dar la vuelta a la tira','negativo'],
+    fechas:['Calendario de obra','Examinar una fecha','registro'],
+    registro:['Registro de huéspedes','Abrir un asiento','registro'],
+    fuentes:['Fichero de testigos','Contrastar la procedencia','negativo'],
+    objetos:['Carpeta de procedencias','Examinar un objeto','llaves'],
+    entrevista:['Cuaderno de recepción','Pasar una hoja','registro'],
+    referencia:['Tarjetas para la entrevista','Sacar una pregunta','recado'],
+    candela:['Llamada de devolución','Escuchar a Candela','centralita'],
+    margen:['Acta de guardia','Leer una columna','registro'],
+    recado:['Sobre de Simón','Abrir el sobre','recado']
+  };
+  const excerpts = {
+    voz:[['Alzar el auricular',/«([^»]+)»/],['Pasar a la línea de servicio',/(Cuando cuelga[\s\S]+)/]],
+    negativo:[['Dorso de la tira',/«([^»]+)»/],['Nota del revelador',/»\.\s*([\s\S]+)/]],
+    candela:[['El mensaje',/«(.*?mensaje\.)/],['La llamada',/(Si prefiere hablar,.*?pasáis\.)/],['El número',/(Por favor, [^»]+)/]],
+    referencia:[['Simón',/(¿Tuvo[^?]+\?)/],['Lucía',/(¿Dónde[^?]+\?)/],['Candela',/(¿Qué relación[^?]+\?)/]]
+  };
+  function pagesFor(evidence) {
+    const {id,body}=evidence;
+    const labels={
+      palabra:['Las copias','La obra','El encargo','El parentesco'],
+      fuentes:['Quien estaba allí','Documento heredado','Fotografía'],
+      entrevista:['Detalle nuevo','Reconocer la llave','Anotación de guardia']
+    };
+    if(excerpts[id]){
+      return excerpts[id].map(([name,rx])=>[name,body.match(rx)?.[1]?.trim()]).filter(([,text])=>text);
+    }
+    if(id==='recado')return [['Mensaje bajo el sello',body]];
+    if(id==='protocolo'){
+      const phrases=body.match(/[^.]+(?:\.|$)/g)||[];
+      return phrases.map((phrase,i)=>{
+        const [label,result]=phrase.trim().split(/\s*→\s*/);
+        return [result?label:['','','','','Pilotos de servicio','Ascensor'][i]||'Nota',result||phrase.trim()];
+      });
+    }
+    if(labels[id]){
+      const sentences=body.replace(/^[«“"]|[»”"]$/g,'').match(/[^.!?]+(?:[.!?]+|$)/g)||[];
+      return sentences.map((sentence,i)=>[labels[id][i]||'Apunte '+(i+1),sentence.trim()]);
+    }
+    const rows=body.split(/\r?\n/).filter(line=>line.includes('|')).map(line=>line.split('|').map(cell=>cell.trim()));
+    if(!rows.length)return [];
+    const titles=['llaves','fechas','objetos','margen'].includes(id)?rows.shift():null;
+    return rows.map(row=>[row[0],row.slice(1).map((s,j)=>titles?.[j+1]?titles[j+1]+' · '+s:s).join('\n')]);
+  }
+  function callSignal() {
+    const box=make('div','hm-call-signal');
+    const sequence=['Primer timbre','Segundo timbre','Pausa','Clic final'];
+    const lights=make('div','hm-signal-lights');
+    const bulbs=sequence.map((label,i)=>{const tick=make('span','hm-signal-tick',String(i+1));tick.title=label;lights.append(tick);return tick;});
+    const log=make('output','hm-signal-log','Aviso de servicio');
+    log.setAttribute('aria-live','polite');
+    let step=-1;
+    const button=action('Seguir el aviso',()=>{
+      step=(step+1)%sequence.length;
+      bulbs.forEach((bulb,i)=>bulb.classList.toggle('hm-lit',i===step));
+      log.textContent=sequence[step];
+      button.textContent=step===3?'Repetir el aviso':'Siguiente señal';
+    },'hm-chip');
+    box.append(lights,button,log);return box;
+  }
+  function clipReader(evidence) {
+    const spec=sourceDesk[evidence.id];
+    if(!spec || typeof evidence.body!=='string')return null;
+    const [title,operation,art]=spec;
+    const folder=make('section','hm-document hm-document-'+evidence.id);
+    const plate=make('div','hm-document-plate');
+    plate.append(prop(art));
+    const work=make('div','hm-document-work');
+    const heading=make('h5','',title);
+    work.append(heading);
+    folder.append(plate,work);
+    if(evidence.id==='planta'){
+      const plan=planReader(evidence);if(!plan)return null;
+      work.append(plan);return folder;
+    }
+    const pages=pagesFor(evidence);
+    if(!pages.length)return null;
+    const tabs=make('div','hm-source-tabs');
+    tabs.setAttribute('role','group');tabs.setAttribute('aria-label',operation);
+    const sheet=make('div','hm-document-sheet'),caption=make('strong','hm-document-label'),copy=make('p','hm-document-copy');
+    sheet.setAttribute('aria-live','polite');
+    sheet.append(caption,copy);
+    const isLetter=evidence.id==='recado';
+    const isCalendar=evidence.id==='fechas';
+    const signal=evidence.id==='voz'?callSignal():null;
+    if(isCalendar){
+      tabs.classList.add('hm-calendar');
+      for(const day of ['L','M','X','J','V','S','D']){
+        const name=make('span','hm-weekday',day);name.setAttribute('aria-hidden','true');tabs.append(name);
+      }
+    }
+    if(!isLetter)work.append(make('span','hm-instrument-label',operation),tabs);
+    let selected=-1;
+    const buttons=[];
+    function show(i){
+      selected=i;buttons.forEach((b,n)=>b.setAttribute('aria-pressed',String(i===n)));
+      const page=pages[i];
+      sheet.hidden=!page;
+      if(signal)signal.hidden=i!==1;
+      if(!page)return;
+      caption.textContent=page[0];
+      copy.textContent=page[1];
+      if(evidence.id==='objetos'){
+        const pic=plate.querySelector('img');
+        pic.src=file(['planta','negativo','registro'][i]||art);
+      }
+    }
+    function newTab(name,i){
+      const b=action(name,()=>show(i),'hm-chip');
+      b.setAttribute('aria-label',pages[i][0]);buttons[i]=b;return b;
+    }
+    if(isLetter){
+      const open=action('Romper el sello y leer el recado',()=>{
+        const expanding=selected<0;
+        show(expanding?0:-1);open.setAttribute('aria-expanded',String(expanding));open.textContent=expanding?'Doblar el recado':'Abrir el sobre';
+      },'hm-chip');
+      open.setAttribute('aria-expanded','false');work.append(open);
+    }else if(isCalendar){
+      const indices=new Map(pages.map((p,i)=>[parseInt(p[0],10),i]));
+      // Monday 1 July 1996 starts the printed calendar.
+      for(let date=1;date<=31;date++){
+        const i=indices.get(date);
+        const d=i==null?make('span','hm-calendar-day',String(date)):newTab(String(date),i);
+        tabs.append(d);
+      }
+    }else{
+      pages.forEach(([label],i)=>tabs.append(newTab(label,i)));
+    }
+    work.append(sheet);
+    if(signal)work.append(signal);
+    show(isLetter || signal?-1:0);return folder;
+  }
   function decorateShelf({shelf,stage}) {
     for(const card of shelf.querySelectorAll('[data-material]')) {
+      if(card.querySelector('.hm-document'))continue;
       const evidence=stage.materials.find(m=>m.id===card.dataset.material);
       if(!evidence)continue;
       const img=materialImages[evidence.id];
       const thumb=card.querySelector('.vhour-format-photo');
       if(img && thumb){thumb.classList.add('hm-photo');thumb.style.backgroundImage='url("'+file(img)+'")';}
-      if(evidence.id==='planta') {
-        const reader=planReader(evidence);
-        if(reader)card.querySelector('summary')?.after(reader);
+      const reader=clipReader(evidence),summary=card.querySelector('summary');
+      if(reader && summary) {
+        const original=make('details','hm-original');
+        original.append(make('summary','','Consultar la fuente íntegra'));
+        const contents=[...card.children].filter(child=>child!==summary);
+        original.append(...contents);
+        card.append(reader,original);
       }
     }
   }

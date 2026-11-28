@@ -208,6 +208,7 @@
       const hourNode=element('div');c.desk.append(hourNode);
       c.hourView=window.ValdemarHour.mount(hourNode,c.data.hour,{
         caseId:c.id,hotelNode:c.hotel,role:c.data.partner?.role,station:c.id===1,
+        present:c.id>1&&c.scene?table=>c.scene.present(table):null,
         onScene:(hour,main)=>{c.scene?.update(hour);if(c.view==='desk')c.scene?.returnFrom(main);},
         sceneRoute:Boolean(c.scene),sceneBack:c.scene?target=>c.scene.returnFrom(target):null,
         inventory:async input=>{
@@ -517,7 +518,7 @@
     const hintsRequested=c.routeSection==='pistas';
     selectView(c,sideRequested?'game':hintsRequested?'help':ending?'ending':'desk',sideRequested||hintsRequested||c.resume&&(ending||pending));
     if(c.resume&&!ending&&!sideRequested&&!hintsRequested&&!pending){
-      if(common)c.frame.querySelector('.vd-block-entry h1').focus({preventScroll:true});
+      if(common&&c.id===1)c.frame.querySelector('.vd-block-entry h1').focus({preventScroll:true});
       else if(c.scene)c.scene.focus();else c.hourView?.enter();
     }
   }

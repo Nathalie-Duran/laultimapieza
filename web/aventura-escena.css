@@ -85,3 +85,30 @@
 .inventory-folders button {min-height:44px}
 .inventory-folders button[aria-pressed=true] {box-shadow:inset 0 -3px currentColor}
 .vd-player:has(> .mj-objective-dock:not([hidden])) :is(.vhour-task,.vhour-material,.expedition-inventory,.ae-marker,.md-game-panel,.vd-panel):focus-within {scroll-margin-block-start:8.5rem}
+.vd-player .ae-reading-table[hidden],.vd-player .ae-reading-table [hidden] {display:none!important}
+.ae-reading-table {padding:clamp(.65rem,2vw,1.45rem);background:#12201d}
+.vhour-case-table {max-width:86rem;margin:0 auto;scroll-margin-top:8rem}
+.vd-player .vhour-table-head {display:flex;align-items:center;justify-content:space-between;gap:.75rem 1.5rem;flex-wrap:wrap;color:#fff1d3}
+.vd-player .vhour-table-head h2 {margin:0;color:inherit;font:500 clamp(1.65rem,3.5vw,2.75rem)/1.15 Georgia,serif}
+.vhour-table-switch {display:flex;gap:.35rem;flex-wrap:wrap}
+.vd-player .vhour-table-switch>button {min-height:44px;padding:.45rem .85rem;background:#202f2a;color:#f6edda;border:1px solid #859083;border-radius:.3rem;font:600 .95rem/1.25 system-ui,sans-serif}
+.vd-player .vhour-table-switch>button[aria-pressed=true] {background:#eaca89;color:#1a201b;border-color:#f4daa4}
+.vd-player .ae-reading-table .vhour-workbench {display:block;margin:.8rem 0 0}
+.vd-player[data-play-mode=solo] .ae-reading-table .vhour-filter {display:flex;flex-wrap:wrap}
+.vd-player .ae-reading-table .vhour-task {margin:0}
+.vd-player .ae-reading-table .vhour-stack {display:flex;align-items:stretch}
+.vd-player .ae-reading-table .vhour-stack>.vhour-material[open] {order:-1;flex:1 1 100%}
+.vd-player .ae-reading-table .vhour-material>summary {scroll-margin-block-start:8rem}
+.vd-player .vhour-table-head h2 {scroll-margin-block-start:8rem}
+.vd-player .ae-proof-dock {grid-template-columns:minmax(0,1fr) auto auto;align-items:center}
+.vd-player .ae-proof-dock .ae-jump-proof {grid-area:1/3/3/4;align-self:stretch;min-height:44px;padding:.35rem .75rem;border:1px solid #b59155;border-radius:.3rem;color:#1d241d;background:#e7c78b;font:650 .88rem/1.3 system-ui,sans-serif}
+.vd-player .ae-proof-dock .mj-objective {grid-column:1/3}
+@media(max-width:38rem){.vd-player .ae-proof-dock {grid-template-columns:minmax(0,1fr) auto}.vd-player .ae-proof-dock .mj-save {display:none}.vd-player .ae-proof-dock .ae-jump-proof {grid-area:1/2}.vd-player .ae-proof-dock .mj-objective {grid-column:1/-1}}
+.vd-player .vhour-brief {color:#eee7d5;margin-top:.8rem}
+.vd-player .vhour-brief summary {cursor:pointer;min-height:44px;align-content:center}
+.vd-player .vhour-brief p {max-width:65ch}
+@media(max-width:38rem){
+  .vd-player .vhour-table-head {display:grid}
+  .vd-player .vhour-table-switch {display:grid;grid-template-columns:1fr 1fr}
+  .vd-player .vhour-table-switch>button {padding:.4rem}
+}

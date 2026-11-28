@@ -20,3 +20,50 @@ lup-explorador button { justify-self:start; background:#e8ce9c; color:#24251c; f
 lup-explorador :focus-visible { outline:3px solid #edd99a; outline-offset:3px; }
 lup-explorador [role="status"]:not(:empty) { margin:0; padding:.35rem 1rem 1rem; }
 lup-explorador [role="status"]:empty { margin:0; }
+.hallazgo-campo {container-type:inline-size}
+.hallazgo-campo *,lup-explorador .campo-coleccion * {box-sizing:border-box}
+.hallazgo-campo>details>summary {position:relative;min-height:5rem;align-content:center;padding-inline-start:6.3rem}
+.hallazgo-campo .campo-miniatura {position:absolute;inset-inline-start:1rem;top:50%;transform:translateY(-50%);width:4.35rem;height:3.7rem;object-fit:contain;background:#0f2118;border:1px solid #746b51;border-radius:.25rem}
+.hallazgo-campo>details>div {padding:0}
+.hallazgo-campo .campo-ficha {overflow:hidden}
+.hallazgo-campo .campo-mesa {display:grid;grid-template-columns:minmax(0,38%) minmax(0,1fr);color:#2c3529;background:#eee5cb}
+.hallazgo-campo .campo-visor {display:grid;place-items:center;align-self:stretch;margin:0;position:relative;min-height:13rem;overflow:hidden;background:#0b1a12}
+.hallazgo-campo .campo-visor>img {display:block;width:100%;height:auto;max-height:25rem;object-fit:contain;aspect-ratio:1;transform:scale(1)}
+.hallazgo-campo .campo-visor[data-zoom=true] {cursor:crosshair}
+.hallazgo-campo .campo-visor[data-zoom=true]>img {transform:scale(2.15)}
+.hallazgo-campo .campo-notas {align-self:center;min-width:0;padding:clamp(1rem,3.5cqi,2rem);color:#263a2e}
+.hallazgo-campo .campo-notas h4 {font:500 clamp(1.5rem,4cqi,2.35rem)/1.15 Georgia,serif;color:#2b3226;margin:.35rem 0 .55rem}
+.hallazgo-campo .campo-notas :is(p,small){color:#414b3c}
+.hallazgo-campo .campo-notas small {font:650 .8rem/1.4 system-ui,sans-serif}
+.hallazgo-campo .campo-notas blockquote {background:#f7f1df;border-inline-start:3px solid #9c8659;padding:.55rem .75rem;color:#2b362c;margin:.55rem 0}
+.hallazgo-campo .campo-notas blockquote p {color:inherit;margin:.18rem 0;font-size:.98rem;line-height:1.45}
+.hallazgo-campo .campo-notas cite {font-weight:650;font-style:normal;font-size:.78rem;color:#5a502d}
+.hallazgo-campo .campo-notas button,.hallazgo-campo .campo-notas a {display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;border:1px solid #526a59;background:#2b493a;color:#f6ead0;padding:.35rem .65rem;border-radius:.25rem;font:600 .9rem/1.3 system-ui,sans-serif}
+.hallazgo-campo .campo-vistas,.hallazgo-campo .campo-desplazar {display:flex;flex-wrap:wrap;align-items:center;gap:.32rem}
+.hallazgo-campo .campo-vistas button {background:#fcf6e5;color:#29392f}
+.hallazgo-campo .campo-vistas [aria-pressed=true] {background:#2b493a;color:#f6ead0}
+.hallazgo-campo .campo-desplazar {margin-block:.4rem}
+.hallazgo-campo .campo-desplazar[hidden] {display:none}
+.hallazgo-campo .campo-desplazar button {color:#334539;background:transparent}
+.hallazgo-campo .campo-notas button.campo-volver {color:#364b3c;background:transparent;border-color:transparent;text-decoration:underline;text-underline-offset:.18em;margin:.25rem 0}
+.hallazgo-campo .campo-identificar {display:block;width:100%;max-width:none;padding:clamp(.9rem,2.5cqi,1.5rem);background:#1b3027;color:#f4ead5}
+.hallazgo-campo .campo-identificar fieldset {min-width:0;margin:0 0 1rem;border:0;padding:0}
+.hallazgo-campo .campo-identificar legend {padding:0;margin:0 0 .45rem;color:#f0deb4;font:600 1.12rem/1.3 Georgia,serif}
+.hallazgo-campo .campo-opciones {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(12rem,100%),1fr));gap:.4rem}
+.hallazgo-campo .campo-opciones label {display:flex;align-items:center;gap:.55rem;min-width:0;min-height:2.75rem;padding:.45rem .6rem;border:1px solid #69816c;border-radius:.3rem;color:#eef0de;background:#263e32;line-height:1.35;overflow-wrap:anywhere;cursor:pointer}
+.hallazgo-campo .campo-opciones input {accent-color:#9bd7b9;flex:0 0 1rem;width:1rem;margin:0}
+.hallazgo-campo .campo-opciones label:has(input:checked) {border-color:#e6ca87;background:#e3ca96;color:#1a3024}
+.hallazgo-campo .campo-opciones label:focus-within {outline:2px solid #c6eedf;outline-offset:1px}
+.hallazgo-campo .campo-identificar button:disabled {color:#c2cbbd;background:#354a3d;border-color:#536756;opacity:1;cursor:default}
+.hallazgo-campo .campo-identificar button {min-height:2.75rem}
+lup-explorador .campo-coleccion {display:grid;grid-template-columns:minmax(4rem,7rem) minmax(0,1fr);gap:.85rem;align-items:start}
+lup-explorador .campo-coleccion img {display:block;width:100%;height:auto;aspect-ratio:1;object-fit:contain;background:#0c1a12;border-radius:.25rem}
+lup-explorador .campo-coleccion h4 {margin:.1rem 0}
+lup-explorador .campo-coleccion p {margin:.25rem 0}
+@container(max-width:545px){
+  .hallazgo-campo .campo-mesa {grid-template-columns:minmax(0,1fr)}
+  .hallazgo-campo .campo-visor {height:12rem;min-height:0}
+  .hallazgo-campo .campo-visor>img {height:100%;width:auto;max-width:100%;max-height:12rem}
+  .hallazgo-campo .campo-notas {padding:.9rem}
+  .hallazgo-campo .campo-opciones {grid-template-columns:minmax(0,1fr)}
+}

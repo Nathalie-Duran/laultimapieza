@@ -7,6 +7,117 @@
     const photo=element('img');photo.src='/mansion-hallazgo-'+file+'.webp';photo.alt=description;photo.decoding='async';
     return photo;
   }
+  function specimenPhoto(id,description=''){
+    const img=element('img');img.src='/hallazgo-campo-'+id+'.webp';img.alt=description;img.decoding='async';return img;
+  }
+  function identifiedCard(item){
+    const article=element('article'),copy=element('div');
+    article.className='campo-coleccion';
+    const photo=item.caseId===1?fieldPhoto('alfeizar',item.name):specimenPhoto(item.caseId,item.name);
+    photo.loading='lazy';
+    copy.append(element('small',item.category+' · '+item.location),element('h4',item.name),element('p',item.description),element('small',item.caseTitle+' · '+item.points+' puntos de observación'));
+    article.append(photo,copy);return article;
+  }
+  function identificationForm(model,selection,request) {
+    const form=element('form');form.className='campo-identificar';
+    const send=element('button','Comprobar identificación');send.type='submit';
+    const sync=()=>{send.disabled=!(selection.name&&selection.sign);};
+    for(const [key,legend,options] of [['name','¿Qué has encontrado?',model.names],['sign','¿Qué detalle lo identifica?',model.signs]]){
+      const field=element('fieldset'),list=element('div');list.className='campo-opciones';
+      field.append(element('legend',legend),list);
+      // A folder opened with another partner can have different evidence.
+      if(!options.some(o=>o.value===selection[key]))selection[key]='';
+      for(const option of options){
+        const label=element('label'),control=element('input');control.type='radio';control.name=key;control.value=option.value;control.checked=selection[key]===option.value;control.required=true;
+        control.addEventListener('change',()=>{selection[key]=option.value;sync();});
+        label.append(control,element('span',option.label));list.append(label);
+      }
+      form.append(field);
+    }
+    form.append(send);sync();
+    form.addEventListener('submit',e=>{e.preventDefault();if(!send.disabled)request({op:'identify',name:selection.name,sign:selection.sign});});return form;
+  }
+  // Inspection points are cropped positions on the unlabelled plate; observations and
+  // candidate names enter the page exclusively through the player's authorized dossier.
+  const inspectionPoints=[
+    [[50,25],[50,69]],[[33,36],[62,57]],[[67,60],[50,38]],[[50,45],[50,24]],
+    [[57,56],[74,31]],[[22,48],[56,49]],[[42,41],[70,59]],[[57,54],[38,50]],
+    [[45,46],[70,49]],[[48,35],[51,66]],[[52,64],[47,23]],
+    [[48,48],[42,65]],[[57,61],[61,44]],[[51,48],[57,44]],[[40,60],[60,47]],
+    [[56,43],[38,64]],[[51,43],[54,64]],[[37,44],[63,50]],[[57,51],[41,51]],
+    [[66,52],[34,48]],[[57,56],[40,44]],[[62,40],[42,60]],[[55,49],[42,65]],
+    [[60,49],[32,55]],[[52,59],[51,41]],[[51,51],[73,48]],[[57,48],[40,60]],
+    [[50,54],[64,57]],[[50,44],[51,62]],[[42,48],[65,51]],[[48,39],[56,52]],
+    [[49,49],[66,57]],[[52,55],[46,43]],[[50,47],[36,49]],[[56,43],[41,60]],
+    [[59,54],[37,49]],[[42,46],[59,58]],[[48,53],[54,42]],[[56,47],[38,55]],
+    [[54,47],[36,56]],[[47,57],[55,35]],[[56,52],[37,48]],[[48,43],[59,59]],
+    [[53,50],[38,63]],[[49,50],[65,51]],[[40,48],[62,53]],[[50,48],[70,50]]
+  ];
+  function specimenDesk({id,model,selection,request,leave,body}){
+    const layout=element(model.discovery?'article':'section');layout.className='campo-ficha';body.append(layout);
+    const cover=element('div'),imageBox=element('div'),copy=element('div');
+    cover.className='campo-mesa';imageBox.className='campo-visor';copy.className='campo-notas';
+    const isOpen=model.examined||model.discovery;
+    const photo=specimenPhoto(isOpen?id:'estuche',model.discovery?.name||(isOpen?'Muestra en '+model.location:'Estuche de observación cerrado'));
+    imageBox.append(photo);cover.append(imageBox,copy);layout.append(cover);
+    const back=button('Volver a la aventura',leave);back.className='campo-volver';
+    if(model.locked){
+      copy.append(element('h4','Muestra por descubrir'),element('p','Podrás examinarla al llegar a la etapa '+model.stage+'.'),
+        button('Comprobar disponibilidad',()=>request()),back);return;
+    }
+    if(model.discovery){
+      const item=model.discovery;
+      copy.append(element('small',item.location+' · '+item.category),element('h4',item.name),element('p',item.description),
+        element('p',item.points+' puntos de observación · Guardado en tu colección'));
+      const album=element('a','Ver mis hallazgos');album.href='/#perfil?seccion=coleccion&ver=hallazgos';copy.append(album,back);return;
+    }
+    copy.append(element('small',model.category+' · '+model.reward+' puntos de observación'),element('h4',model.location));
+    if(!model.examined){
+      copy.append(element('p','Abre el estuche para inspeccionar la muestra de este lugar. Después podrás identificarla por uno de sus rasgos.'),
+        button('Examinar la muestra',()=>request({op:'examine'})),back);return;
+    }
+    const clues=model.clues||[],controls=element('div'),detail=element('div'),note=element('blockquote');
+    controls.className='campo-vistas';detail.className='campo-detalle';note.setAttribute('aria-live','polite');
+    const points=inspectionPoints[id-2]||[[40,50],[60,50]];
+    let active=clues.find(c=>c.role===selection.role)||clues[0],zoom=Boolean(selection.zoom),origin;
+    const lens=button('Ampliar detalle',()=>{
+      zoom=!zoom;selection.zoom=zoom;establish(active,true);
+    });lens.className='campo-lupa';
+    const panning=element('div');panning.className='campo-desplazar';
+    const move=(dx,dy)=>{
+      if(!zoom || !origin)return;
+      origin=[Math.max(5,Math.min(95,origin[0]+dx)),Math.max(5,Math.min(95,origin[1]+dy))];paint();
+    };
+    for(const [label,dx,dy] of [['Arriba',0,-14],['Izquierda',-14,0],['Derecha',14,0],['Abajo',0,14]]){
+      const b=button(label,()=>move(dx,dy));b.setAttribute('aria-label','Mover la lupa hacia '+label.toLowerCase());panning.append(b);
+    }
+    imageBox.addEventListener('click',event=>{
+      if(!zoom)return;
+      const rect=imageBox.getBoundingClientRect();
+      origin=[Math.max(5,Math.min(95,100*(event.clientX-rect.left)/rect.width)),Math.max(5,Math.min(95,100*(event.clientY-rect.top)/rect.height))];paint();
+    });
+    function paint(){
+      imageBox.dataset.zoom=String(zoom);photo.style.transformOrigin=origin.join('% ')+'%';
+      panning.hidden=!zoom;lens.setAttribute('aria-pressed',String(zoom));lens.textContent=zoom?'Ver muestra completa':'Ampliar detalle';
+    }
+    function establish(clue,keep){
+      if(!clue)return;
+      active=clue;selection.role=clue.role;
+      if(!keep||!origin)origin=points[clue.role==='B'?1:0].slice();
+      note.replaceChildren(element('cite','Expediente '+clue.role),element('p',clue.text));
+      for(const b of controls.children)b.setAttribute('aria-pressed',String(b.dataset.role===clue.role));paint();
+    }
+    if(clues.length>1){
+      controls.setAttribute('aria-label','Observaciones del cuaderno');
+      for(const clue of clues){
+        const b=button('Observación '+clue.role,()=>establish(clue,false));b.dataset.role=clue.role;controls.append(b);
+      }
+      copy.append(controls);
+    }
+    detail.append(note,lens,panning);
+    copy.append(detail,back);establish(active,false);
+    layout.append(identificationForm(model,selection,request));
+  }
   function visualFinding({model,selection,body,request,leave}){
     const desk=element('section');desk.className='hallazgo-mesa';
     body.append(desk);
@@ -77,7 +188,9 @@
       const id=Number(this.getAttribute('case-id'));
       if(!collection&&(!Number.isInteger(id)||id<1||id>48))return;
       const mansion=id===1&&!collection&&this.closest('.mansion-game');
+      const seasonal=!collection&&id>=2&&id<=48;
       if(mansion)this.classList.add('hallazgo-mansion');
+      if(seasonal)this.setAttribute('class',((this.getAttribute('class')||'')+' hallazgo-campo').trim());
       const selection={name:'',sign:''};
       const url='/api/valdemar/explorer'+(collection?'':'/'+id);
       const fold=element('details'),summary=element('summary');
@@ -88,6 +201,8 @@
       if(mansion){
         const thumb=fieldPhoto('alfeizar');thumb.className='hallazgo-miniatura';summary.prepend(thumb);
       }
+      let sampleThumb;
+      if(seasonal){sampleThumb=specimenPhoto('estuche');sampleThumb.className='campo-miniatura';summary.append(sampleThumb);}
       let busy=false,model=null;
       const field=(label,options,name)=>{
         const wrap=element('label',label),select=element('select');select.name=name;select.required=true;
@@ -108,7 +223,7 @@
             body.append(element('p','Para conseguir la primera, abre «Hallazgo de la aventura» durante un juego de temporada.'));
             const games=element('a','Ver mis partidas');games.href='/#archivo';body.append(games);
           }
-          else for(const entry of model.entries)body.append(card(entry));
+          else for(const entry of model.entries)body.append(Number.isInteger(entry.caseId)&&entry.caseId>=1&&entry.caseId<=48?identifiedCard(entry):card(entry));
           return;
         }
         if(mansion&&!model.locked){
@@ -116,6 +231,13 @@
             fold.open=false;
             const target=mansion.querySelector('.mansion-device-back')||mansion.querySelector('.mansion-room-title')||summary;
             target.focus();target.scrollIntoView({block:'center'});
+          }});return;
+        }
+        if(seasonal){
+          const file=model.discovery||model.examined?id:'estuche';
+          sampleThumb.src='/hallazgo-campo-'+file+'.webp';
+          specimenDesk({id,model,selection,body,request,leave:()=>{
+            fold.open=false;summary.focus({preventScroll:true});summary.scrollIntoView({block:'nearest'});
           }});return;
         }
         if(model.discovery){
@@ -143,7 +265,7 @@
           model=next;
           draw();
           status.textContent=next.awarded?'Hallazgo guardado en tu colección. Has ganado '+next.awarded+' puntos de observación.':next.message||'';
-          if(input){if(status.textContent)status.focus({preventScroll:true});else body.querySelector(mansion?'button.hallazgo-lupa':'select')?.focus({preventScroll:true});}
+          if(input){if(status.textContent)status.focus({preventScroll:true});else body.querySelector(mansion?'button.hallazgo-lupa':seasonal?'button.campo-lupa':'select')?.focus({preventScroll:true});}
           if(next.awarded)this.dispatchEvent(new CustomEvent('lup-discovery',{bubbles:true,detail:{caseId:id,points:next.points}}));
         }catch(error){
           if(!this.isConnected)return;
