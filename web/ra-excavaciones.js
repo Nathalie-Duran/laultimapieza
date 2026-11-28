@@ -421,4 +421,265 @@
   }
   const registry=window.MesasDeCaso ||= {};
   Object.keys(cases).forEach(id=>{registry[id]=mountWorkbench;});
+
+  function selectEvidence(label, names, onPick) {
+    const controls=group(label,'ra-reading-tabs'), buttons=[];
+    function pick(i) {
+      buttons.forEach((b,k)=>b.setAttribute('aria-pressed',String(i===k)));
+      onPick(i);
+    }
+    names.forEach((name,i)=>{const b=button(name,()=>pick(i));buttons.push(b);controls.append(b);});
+    pick(0);return controls;
+  }
+  function measuredReadings(doc) {
+    const trials=[...doc.body.matchAll(/Ensayo (ancho|estrecho): marca inicial (\d+), final (\d+)/gi)];
+    if(trials.length<2)return;
+    const box=node('section',null,'ra-gauge-reading');
+    const chart=group('Nivel observado en las dos marcas','ra-gauge-rows');
+    const out=node('output');out.setAttribute('aria-live','polite');
+    const ceiling=Math.max(...trials.map(row=>Math.max(+row[2],+row[3])));
+    const tabs=selectEvidence('Elegir cubeta',trials.map(m=>'Vaso '+m[1]),i=>{
+      const m=trials[i];chart.replaceChildren();
+      for(const [label,v] of [['Inicio',m[2]],['Final',m[3]]]){
+        const strip=node('div',null,'ra-gauge-strip'),bar=node('i');
+        bar.style.setProperty('--filled',(+v/ceiling*100)+'%');
+        strip.append(node('span',label),bar,node('b',v));chart.append(strip);
+      }
+      out.textContent='Vaso '+m[1]+' · de la marca '+m[2]+' a la '+m[3]+'.';
+    });
+    box.append(tabs,chart,out);return box;
+  }
+  function riverReading(doc) {
+    const bank=doc.body.match(/De sur a norte se suceden (\w+), (\w+) y (\w+)/i);
+    const departure=doc.body.match(/la vasija y el casco estaban en (\w+)/i);
+    const arrival=doc.body.match(/el casco pasó frente al (\w+)/i);
+    if(!bank||!departure||!arrival)return;
+    const box=node('section'),strip=group('Orillas de sur a norte','ra-bank-strip'),out=node('output');
+    out.setAttribute('aria-live','polite');
+    const tabs=selectEvidence('Instante observado',['Primer toque','Tercer toque'],i=>{
+      const at=i?arrival[1]:departure[1];strip.replaceChildren();
+      for(const name of bank.slice(1)){
+        const post=node('span',name,'ra-bank-post');
+        if(name===at){post.classList.add('ra-present');post.append(node('b',i?'Casco':'Vasija y casco'));}
+        strip.append(post);
+      }
+      out.textContent=(i?'Tercer toque · casco en ':'Primer toque · vasija y casco en ')+at+'.';
+    });
+    box.append(tabs,strip,out);return box;
+  }
+  function starReading(doc) {
+    const source=doc.body.match(/izquierda a derecha: ([\p{L}]+), ([\p{L}]+), ([\p{L}]+).*?son (\d+), (\d+) y (\d+) divisiones/iu);
+    if(!source)return;
+    const box=node('section',null,'ra-star-reading');
+    const line=group('Alturas sobre la línea del agua','ra-star-plot');
+    const max=Math.max(...source.slice(4).map(Number));
+    source.slice(1,4).forEach((name,i)=>{
+      const d=source[4+i], col=node('div',null,'ra-observation');
+      const point=node('span',name==='hoja'?'◆':name==='cuña'?'▲':'●');
+      point.style.bottom=(Number(d)/(max+1)*76+15)+'%';col.append(point,node('strong',name+' · '+d));line.append(col);
+    });
+    box.append(line);return box;
+  }
+  function wallReading(doc) {
+    const mark=doc.body.match(/señal roja está en ([A-D][1-5])/i);
+    const named=doc.body.match(/Puntos marcados: ([^.]+)\./i);
+    if(!mark||!named)return;
+    const points=new Set(named[1].match(/[A-D][1-5]/g));
+    const wrap=group('Cuadrícula del andamio','ra-wall-survey');
+    for(const row of 'ABCD')for(let i=1;i<=5;i++){
+      const coord=row+i,cell=node('span',coord);
+      if(coord===mark[1]){cell.className='ra-red';cell.append(node('small','Señal roja'));}
+      else if(points.has(coord)){cell.className='ra-survey-pin';cell.append(node('small','Marca'));}
+      wrap.append(cell);
+    }return wrap;
+  }
+  function readConnections(doc) {
+    const arcs=doc.body.split(/[.;\n]+/).map(s=>s.trim()).filter(s=>s.includes('→') && !s.includes('|'));
+    if(!arcs.length)return;
+    const box=node('div'),route=node('ol',null,'ra-path');
+    const all=arcs.map(line=>line.split('→').map(s=>s.trim()));
+    const selectors=selectEvidence('Elegir trayecto',all.map(parts=>parts[0]),i=>{
+      route.replaceChildren(...all[i].map(label=>node('li',label)));
+    });
+    box.append(selectors,route);return box;
+  }
+  function documentRows(doc) {
+    const values=rowsIn([doc]).map(r=>r.cells);
+    if(values.length<2)return;
+    // A header never counts as a specimen. Headerless two-column records keep their first row.
+    const head=/^(?:vasija|muestra|día|panel|puesto|pieza|caja|guardia|turno|registro|rollo|foto|banda|objeto|nombre|medida|hoja|patio|marca|lugar|hora|partida|testigo|contenido|tarjeta|barca|cuadrilla|orden|etapa|lado|mesa|fuente|entrega|ficha|contacto|calco|prueba|tramo|carga|señal|orilla|persona|fecha|tablilla)$/i.test(values[0][0]);
+    const header=head?values.shift():[];
+    if(!values.length)return;
+    const view=node('div'),spec=node('dl',null,'ra-read-cells'),preview=node('div',null,'ra-specimen-preview');
+    const colLimit=values.reduce((max,row)=>Math.max(max,row.length),0);
+    const magnitudes=new Map();
+    for(let j=1;j<colLimit;j++){
+      const nums=values.map(row=>Number(String(row[j]).replace('−','-')));
+      if(nums.every(n=>Number.isFinite(n)&&n>=0)&&Math.max(...nums)>0)magnitudes.set(j,Math.max(...nums));
+    }
+    const tabs=selectEvidence('Examinar un registro',values.map(v=>v[0]),i=>{
+      spec.replaceChildren();
+      const specimen=specimenFigure(doc,values[i],header);
+      preview.replaceChildren(...(specimen?[specimen]:[]));
+      values[i].slice(1).forEach((v,k)=>{
+        const j=k+1, group=node('div');group.append(node('dt',header[j]||'Observación '+j));
+        const dd=node('dd',v);
+        if(magnitudes.has(j)){
+          const strip=node('span',null,'ra-read-meter');strip.setAttribute('aria-hidden','true');
+          strip.style.setProperty('--filled',(+v/magnitudes.get(j)*100)+'%');dd.append(strip);
+        }else if(v.includes('→')){
+          const stations=node('span',null,'ra-read-stations');stations.setAttribute('aria-hidden','true');
+          v.split('→').forEach(()=>stations.append(node('i')));dd.append(stations);
+        }
+        group.append(dd);spec.append(group);
+      });
+    });
+    view.append(tabs,preview,spec);return view;
+  }
+  function quotations(source) {
+    const segments=source.split(/(?<=[.!?])\s+|\r?\n+|;\s*/).map(t=>t.trim()).filter(Boolean);
+    return segments.length?segments:[source];
+  }
+  function annotatedExcerpt(value) {
+    const p=node('p',null,'ra-notated');
+    const regex=/(\b\d+(?:[½.,]\d*)?\b|\b(?:primer[oa]?|segund[oa]|tercer[oa]?|norte|sur|este|oeste|izquierda|derecha|arriba|abajo|delante|detrás|sobre|bajo|inicio|final|antes|después|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b)/gi;
+    for(const [i,part] of value.split(regex).entries())p.append(i%2?node('mark',part):document.createTextNode(part));
+    return p;
+  }
+  function readingRoll(doc) {
+    const text=quotations(doc.body),card=node('div',null,'ra-scroll-read'),note=node('div');
+    const pos=node('span',null,'ra-read-number');
+    const prev=button('‹',()=>move(-1)),next=button('›',()=>move(1));
+    prev.setAttribute('aria-label','Leer el pasaje anterior');next.setAttribute('aria-label','Leer el pasaje siguiente');
+    let current=0;
+    const paint=()=>{
+      note.replaceChildren(annotatedExcerpt(text[current]));
+      pos.textContent='Pasaje '+(current+1)+' de '+text.length;
+      prev.disabled=current===0;next.disabled=current===text.length-1;
+    };
+    function move(by){current=Math.max(0,Math.min(text.length-1,current+by));paint();}
+    if(text.length>1){const bar=node('div',null,'ra-scroll-nav');bar.append(prev,pos,next);card.append(bar);}
+    note.setAttribute('aria-live','polite');card.append(note);paint();return card;
+  }
+  function signalSamples(clip) {
+    const encoded=clip?.split(',')[1];
+    if(!encoded)return;
+    try{
+      const raw=atob(encoded);
+      if(raw.slice(0,4)!=='RIFF'||raw.slice(8,12)!=='WAVE')return;
+      const n=(p,size)=>{let v=0;for(let j=0;j<size;j++)v+=raw.charCodeAt(p+j)*256**j;return v;};
+      let bit=0,align=0,codec=0,start=0,length=0;
+      for(let i=12;i+8<=raw.length;){
+        const type=raw.slice(i,i+4),size=n(i+4,4),at=i+8;
+        if(type==='fmt '){codec=n(at,2);align=n(at+12,2);bit=n(at+14,2);}
+        if(type==='data'){start=at;length=Math.min(size,raw.length-at);break;}
+        i=at+size+(size%2);
+      }
+      if(codec!==1||!align||![8,16].includes(bit)||!length)return;
+      const frames=Math.floor(length/align),bars=Array.from({length:48},(_,i)=>{
+        let peak=0;
+        const a=Math.floor(i*frames/48),b=Math.floor((i+1)*frames/48);
+        for(let j=a;j<b;j+=Math.max(1,Math.floor((b-a)/64))){
+          const p=start+j*align,u=n(p,bit/8);
+          peak=Math.max(peak,bit===8?Math.abs(u-128)/128:Math.abs(u>32767?u-65536:u)/32768);
+        }return peak;
+      });
+      return bars;
+    }catch{return;}
+  }
+  function sourceAudio(card,doc) {
+    const audio=card.querySelector('audio');
+    if(!audio)return;
+    const bars=signalSamples(doc.clip);if(!bars)return;
+    const panel=node('div',null,'ra-source-audio'),wave=node('div',null,'ra-sound-line');
+    wave.setAttribute('aria-hidden','true');
+    const max=Math.max(...bars,.02);
+    bars.forEach(v=>{const bar=node('i');bar.style.height=Math.max(4,v/max*96)+'%';wave.append(bar);});
+    const [label,position]=slider('Buscar en la grabación',0,100,0,()=>{
+      if(Number.isFinite(audio.duration))audio.currentTime=audio.duration*Number(position.value)/100;
+    });
+    position.disabled=!Number.isFinite(audio.duration);
+    audio.addEventListener('loadedmetadata',()=>{position.disabled=!Number.isFinite(audio.duration);});
+    audio.addEventListener('timeupdate',()=>{
+      if(Number.isFinite(audio.duration)){position.value=String(audio.currentTime/audio.duration*100);wave.style.setProperty('--played',position.value+'%');}
+    });
+    panel.append(wave,label);return panel;
+  }
+  function specimenFigure(doc,cells,headers) {
+    const text=cells.join(' | '), figure=node('div',null,'ra-specimen-figure');
+    figure.setAttribute('aria-hidden','true');
+    if(headers.includes('Huella inferior')){
+      figure.classList.add('ra-vessel-neck');
+      for(const [i,layer] of cells.slice(1,3).entries()){
+        const band=node('span',layer);band.className=layer.toLowerCase().includes('lino')?'ra-linen':'ra-reed';
+        band.style.order=String(2-i);figure.append(band);
+      }
+    }else if(headers.includes('Borde de arriba')){
+      figure.classList.add('ra-fragment-face');
+      figure.append(node('small',cells[1]),node('b',cells[3]?.replace(/dos rayas|una raya|punto/g,v=>v==='dos rayas'?'Ⅱ':v==='una raya'?'Ⅰ':'•')),node('small',cells[2]));
+    }else if(headers.includes('Dedos a altura de hombro')){
+      figure.classList.add('ra-two-lamps');
+      for(const [j,n] of cells.slice(1,3).entries()){
+        const group=node('div');group.append(node('span',j?'Luz baja':'Luz alta'),node('b','Ⅰ'.repeat(Math.min(6,Number(n)||0))));figure.append(group);
+      }
+    }else if(/roce (alto|bajo), \d+ estrías/i.test(text)){
+      const [,height,count]=text.match(/roce (alto|bajo), (\d+) estrías/i);
+      figure.classList.add('ra-rubbed-stone');const grooves=node('span','╱'.repeat(Number(count)));
+      grooves.style.top=height==='alto'?'22%':'60%';figure.append(grooves);
+    }else if(/hueco|roca continua|nicho elevado|senda continua|suelo al pie/i.test(text) && /sección|senda|hojas/i.test(doc.label+' '+doc.body)){
+      figure.classList.add('ra-cutaway');const hole=node('span');
+      if(/hueco|nicho elevado|senda continua/i.test(text))hole.className=/nicho elevado/.test(text)?'ra-niche':'ra-opening';
+      figure.append(hole);
+    }else if(/cola larga|cola corta|sin cola tonal/i.test(text)){
+      figure.classList.add('ra-resonance');const limit=/cola larga/i.test(text)?24:/cola corta/i.test(text)?10:3;
+      for(let i=0;i<24;i++){const bar=node('i');bar.style.height=(i<limit?Math.max(8,90-i/limit*80):2)+'%';figure.append(bar);}
+    }else return;
+    return figure;
+  }
+  function protocolReading(ctx,doc) {
+    const key=Number(ctx.caseId)+':'+ctx.index;
+    if(!['40:3','44:2','46:0','48:1'].includes(key))return;
+    const tool=instruments(ctx,[doc]);if(!tool)return;
+    const inner=tool.querySelector('.ra-lab-body');
+    if(inner){inner.classList.add('ra-source-instrument');return inner;}
+  }
+  function sourceWorkbench(ctx) {
+    const {stage,index,shelf,role}=ctx,id=Number(ctx.caseId),docs=readingList(stage,role);
+    const material=docs.find(d=>d.kind==='visual')||docs.find(d=>d.kind==='ledger')||docs.find(d=>d.kind!=='audio')||docs[0];
+    for(const card of shelf.querySelectorAll('.vhour-material')){
+      const doc=docs.find(item=>item.id===card.dataset.material);
+      if(!doc||card.dataset.raDocument)continue;
+      card.dataset.raDocument='true';
+      const sourceContent=card.querySelector(':scope > summary + *');
+      if(!sourceContent)continue;
+      const special=measuredReadings(doc)||riverReading(doc)||starReading(doc)||wallReading(doc)||readConnections(doc)||protocolReading(ctx,doc);
+      const table=documentRows(doc), tool=special || table;
+      const isVoice=doc.kind==='audio'||doc.kind==='testimony';
+      const graphic=node('div',null,'ra-source-view');
+      if(doc===material){
+        const artifact=picture(id,index);
+        graphic.append(artifact);graphic.classList.add('ra-with-art');
+        const thumb=card.querySelector('.vhour-format-photo');
+        if(thumb){thumb.classList.add('ra-thumb');thumb.append(picture(id,index));}
+      }
+      if(!isVoice){
+        const fallback=node('details',null,'ra-original');
+        fallback.append(node('summary',doc.kind==='web'?'Consultar el archivo completo':'Leer el documento completo'));
+        sourceContent.before(graphic,fallback);fallback.append(sourceContent);
+      }else sourceContent.before(graphic);
+      const page=node('div',null,'ra-reading-area');
+      if(isVoice&&doc.clip && card.querySelector('audio')){
+        const reveal=()=>{
+          if(!card.open)return;
+          card.removeEventListener('toggle',reveal);
+          const waveform=sourceAudio(card,doc);
+          if(waveform)page.prepend(waveform);
+        };
+        card.addEventListener('toggle',reveal);if(card.open)reveal();
+      }
+      page.append(tool||readingRoll(doc));graphic.append(page);
+    }
+  }
+  const archive=window.ArchivosDeCaso ||= {};
+  Object.keys(cases).forEach(id=>{archive[id]=sourceWorkbench;});
 })();

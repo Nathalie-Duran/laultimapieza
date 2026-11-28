@@ -60,7 +60,14 @@
   function open(caseId){
     if(caseId<2||caseId>48)return;
     const [,name]=desks.find(([last])=>caseId<=last);
-    return Promise.all([load(name,true),load(name,false)]);
+    const sheets=[name],scripts=[name];
+    if(caseId===3||caseId===4){sheets.push('tren-radio-fuentes');scripts.push('tren-radio-fuentes');}
+    if(caseId>=5&&caseId<=12){
+      const evidence=caseId===11?'valdemar-rifa':'valdemar-evidencias';
+      sheets.push(evidence);scripts.push(evidence);
+    }
+    if(caseId>=25&&caseId<=36)scripts.push('tercer-jugador-evidencias');
+    return Promise.all([...sheets.map(file=>load(file,true)),...scripts.map(file=>load(file,false))]);
   }
   window.ArchivoObjetos=Object.freeze({thumbnail,open});
 })();

@@ -126,6 +126,7 @@
       dial.textContent = [Math.floor(t / 60), t % 60].map(n => String(n).padStart(2, '0')).join(':');
       less.disabled = delta <= -59; more.disabled = delta >= 59;
     }
+    for(const line of item.body.split(/\r?\n/).filter(s=>s.trim()&&!s.includes('|')))box.append(el('p','tr-guide',line));
     picker(box, entries.map(row => row[0]), i => {
       const [, stamp, clock] = entries[i], [h, m] = stamp.split(':').map(Number);
       tag.textContent = stamp + ' · ' + clock; base = h * 60 + m; delta = 0; adjust(0);
@@ -137,15 +138,16 @@
   }
   function archive(item, title, guide, skipHeading) {
     const observations = rows(item);
-    if (skipHeading) observations.shift();
+    const headings=skipHeading?observations.shift():null;
     if (!observations.length) return;
     const box = instrument(title, guide), sheet = el('div', 'tr-record'), label = el('strong'), notes = el('p');
     sheet.append(label, notes);
     picker(box, observations.map(row => row[0]), i => {
       label.textContent = observations[i][0];
-      notes.textContent = observations[i].slice(1).join(' · ');
+      notes.textContent = observations[i].slice(1).map((value,j)=>headings?.[j+1]?headings[j+1]+' · '+value:value).join('\n');
     });
     box.append(sheet);
+    for(const line of item.body.split(/\r?\n/).filter(s=>s.trim()&&!s.includes('|')))box.append(el('p','tr-guide',line));
     return box;
   }
   function radioMonitor(item) {
@@ -200,6 +202,7 @@
     const box = instrument(title,guide), result = el('p','tr-socket');
     picker(box,lines.map(row => row.split(/[→↔]/)[0].trim()),i => {result.textContent=lines[i];});
     box.append(result);
+    for(const line of item.body.split(/\r?\n/).filter(s=>s.trim()&&!lines.includes(s)))box.append(el('p','tr-guide',line));
     return box;
   }
   const enhanced = {
@@ -212,10 +215,12 @@
     fuentes:item=>archive(item,'Álbum de procedencias','Levanta una etiqueta para ver la fuente que sostiene esa anotación.',true),
     tomas:radioMonitor,
     manual:item=>signalMap(item,'Selector de entradas','Sigue cada entrada desde el conector hasta su destino.'),
+    ensayos:item=>archive(item,'Fichero de efectos','Saca una ficha y coteja el sonido con las líneas de la grabación.'),
     partes:item=>archive(item,'Cajón de partes','Extrae una fecha y lee el cambio registrado en el parte de ese día.'),
     inventario:item=>archive(item,'Balda de bobinas','Abre las fichas y compara las marcas de entrada, borde y salida.'),
     capas:item=>archive(item,'Lector de fragmentos','Desplaza el cabezal de T1 a T4 para consultar luz y contenido.',true),
     escaleta:item=>archive(item,'Marcas de continuidad','Lee las horas de cada marca de control antes de montar el saludo.',true),
+    cortes:item=>archive(item,'Estuche de canutillos','Elige una pieza para consultar duración y función en el saludo.'),
     matriz:item=>signalMap(item,'Banco de conexiones','Escoge un origen y sigue la conexión física hasta el retorno o la antena.')
   };
   function mountArchive({stage,index,caseId,shelf}) {
@@ -230,13 +235,24 @@
       const summary = card.querySelector('summary');
       const thumb = summary?.querySelector('.vhour-format-photo');
       if (thumb) { thumb.classList.add('tr-photo'); thumb.style.backgroundImage = 'url("' + src + '")'; }
-      const view = enhanced[item.id]?.(item);
-      if (!view || !summary) continue;
-      const pane = view.node || view, originals = [...card.children].filter(n => n !== summary);
-      const record = el('details','tr-transcript');
-      record.append(el('summary','','Consultar el documento original'), ...originals);
-      card.append(pane,record);
-      if (view.stop) card.addEventListener('toggle',()=>{if (!card.open) view.stop();});
+      if (!summary) continue;
+      const view=enhanced[item.id]?.(item);
+      const originals=[...card.children].filter(n=>n!==summary);
+      const scene=el('img','tr-object-photo');scene.alt='';scene.loading='lazy';scene.src=src;
+      summary.after(scene);
+      if(!view)continue;
+      const pane=view.node||view;
+      if(item.id==='contacto'){
+        // The frame is a working reconstruction. Keep the full photographer's description intact.
+        card.append(pane);
+      }else if(item.id==='tomas'){
+        // The channel selector includes every word of the transcript; retain native playback controls.
+        card.querySelector('[data-game-transcript]')?.remove();
+        card.append(pane);
+      }else{
+        originals.forEach(n=>n.remove());card.append(pane);
+      }
+      if(view.stop)card.addEventListener('toggle',()=>{if(!card.open)view.stop();});
     }
   }
 

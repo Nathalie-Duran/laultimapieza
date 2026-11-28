@@ -241,6 +241,7 @@
     header.insertAdjacentHTML('afterend',window.RetosTemporada?.salaDeAventura(item.id)||'');
     c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
       caseId:item.id,role:c.data.partner?.role,
+      present:table=>c.scene.present(table),
       onScene:(hour,main)=>{c.scene.update(hour);if(c.tab==='main')c.scene.returnFrom(main);},
       sceneRoute:item.world==='expedicion',sceneBack:target=>c.scene.returnFrom(target),
       inventory:async input=>{

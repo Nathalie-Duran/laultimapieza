@@ -80,3 +80,69 @@
   .tj-piece-actions {grid-column:2}
 }
 @media (hover:hover){.tj-desk button:not(:disabled):hover {border-color:#f5d196}}
+
+.vhour-material .tjp-thumb,.tjp-prop {
+  background-image:var(--tj-proof-image)!important;
+  background-position:var(--tj-proof-pos)!important;
+  background-size:var(--tj-proof-size)!important;
+  background-repeat:no-repeat!important;
+}
+.vhour .vhour-material[data-tj-plate] {container-type:inline-size}
+.tjp-plate {margin:.55rem 0 .8rem;display:grid;grid-template-columns:minmax(6rem,30%) minmax(0,1fr);grid-template-rows:auto 1fr;overflow:hidden;border:1px solid #8c784e;border-radius:.5rem;background:#22302a;color:#fff0d4}
+.tjp-plate * {box-sizing:border-box;min-width:0}
+.tjp-prop {grid-column:1;grid-row:1/span 2;width:100%;aspect-ratio:.94;align-self:start;border-right:1px solid #75664d}
+.tjp-plate>figcaption {grid-column:2;grid-row:1;padding:.85rem .9rem 0;font:650 .74rem/1.3 system-ui;letter-spacing:.055em;color:#e8c590}
+.tjp-graphic {grid-column:2;grid-row:2;display:grid;align-content:start;gap:.6rem;padding:.32rem .9rem .9rem;overflow-wrap:anywhere}
+.vhour .tjp-graphic h5 {font:500 clamp(1.06rem,4cqw,1.42rem)/1.16 Georgia,serif;color:#fff2da;margin:0}
+.tjp-graphic :is(p,ol,dl,dd,blockquote){margin:0}
+.tjp-graphic button,.tjp-original>summary {font:inherit}
+.tjp-tabs {display:flex;gap:.35rem;flex-wrap:wrap}
+.tjp-tabs button {min-height:44px;padding:.38rem .62rem;background:#1b2622;color:#fff0cf;border:1px solid #8e856f;border-radius:.3rem;font-size:.88rem;line-height:1.25;text-align:start;cursor:pointer;white-space:normal;overflow-wrap:anywhere;max-width:100%}
+.tjp-tabs button[aria-pressed="true"] {background:#e5c58b;color:#322418;border-color:#fbd69c}
+.tjp-graphic .tjp-flip {justify-self:start;min-height:44px;border:1px solid #ac9569;background:#252e28;color:#f8e9c9;border-radius:.3rem;padding:.4rem .65rem}
+.tjp-doorwall {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(3rem,100%),1fr));gap:.35rem}
+.tjp-doorwall button {display:grid;justify-items:center;gap:.15rem;min-height:44px;border:1px solid #91805a;border-radius:.22rem;background:#202820;color:#f3dca6;padding:.25rem;cursor:pointer}
+.tjp-doorwall button[aria-pressed="true"] {outline:2px solid #dfbe80;outline-offset:-2px}
+.tjp-leaf {display:block;position:relative;width:min(2.2rem,100%);height:3.35rem;border:3px ridge #a0835b;background:linear-gradient(100deg,#5d422c,#2f231a)}
+.tjp-leaf::before {content:'';position:absolute;top:.3rem;height:.7rem;width:.16rem;left:0;background:#d7af71;box-shadow:0 1.25rem #d7af71}
+.tjp-leaf[data-side="derecha"]::before {left:auto;right:0}
+.tjp-leaf::after {content:'';position:absolute;bottom:.2rem;left:.35rem;width:.65rem;border-top:2px solid #e4d0a3}
+.tjp-leaf[data-mark="arco"]::after {height:.43rem;border-radius:50% 50% 0 0}
+.tjp-sounds li {flex-direction:column;align-items:center}
+.tjp-sounds li::before {content:'';height:1rem;width:.7rem;min-width:0;align-self:center;border-radius:50%;background:#3b4b40;border-color:#3b4b40}
+.tjp-sounds li[data-rest="true"]::before {background:transparent;border-style:dashed}
+.tjp-receipt {display:grid;gap:.55rem}
+.tjp-custody {display:inline-flex;align-items:center;gap:.5rem;justify-self:start;padding:.35rem .7rem;background:#e5d7b8;color:#32291e;border:1px dashed #947a51}
+.tjp-custody::before {content:'';width:1.2rem;height:.15rem;background:#543b27}
+.tjp-custody[data-sign="ojo"]::before {height:.7rem;border-radius:50%;border:2px solid #543b27;background:radial-gradient(circle,#543b27 20%,transparent 25%)}
+.tjp-plate[data-story="27"] .tjp-track li {border-block:4px dotted #836c4b}
+.tjp-tabs button:focus-visible,.tjp-original>summary:focus-visible {outline:3px solid #ffdc84;outline-offset:2px}
+.tjp-graphic blockquote,.tjp-note,.tjp-values {color:#35291a;background:#eee1c6;border-left:3px solid #b29159;padding:.65rem .8rem;line-height:1.45}
+.tjp-graphic blockquote p,.tjp-graphic .tjp-note {color:#35291a}
+.tjp-legend {font-size:.9rem;color:#ead9b4}
+.tjp-track {display:flex;flex-wrap:wrap;align-items:stretch;gap:.35rem;padding:0;list-style:none;counter-reset:tjpParts}
+.tjp-track li {display:flex;align-items:center;gap:.3rem;padding:.44rem .53rem;background:#e9d9b6;border:1px solid #b99663;border-radius:.2rem;color:#382b1e;line-height:1.25;counter-increment:tjpParts}
+.tjp-track li::before {content:counter(tjpParts);align-self:flex-start;color:#58452a;border:1px solid #8c7652;border-radius:50%;display:grid;place-items:center;flex:0 0 1.2rem;height:1.2rem;font:.72rem/1 system-ui}
+.tjp-path li:not(:last-child)::after {content:"→";font-weight:700}
+.tjp-path[data-link="↔"] li:not(:last-child)::after {content:"↔"}
+.tjp-values {display:grid;gap:.45rem}
+.tjp-values dt {font:.75rem/1.4 system-ui;color:#655035}
+.tjp-values dd {color:#312719}
+.tjp-timeline {height:1.3rem;position:relative;background:linear-gradient(transparent 48%,#c29f64 49% 56%,transparent 57%)}
+.tjp-timeline i {position:absolute;top:.2rem;height:.95rem;width:.18rem;background:#f0c583}
+.tjp-signals,.tjp-signal-lane {display:grid;gap:.3rem}
+.tjp-signals {gap:.55rem}
+.tjp-signal-lane>strong {color:#f4d390;font-variant-numeric:tabular-nums}
+.tjp-bars {display:grid;gap:.5rem}
+.tjp-bars>div {display:grid;grid-template-columns:minmax(3.3rem,auto) 1fr auto;gap:.4rem;align-items:center;font-size:.9rem}
+.tjp-bar {height:.65rem;border-radius:.15rem;background:linear-gradient(to right,#e4bd78 var(--reach),#46504a var(--reach))}
+.tjp-wave {height:2.4rem;display:flex;align-items:center;gap:1px;background:#17231f;padding:.15rem .25rem;border-block:1px solid #796c53}
+.tjp-wave i {display:block;min-width:1px;flex:1;background:#d9b67c}
+.tjp-original {border-top:1px solid #72664d;margin:.45rem 0;padding:.1rem .25rem}
+.tjp-original>summary {display:list-item;color:#f0d8a7;min-height:44px;padding:.55rem .25rem;cursor:pointer}
+@container(max-width:23rem) {
+  .tjp-plate {grid-template-columns:4.55rem minmax(0,1fr);grid-template-rows:auto auto}
+  .tjp-prop {grid-column:1;grid-row:1;min-height:4.5rem}
+  .tjp-plate>figcaption {align-self:center;padding:.55rem .7rem}
+  .tjp-graphic {grid-column:1/-1;grid-row:2;padding:.7rem}
+}

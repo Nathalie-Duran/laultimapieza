@@ -61,6 +61,8 @@
 .tr-socket{border-left:4px solid #8fc3b1;padding:.55rem .8rem;background:#26342e}
 .tr-transcript{margin:.65rem}.tr-transcript>summary{cursor:pointer;color:#e6d4ad;padding:.5rem 0;line-height:1.4}
 .vhour-material .tr-photo{background-size:cover!important;background-position:center!important}
+.vhour-material .tr-object-photo{display:block;width:calc(100% - 1rem);max-height:13rem;aspect-ratio:2.7;object-fit:cover;object-position:center;border-radius:.25rem;margin:.5rem}
+.tr-record p{white-space:pre-line}
 .tr-patchboard,.tr-datebox{display:block}
 .tr-patchboard h6,.tr-date{margin:.3rem 0;color:#eddcbd;font:600 1rem Georgia,serif}
 .tr-patch,.tr-slips{display:flex;gap:.5rem;flex-wrap:wrap;margin:.4rem 0 .85rem}
