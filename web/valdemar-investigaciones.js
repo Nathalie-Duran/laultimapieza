@@ -309,14 +309,43 @@
     const name=el('span','label',option.label);b.append(name);
     return b;
   }
+  function kitchenDrawings(materials) {
+    const drawings=materials.find(item=>item.id==='muesca');
+    const desk=el('div','sketch-desk');
+    desk.setAttribute('role','img');
+    desk.setAttribute('aria-label',drawings
+      ? 'Dos dibujos sin firma. En la hoja gris, el depósito con la chapa OGA. En la ocre, tres chimeneas y ropa tendida.'
+      : 'Reverso de las dos hojas sin firma. El otro papel conserva los dibujos.');
+    for(const color of ['gris','ocre']){
+      const page=el('div','sketch-sheet');
+      page.dataset.paper=color;page.setAttribute('aria-hidden','true');
+      if(drawings){
+        if(color==='gris'){
+          page.append(el('span','sketch-tank','OGA'),el('span','sketch-handle'));
+        }else{
+          const roofs=el('div','sketch-roofs'),line=el('div','sketch-line');
+          for(let i=0;i<3;i++){roofs.append(el('i','chimney'));line.append(el('i','linen'));}
+          page.append(roofs,line);
+        }
+      }
+      page.append(el('span','sketch-color',color));desk.append(page);
+    }
+    return desk;
+  }
   function render({field,stage,index,caseId,role,selected,change}) {
     const story=cases[caseId], spec=story?.stages[index], opts=stage.options;
     if(!spec||!Array.isArray(opts)||!opts.length)return false;
     const [title,instructions,kind]=spec;
     const root=el('section','station');
     root.dataset.instrument=kind;root.dataset.story=String(caseId);
-    const head=el('div','head'), intro=el('div','intro'),art=el('img','prop');
-    art.src='/valdemar-mesa-'+caseId+'.webp';art.alt='';art.loading='lazy';art.width=660;art.height=440;
+    const head=el('div','head'), intro=el('div','intro');
+    let art;
+    if(caseId===9 && index===0)art=kitchenDrawings(stage.materials||[]);
+    else{
+      art=el('img','prop');
+      art.src=caseId===9?'/valdemar-lector-9-'+(index+1)+'.webp':'/valdemar-mesa-'+caseId+'.webp';
+      art.alt='';art.loading='lazy';art.width=660;art.height=440;
+    }
     intro.append(el('h5','title',title),el('p','lead',instructions));head.append(art,intro);root.append(head);
     sourceDraw(root,kind,stage.materials||[]);
     const order=stage.mode==='order', multi=stage.mode==='multi', max=order?stage.requiredCount:undefined;

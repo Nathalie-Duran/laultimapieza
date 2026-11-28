@@ -18,6 +18,18 @@
 .vi-station[data-story="7"] { --vi-well:#211b1b; --vi-edge:#856c69; }
 .vi-station[data-story="8"] { --vi-well:#1b251e; --vi-edge:#65765a; }
 .vi-station[data-story="9"] { --vi-well:#27231e; }
+.vi-sketch-desk{display:flex;justify-content:center;align-items:center;gap:.25rem;min-height:7rem;padding:.7rem;background:linear-gradient(120deg,#524235,#2a231c);overflow:hidden}
+.vi-sketch-sheet{position:relative;width:43%;max-width:6.3rem;aspect-ratio:1.22;border:2px solid #d8cfbb;outline:1px solid #837766;box-shadow:1px 3px 5px #19130ec4;transform:rotate(-5deg);background:repeating-linear-gradient(4deg,#d3cbb9 0 1px,#d7cfbd 2px 4px);color:#514d44}
+.vi-sketch-sheet[data-paper="ocre"]{transform:rotate(4deg);border-color:#d7bd91;background:repeating-linear-gradient(-7deg,#d8bb8f 0 1px,#ddc198 2px 4px);color:#695338}
+.vi-sketch-color{position:absolute;bottom:0;left:5%;font:italic .7rem/1.2 Georgia,serif;text-transform:capitalize}
+.vi-sketch-tank{position:absolute;left:24%;top:18%;width:55%;height:34%;border:2px double currentColor;border-radius:35% 35% 22% 22%;text-align:center;font:bold .65rem/1.5 Georgia,serif}
+.vi-sketch-tank::after{content:"";position:absolute;inset:100% 9% auto;height:.6rem;border-inline:1px solid currentColor;transform:skew(-6deg)}
+.vi-sketch-handle{position:absolute;bottom:24%;left:42%;width:17%;height:4px;border:1px solid currentColor;border-radius:0 0 4px 4px}
+.vi-sketch-roofs,.vi-sketch-line{position:absolute;left:9%;right:9%;display:flex;justify-content:space-around;border-bottom:1px solid currentColor}
+.vi-sketch-roofs{top:16%;height:27%;transform:rotate(-8deg)}
+.vi-chimney{align-self:flex-end;width:8%;height:100%;border:1px solid currentColor;border-top:2px solid currentColor}
+.vi-sketch-line{top:52%;transform:rotate(7deg)}
+.vi-linen{width:12%;height:.44rem;border:1px solid currentColor;transform:translateY(100%)}
 .vi-station[data-story="10"] { --vi-well:#2b2022; --vi-edge:#8c6c69; }
 .vi-station[data-story="11"] { --vi-well:#25231b; }
 .vi-station[data-story="12"] { --vi-well:#1e262a; --vi-edge:#697c7d; }
