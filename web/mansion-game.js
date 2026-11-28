@@ -20,8 +20,12 @@
     let state=options.state?.mansion||options.state,role=options.role||state?.role;
     const paired=role==='A'||role==='B';
     let world=paired?role:'A',tab='scene',disposed=false,busy=false,requestId=0,activeDevice=false,selectedEvidence=null;
-    let openMission=null,missionSource=null,roomId=state?.explore?.id||state?.stage?.room||rooms[0],notice='',noticeError=false,saveText='';
+    let openMission=null,missionSource=null,roomId=state?.explore?.id||state?.stage?.room||rooms[0],notice='',noticeError=false,saveText=options.resumed?'Partida recuperada':'';
     let explore=state?.explore?.id===roomId?state.explore:null;
+    const perspectiveKey=options.playerId&&!paired?'lup.mansion.perspectiva.'+encodeURIComponent(options.playerId):null;
+    if(perspectiveKey){
+      try{const previous=JSON.parse(sessionStorage.getItem(perspectiveKey));if(previous?.stage===state?.current&&previous.world==='B')world='B';}catch{}
+    }
     const drafts=new Map(),seen=new Map(),audioPlayers=new Set();
     let pendingHint=null;
     const root=el('section','mansion-game'), header=el('header','mansion-header'),tabs=el('div','mansion-tabs');
@@ -140,7 +144,9 @@
       else for(const id of ['A','B']){
         const control=button(labels[id],()=>{
           if(world===id||busy)return;
-          stopAudio();world=id;selectedEvidence=null;observe(state.stage?.evidence);observe(explore?.evidence);draw();
+          stopAudio();world=id;selectedEvidence=null;
+          try{if(perspectiveKey)sessionStorage.setItem(perspectiveKey,JSON.stringify({stage:state.current,world}));}catch{}
+          observe(state.stage?.evidence);observe(explore?.evidence);draw();
           header.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
         },'mansion-world-choice');
         control.setAttribute('aria-pressed',String(world===id));worlds.append(control);

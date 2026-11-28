@@ -8,6 +8,13 @@
   };
   const points=[[30,54],[66,43],[51,68],[75,63]];
   const formats={audio:'Escuchar',ledger:'Examinar',testimony:'Leer',visual:'Examinar',web:'Consultar',text:'Leer'};
+  const objectives={Elegid:'Elegir',Elige:'Elegir',Ordenad:'Ordenar',Ordena:'Ordenar',Seleccionad:'Seleccionar',Identificad:'Identificar',Escoged:'Escoger',Escoge:'Escoger',Señalad:'Señalar',Reconstruid:'Reconstruir',Guardad:'Guardar',Colocad:'Colocar',Seguid:'Seguir'};
+  function stageObjective(phase,firstProof){
+    const task=phase.task?.trim();
+    if(!task)return firstProof?'Examina «'+firstProof.label+'» y contrasta lo que encuentres con las demás pruebas.':'Contrasta las pruebas y resuelve la decisión de esta etapa.';
+    if(task.startsWith('¿')&&task.endsWith('?'))return 'Averigua '+task[1].toLocaleLowerCase('es')+task.slice(2,-1)+'.';
+    return task.replace(/^\S+/,word=>objectives[word]||word);
+  }
   function el(tag,cls,text){const node=document.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=text;return node;}
   function button(label,run,cls){const node=el('button',cls,label);node.type='button';node.addEventListener('click',run);return node;}
   function challengeHeader({id,world,title,photo,caseTitle,embedded=false}){
@@ -122,7 +129,7 @@
       const sideOpen=secondaryPanel?.matches('.md-game-side,.vd-game')===true;
       back.textContent=sideOpen?'Volver a mi investigación':'Volver al escenario';
       const waiting=sideOpen&&frame.dataset.playMode==='pending';
-      const ficha=sideOpen?window.RetosTemporada?.ficha(options.id):null;
+      const ficha=sideOpen?options.extra||window.RetosTemporada?.ficha(options.id):null;
       const headerTitle=waiting&&ficha?ficha.title:story.title;
       if(caseTitle.textContent!==headerTitle)caseTitle.textContent=headerTitle;
       const context=waiting?'Reto de aventura · '+ancestry:ancestry;
@@ -218,7 +225,7 @@
       place.textContent=phase?.place||options.place||phase?.title||story.title;
       goalLabel.textContent=phase?.title||'Objetivo actual';
       const firstProof=visible[0];
-      goal.textContent=phase?(phase.brief&&phase.brief!==phase.task?phase.brief:firstProof?'Examina «'+firstProof.label+'» y contrasta lo que encuentres con las demás pruebas.':'Contrasta las pruebas y resuelve la decisión de esta etapa.'):data.progress?.choice?'Relee tu desenlace o vuelve a Mis partidas.':data.progress?.deduced?'Elige cómo cerrar la historia y guarda tu desenlace.':'Contrasta la deducción final con las pruebas recogidas.';
+      goal.textContent=phase?stageObjective(phase,firstProof):data.progress?.choice?'Relee tu desenlace o vuelve a Mis partidas.':data.progress?.deduced?'Elige cómo cerrar la historia y guarda tu desenlace.':'Contrasta la deducción final con las pruebas recogidas.';
       goal.hidden=!goal.textContent;
       if(shared){
         const ready=mode!=='pending';
