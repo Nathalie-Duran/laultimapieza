@@ -9,7 +9,7 @@ async function load(file) {
   const document = {};
   function createElement(tag) {
     return {
-      tag, dataset:{}, attributes:{}, listeners:{}, children:[], isConnected:true,
+      tag, dataset:{}, attributes:{}, listeners:{}, children:[], isConnected:true,style:{setProperty(){}},
       append(...items) { this.children.push(...items); },
       replaceChildren(...items) { this.children = items; },
       setAttribute(key, value) { this.attributes[key] = value; },
@@ -29,7 +29,7 @@ async function load(file) {
   Object.assign(document, {createElement, body:createElement('body')});
   document.activeElement = document.body;
   const window = {ValdemarHour:{filterByRole() {}}, clearInterval() {}, setInterval() {}};
-  runInNewContext(await source(file), {window, document, MutationObserver:class {}});
+  runInNewContext(await source(file), {window, document, MutationObserver:class {observe(){} disconnect(){}}});
   return {window, document};
 }
 
@@ -53,9 +53,44 @@ test('Ambos jugadores montan un único selector y guardan la modalidad antes de 
   assert.equal(duo.attributes['aria-pressed'], 'false');
   for (const name of ['valdemar-player.js','mundos-jugador.js']) {
     const player = await source(name);
-    assert.equal(player.match(/\.append\([^\n]*\bc\.modeControl\.entry\b/g)?.length, 1, name);
+    assert.equal(player.match(/AventuraEscena\.mount\(/g)?.length, 1, name);
     assert.doesNotMatch(player, /modeControl\.change/, name);
-    assert.match(player, /c\.hour(?:View)?\.enter\(\)/, name);
+    assert.match(player, /c\.hour(?:View)?\.open\(kind,id\)/, name);
+  }
+});
+
+test('La escena cambia con la etapa, respeta el papel y conecta cada punto con su material',async()=>{
+  for(const world of ['valdemar','expedicion','umbravia','necropolis']){
+    const {window,document}=await load('aventura-escena.js'),node=()=>document.createElement('section');
+    const host=node(),frame=node(),entry=node(),calls=[];
+    frame.dataset.playMode='duo';frame.dataset.playPaper='B';
+    const data={progress:{},partner:{role:'B',name:'Lola'},hour:{current:1,stages:[{place:'Uno'},{place:'Dos'}],
+      journal:[{index:0}],stage:{place:'Dos',task:'Comparar las muestras',title:'Segundo lugar',materials:[
+        {id:121,role:'A',label:'Texto reservado'},{id:'tinta',role:2,label:'Ficha del otro taller',kind:'text'},
+        {id:'nota',role:'AB',label:'Recorte común',kind:'ledger'}]}}};
+    const ui=window.AventuraEscena.mount(host,{world,id:14,frame,story:{title:'Caso de ensayo'},image:'/prueba.webp',
+      place:'Taller',toolbar:node(),modeControl:{entry},read:()=>data,playerName:()=> 'Carmen',actions:(kind,id)=>calls.push([kind,id])});
+    const nodes=()=>host.nodes(),marker=()=>nodes().filter(n=>n.className==='ae-marker');
+    assert.equal(nodes().filter(n=>n===entry).length,1);
+    assert.equal(nodes().find(n=>n.className==='ae-team').textContent,'Papel 1 · Lola / Papel 2 · Carmen');
+    assert.equal(marker().length,4);
+    assert.ok(!nodes().some(n=>n.textContent?.includes('Texto reservado')));
+    marker()[1].listeners.click();assert.deepEqual(calls.pop(),['material','tinta']);
+    marker()[2].listeners.click();assert.deepEqual(calls.pop(),['material','nota']);
+    marker()[3].listeners.click();assert.deepEqual(calls.pop(),['decision',null]);
+    if(world==='expedicion'||world==='valdemar'){
+      nodes().find(n=>n.className==='ae-stop').listeners.click();assert.deepEqual(calls.pop(),['journal',0]);
+    }
+    if(world==='necropolis'){
+      nodes().find(n=>n.textContent==='Girar a la derecha').listeners.click();
+      nodes().find(n=>n.textContent==='Examinar el indicio seleccionado').listeners.click();
+      assert.deepEqual(calls.pop(),['material','nota']);
+    }
+    if(world==='umbravia'){
+      nodes().find(n=>n.textContent==='Encender el farol').listeners.click();assert.equal(nodes().find(n=>n.className==='ae-stage').dataset.lit,'true');
+    }
+    data.progress.choice='ensayo';ui.update({...data.hour,stage:null,current:2});
+    assert.equal(marker().length,1);marker()[0].listeners.click();assert.deepEqual(calls.pop(),['ending',null]);ui.destroy();
   }
 });
 

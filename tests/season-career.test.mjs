@@ -74,3 +74,38 @@ test('Account navigation renders collectible progress and the key history for th
   assert.match(keyring.innerHTML,/2 llaves disponibles/);
   assert.deepEqual(paths,['/api/valdemar/partidas','/api/valdemar/seasons']);
 });
+
+test('el resumen de cada aventura usa su propio expediente y respeta las llaves históricas sin desglose',()=>{
+  for(let id=1;id<=48;id++){
+    const data={valdemarCaseProgress:{paid:{[id]:{hourStep:2,choice:'saved',deduced:true,stageEvidence:{0:{complex:true,cooperative:true}}}},
+      editorial:{[id]:{choice:'editorial-only'}}},
+      valdemarSeasonOne:{paid:{won:[id],entries:[{caseId:id,amount:2},{caseId:id,amount:-1},{caseId:null,amount:1}]}}};
+    const career=seasonCareer(data,'paid'), summary=career.caseResults[id];
+    assert.equal(summary.xp,390);assert.equal(summary.completionXp,300);
+    assert.equal(summary.earnedKeys,2);assert.equal(summary.skills.find(skill=>skill.name==='Cooperación').points,1);
+    assert.equal(career.pieces[Math.floor((id-1)/12)],1);
+    delete data.valdemarSeasonOne.paid.entries;
+    assert.equal(seasonCareer(data,'paid').caseResults[id].earnedKeys,null);
+    assert.equal(seasonCareer(data,'editorial').caseResults[id].xp,300);
+  }
+});
+
+test('el cuaderno solo sugiere aventuras disponibles y muestra el papel de las parejas confirmadas',async()=>{
+  const window={ValdemarCatalog:{get:id=>({title:'Caso '+id,question:'Prueba',image:'/imagen.webp'})},
+    Colecciones:{seasons:[{name:'Valdemar',seal:'Reliquia',board:'mapa'}]}};
+  runInNewContext(await readFile(new URL('../web/profile-notebook.js',import.meta.url),'utf8'),{window,Intl});
+  const notes=window.PlayerNotebook, games=[{id:2,mode:'duo',finished:false,available:true,current:1,total:5,checkpoint:{task:'Encuentra el registro'}},
+    {id:1,mode:'duo',finished:true,available:false},{id:3,mode:'duo',finished:false,available:false}];
+  const entries=await notes.pairedGames(games,{request:async()=>({invitations:[
+    {caseId:2,status:'accepted',direction:'received',partnerName:'<Diego>',partnerEmail:'privado@ejemplo.test'},
+    {caseId:3,status:'pending',direction:'sent',partnerName:'Pendiente'}]})});
+  assert.equal(entries[0].role,'B');assert.equal(entries[1].partnerName,undefined);assert.equal(entries[2].partnerName,undefined);
+  assert.doesNotMatch(JSON.stringify(entries),/privado@/);
+  const access={completed:[1],availableCases:[2]};
+  assert.equal(notes.nextAdventure(entries,access,1).question,'Encuentra el registro');
+  assert.equal(notes.nextAdventure(entries,{completed:[1],availableCases:[]},1),null);
+  const career=seasonCareer({valdemarCaseProgress:{paid:{1:{choice:'saved'}}}},'paid');
+  assert.equal(notes.caseRecap(2,{career,access},entries),'');
+  const recap=notes.caseRecap(1,{career,access},entries);
+  assert.match(recap,/300 XP/);assert.match(recap,/Continuar con Caso 2/);assert.doesNotMatch(recap,/Llaves ganadas en este caso/);
+});
