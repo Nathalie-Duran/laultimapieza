@@ -78,13 +78,15 @@ export function seasonCareer(data, scope) {
     const count = Number.isInteger(record.hourStep) ? Math.max(0, Math.min(5, record.hourStep)) : 0;
     stages += count;
     const mansion=id===1?record.mansion:null;
+    const mansionCount=mansion?.completed?15:Number.isInteger(mansion?.current)?Math.max(0,Math.min(14,mansion.current-1)):0;
+    const quests=new Set(mansion?.missions||[]);
+    const priorShared=shared;
     if(mansion){
-      const steps=mansion.completed?15:Math.min(14,Math.max(0,(mansion.current||1)-1));
-      stages+=steps;
+      stages+=mansionCount;
       inventory[board]+=heldCount(mansion.items);
-      secrets+=new Set(mansion.missions||[]).size;
+      secrets+=quests.size;
       const pair=new Set(record.mansionPairStages||[]),solo=new Set(record.mansionSoloStages||[]);
-      for(let step=1;step<=steps;step++){
+      for(let step=1;step<=mansionCount;step++){
         if(pair.has(step)){modes.cooperative++;shared++;}
         if(solo.has(step))modes.solo++;
         if(!solo.has(step)&&!pair.has(step))modes.unknown++;
@@ -96,7 +98,7 @@ export function seasonCareer(data, scope) {
     if (record.deduced === true || mansion?.completed) deductions++;
     if ([1, 2, 3].includes(record.missionPrize)) secrets++;
     if (wins.has(id)) side++;
-    const oldComplex=complex, oldTestimony=testimony, oldShared=shared;
+    const oldComplex=complex, oldTestimony=testimony;
     for (let index = 0; index < count; index++) {
       const flags = record.stageEvidence?.[index];
       if (flags?.complex === true) complex++;
@@ -106,17 +108,16 @@ export function seasonCareer(data, scope) {
       if(flags?.solo!==true && flags?.cooperative!==true)modes.unknown++;
     }
     if(record.choice){
-      const missionCount=(mansion?.missions || []).length+Number([1,2,3].includes(record.missionPrize));
-      const stageCount=count+(mansion ? mansion.completed?15:mansion.current-1 : 0);
+      const missionCount=quests.size+ordinaryMission;
+      const stageCount=count+mansionCount;
       const complexCount=complex-oldComplex;
       const won=wins.has(id), awake=mansion?.completed===true;
-      const quests=new Set(mansion?.missions||[]);
       const points={
         'Valentía':Number(record.choice!=='mansion-sealed')+(awake?25:0)+(quests.has('puerta')?25:0),
         'Inteligencia':complexCount+(awake?35:0)+(quests.has('diario')?20:0),
         'Observación':stageCount+(awake?30:0)+(quests.has('jardin')?15:0),
         'Habilidad':Number(won)+(extra?.room||0)+tool,'Intuición':Number(record.deduced===true)+(awake?20:0)+ordinaryMission,
-        'Cooperación':shared-oldShared+new Set(record.mansionPairStages||[]).size+(extra?.cooperative||0),
+        'Cooperación':shared-priorShared+(extra?.cooperative||0),
         'Perseverancia':Number(count===5||awake)+(extra?.advanced||0),'Empatía':testimony-oldTestimony+(quests.has('nox')?20:0)
       };
       points.Inteligencia+=extra?.editions||0;
