@@ -24,7 +24,7 @@ export function createMansionNotebook(rooms,levels) {
       const [world,id]=value.split(':');
       const item=byId.get(id);
       if(!item||item.from>state.current||(role!=='solo'&&world!==role))continue;
-      result.push({...item.entry,id,world});
+      result.push({...item.entry,id,world,roomId:item.room});
     }
     return result;
   }
