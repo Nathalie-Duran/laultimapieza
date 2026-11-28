@@ -20,6 +20,7 @@ function fixture({scheduled=true,existingService=false}={}){
    calls.push([opts.method,path]);
    if(form)writes.push({path,form,key:opts.headers['Idempotency-Key']});
    if(path==='/v1/subscriptions')return Response.json({data:[sub],has_more:false});
+   if(path==='/v1/invoices')return Response.json({data:[]});
    if(path.includes('/subscription_schedules/')){
      if(form){schedule.phases=[{...phase,end_date:Number(form['phases[0][end_date]'])}];schedule.metadata={lup_stop_at:form['metadata[lup_stop_at]']};sub.cancel_at=schedule.phases[0].end_date;}
      if(form&&loseResponse){loseResponse=false;throw Error('respuesta perdida');}
@@ -46,6 +47,18 @@ test('La baja en preapertura conserva el periodo pagado, el descuento, la cuenta
  assert.equal(form.end_behavior,'cancel');assert.deepEqual(x.data.cycles,before.cycles);assert.equal(x.data.active,true);assert.equal(x.data.waitlist,true);
  assert.deepEqual(await read(),result);assert.deepEqual(await x.billing.cancellation(x.store,'player',quote.confirmation),result);assert.equal(x.writes.length,1);
  assert.deepEqual(cancellationSummary(x.data),result);
+});
+
+test('Solo el calendario activo, vinculado y con otra fase de cobro confirma la próxima renovación',async()=>{
+  const x=fixture({existingService:true});
+  Object.assign(x.data,{scheduleConfigured:true,schedule:'sched'});
+  Object.assign(x.data.cycles[0],{paidAt:x.start*1000,amountPaid:2995});
+  const read=()=>x.billing.membership(x.store,'player',{readOnly:true,includeRenewalDate:true});
+  assert.equal((await read()).nextRenewalAt,x.end*1000);
+  x.schedule.customer='otra';assert.equal((await read()).nextRenewalAt,null);x.schedule.customer=x.data.customer;
+  x.schedule.phases[0].end_date=x.end;assert.equal((await read()).nextRenewalAt,null);
+  x.sub.cancel_at_period_end=true;assert.equal((await read()).nextRenewalAt,null);
+  assert.equal(x.writes.length,0);
 });
 
 test('El plan histórico sin calendario se da de baja solo al vencimiento',async()=>{

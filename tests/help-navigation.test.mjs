@@ -60,7 +60,7 @@ test('accesibilidad ofrece una sola vuelta a la guía de origen y conserva los d
     runInNewContext(source,{document,HTMLElement:Item,customElements:{define:(key,value)=>{Component=value;}},
       localStorage:{getItem:k=>saved.get(k)||null,setItem:(k,v)=>saved.set(k,v)},location:{hash:'#accesibilidad?volver='+origin},URLSearchParams});
     const component=new Component();component.connectedCallback();
-    const [group,,nav]=component.children;
+    const [group,,,nav]=component.children;
     assert.equal(nav.children[0].href,expected);
     if(origin==='ayuda')assert.equal(nav.children.length,1);
     for(const label of group.children.slice(1)){const input=label.children[0];input.checked=true;input.events.change();}

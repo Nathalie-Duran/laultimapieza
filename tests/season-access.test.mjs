@@ -157,13 +157,18 @@ test('parallel puzzles share the keyring; ordered and unordered choices validate
   for(const invalid of [['x','y'],['y','y'],['u','v'],[],null,['x'],['y','x','z']])await assert.rejects(act(13,'reward',{proof:{choice:invalid}}),{status:422});
   const proof={proof:{choice:['y','x']}};
   const wins=await Promise.all([act(13,'reward',proof),act(13,'reward',proof)]);
-  assert.equal(wins[0].wallet.balance,2);assert.equal(wins[1].wallet.balance,2);assert.equal(wins[1].feedback,'PREMIO PRIVADO');
-  assert.equal((await act(25,'reward',{proof:{choice:['x','y']}})).wallet.balance,3);
+  assert.equal(wins[0].wallet.history.filter(row=>row.kind==='adventureEnding').length,24);
+  assert.equal(wins[0].wallet.balance,26);assert.equal(wins[1].wallet.balance,26);assert.equal(wins[1].feedback,'PREMIO PRIVADO');
+  assert.equal(wins[0].keyChallenge.room,'expedicion');
+  assert.equal(wins[0].keyChallenge.href,'/#desafios?seccion=sala&mundo=expedicion');
+  assert.equal((await act(25,'reward',{proof:{choice:['x','y']}})).wallet.balance,27);
   await act(25,'open',{quotedCost:1});await assert.rejects(act(25,'second'),{code:'HINT_PRICE_CHANGED'});await act(25,'second',{quotedCost:2});assert.deepEqual((await api.call('cases/25')).hints,['AYUDA PRIVADA','SEGUNDA AYUDA']);
-  assert.equal((await api.call('wallet')).wallet.balance,0);assert.equal((await api.call('seasons',undefined,true)).wallet.balance,1);
+  assert.equal((await api.call('wallet')).wallet.balance,24);assert.equal((await api.call('seasons',undefined,true)).wallet.balance,1);
   for(const index of numbers(0,4)){const result=await act(36,'stage',{index,choice:['x','z']});assert.equal(result.hour.current,index+1);}
   assert.equal((await act(36,'deduce',{hypothesis:'h'})).progress.deduction,'RESOLUCION PRIVADA');
   assert.equal((await act(36,'ending',{choice:'c'})).progress.outcome,'FIN PRIVADO');
+  await act(36,'ending',{choice:'c'});
+  assert.equal((await api.call('wallet')).wallet.balance,25);
   assert.deepEqual((await api.call('seasons')).completed,[...numbers(1,24),36]);assert.deepEqual((await api.call('wallet')).completed,numbers(1,12));
 });
 test('all twelve prior paid endings are required for every new operation, across all three season boundaries',async()=>{
@@ -178,6 +183,20 @@ test('all twelve prior paid endings are required for every new operation, across
     assert.equal((await api.call('seasons')).availableCases.includes(target),false);
     assert((await api.call('seasons',undefined,true)).availableCases.includes(target));
   }
+});
+test('el llavero recomienda actividades disponibles y conserva la procedencia si queda un reto de otra aventura',async()=>{
+  function fixture(revoked=[]){
+    const data=complete(memberAt(6,revoked),numbers(1,12));
+    const entries=[1,13].flatMap(caseId=>numbers(1,6).map(i=>({kind:caseId===1?'mansionArcade':'seasonArcade',id:caseId+'/'+i,caseId,amount:1,at:10})));
+    data.valdemarSeasonOne={paid:{won:[13],opened:[],second:[],welcomes:[],entries}};
+    return service(data);
+  }
+  const calendar=(await fixture().call('cases/13')).keyChallenge;
+  assert.equal(calendar.calendar,true);
+  assert.equal(calendar.href,'/#desafios?seccion=calendario&mundo=expedicion');
+  const next=(await fixture([1]).call('cases/13')).keyChallenge;
+  assert.equal(next.id,5);
+  assert.match(next.href,/id=5&seccion=reto&desde=13&volver=pistas$/);
 });
 test('all 48 paid games require a real partner for duo and preserve personal checkpoints, endings and keys',async()=>{
   const user=complete(memberAt(12),numbers(1,36));
@@ -299,20 +318,20 @@ test('a personal reset clears the paid and authorized editorial progress, keys a
   const retried=await api.call('cases/36/reward',{proof:{choice:['y','x']}},true);assert.equal(retried.wallet.balance,2);
   assert.equal((await api.call('seasons')).wallet.balance,0);
   const recovered=complete(structuredClone(api.data),numbers(1,12));
-  assert.equal((await service(recovered).call('cases/13/reward',{proof:{choice:['y','x']}})).wallet.balance,1);
+  assert.equal((await service(recovered).call('cases/13/reward',{proof:{choice:['y','x']}})).wallet.balance,13);
   const next=structuredClone(api.data);next.subscription='new-pass';
   next.cycles.push({id:'another-invoice',subscription:'new-pass',start:now-day,end:now+20*day,worldBlock:4});
   const future=service(next);assert.equal((await future.call('seasons')).wallet.gift,1);assert.equal((await future.call('seasons')).wallet.gift,1);
   const last=complete(memberAt(12),numbers(1,48));last.active=false;last.cycles.forEach(c=>{c.start-=40*day;c.end-=40*day;});
   assert.equal(worldSeasonAccess(last).nextPurchase,null);
 });
-test('finishing after the last paid period grants only the fully paid world; no extra payments or keys',async()=>{
+test('después de la baja se conservan los finales ganados y solo se abre el mundo abonado',async()=>{
   const d=memberAt(6);d.cycles.forEach(c=>{c.start-=40*day;c.end-=40*day;});d.active=false;
   complete(d,numbers(1,12));d.valdemarSeasonOne={paid:{welcomes:['old-pass'],won:[],opened:[],second:[]}};
   const api=service(d);const initial=await api.call('seasons');
   assert.deepEqual(initial.availableCases,numbers(1,24));assert.equal(initial.wallet.gift,1);assert(initial.seasons[1].finishAccess);
   assert.equal(initial.nextPurchase,null);await api.call('cases/13');await api.call('cases/13/reward',{proof:{choice:['y','x']}});
-  assert.equal((await api.call('seasons')).wallet.balance,2);
+  assert.equal((await api.call('seasons')).wallet.balance,14);
   const done=complete(structuredClone(d),numbers(13,24));
   assert.deepEqual(worldSeasonAccess(done).nextPurchase,{number:3,blocks:[1,2,3],remainingCycles:3});
   done.cycles[4].revoked=true;

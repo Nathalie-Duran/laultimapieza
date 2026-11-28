@@ -3,6 +3,7 @@ import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 import {seasonCareer, rememberStage, mergeStageEvidence} from '../season-career.mjs';
+import {creditMansionArcade,creditSeasonArcade,creditPublishedChallenge,markRoomCooperation} from '../valdemar-wallet.mjs';
 
 test('Only verified progress from the current account scope earns season XP', () => {
   const data = {valdemarCaseProgress: {
@@ -46,6 +47,39 @@ test('A board grants its seal only with twelve distinct endings', () => {
   assert.equal(career.achievements.find(item => item.name === 'Colección completa').progress,0);
 });
 
+test('las 24 estaciones, los retos de edición y la cooperación cuentan una vez sin sumar compras o visitas',()=>{
+  const data={valdemarCaseProgress:{paid:{13:{hourStep:1,mode:'duo',inventory:{0:{items:['a','a','b']}},stageEvidence:{0:{solo:true}}},25:{mode:'solo'}}}};
+  const empty=seasonCareer(data,'paid');assert.deepEqual(empty.modes,{solo:1,cooperative:0,unknown:0});
+  assert.deepEqual(empty.inventory,[0,2,0,0]);
+  for(const id of [1,13,25,37]){
+    for(let n=0;n<6;n++){
+      const name='estacion-'+n,amount=n===3||n===5?2:1;
+      for(let repeat=0;repeat<2;repeat++){
+        if(id===1)creditMansionArcade(data,'paid',name,amount);
+        else creditSeasonArcade(data,'paid',id,name,amount);
+        if(n===0)markRoomCooperation(data,'paid',id,name);
+      }
+    }
+  }
+  const wallet=data.valdemarSeasonOne.paid;
+  wallet.entries.push({id:'compra',kind:'renewal',amount:1},{id:'visita',kind:'open',amount:-1,caseId:13});
+  const solveEditions=()=>{
+    creditPublishedChallenge(data,'paid','diario',1,false,true);
+    creditPublishedChallenge(data,'paid','semanal',1,true,true);
+    creditPublishedChallenge(data,'paid','publicado',46,false,false);
+  };
+  solveEditions();solveEditions();
+  const profile=seasonCareer(data,'paid');
+  assert.equal(profile.xp,10+16*10+8*30+10+30+10);
+  assert.equal(profile.skills.find(s=>s.name==='Habilidad').points,24);
+  assert.equal(profile.skills.find(s=>s.name==='Cooperación').points,4);
+  assert.equal(profile.skills.find(s=>s.name==='Inteligencia').points,3);
+  assert.equal(profile.achievements.filter(a=>a.goal===6&&a.progress===6).length,4);
+  assert.ok(profile.specializations.includes('Mecanismos'));
+  assert.equal(seasonCareer(data,'editorial').xp,0);
+  assert.equal(seasonCareer({valdemarCaseProgress:{paid:{1:{mode:'duo',inventory:{0:{items:[]}}}}}},'paid').xp,0);
+});
+
 test('Account navigation renders collectible progress and the key history for the signed-in owner', async () => {
   const elements = new Map(), paths = [];
   const wallet = {balance:2,history:[]};
@@ -70,13 +104,19 @@ test('Account navigation renders collectible progress and the key history for th
   await collection.connectedCallback();
   assert.doesNotMatch(collection.innerHTML,/Mis logros/);
   assert.match(collection.innerHTML,/1 de 12 piezas/);
+  assert.match(collection.innerHTML,/Inventario de las aventuras/);
+  collection.hasAttribute=name=>name==='data-career';
+  await collection.connectedCallback();
+  for(const text of ['Mi trayectoria','Aprendiz','Especializaciones','En solitario','En cooperación','Mis ocho habilidades']){
+    assert.ok(collection.innerHTML.includes(text));
+  }
   const keyring = new (elements.get('profile-collection'))();
   keyring.isConnected = true;
   keyring.hasAttribute = name => name === 'data-keys';
   keyring.querySelector = () => ({append:node=>assert.equal(node,historyNode)});
   await keyring.connectedCallback();
   assert.match(keyring.innerHTML,/2 llaves disponibles/);
-  assert.deepEqual(paths,['/api/valdemar/partidas','/api/valdemar/partidas','/api/valdemar/seasons']);
+  assert.deepEqual(paths,['/api/valdemar/partidas','/api/valdemar/partidas','/api/valdemar/partidas','/api/valdemar/seasons']);
 });
 
 test('el resumen de cada aventura usa su propio expediente y respeta las llaves históricas sin desglose',()=>{

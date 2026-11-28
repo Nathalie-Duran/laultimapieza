@@ -7,7 +7,7 @@ const file = name => new URL('../web/'+name,import.meta.url);
 const source = await readFile(file('cinta87-demo.js'),'utf8');
 const key = 'lup.cinta87.demo.v1';
 
-function browser({storage=new Map(),blocked=false,options={}}={}) {
+function browser({storage=new Map(),blocked=false,options={},transcripts=false}={}) {
   const listeners=new Map(),windowListeners=new Map(),events=[],destinations=[];
   const localStorage={
     getItem(k){if(blocked)throw Error('storage blocked');return storage.get(k)??null;},
@@ -23,7 +23,7 @@ function browser({storage=new Map(),blocked=false,options={}}={}) {
     removeEventListener:name=>listeners.delete(name),
     replaceChildren(){this.innerHTML='';}
   };
-  const window={localStorage,location:{assign:path=>destinations.push(path)},
+  const window={localStorage,GamePreferences:{transcripts},location:{assign:path=>destinations.push(path)},
     addEventListener:(name,fn)=>windowListeners.set(name,fn),
     removeEventListener:name=>windowListeners.delete(name)};
   runInNewContext(source,{window});
@@ -46,6 +46,16 @@ function browser({storage=new Map(),blocked=false,options={}}={}) {
     otherTabChanged(){windowListeners.get('storage')({key});}
   };
 }
+
+test('la preferencia de transcripción muestra la señal y deja anotarla sin reproducir audio',()=>{
+  const h=browser({transcripts:true});
+  h.click('start','solo');h.click('place','magnetofono');
+  assert.match(h.html,/Dos pulsos cortos, seguidos de un pulso largo/);
+  assert.equal(h.saved.seen.includes('signal'),false);
+  h.click('transcript');
+  assert.ok(h.saved.seen.includes('signal'));
+  assert.ok(h.saved.items.includes('piloto'));
+});
 
 function gather(h,mode,listen=false){
   h.click('start',mode);

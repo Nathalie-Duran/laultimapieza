@@ -411,7 +411,12 @@ test('Dos cuentas comparten los pasos y el desenlace, conservan sus llaves y rec
   for(let i=1;i<5;i++)await h.game(i%2?'bob':'alice','/stage',stage(i));
   await h.game('alice','/deduce',{partnerId:id,hypothesis:'archivo'});
   await h.game('bob','/ending',{partnerId:id,choice:'guardar'});
-  for(const uid of ['alice','bob'])assert.equal((await h.game(uid)).progress.choice,'guardar');
+  await h.game('alice','/ending',{partnerId:id,choice:'guardar'});
+  for(const uid of ['alice','bob']){
+    const saved=await h.game(uid);
+    assert.equal(saved.progress.choice,'guardar');
+    assert.equal(saved.wallet.history.filter(row=>row.kind==='adventureEnding'&&row.amount===1).length,1);
+  }
   assert.equal((await h.game('eve')).progress.choice,null);
   await h.game('alice','/mode',{partnerId:id,mode:'solo'});
   await assert.rejects(h.game('bob','/stage',stage(0)),error=>error.status>=400);
