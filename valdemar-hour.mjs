@@ -1,3 +1,4 @@
+import {requireHotelDesk} from './hotel-guardia.mjs';
 import {inspectInventory} from './expedition.mjs';
 import {ApiError} from './auth-provider.mjs';
 import './web/motor-aventuras.js';
@@ -72,13 +73,21 @@ export function requireHourComplete(story,record) {
 export function evaluateHourStage(story,record,input) {
   const stages = story.hour?.stages;
   if (!stages) throw new ApiError(404,'Esta edición del expediente no incluye etapas.');
-  const {index,choice} = input || {};
+  const {index} = input || {};
+  let choice=input?.choice;
   if (!Number.isInteger(index) || index < 0 || index >= stages.length) throw new ApiError(400,'Indica una etapa válida.');
   const count = savedCount(record,stages.length);
   if (index > count || (record.choice && index >= count)) {
     throw new ApiError(409,'Vuelve al cuaderno para consultar la etapa actual.','HOUR_STAGE_CHANGED');
   }
   const stage = stages[index];
+  if(story.id===2 && story.hour?.hotel && index===count) {
+    requireHotelDesk(story,record,index);
+    if(input.choice?.length===1 && input.choice[0]==='guardia-completa'){
+      choice=stage.answer;
+      input={...input,sources:stage.corroboration?.answer};
+    }
+  }
   const allowed = new Set(stage.options.map(option => option.id));
   if (!Array.isArray(choice) || !choice.length || choice.length > allowed.size ||
       (stage.mode === 'single' && choice.length !== 1) ||

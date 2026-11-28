@@ -1,3 +1,4 @@
+import {operateHotel,hotelReadout} from './hotel-guardia.mjs';
 import {getFieldInstrument, checkFieldInstrument} from './field-instruments.mjs';
 import {ApiError} from './auth-provider.mjs';
 import './web/motor-aventuras.js';
@@ -67,7 +68,7 @@ export function inspectInventory(story, record, role) {
       ...(fieldNote ? {fieldNote} : {})};
   });
   return {rooms, role:role==='A'||role==='B'?role:null, revision: record?.inventoryRevision || 0, ...(story.hour?.hotel ? {
-    hotel:record?.hotelInventory || {objects:[], witnesses:[]}
+    ...(story.id===2?{shift:hotelReadout(record)}:{}), hotel:record?.hotelInventory || {objects:[], witnesses:[]}
   } : {})};
 }
 
@@ -78,6 +79,12 @@ function samePair(left, right) {
 // A pair keeps its own finds. Keep each member's personal notebook when they part.
 export function mergeInventory(personal, shared) {
   if (shared.fieldToolSolved) personal.fieldToolSolved = true;
+  if(shared.hotelShift){
+    const guard=personal.hotelShift ||= structuredClone(shared.hotelShift);
+    guard.start=Math.min(guard.start,shared.hotelShift.start);
+    Object.assign(guard.done,shared.hotelShift.done);
+    Object.assign(guard.archives ||= {},shared.hotelShift.archives);
+  }
   if (shared.hotelInventory) {
     const saved = personal.hotelInventory ||= {objects:[], witnesses:[]};
     for (const field of ['objects','witnesses']) {
@@ -116,6 +123,7 @@ function exploreHotel(story, record, input) {
 }
 
 export function useInventory(story, record, role, input) {
+  if (['hotel-start','hotel-operate','hotel-archive'].includes(input.operation)) return operateHotel(story,record,role,input);
   if (input.operation === 'hotel-collect' || input.operation === 'hotel-testimony') {
     return exploreHotel(story,record,input);
   }
