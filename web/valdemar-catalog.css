@@ -5,6 +5,26 @@
   color:var(--vd-ink);min-width:0;
 }
 .vd-home {margin-block:clamp(2.5rem,5vw,5rem)}
+:is(main,.atlas-universe) .season-room-door {
+  box-sizing:border-box; display:flex; align-items:center; gap:.85rem;
+  min-inline-size:0; inline-size:100%; max-inline-size:30rem; min-block-size:5rem;
+  margin:.7rem 0; padding:.35rem .85rem .35rem .35rem; text-align:start;
+  background:#192e2b; border:1px solid #8a997b; border-radius:.4rem;
+  color:#fff4de; text-decoration:none; cursor:pointer; list-style:none;
+}
+.season-room-door::-webkit-details-marker {display:none}
+.season-room-door>img {
+  display:block; position:static; flex:0 0 auto; inline-size:clamp(4.1rem,8vw,6.5rem);
+  block-size:4.6rem; object-fit:cover; border-radius:.2rem;
+}
+.season-room-copy {display:grid; gap:.12rem; min-inline-size:0; font-family:var(--sans,system-ui,sans-serif)}
+.season-room-copy small {color:#d4d8c3; font-size:.8rem}
+.season-room-copy strong {color:#fff1d4; font:600 clamp(1.05rem,2vw,1.3rem)/1.15 Georgia,serif; overflow-wrap:anywhere}
+.season-room-copy>span {color:#f4d99e; font-size:.85rem; text-decoration:underline; text-underline-offset:.2em}
+.season-room-copy i {font-style:normal}
+:is(main,.atlas-universe) .season-room-door:hover {background:#29433b; border-color:#f5d39b}
+:is(main,.atlas-universe) .season-room-door:focus-visible {outline:3px solid #ffe19e;outline-offset:3px}
+.vd-room-entry .mansion-arcade-drawer {margin:0; padding:0; border:0}
 .md-world .extra-mapa-link,.vdp .extra-mapa-link {
   display:inline-flex;align-items:center;min-block-size:44px;margin:.38rem .7rem 0 0;box-sizing:border-box;
   color:#f6dba5;font:650 .98rem/1.4 var(--sans,system-ui,sans-serif);text-decoration:underline;text-underline-offset:.23em;

@@ -60,6 +60,11 @@ export function creditMansionArcade(data,scope,id,amount) {
   return addEntry(walletRecord(data,scope==='editorial'),'mansionArcade',id,amount,1);
 }
 
+export function creditSeasonArcade(data,scope,caseId,id,amount) {
+  if (![13,25,37].includes(caseId) || typeof id!=='string' || !id || ![1,2].includes(amount)) throw new Error('Premio de sala no válido.');
+  return addEntry(walletRecord(data,scope==='editorial'),'seasonArcade',caseId+'/'+id,amount,caseId);
+}
+
 export function purchaseMansionHint(data,scope,stage,tier,quotedCost) {
   if(!Number.isInteger(stage) || stage<1 || stage>15 || !Object.hasOwn(hintFees,tier))throw new ApiError(400,'Elige una ayuda de esta prueba.');
   const wallet=walletRecord(data,scope==='editorial');

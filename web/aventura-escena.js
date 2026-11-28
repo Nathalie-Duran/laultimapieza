@@ -100,7 +100,7 @@
       const ficha=sideOpen?window.RetosTemporada?.ficha(options.id):null;
       const headerTitle=waiting&&ficha?ficha.title:story.title;
       if(caseTitle.textContent!==headerTitle)caseTitle.textContent=headerTitle;
-      const context=waiting?'Reto extra · '+ancestry:ancestry;
+      const context=waiting?'Reto de aventura · '+ancestry:ancestry;
       if(contextLabel.textContent!==context)contextLabel.textContent=context;
       const section=frame.dataset.playMode==='pending'?null:secondaryPanel;
       if(!section){
@@ -118,7 +118,7 @@
         const side=data.side;
         const pitch=section.querySelector('.vd-note')?.textContent;
         const prize=data.parallelPrize;
-        const reward=Number.isInteger(prize)?prize+(prize===1?' llave':' llaves')+' al resolverlo por primera vez':'Reto extra';
+        const reward=Number.isInteger(prize)?prize+(prize===1?' llave':' llaves')+' al resolverlo por primera vez':'Reto de aventura';
         shared.update({...base,title:side?.title||ficha?.title||story.title,progress:complete?'Premio del reto recibido':reward,
           objective:complete?'':side?.brief||pitch||'',help:{context:'reto',text:side?.task||'Examina el tablero y utiliza sus controles para resolver el reto.',
           steps:['Consulta la consigna del reto.','Prueba una respuesta o manipula las piezas.','Al terminar puedes volver a la investigación.']}});

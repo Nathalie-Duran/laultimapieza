@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const titles={open:'Pista orientativa',second:'Pista detallada',solution:'Solución explicada',
-    reward:'Reto paralelo',challenge:'Desafío publicado',calendarChallenge:'Desafío del calendario',mansionArcade:'Minijuego de la mansión',mansionEnding:'Desenlace de la mansión',mission:'Misión secreta',renewal:'Renovación mensual',welcome:'Bienvenida'};
+    reward:'Reto paralelo',challenge:'Desafío publicado',calendarChallenge:'Desafío del calendario',mansionArcade:'Minijuego de la mansión',seasonArcade:'Minijuego de la sala de temporada',mansionEnding:'Desenlace de la mansión',mission:'Misión secreta',renewal:'Renovación mensual',welcome:'Bienvenida'};
   const keys=n=>n+(n===1?' llave':' llaves');
   function node(tag,label) {
     const element=document.createElement(tag);
@@ -53,7 +53,7 @@
       body.append(line);
     }
     if(!data.wallet.won.includes(id)){
-      body.append(button('Jugar el reto paralelo · +'+keys(data.parallelPrize),play));
+      body.append(button('Jugar el reto de aventura · +'+keys(data.parallelPrize),play));
     } else if(data.keyChallenge) {
       const next=node('a','Ganar llaves en '+data.keyChallenge.title);
       next.href=data.keyChallenge.href;next.className=buttonClass;body.append(next);

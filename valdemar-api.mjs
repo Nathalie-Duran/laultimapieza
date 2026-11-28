@@ -324,6 +324,11 @@ export async function valdemarRequest({path,method,input,uid,editorial,withStore
     return withStore(async store=>explorerCollection(await store.getMemberData(uid,{readOnly:true}),editorial?'editorial':'paid'));
   }
   const explorer=/^\/api\/valdemar\/explorer\/([1-9]\d?)$/.exec(path);
+  const room=/^\/api\/valdemar\/salas\/([234])$/.exec(path);
+  if(room){
+    const {seasonArcadeRequest}=await import('./salas-temporada.mjs');
+    return seasonArcadeRequest({season:Number(room[1]),method,input,uid,editorial,withStore,billing});
+  }
   if(path==='/api/valdemar/mansion/arcade') {
     const {mansionArcadeRequest}=await import('./mansion-arcade.mjs');
     return mansionArcadeRequest({method,input,uid,editorial,withStore,billing});

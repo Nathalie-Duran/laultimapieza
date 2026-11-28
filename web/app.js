@@ -522,6 +522,7 @@ window.addEventListener('hashchange',event=>{
   (selected||main).focus({preventScroll:true});
 });
 window.GameAccountBridge={
+  playerId:()=>online?me()?.userId:null,
   playerName:()=>me()?.name||'',
   cloud(value){cloudMode=value;if(value)this.reset();},isCloud(){return cloudMode;},
   loading(value){accountLoading=value;render();},

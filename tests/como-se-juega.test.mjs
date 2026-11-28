@@ -68,3 +68,12 @@ test('la ayuda respeta un diálogo de juego abierto, usa foco modal y devuelve e
     assert.deepEqual(doc.modals,[game]);assert.equal(doc.activeElement,trigger);
   }
 });
+
+test('el cierre diferido de la ayuda mantiene el foco en la estación que se ha elegido después',()=>{
+  const {doc,win}=guideHarness();
+  const help=doc.createElement('button'),station=doc.createElement('button');doc.body.append(help);doc.body.append(station);
+  help.focus();win.ComoSeJuega.open(help,{context:'sala'});
+  const dialog=doc.modals[0];
+  station.focus();dialog.close();
+  assert.equal(doc.activeElement,station);
+});

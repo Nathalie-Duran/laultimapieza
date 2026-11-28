@@ -19,7 +19,7 @@ async function appHarness({fullAccess=false,navLinks=[]}={}){
     AccountUI:{start:async value=>{bridge=value;},signInPanel:()=>'<h1>Iniciar sesión</h1>',header:()=>'',accountCard:()=>'',open(){}},
     addEventListener(){},scrollTo(){}});
   context.window=context;
-  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js',...(fullAccess?['membership-flow.js']:[]),'monthly-access.js','experience-ui.js','profile-notebook.js','archive.js','como-se-juega.js','retos-temporada.js','colecciones.js','valdemar-catalog.js','mundos-catalogo.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
+  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js',...(fullAccess?['membership-flow.js']:[]),'monthly-access.js','experience-ui.js','profile-notebook.js','archive.js','como-se-juega.js','retos-temporada.js','salas-mundos-catalogo.js','colecciones.js','valdemar-catalog.js','mundos-catalogo.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
   runInContext(source,context);bridge.cloud(true);bridge.loading(false);
   return {bridge,element,membership:context.ClubAccess,setFetch(value){fetcher=value;},credential(value){context.AccountAccess.user=value;},
     visit(hash){context.location.hash=hash;bridge.render();return element('#main').innerHTML;}};

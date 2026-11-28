@@ -10,12 +10,14 @@
       this.panel=this.closest('.adventure-challenges');
       this.refresh=()=>this.showWallet();
       this.panel?.addEventListener('mansion-arcade-reward',this.refresh);
+      this.panel?.addEventListener('season-room-reward',this.refresh);
       this.panel?.addEventListener('editorial-challenge-solved',this.refresh);
       this.showWallet();
       this.showResume();
     }
     disconnectedCallback(){
       this.panel?.removeEventListener('mansion-arcade-reward',this.refresh);
+      this.panel?.removeEventListener('season-room-reward',this.refresh);
       this.panel?.removeEventListener('editorial-challenge-solved',this.refresh);
     }
     async showResume(){

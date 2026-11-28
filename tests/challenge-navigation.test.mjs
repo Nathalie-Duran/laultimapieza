@@ -6,7 +6,7 @@ import {createContext,runInContext} from 'node:vm';
 async function gallery(){
   const ctx=createContext({location:{hash:'#desafios'},URLSearchParams});
   ctx.window=ctx;
-  for(const file of ['valdemar-catalog','mundos-catalogo','retos-temporada','editorial-challenges','colecciones']){
+  for(const file of ['valdemar-catalog','mundos-catalogo','retos-temporada','salas-mundos-catalogo','editorial-challenges','colecciones']){
     runInContext(await readFile(new URL('../web/'+file+'.js',import.meta.url),'utf8'),ctx);
   }
   return ctx;
@@ -15,45 +15,59 @@ const boards=['mapa','expedicion','umbravia','necropolis'];
 const galleryHref=b=>'/#desafios?mundo='+b;
 const room='/#desafios?seccion=sala';
 
-test('los cuatro directorios fotográficos son enlaces directos y el calendario conserva su entrada',async()=>{
+test('el directorio separa cuatro salas fotográficas, 47 retos de aventura y un calendario',async()=>{
   const ctx=await gallery(),html=ctx.Colecciones.challenges();
-  assert.match(html,/juegos opcionales/);
   assert.match(html,/llaves para pedir pistas/);
-  assert.match(html,/Sala de Ada \(6 minijuegos\) \+ 11 retos/);
+  assert.match(html,/<p class="extras-intro">[^<]*actividades opcionales[^<]*<a href="\/#casos">juegos de temporada<\/a>/);
+  assert.equal((html.match(/href="\/#casos"/g)||[]).length,1);
+  assert.match(html,/<h2 id="extras-rooms">Salas de minijuegos/);
+  assert.match(html,/<h2 id="extras-adventures">Retos de aventura/);
+  assert.match(html,/47 pruebas secundarias/);
+  assert.match(html,/<h2 id="extras-agenda">Calendario común/);
   assert.doesNotMatch(html,/seccion=reto|<mansion-arcade|data-action="page-section"/);
   for(const [i,season] of ctx.Colecciones.seasons.entries()){
+    const info=ctx.Colecciones.sala(season.board);
     assert.ok(html.includes('href="'+galleryHref(boards[i])+'"'));
-    assert.ok(html.includes('src="/extras-'+boards[i]+'.webp"'));
-    assert.ok(html.includes('>'+season.name+'</h2>'));
+    assert.ok(html.includes('href="'+room+'&amp;mundo='+boards[i]+'"'));
+    assert.ok(html.includes('src="'+info.photo+'"'));
+    assert.ok(html.includes('>'+info.title+'</h3>'));
+    assert.equal(info.count,6);
+    assert.equal(info.prize,8);
   }
+  assert.equal((html.match(/6 minijuegos · Hasta 8 llaves/g)||[]).length,4);
   assert.ok(html.includes('href="/#desafios?seccion=calendario"'));
   assert.match(html,/data-action="auth-login"/);
   ctx.GameAccountBridge={isSignedIn:()=>true};
-  assert.match(ctx.Colecciones.challenges({availableCases:[1]}),/1 aventura abierta/);
+  assert.equal((ctx.Colecciones.challenges({availableCases:[1]}).match(/Jugar en la sala/g)||[]).length,1);
   assert.match(ctx.Colecciones.challenges(),/href="\/#archivo"/);
 });
 
-test('cada temporada presenta doce fichas de reto con foto, acción, premio y acceso correctos',async()=>{
+test('las galerías presentan solo retos individuales con su acción, premio y acceso',async()=>{
   const ctx=await gallery(),member={availableCases:[2,14,28,48]};
   for(const [i,board] of boards.entries()){
     const base=12*i,open=member.availableCases[i];
     ctx.location.hash='#desafios?mundo='+board;
     const html=ctx.Colecciones.challenges(member),guest=ctx.Colecciones.challenges();
     const cards=html.match(/<li><a class="extras-tile"[\s\S]*?<\/a><\/li>/g);
-    assert.equal(cards.length,12);
+    assert.equal(cards.length,i===0?11:12);
+    assert.match(html,/<h1>Retos de aventura de /);
+    assert.ok(html.includes(cards.length+' pruebas opcionales.'));
+    assert.equal((html.match(/class="extras-room-link"/g)||[]).length,1);
+    assert.ok(html.includes('href="'+room+'&amp;mundo='+board+'"'));
+    assert.ok(!html.slice(html.indexOf('<ol class="extras-list"')).includes('seccion=sala'));
     for(const [j,card] of cards.entries()){
-      const id=base+j+1,info=ctx.RetosTemporada.ficha(id);
+      const id=base+j+(i===0?2:1),info=ctx.RetosTemporada.ficha(id);
       assert.ok(card.includes('src="'+info.photo+'"'),id);
       assert.ok(card.includes('>'+info.title+'</h2>'),id);
       assert.ok(card.includes(info.action),id);
-      const href=id===1?room:id===open?'/#'+(i===0?'valdemar':'mundos')+'-jugar?id='+id+'&amp;seccion=reto':galleryHref(board)+'&amp;reto='+id;
+      const href=id===open?'/#'+(i===0?'valdemar':'mundos')+'-jugar?id='+id+'&amp;seccion=reto':galleryHref(board)+'&amp;reto='+id;
       assert.ok(card.includes('href="'+href+'"'),id);
       if(id===open)assert.ok(card.includes('data-reto-premio="'+id+'">'+(id===48?'2 llaves':'1 llave')));
     }
     assert.doesNotMatch(guest,/seccion=reto/);
     assert.match(guest,/Ver ficha del reto/);
     assert.ok(!guest.includes('<mansion-arcade>'));
-    assert.equal((guest.match(/seccion=sala/g)||[]).length,i===0?1:0);
+    assert.equal((guest.match(/seccion=sala/g)||[]).length,1);
   }
 });
 
@@ -74,11 +88,25 @@ test('las fichas enfocadas distinguen jugar, consultar la aventura o abrir la su
     ctx.location.hash='#desafios?mundo='+board+'&reto=99';
     assert.match(ctx.Colecciones.challenges(),/class="extras-list"/);
   }
-  ctx.location.hash='#desafios?seccion=sala';
-  assert.match(ctx.Colecciones.challenges(),/<mansion-arcade>/);
 });
 
-test('el mismo calendario se descubre desde cinco cabeceras y conserva el origen al volver',async()=>{
+test('las cuatro salas usan el componente de su mundo y los enlaces históricos de Ada siguen abriendo su sala',async()=>{
+  const ctx=await gallery();
+  for(const board of boards){
+    ctx.location.hash='#desafios?seccion=sala&mundo='+board;
+    const html=ctx.Colecciones.challenges();
+    assert.ok(html.includes('href="'+galleryHref(board)+'"'));
+    assert.ok(html.includes(board==='mapa'?'<mansion-arcade>':'<sala-temporada mundo="'+board+'">'));
+  }
+  for(const query of ['seccion=sala','reto=1','mundo=mapa&reto=1']){
+    ctx.location.hash='#desafios?'+query;
+    assert.match(ctx.Colecciones.challenges(),/<mansion-arcade><\/mansion-arcade>/);
+  }
+  ctx.location.hash='#desafios?seccion=sala&mundo=externo';
+  assert.doesNotMatch(ctx.Colecciones.challenges(),/<(?:sala-temporada|mansion-arcade)/);
+});
+
+test('el mismo calendario se descubre desde cinco entradas y conserva el origen al volver',async()=>{
   const ctx=await gallery();
   for(const origin of ['',...boards]){
     const start=origin?galleryHref(origin):'/#desafios';
@@ -86,7 +114,7 @@ test('el mismo calendario se descubre desde cinco cabeceras y conserva el origen
     const directory=ctx.Colecciones.challenges();
     const links=[...directory.matchAll(/<a class="extras-calendar" href="([^"]+)"/g)];
     assert.equal(links.length,1);
-    assert.match(directory.slice(0,directory.indexOf('</header>')),/Abrir el calendario/);
+    if(origin)assert.match(directory.slice(0,directory.indexOf('</header>')),/Abrir el calendario/);
     assert.equal(links[0][1],'/#desafios?seccion=calendario'+(origin?'&amp;mundo='+origin:''));
     ctx.location.hash=links[0][1].slice(1).replace('&amp;','&');
     const calendar=ctx.Colecciones.challenges();

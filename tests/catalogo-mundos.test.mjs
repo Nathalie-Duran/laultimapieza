@@ -8,7 +8,7 @@ import {messageTemplate} from '../mail-service.mjs';
 async function publicSite(){
   const page=createContext({location:{hash:'#casos'},URLSearchParams});
   page.window=page;
-  for(const name of ['retos-temporada','colecciones','valdemar-catalog','mundos-catalogo','valdemar-plano','mundos-vista']){
+  for(const name of ['salas-mundos-catalogo','retos-temporada','colecciones','valdemar-catalog','mundos-catalogo','valdemar-plano','mundos-vista']){
     runInContext(await readFile(new URL('../web/'+name+'.js',import.meta.url),'utf8'),page);
   }
   return page;
@@ -140,8 +140,8 @@ test('los cuatro mapas abren su directorio y las 48 fichas enlazan el reto de la
       const id=12*seasonIndex+local;
       const expected=(href,html)=>{
         const links=html.match(/<a class="extra-ficha-link"[^>]*>/g)||[];
-        assert.equal(links.length,1,season.name+' '+local);
-        assert.ok(links[0].includes('href="'+href+'"'),links[0]);
+        assert.equal(links.length,id===1?0:1,season.name+' '+local);
+        if(links.length)assert.ok(links[0].includes('href="'+href+'"'),links[0]);
       };
       for(const allowed of [false,true]){
         const viewer=seasonIndex?{seasonAccess:{availableCases:allowed?[id]:[]}}:{admin:allowed};
@@ -154,6 +154,15 @@ test('los cuatro mapas abren su directorio y las 48 fichas enlazan el reto de la
         page.location.hash+='&seccion=ficha';
         const standalone=seasonIndex?page.Mundos.view(season.board,viewer):page.ValdemarCatalog.detail(id,viewer);
         expected(target,standalone);
+        for(const [pageHtml,count] of [[mapStop,1],[standalone,local===1?1:0]]){
+          const doors=pageHtml.match(/<a class="season-room-door"[^>]*>[\s\S]*?<\/a>/g)||[];
+          assert.equal(doors.length,count,season.name+' '+local);
+          if(!count)continue;
+          const room=page.Colecciones.sala(season.board);
+          assert.ok(doors[0].includes('src="'+room.photo+'"'));
+          assert.ok(doors[0].includes(room.title));
+          assert.ok(doors[0].includes('href="'+(seasonIndex?room.href.replace('&','&amp;'):'/#desafios?seccion=sala')+'"'));
+        }
       }
     }
   }

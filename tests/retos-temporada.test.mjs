@@ -7,7 +7,8 @@ import {mansionArcadeCatalog} from '../web/mansion-arcade-catalog.js';
 
 const web = new URL('../web/', import.meta.url);
 const browser = {window:{Retos:{}}};
-runInNewContext(await readFile(new URL('retos-temporada.js',web),'utf8'),browser);
+for(const file of ['retos-temporada.js','salas-mundos-catalogo.js','colecciones.js'])
+  runInNewContext(await readFile(new URL(file,web),'utf8'),browser);
 const {ficha} = browser.window.RetosTemporada;
 
 test('Cada reto muestra una acción, su fotografía y las llaves de su propia aventura',async()=>{
@@ -50,7 +51,7 @@ test('Mapas y fichas dirigen al visitante al reto correcto y al jugador al minij
   }
   assert.equal(enlace(49),null);
   const {acceso}=browser.window.RetosTemporada;
-  assert.match(acceso(1),/<span>Ver la sala<\/span>/);
-  assert.match(acceso(13,true),/id=13&amp;seccion=reto"><small>Reto extra<\/small><strong>La regata de las botellas<\/strong><span>Jugar el reto/);
+  assert.match(acceso(1),/<small>Sala de minijuegos<\/small><strong>La sala de juegos de Ada/);
+  assert.match(acceso(13,true),/id=13&amp;seccion=reto"><small>Reto de aventura · Opcional<\/small><strong>La regata de las botellas<\/strong><span>Jugar el reto/);
   assert.equal(acceso(0),'');
 });
