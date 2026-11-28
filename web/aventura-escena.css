@@ -112,3 +112,20 @@
   .vd-player .vhour-table-switch {display:grid;grid-template-columns:1fr 1fr}
   .vd-player .vhour-table-switch>button {padding:.4rem}
 }
+.vd-player[data-hotel-ui="true"] .hotel-partida {margin:.9rem 0;padding:clamp(.6rem,2vw,1.4rem);background:#172724;color:#f6ebd6;border:1px solid #6b7766;border-radius:.45rem;}
+.vd-player[data-hotel-ui="true"][data-play-mode="pending"] .hotel-partida,.vd-player[data-hotel-ui="true"] .hotel-partida [hidden] {display:none!important;}
+.hotel-nav {display:flex;flex-wrap:wrap;gap:.35rem;border-block-end:1px solid #728075;padding-block-end:.7rem;scroll-margin-top:1rem;}
+.hotel-partida>.hotel-nav {position:sticky;inset-block-start:0;z-index:4;background:#172724;}
+.hotel-partida .vhour-material>summary {scroll-margin-block-start:calc(var(--hotel-nav-alto, 6rem) + .5rem);}
+.hotel-nav button.hotel-go {min-height:2.75rem;padding:.45rem .85rem;background:#1b2b28;color:#f4e6c9;border:1px solid #768679;border-radius:.25rem;line-height:1.2;cursor:pointer;}
+.hotel-nav button.hotel-go[aria-pressed="true"] {background:#e7ce9a;color:#231d15;border-color:#fce7b5;font-weight:700;}
+.hotel-partida :focus-visible {outline:3px solid #ffde99;outline-offset:2px;}
+.hotel-partida .hotel-progress {display:flex;flex-wrap:wrap;align-items:center;gap:.5rem 1rem;margin:.65rem 0;color:#ead4a4;font-weight:650;}
+.hotel-save {margin-inline-start:auto;font-size:.85rem;color:#c7d7c9;}
+.hotel-instrucciones {margin-block:.35rem .75rem;color:#f1deba;}
+.hotel-instrucciones>summary,.hotel-registro>summary {min-height:2.75rem;padding:.45rem .1rem;cursor:pointer;font-weight:600;}
+.hotel-instrucciones li {line-height:1.45;margin:.32rem 0;max-width:78ch;}
+.hotel-registro {margin:1rem 0 .2rem;border-block-start:1px solid #728075;}
+.hotel-partida [data-hotel-pane] {width:100%;margin:.25rem 0;min-width:0;scroll-margin-block-start:1rem;}
+.hotel-consigna {max-width:80ch;margin:.5rem 0 1rem;padding-inline-start:.65rem;border-inline-start:.18rem solid #c4aa7a;color:#f5e8ce;line-height:1.5;}
+@media(max-width:38rem){.hotel-nav button.hotel-go{flex:1 1 5.7rem;padding-inline:.5rem;}.hotel-save{margin-inline-start:0;}}

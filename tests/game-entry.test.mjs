@@ -34,7 +34,9 @@ async function load(file) {
       querySelectorAll() { return this.nodes().filter(item => item.dataset.focusKey); }
     };
   }
-  Object.assign(document, {createElement, body:createElement('body')});
+  Object.assign(document, {createElement, body:createElement('body'),createTextNode(text){
+    const node=createElement('#text');node.textContent=text;return node;
+  }});
   document.activeElement = document.body;
   const window = {ValdemarHour:{filterByRole() {}}, clearInterval() {}, setInterval() {}};
   if(file==='aventura-escena.js')runInNewContext(await source('mesa-de-juego.js'),{window,document});
@@ -76,6 +78,29 @@ test('Elegir pareja sin compañero conduce directamente al formulario de pareja 
   await picker.entry.nodes().find(node=>node.textContent==='En pareja').listeners.click();
   const link=picker.entry.nodes().find(node=>node.tag==='a');
   assert.equal(link.href,'/#perfil?seccion=pareja');
+});
+
+test('Hotel Medianoche muestra una sola vista y abre el desenlace al completar las cinco etapas',async()=>{
+  const {window,document}=await load('aventura-escena.js');
+  const frame=document.createElement('main');
+  const navigation=window.AventuraEscena.hotelNavigation(frame,(key,focus)=>navigation.show(key,focus));
+  frame.append(navigation.shell);
+  const buttons=navigation.shell.nodes().filter(node=>node.dataset.hotelGo);
+  const screens=new Map(buttons.map(button=>[button.dataset.hotelGo,document.createElement('section')]));
+  for(const [key,screen] of screens)navigation.bind(key,screen);
+  const stages=Array.from({length:5},(_,i)=>({title:'Etapa '+(i+1)}));
+  navigation.progress({stage:stages[0],current:0,stages});
+  assert.equal(navigation.show('desenlace'),false);
+  for(const button of buttons.filter(button=>!button.hidden)){
+    button.listeners.click();
+    assert.equal(document.activeElement,screens.get(button.dataset.hotelGo));
+    assert.deepEqual([...screens].filter(([,screen])=>!screen.hidden).map(([key])=>key),[button.dataset.hotelGo]);
+    assert.deepEqual(buttons.filter(item=>item.attributes['aria-pressed']==='true'),[button]);
+  }
+  navigation.progress({stage:null,current:5,stages});
+  assert.equal(navigation.show('resolver'),false);
+  assert.equal(navigation.show('desenlace'),true);
+  assert.equal(screens.get('desenlace').hidden,false);
 });
 
 test('La escena cambia con la etapa, respeta el papel y conecta cada punto con su material',async()=>{

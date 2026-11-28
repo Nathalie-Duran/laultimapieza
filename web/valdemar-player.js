@@ -61,6 +61,7 @@
     previous.scene?.destroy();
     previous.legacyExtra?.destroy();
     previous.legacyExplorer?.destroy();
+    previous.hotelNavigation?.destroy();
     previous.mansionView?.destroy();
     previous.hourView?.pause();
     pauseAudio(previous.frame);
@@ -73,19 +74,19 @@
   async function request(c, action, payload) {
     if (!sessionLive(c)) throw new Error('Inicia sesión para seguir jugando.');
     const body=payload===undefined?undefined:{...payload,partnerId:c.data?.partner?.id||null};
-    const tracking=body!==undefined&&c.scene;
-    if(tracking)c.scene.writing();
+    const tracking=body!==undefined&&(c.hotelNavigation||c.scene);
+    if(tracking)tracking.writing();
     let result;
     try {
       result=await c.bridge.request('/api/valdemar/cases/'+c.id+(action?'/'+action:''),body);
     } catch(error) {
-      if(tracking&&valid(c))c.scene.written(false);
+      if(tracking&&valid(c))tracking.written(false);
       if(error.code==='PAIR_CHANGED')reopen(c);
       else if(action==='pair-state' && sessionLive(c) && [401,402,403].includes(error.status))showFailure(c,error);
       throw error;
     }
     if(!sessionLive(c)) throw new Error('La partida ya no está abierta.');
-    if(tracking)c.scene.written(result?.correct===false?null:true);
+    if(tracking)tracking.written(result?.correct===false?null:true);
     return result;
   }
   async function run(c, key, operation, onError) {
@@ -126,6 +127,15 @@
   }
   function selectView(c,view,focus=false) {
     if(!valid(c) || c.blocked) return;
+    if(c.hotelNavigation){
+      const key={desk:'evidencias',hotel:'escenario',help:'pistas',game:'extra',ending:'desenlace'}[view]||view;
+      if(!c.hotelNavigation.show(key,focus))return;
+      if(c.view!==view){c.hourView?.pause();pauseAudio(c.frame);}
+      c.view=view;c.frame.dataset.openExtra=String(key==='extra');
+      if(key==='pistas')renderHelp(c);
+      if(key==='extra'&&!c.gameMounted)mountGame(c);
+      return;
+    }
       if(view==='game'&&c.view&&view!==c.view)c.scene?.rememberExtra(c.view);
     if(view!==c.view)c.hourView?.pause();
     if(view==='help' && c.view!=='help'){
@@ -245,8 +255,9 @@
       buy:async (op,quotedCost)=>{updateWallet(c,await request(c,op,{quotedCost}));help.focus({preventScroll:true});}});
     const from=c.helpFrom||'desk';
     const backLabel={game:'Volver al reto',hotel:'Volver a la recepción',ending:'Volver a la resolución',desk:'Volver al expediente'}[from];
-    envelope.append(element('h2',c.id===2?'Sobre de la gobernanta':'Sobre de ayuda'),body,
-      button(backLabel,()=>selectView(c,from,true),'vd-link'));
+    if(c.id===2)window.HotelCuaderno?.hints(body,c.data);
+    envelope.append(element('h2',c.id===2?'Sobre de la gobernanta':'Sobre de ayuda'),body);
+    if(!c.hotelNavigation)envelope.append(button(backLabel,()=>selectView(c,from,true),'vd-link'));
     help.replaceChildren(envelope);
     if(c.view==='help')c.scene?.returnFrom(help);
   }
@@ -316,7 +327,7 @@
     c.deskToggle.setAttribute('aria-controls',c.desk.id);
     c.deskToggle.setAttribute('aria-expanded','false');
     c.gamePanel.append(heading);
-    if(!c.scene){
+    if(!c.scene&&!c.hotelNavigation){
       const links=heading.querySelector('.reto-cabecera-nav');
       links.append(button('Volver al escenario',()=>selectView(c,'desk',true),'ae-back'));
       if(window.MesaDeJuego){
@@ -325,10 +336,10 @@
       }else {const help=element('gameplay-help');help.setAttribute('context','reto');links.append(help);}
     }
     if(!c.legacyExtra)c.gamePanel.append(element('p',c.game.pitch,'vd-note'));
-    c.gamePanel.append(c.deskToggle);
+    if(!c.hotelNavigation)c.gamePanel.append(c.deskToggle);
     if(c.id===1)c.gamePanel.append(element('p','Cada persona ve las vías de su época. Acordad una dirección en voz alta y pulsadla en las dos pantallas. Si os equivocáis, deshaced el movimiento en ambas.','vd-station-duo'));
-    c.gamePanel.append(c.board,c.rewardStatus,c.retryReward,c.restart,
-      button('Consultar mi sobre',()=>selectView(c,'help',true),'vd-link'));
+    c.gamePanel.append(c.board,c.rewardStatus,c.retryReward,c.restart);
+    if(!c.hotelNavigation)c.gamePanel.append(button('Consultar mi sobre',()=>selectView(c,'help',true),'vd-link'));
   }
   function decisionButtons(items,legend,submitLabel,submit,primary=true) {
     const form=element('form',null,'vd-decision');
@@ -429,6 +440,75 @@
     c.frame.dataset.blockEntry='true';
     return entry;
   }
+  function buildHotel(c){
+    const story=c.data.story;
+    c.frame.dataset.hotelUi='true';c.frame.dataset.adventureWorld='valdemar';
+    const navigation=window.AventuraEscena.hotelNavigation(c.frame,(key,focus)=>selectView(c,key,focus));
+    c.hotelNavigation=navigation;
+    const screen=(key,cls)=>{const node=element('section',null,'vd-panel '+cls);navigation.bind(key,node);return node;};
+    c.hotel=screen('escenario','vhour vhour-hotel-panel');
+    c.desk=screen('evidencias','vhour hotel-evidencias');
+    const problem=screen('resolver','vhour hotel-resolver'),bag=screen('inventario','vhour hotel-inventario');
+    c.help=screen('pistas','vd-help');c.ending=screen('desenlace','vd-ending');
+    const reading=element('div');c.desk.append(reading);
+    const papers=element('details',null,'hotel-registro');
+    papers.append(element('summary','Registro inicial y declaraciones de los huéspedes'));
+    const file=element('div',null,'vd-papers');papers.append(file);c.desk.append(papers);
+    function baseFiles(role){
+      file.replaceChildren();
+      for(const m of story.evidenceCards||[]){
+        if(role&&m.role&&m.role!=='AB'&&m.role!==role&&Number(m.role)!==(role==='A'?1:2))continue;
+        const doc=element('details',null,'vd-document');doc.append(element('summary',m.title),element('p',m.body));file.append(doc);
+      }
+    }
+    buildGame(c);navigation.bind('extra',c.gamePanel);
+    if(c.data.sample&&typeof window.montarMesa==='function'){
+      const service=element('details',null,'hotel-registro'),material=element('div');
+      service.append(element('summary','Prueba opcional · El armario de ropa blanca'),material);
+      service.addEventListener('toggle',()=>{
+        if(service.open&&!material.firstChild)window.montarMesa(material,c.data.sample,answer=>request(c,'sample',{answer}));
+      });
+      c.gamePanel.append(service);
+    }
+    const query=new URLSearchParams(location.hash.split('?')[1]),source=Number(query.get('desde'));
+    if(query.get('volver')==='pistas'&&Number.isInteger(source)&&source>=1&&source<=48&&source!==2){
+      c.gamePanel.append(link('Volver a las pistas de la otra aventura','#'+(source<=12?'valdemar-jugar':'mundos-jugar')+'?id='+source+'&seccion=pistas&retomar=1','vd-link'));
+    }
+    const entry=blockEntry(c,{title:story.title,mode:c.modeControl});
+    c.frame.replaceChildren(entry,navigation.shell);
+    let lastIndex=c.data.hour.current,role=c.data.partner?.role||null;
+    const controller={
+      caseId:2,role,hotelNode:c.hotel,hotelScreens:{reading,problem,bag},visitHotel:()=>selectView(c,'hotel',true),
+      finish:()=>selectView(c,'ending',true),
+      inventory:async input=>{
+        const result=await request(c,'inventory',input);if(result.wallet)updateWallet(c,result);return result;
+      },
+      submit:(index,choice,sources)=>request(c,'stage',{index,choice,...(sources?{sources}:{})}),
+      reload:async()=>{const latest=await request(c);c.data.progress=latest.progress;c.data.hour=latest.hour;return latest.hour;},
+      change:hour=>{c.data.hour=hour;renderEnding(c);},
+      onScene:hour=>{
+        navigation.progress(hour);
+        if(hour.current!==lastIndex){
+          const wasInvestigating=['resolver','evidencias'].includes(navigation.active);
+          lastIndex=hour.current;
+          if(wasInvestigating)selectView(c,hour.stage?'desk':'ending',true);
+        }
+      }
+    };
+    baseFiles(role);
+    c.showModePaper=paper=>{
+      const next=c.data.partner?.role||paper||null;
+      if(next===role)return;
+      role=next;controller.role=next;baseFiles(next);c.hourView?.update(c.data.hour);
+    };
+    c.hourView=window.ValdemarHour.mount(element('div'),c.data.hour,controller);
+    c.legacyExplorer=window.AventuraEscena.mountExplorer(c.hotel,c.frame,c.id);
+    renderEnding(c);updateWallet(c,c.data);c.modeControl.mount();
+    selectView(c,query.get('seccion')==='reto'?'game':query.get('seccion')==='pistas'?'help':c.data.hour.stage?'desk':'ending');
+    if(navigation.active==='evidencias')navigation.enter();
+    const refreshRewards=async()=>{try{const latest=await request(c);if(valid(c))updateWallet(c,latest);}catch{}};
+    for(const name of ['season-room-reward','mansion-arcade-reward','editorial-challenge-solved'])c.frame.addEventListener(name,refreshRewards);
+  }
   function build(c) {
     const {story}=c.data;
     const number=String(c.id).padStart(2,'0');
@@ -457,6 +537,7 @@
       },readDossier:()=>request(c),
       onState:state=>{const advanced=window.ModalidadJuego.syncProgress(c.data,state,c.hourView,()=>renderEnding(c));updateWallet(c,state);return advanced;},reopen:()=>reopen(c)
     });
+    if(c.id===2&&c.data.hour?.hotel){buildHotel(c);return;}
     description.append(element('p',story.question,'vd-question'));
     if(c.episode?.legacy)(c.data.hour?headlinks:description).append(editionButton(c,'Abrir El secreto de los dos mundos','start'));
     if(story.intro)description.append(element('p',story.intro,'vd-narrative'));
@@ -612,6 +693,8 @@
   function showFailure(c,e) {
     c.modeControl?.destroy();
     c.entryObserver?.disconnect();
+    c.legacyExplorer?.destroy();
+    c.hotelNavigation?.destroy();
     c.mansionView?.destroy();
     c.hourView?.pause();pauseAudio(c.frame);
     const common=c.id>=1&&c.id<=4;

@@ -340,5 +340,76 @@
         target?.focus({preventScroll:true});(entry||host).scrollIntoView({block:'start',behavior:'instant'});
       },destroy(){cancelEntryFocus();observer.disconnect();explorer.destroy();shared?.destroy();}};
   }
-  window.AventuraEscena=Object.freeze({mount,mountExplorer,challengeHeader});
+  function hotelNavigation(frame,onSelect){
+    const shell=el('div','hotel-partida'),nav=el('nav','hotel-nav'),status=el('p','hotel-progress');
+    nav.setAttribute('aria-label','Investigar en Hotel Medianoche');
+    const labels={escenario:'Escenario',evidencias:'Evidencias',resolver:'Resolver',inventario:'Inventario',pistas:'Pistas',extra:'Reto extra',desenlace:'Desenlace'};
+    const buttons=new Map(),screens=new Map();
+    for(const [key,label] of Object.entries(labels)){
+      const b=button(label,()=>onSelect(key,true),'hotel-go');b.dataset.hotelGo=key;
+      b.setAttribute('aria-controls','hotel-vista-'+key);nav.append(b);buttons.set(key,b);
+    }
+    const save=el('span','hotel-save');save.setAttribute('role','status');
+    const help=el('details','hotel-instrucciones'),guide=el('ol');
+    help.append(el('summary',null,'Cómo se juega'),guide);
+    for(const tip of [
+      'En Evidencias, abre un documento y examina las marcas o experimenta con sus controles. En pareja, describid lo que contiene vuestra carpeta.',
+      'En Escenario puedes recorrer el hotel, recoger objetos y enseñárselos a los testigos. El Inventario conserva los hallazgos.',
+      'En Resolver, contrasta tu hipótesis. Si necesitas ayuda, entra en Pistas. Al completar las cinco etapas podrás decidir el desenlace.'
+    ])guide.append(el('li',null,tip));
+    shell.append(nav,status,help);
+    let pending=0,failed=false,active=null,focusRequest=null,entryObserver=null;
+    function cancelEntry(){focusRequest?.abort();focusRequest=null;}
+    function focusFirstEvidence(){
+      if(active!=='evidencias'||!['solo','duo'].includes(frame.dataset.playMode))return;
+      const slot=screens.get('evidencias');
+      const card=slot?.querySelector('.vhour-material[open]:not([hidden])>summary');
+      if(!card||!card.getClientRects().length)return;
+      const clearance=Math.ceil(nav.getBoundingClientRect().height)+10;
+      shell.style.setProperty('--hotel-nav-alto',(clearance-10)+'px');
+      const heading=slot.querySelector('h2'),instruction=slot.querySelector('.hotel-consigna');
+      const first=[...card.parentElement.querySelectorAll('button,input,select')].find(b=>!b.disabled&&b.getClientRects().length);
+      const bottom=(first||card).getBoundingClientRect().bottom;
+      const fits=node=>node&&bottom-node.getBoundingClientRect().top+clearance<innerHeight-70;
+      const target=fits(heading)?heading:fits(instruction)?instruction:card;
+      card.focus({preventScroll:true});
+      // El documento se abre en el scroll de la página. Deja la lectura completa justo después del menú fijo.
+      window.scrollBy({top:Math.round(target.getBoundingClientRect().top-clearance),behavior:'instant'});
+    }
+    function scheduleEntry(){
+      cancelEntry();focusRequest=new AbortController();
+      const check=focusRequest;
+      for(const type of ['pointerdown','keydown','click','wheel','touchmove'])document.addEventListener(type,cancelEntry,{capture:true,passive:true,signal:check.signal});
+      queueMicrotask(()=>{if(!check.signal.aborted)focusFirstEvidence();});
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{if(!check.signal.aborted)focusFirstEvidence();}));
+      const timer=setTimeout(()=>{if(check.signal.aborted)return;focusFirstEvidence();cancelEntry();},260);
+      check.signal.addEventListener('abort',()=>clearTimeout(timer),{once:true});
+    }
+    function enter(){
+      entryObserver?.disconnect();
+      if(['solo','duo'].includes(frame.dataset.playMode)){scheduleEntry();return;}
+      entryObserver=new MutationObserver(()=>{
+        if(!['solo','duo'].includes(frame.dataset.playMode))return;
+        entryObserver.disconnect();scheduleEntry();
+      });
+      entryObserver.observe(frame,{attributes:true,attributeFilter:['data-play-mode']});
+    }
+    const bind=(key,node)=>{node.dataset.hotelPane=key;node.id='hotel-vista-'+key;node.tabIndex=-1;node.hidden=true;screens.set(key,node);shell.append(node);};
+    function show(key,focus){
+      if(!screens.has(key)||buttons.get(key).hidden)return false;
+      active=key;frame.dataset.hotelView=key;
+      for(const [id,screen] of screens){screen.hidden=id!==key;buttons.get(id).setAttribute('aria-pressed',String(id===key));}
+      if(focus){const screen=screens.get(key);screen.focus({preventScroll:true});nav.scrollIntoView({block:'start',behavior:'instant'});}
+      return true;
+    }
+    function progress(hour){
+      const finished=!hour?.stage;
+      buttons.get('resolver').hidden=finished;buttons.get('desenlace').hidden=!finished;
+      status.replaceChildren(document.createTextNode(finished?'Investigación completada':'Etapa '+(hour.current+1)+' de '+hour.stages.length),save);
+    }
+    return {shell,bind,show,progress,enter,destroy(){cancelEntry();entryObserver?.disconnect();},get active(){return active;},
+      writing(){if(!pending)failed=false;pending++;save.textContent='Guardando…';},
+      written(ok){failed ||= ok===false;pending=Math.max(0,pending-1);save.textContent=pending?'Guardando…':failed?'Última acción sin confirmar':ok===null?'Respuesta comprobada':'Progreso guardado';}};
+  }
+  window.AventuraEscena=Object.freeze({mount,mountExplorer,challengeHeader,hotelNavigation});
 })();
