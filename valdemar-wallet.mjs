@@ -17,7 +17,12 @@ function createWallet() {
 function walletRecord(data, editorial) {
   data.valdemarSeasonOne ||= {};
   const scope = editorial ? 'editorial' : 'paid';
-  return data.valdemarSeasonOne[scope] ||= createWallet();
+  const wallet=data.valdemarSeasonOne[scope] ||= createWallet();
+  wallet.welcomes ||= [];
+  wallet.won ||= [];
+  wallet.opened ||= [];
+  wallet.second ||= [];
+  return wallet;
 }
 
 function ledger(wallet) {
@@ -30,6 +35,8 @@ function ledger(wallet) {
       ...wallet.opened.map(id=>historic('open',id,-1,id)),
       ...wallet.second.map(id=>historic('second',id,0,id))
     ];
+  }else if(!Array.isArray(wallet.legacyEnvelopes)){
+    wallet.legacyEnvelopes=wallet.entries.filter(row=>row.kind==='open' && row.at==null && Number.isInteger(row.caseId)).map(row=>row.caseId);
   }
   return wallet.entries;
 }
