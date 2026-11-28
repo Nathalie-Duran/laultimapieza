@@ -20,7 +20,7 @@
     let state=options.state?.mansion||options.state,role=options.role||state?.role;
     const paired=role==='A'||role==='B';
     let world=paired?role:'A',tab='scene',disposed=false,busy=false,requestId=0,activeDevice=false,selectedEvidence=null;
-    let openMission=null,roomId=state?.explore?.id||state?.stage?.room||rooms[0],notice='',noticeError=false;
+    let openMission=null,missionSource=null,roomId=state?.explore?.id||state?.stage?.room||rooms[0],notice='',noticeError=false;
     let explore=state?.explore?.id===roomId?state.explore:null;
     const drafts=new Map(),seen=new Map(),audioPlayers=new Set();
     let pendingHint=null;
@@ -60,7 +60,7 @@
       if(speaking){window.speechSynthesis?.cancel();speaking=false;}
     }
     let speaking=false;
-    function switchTab(id){stopAudio();tab=id;draw();}
+    function switchTab(id){stopAudio();missionSource=null;tab=id;draw();}
     function say(text,error=false){notice=text||'';noticeError=error;message.textContent=notice;message.dataset.error=String(error);}
     function focusTarget(selector){const target=panel.querySelector(selector);if(target){target.focus({preventScroll:true});target.scrollIntoView?.({block:'nearest'});}}
     function observe(items){
@@ -76,7 +76,7 @@
       if(Number.isFinite(state?.revision)&&Number.isFinite(next.revision)&&next.revision<state.revision)return;
       const advanced=next.current!==state?.current||Boolean(next.ending)!==Boolean(state?.ending);
       state=next;
-      if(advanced){roomId=state.stage?.room||roomId;activeDevice=false;selectedEvidence=null;openMission=null;pendingHint=null;}
+      if(advanced){roomId=state.stage?.room||roomId;activeDevice=false;selectedEvidence=null;openMission=null;missionSource=null;pendingHint=null;}
       else if(!keepRoom&&next.explore?.id)roomId=next.explore.id;
       if(next.explore?.id===roomId)explore=next.explore;
       else if(explore?.id!==roomId)explore=null;
@@ -228,7 +228,7 @@
         if(localStage&&n===1)control.className+=' mansion-device-pin';
         control.style.setProperty('--x',point[0]+'%');control.style.setProperty('--y',point[1]+'%');
         const dot=el('span','mansion-dot');dot.dataset.number=String(n);dot.setAttribute('aria-hidden','true');
-        control.append(dot,el('span','mansion-marker-label',label));frame.append(control);
+        control.append(dot,el('span','mansion-marker-label',label));frame.append(control);return control;
       }
       function returnButton(n){
         return button('Volver al escenario',()=>{
@@ -241,6 +241,14 @@
       for(const [i,item] of localItems.slice(0,2).entries()){
         const point=i<2?map[i+1]:[18+(i%4)*18,70+Math.min(2,Math.floor(i/4))*7];
         marker(item.title||'Examinar',point,()=>{selectedEvidence=i;activeDevice=false;draw();focusTarget('.mansion-inspection h4');},i+(localStage?2:1));
+      }
+      const encounter=(state.missions||[]).find(m=>m.available&&m.room===room.id);
+      if(encounter){
+        const pin=marker(encounter.title,[24,23],()=>{
+          stopAudio();activeDevice=false;selectedEvidence=null;openMission=encounter.id;missionSource=encounter.id;tab='bag';
+          draw();focusTarget('.mansion-encounter-title');
+        },'✦');
+        pin.className+=' mansion-mission-pin';pin.setAttribute('aria-label','Misión opcional · '+encounter.title);
       }
       const caption=el('div','mansion-caption');caption.append(el('h3','mansion-room-title',room.title));
       scene.append(frame,caption);panel.append(scene);
@@ -268,7 +276,8 @@
       const list=el('section','mansion-missions');list.append(el('h3',null,'Misiones opcionales'));
       for(const mission of state.missions||[]){
         const section=el('article','mansion-card');
-        section.append(el('h4',null,mission.title),el('p',null,mission.brief||''));
+        const heading=el('h4',missionSource===mission.id?'mansion-encounter-title':null,mission.title);
+        heading.tabIndex=-1;section.append(heading,el('p',null,mission.brief||''));
         if(mission.reward)section.append(el('p','mansion-readout',mission.reward+(mission.reward===1?' llave':' llaves')));
         if(mission.completed)section.append(el('p','mansion-readout','Misión completada'));
         else if(!mission.available)section.append(el('p','mansion-readout','Aún por descubrir'));
@@ -280,6 +289,9 @@
             section.append(displayPuzzle(mission,true));
           }
         }
+        if(missionSource===mission.id)section.append(button('Volver al lugar del hallazgo',()=>{
+          openMission=null;switchTab('scene');focusTarget('.mansion-mission-pin');
+        }));
         list.append(section);
       }
       return list;

@@ -39,12 +39,13 @@ const sceneCovers = new Set(["cartas-medianoche","ultima-funcion","archivo-ausen
 function sceneImage(s){return s && sceneCovers.has(s.id) ? '/' + s.id + '.jpg' : '';}
 
 function clubCover(m) {
- const join=root.ClubAccess?.checkoutAvailable===true?'Ver la suscripción':'Pedir aviso de apertura';
- const action=m.canPlay?'<a class="front-join" href="/#casos">Elegir un juego</a>':'<a class="front-join" href="/#planes">'+join+'</a>';
+ const waiting=root.ClubAccess?.salesState==='waitlist';
+ const action=m.canPlay?'<a class="front-join" href="/#casos">Elegir un juego</a>':
+   waiting?'<a class="front-join" href="/#alta-club">Avisarme cuando abra</a>':'<a class="front-join" href="/#planes">Ver la suscripción</a>';
  return `<section class="front-club" aria-labelledby="front-club-title"><div class="front-club-copy">
    <p class="front-club-kicker">Club de investigación</p><h1 id="front-club-title">Cuatro juegos de misterio al mes</h1>
    <p>Examina escenas, escucha grabaciones y combina objetos para resolver cada caso. Puedes jugar a solas o repartir las pistas con otra persona.</p>
-   <div class="front-club-offer">${action}${m.canPlay?'':'<span><strong>29,95 €</strong> por persona y mes</span>'}</div></div>
+   <div class="front-club-offer">${action}${m.canPlay?'':'<span><strong>'+esc(root.ClubAccess?.price||'29,95 €')+'</strong> por persona y mes</span>'}</div></div>
    <a class="front-demo" href="/cinta-87.html" data-action="preview-open" data-home-demo>
     <span class="front-demo-photo"><img src="/cinta87-mesa.webp" width="1536" height="1024" fetchpriority="high" alt=""></span>
     <span class="front-demo-copy"><small>Demo sin cuenta · 10–15 min</small><strong>La cinta 87</strong>
