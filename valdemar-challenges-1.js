@@ -250,7 +250,7 @@
 
   Object.assign(window.Retos, {
     1:{title:'Dos vagonetas, un mando',pitch:'En la maqueta del museo están las vías de 1996 junto a las de 2026. La antigua palanca mueve las dos vagonetas a la vez, aunque las obras dejaron caminos distintos. Lleva cada una hasta su muelle.',mount:railway},
-    2:{title:'El turno del conserje',pitch:'Además de las tres reservas antiguas, recepción tiene pendientes las llegadas del turno ordinario. El conserje ha dejado seis habitaciones y cinco peticiones. ¿Dónde dormirá cada huésped esta noche?',mount:hotel},
+    2:{title:'El turno del conserje',pitch:'En el libro del turno ordinario quedan seis habitaciones y cinco huéspedes por alojar. Lee sus peticiones, asigna las habitaciones y deja una libre para el turno de mañana.',mount:hotel},
     3:{title:'Un paseo de nueve recuerdos',pitch:'Durante el trayecto, sobre la mesa del vagón aparecen nueve tarjetas para romper el hielo. Enlaza sus anécdotas e inventa un paseo que empiece bajo la lluvia y termine al amanecer.',mount:conversation},
     4:{title:'La mesa de mezclas',pitch:'En el estante de continuidad quedan dos sintonías de la emisora desmontadas en bucles. Antes de devolverlas a antena, ajusta la percusión de tres canales hasta que cada pulso coincida con la referencia.',mount:mixer}
   });
