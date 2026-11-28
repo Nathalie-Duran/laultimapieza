@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {readFile,access} from 'node:fs/promises';
 import {test} from 'node:test';
 import {createContext,runInContext} from 'node:vm';
+import {SEASON_NAMES} from '../progression.mjs';
+import {messageTemplate} from '../mail-service.mjs';
 
 async function publicSite(){
   const page=createContext({location:{hash:'#casos'},URLSearchParams});
@@ -11,6 +13,23 @@ async function publicSite(){
   }
   return page;
 }
+
+test('cada nombre editorial coincide en el catálogo, el mapa, el pase y la invitación al primer caso de su tablero',async()=>{
+  const page=await publicSite();
+  const names=['Código Valdemar','La ruta prohibida','El tercer jugador','La ira de Ra'];
+  assert.deepEqual(SEASON_NAMES,names);
+  for(const [index,season] of page.Colecciones.seasons.entries()){
+    const name=names[index];
+    assert.equal(season.name,name);
+    page.location.hash=page.Colecciones.catalogRoute(season.board).replace(/^\//,'');
+    assert.ok(page.ValdemarCatalog.list({}).includes('<h1>'+name+'</h1>'));
+    const map=index?page.Mundos.view(season.board):page.ValdemarPlano.view({});
+    assert.ok(map.includes(name));
+    const mail=messageTemplate('case_invitation',{caseId:index*12+1});
+    assert.ok(mail.text.includes(name));
+    assert.ok(mail.html.includes(name));
+  }
+});
 
 test('los doce bloques presentan exactamente los 48 destinos, con sus ilustraciones y sus fichas',async()=>{
   const page=await publicSite(),ids=new Set(),assets=new Set();
