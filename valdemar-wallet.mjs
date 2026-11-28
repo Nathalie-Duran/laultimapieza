@@ -74,9 +74,9 @@ export function purchaseMansionHint(data,scope,stage,tier,quotedCost) {
   return true;
 }
 
-export function creditPublishedChallenge(data,scope,challengeId,caseId,advanced=false) {
+export function creditPublishedChallenge(data,scope,challengeId,caseId,advanced=false,calendar=false) {
   if(typeof challengeId!=='string'||!challengeId||!Number.isInteger(caseId)||caseId<1||caseId>WORLD_CASE_COUNT)throw new Error('Reto publicado no válido.');
-  return addEntry(walletRecord(data,scope==='editorial'),'challenge',challengeId,advanced?2:1,caseId);
+  return addEntry(walletRecord(data,scope==='editorial'),calendar?'calendarChallenge':'challenge',challengeId,advanced?2:1,caseId);
 }
 
 // The caller owns the locked member record and commits the classic and Valdemar reset together.
