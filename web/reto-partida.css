@@ -1,0 +1,78 @@
+.vd-player[data-open-extra="true"]:is([data-play-mode="solo"],[data-play-mode="duo"]) > .ae-scene {
+  display:none;
+}
+.vd-player .vd-game,.md-game .md-game-side,.ma-panel.ma87-panel {
+  --reto-ink:#142421;
+  --reto-paper:#f5ead4;
+  --reto-gold:#f4ce8c;
+  min-width:0;
+  scroll-margin-block-start:5.5rem;
+}
+.vd-player .reto-cabecera,.ma-panel .reto-cabecera {
+  display:grid;
+  grid-template-columns:minmax(9rem,30%) minmax(0,1fr);
+  align-items:stretch;
+  gap:0;
+  margin:0;
+  padding:0;
+  background:var(--reto-ink);
+  color:var(--reto-paper);
+  border:1px solid #5a7166;
+  border-radius:.58rem;
+  overflow:hidden;
+  text-align:start;
+}
+.reto-cabecera .reto-foto {
+  display:block;
+  width:100%;
+  height:100%;
+  min-height:9rem;
+  max-height:15rem;
+  object-fit:cover;
+}
+.reto-cabecera .reto-cabecera-copy {
+  display:grid;
+  align-content:center;
+  align-items:start;
+  min-width:0;
+  padding:clamp(.95rem,2.4vw,1.75rem);
+  gap:.38rem;
+}
+.vd-player .reto-cabecera .reto-procedencia,.ma87-panel .reto-cabecera .reto-procedencia {
+  color:var(--reto-gold);
+  font:650 .84rem/1.45 var(--sans,system-ui,sans-serif);
+  margin:0;
+  overflow-wrap:anywhere;
+}
+.vd-player .reto-cabecera .reto-nombre,.ma87-panel .reto-cabecera :is(h1,h2) {
+  margin:0;
+  max-width:32ch;
+  padding:0;
+  color:var(--reto-paper);
+  background:none;
+  font:500 clamp(1.55rem,3.3vw,2.85rem)/1.1 var(--serif,Georgia,serif);
+  text-wrap:balance;
+  overflow-wrap:break-word;
+}
+.reto-cabecera .reto-cabecera-nav { display:flex; align-items:center; flex-wrap:wrap; gap:.1rem 1rem; }
+.vd-player .reto-cabecera-nav :is(a,button) {
+  display:inline-flex; align-items:center; min-height:44px; max-width:100%;
+  padding:.35rem .12rem; margin:0; border:0; border-radius:.12rem;
+  font:650 .9rem/1.35 var(--sans,system-ui,sans-serif); color:var(--reto-gold);
+  text-align:start; background:transparent; text-decoration:underline; text-underline-offset:.26em;
+}
+.vd-player .reto-cabecera-nav :is(a,button):is(:hover,:focus-visible) { color:#fff5dd; background:#28453a; }
+.vd-player .reto-cabecera-nav :is(a,button):focus-visible { outline:3px solid #f4ce8c; outline-offset:2px; }
+.md-game-side > .ae-mesa,.vd-game > .ae-mesa,.ma87-panel > [data-ma-mesa] { margin:.6rem 0 1.05rem; }
+.vd-game:has(> .ae-mesa .mj-goal:not([hidden])) > .vd-note { display:none; }
+.vd-player .vd-game > .vd-desk-toggle { margin-bottom:1rem; }
+.md-game-side .vhour-task :is(button,select),.ma87-panel :is(button,select,summary) { min-height:44px; }
+@media(max-width:40rem){
+  .vd-player .reto-cabecera,.ma-panel .reto-cabecera { grid-template-columns:minmax(0,1fr); }
+  .reto-cabecera .reto-foto { height:clamp(6.8rem,31vw,10rem); min-height:0; }
+  .vd-player .vd-game,.md-game .md-game-side,.ma-panel.ma87-panel { scroll-margin-block-start:1rem; }
+}
+@media(forced-colors:active){
+  .vd-player .reto-cabecera,.ma-panel .reto-cabecera { border:1px solid CanvasText; }
+  .reto-cabecera-nav :is(a,button):focus-visible { outline-color:Highlight; }
+}

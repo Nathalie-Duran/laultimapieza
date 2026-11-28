@@ -159,8 +159,7 @@ test('cada pista requiere una petición y el reinicio confirmado preserva los ex
   h.click('reset');h.click('confirm-reset');
   assert.equal(h.demo.hasProgress(),false);
   assert.equal(h.storage.get(legacy),value);
-  h.click('archive');
-  assert.equal(h.destinations[0],'/cinta-87.html?archivo=1');
+  assert.doesNotMatch(h.html,/archivo=1|Marta y Tomás|data-c87="archive"/);
   assert.deepEqual(h.events,['start','hint','hint','hint']);
 });
 

@@ -60,11 +60,16 @@
     else if(world==='mapa'&&!seasonAccess)items.filter(item=>access(item,opts)).forEach(item=>allowed.add(item.id));
     const map=world==='mapa'?'mapa?mes='+month:world+'?lugar='+first;
     const monthLink=n=>collections?.catalogRoute?.(world,n)||'/#casos?mes='+n;
-    return `<section class="vd-section vd-list" data-catalog-world="${world}"><header class="vd-head"><div><h1>Juegos</h1><p class="vd-catalog-intro">Elige una temporada para ver sus juegos. Puedes explorar las fichas o jugar a las aventuras que tengas disponibles.</p><p class="vd-label">1–2 participantes · ≈ 60 min por juego</p></div><nav class="vd-route-links" aria-label="Mapa de la temporada elegida"><a class="vd-textlink" href="/#${map}">Ver el mapa de esta temporada ↗</a><a class="vd-textlink" href="/#como-se-juega">Cómo se juega</a></nav></header>
+    const guest=!opts.canPlay&&!opts.admin&&!window.ClubAccess?.canPlay;
+    const offer=window.ClubAccess?.offerAction||{href:'/#planes',label:'Ver la suscripción'};
+    const price=window.ClubAccess?.price;
+    const intro=guest?'Abre una ficha para descubrir qué misterio te espera. La suscripción empieza con los cuatro primeros juegos de Código Valdemar. Cada temporada reúne doce.':'Elige una temporada para ver sus juegos. Abre una ficha o continúa una aventura disponible.';
+    const actions=guest?`<nav class="vd-actions" aria-label="Suscripción y demo"><a class="vd-cta" href="${esc(offer.href)}">${esc(offer.label)}</a><a class="vd-textlink" href="/cinta-87.html" data-action="preview-open">Probar la demo sin cuenta</a></nav>`:'';
+    return `<section class="vd-section vd-list" data-catalog-world="${world}"><header class="vd-head"><div><h1>Juegos</h1><p class="vd-catalog-intro">${intro}</p><p class="vd-label">1–2 participantes · ≈ 60 min por juego${guest&&price?' · '+esc(price)+' por persona al mes':''}</p>${actions}</div><nav class="vd-route-links" aria-label="Mapa y guía"><a class="vd-textlink" href="/#${map}">Ver el mapa de esta temporada ↗</a>${guest?'':'<a class="vd-textlink" href="/#como-se-juega">Cómo se juega</a>'}</nav></header>
       ${collections?.menu?.('casos')||''}
       <nav class="vd-months" aria-label="Bloques de ${esc(season.name)}">${[1,2,3].map(n=>`<a href="${esc(monthLink(n))}"${month===n?' aria-current="page"':''}>Bloque ${n} <small>${number((n-1)*4+1)}–${number(n*4)}</small></a>`).join('')}</nav>
       ${cards(month,{games,done,allowed})}
-      ${world==='mapa'?'<p class="vd-foot"><a href="/#archivo-clasico">Visitar el archivo de casos anteriores</a></p>':''}</section>`;
+      </section>`;
   }
   function entry(item,opts,unlocked) {
     const href=unlocked?'/#valdemar-jugar?id='+item.id:'/#planes';
@@ -91,6 +96,7 @@
       <div class="mansion-entry-copy"><p class="mansion-entry-kicker">Código Valdemar · Episodio 01</p><h1 id="mansion-entry-title">El secreto de los dos mundos</h1>
       <p>Ada os envía una foto de vuestra infancia tomada frente a una casa que ninguno recuerda. Cuando llegáis, uno encuentra luz en las ventanas. El otro las ve tapiadas.</p>
       <div class="mansion-entry-actions">${unlocked?enter+letter:letter+alternate}</div>
+      ${detailView?(window.RetosTemporada?.acceso(1,unlocked)||''):''}
       <p class="mansion-entry-format">Aventura gráfica · 1–2 jugadores · 75–90 min estimados</p></div></section>`;
   }
   function mansionDetail(unlocked,message) {
@@ -124,7 +130,7 @@
     ).join('');
     return `<article class="vd-detail"><nav class="vd-route-links" aria-label="Explorar Código Valdemar"><a class="vd-back" href="/#casos?mes=${item.month}">Volver a los juegos del bloque ${item.month}</a><a class="vd-back" href="/#mapa?mes=${item.month}&amp;lugar=${item.id}">Situar en el plano</a></nav>
       <header class="vd-feature"><figure><img src="${item.image}" width="764" height="508" alt="${esc(item.coverAlt)}" fetchpriority="high"><figcaption>${esc(item.place)}</figcaption></figure>
-      <div class="vd-description"><p class="vd-label">Código Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}</div>${unlocked?'':'<p class="vd-availability">'+esc(message)+'</p>'}</div></header>
+      <div class="vd-description"><p class="vd-label">Código Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}</div>${window.RetosTemporada?.acceso(item.id,unlocked)||''}${unlocked?'':'<p class="vd-availability">'+esc(message)+'</p>'}</div></header>
       ${item.id===2?hotelCall(cta):''}
       <section class="vd-brief"><div><h2>Los dos papeles</h2><details class="vd-modes-help"><summary>Cómo repartirse las pistas</summary><p>A solas puedes abrir ambas carpetas. En pareja, elegíos en vuestros perfiles y pulsad «En pareja» en el caso. Cada uno recibe una carpeta.</p><a class="vd-textlink" href="/#perfil">Ver mi compañero de juego</a></details></div><ol><li><strong>Papel 1</strong>${esc(item.roleA)}</li><li><strong>Papel 2</strong>${esc(item.roleB)}</li></ol></section>
       <nav class="vd-case-steps" aria-label="Otros expedientes de Código Valdemar">${adjacent}</nav>${demo}</article>`;

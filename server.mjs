@@ -45,7 +45,7 @@ export function createApp({api,authProxy=firebaseAuthProxy} = {}) {
       return res.end();
     }
     if (route === '/caso/habitacion-309/portada.png') return reply(410, 'Portada retirada');
-    if (/^\/bellamar(?:\/|$)/.test(route) || /^\/evidence\/habitacion-309\.(?:html|svg)$/.test(route)) {
+    if (/^\/caso\/[a-z0-9-]+(?:\/(?:index\.html)?)?$/.test(route) || /^\/bellamar(?:\/|$)/.test(route) || /^\/evidence\/habitacion-309\.(?:html|svg)$/.test(route)) {
       res.setHeader('X-Robots-Tag', 'noindex');
     }
     if (route === '/health') return reply(200, 'ok');

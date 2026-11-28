@@ -8,7 +8,7 @@ import {messageTemplate} from '../mail-service.mjs';
 async function publicSite(){
   const page=createContext({location:{hash:'#casos'},URLSearchParams});
   page.window=page;
-  for(const name of ['colecciones','valdemar-catalog','mundos-catalogo','valdemar-plano','mundos-vista']){
+  for(const name of ['retos-temporada','colecciones','valdemar-catalog','mundos-catalogo','valdemar-plano','mundos-vista']){
     runInContext(await readFile(new URL('../web/'+name+'.js',import.meta.url),'utf8'),page);
   }
   return page;
@@ -21,7 +21,7 @@ test('la miga de los cuatro mapas vuelve al territorio activo y su nombre se con
     page.location.hash='#'+route;
     const crumb=page.Colecciones.breadcrumb(route),menu=page.Colecciones.menu(route);
     assert.ok(crumb.includes('href="/#tableros?mundo='+route+'"'));
-    assert.ok(crumb.includes(' Temporadas</a>'));
+    assert.ok(crumb.includes(' Mapa de temporadas</a>'));
     assert.ok(!crumb.includes(season.name));
     assert.ok(menu.includes('href="/#'+route+'" aria-current="page"'));
     const map=route==='mapa'?page.ValdemarPlano.view({}):page.Mundos.view(route);
@@ -128,4 +128,33 @@ test('el catálogo diferencia en una misma fila el acceso, la pieza conservada y
   assert.match(html,/class="vd-card-action" href="\/#mundos-jugar\?id=15" aria-label="Jugar/);
   assert.doesNotMatch(html,/href="\/#mundos-jugar\?id=(14|16)"/);
   assert.equal((html.match(/class="vd-card-info"/g)||[]).length,2);
+});
+
+test('los cuatro mapas abren su directorio y las 48 fichas enlazan el reto de la aventura seleccionada',async()=>{
+  const page=await publicSite();
+  for(const [seasonIndex,season] of page.Colecciones.seasons.entries()){
+    page.location.hash='#'+season.board;
+    const map=seasonIndex?page.Mundos.view(season.board):page.ValdemarPlano.view({});
+    assert.ok(map.includes('class="extra-mapa-link" href="/#desafios?mundo='+season.board+'"'));
+    for(let local=1;local<=12;local++){
+      const id=12*seasonIndex+local;
+      const expected=(href,html)=>{
+        const links=html.match(/<a class="extra-ficha-link"[^>]*>/g)||[];
+        assert.equal(links.length,1,season.name+' '+local);
+        assert.ok(links[0].includes('href="'+href+'"'),links[0]);
+      };
+      for(const allowed of [false,true]){
+        const viewer=seasonIndex?{seasonAccess:{availableCases:allowed?[id]:[]}}:{admin:allowed};
+        const target=id===1?'/#desafios?seccion=sala':allowed?
+          '/#'+(seasonIndex?'mundos':'valdemar')+'-jugar?id='+id+'&amp;seccion=reto':
+          '/#desafios?mundo='+season.board+'&amp;reto='+id;
+        page.location.hash='#'+season.board+'?lugar='+local;
+        const mapStop=seasonIndex?page.Mundos.view(season.board,viewer):page.ValdemarPlano.view(viewer);
+        expected(target,mapStop);
+        page.location.hash+='&seccion=ficha';
+        const standalone=seasonIndex?page.Mundos.view(season.board,viewer):page.ValdemarCatalog.detail(id,viewer);
+        expected(target,standalone);
+      }
+    }
+  }
 });

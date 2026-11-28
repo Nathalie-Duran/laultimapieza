@@ -50,3 +50,18 @@ test('Las antiguas invitaciones a la 309 redirigen al catálogo actual',async()=
     }
   }
 });
+
+test('Los enlaces publicados de casos anteriores llevan a Juegos y no figuran en el índice',async()=>{
+  const server=createApp();
+  try{
+    const sitemap=await (await request(server,'/sitemap.xml')).text();
+    assert.doesNotMatch(sitemap,/\/caso\//);
+    assert.match(sitemap,/\/valdemar\/01\//);
+    const response=await request(server,'/caso/cartas-medianoche/');
+    assert.equal(response.headers.get('x-robots-tag'),'noindex');
+    const html=await response.text();
+    assert.match(html,/rel="canonical" href="https:\/\/www\.laultimapieza\.es\/#casos"/);
+    assert.match(html,/location\.replace\(location\.hash/);
+    assert.doesNotMatch(html,/data-featured-case|Archivo clásico/i);
+  }finally{server.close();}
+});

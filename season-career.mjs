@@ -78,9 +78,9 @@ export function seasonCareer(data, scope) {
   const ordinaryDeductions=deductions-(awakened && !records[1]?.deduced?1:0);
   const boards = pieces.filter(count => count === 12).length;
   const rewards = [
-    {name: 'Pruebas sencillas o de ediciones anteriores', count: stages - complex, unit: xpRates.stage},
+    {name: 'Otras pruebas resueltas', count: stages - complex, unit: xpRates.stage},
     {name: 'Pruebas complejas', count: complex, unit: xpRates.complex},
-    {name: 'Misiones secretas y epílogo secreto del archivo clásico', count: secrets, unit: xpRates.mission},
+    {name: 'Misiones secretas y epílogo de Las doce noches', count: secrets, unit: xpRates.mission},
     {name: 'Retos paralelos ganados', count: side, unit: xpRates.parallel},
     {name: 'Aventuras terminadas', count: finished, unit: xpRates.ending},
     {name: 'Tableros completados', count: boards, unit: xpRates.board},

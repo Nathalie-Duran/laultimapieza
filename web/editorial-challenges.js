@@ -52,10 +52,15 @@
     }
   });
   function view(standalone=false) {
-    const heading=standalone?'<h1>Calendario de juego</h1>':'<h2>Calendario de juego</h2>';
+    const heading=standalone?'<h1>Calendario de retos</h1>':'<h2>Calendario de retos</h2>';
     const signed=window.GameAccountBridge?.isSignedIn?.()===true;
+    const guestActions='<div class="calendar-access"><a class="button primary" href="/#planes">Ver la suscripción</a><button type="button" class="text-link" data-action="auth-login">Ya tengo acceso · Entrar</button></div>';
     const published='<section class="account-card" id="published-challenges"><h2>Retos de la edición</h2><p role="status" aria-live="polite"></p><div data-challenges></div></section>';
-    return '<section class="account-card reto-calendario" id="calendar-challenges">'+heading+'<ul class="reto-periodos"><li><strong>Desafío diario</strong><span>Una prueba · 1 llave</span></li><li><strong>Misión semanal</strong><span>Tres pruebas de lunes a domingo · 2 llaves</span></li></ul><p>Elige una prueba y marca tu respuesta. Si dejas pasar una edición, conservas las llaves y el avance de tus aventuras. Los periodos cambian a medianoche, hora de Madrid.</p><p role="status" aria-live="polite"></p><div data-challenges></div></section>'+
+    return '<section class="account-card reto-calendario" id="calendar-challenges">'+heading+
+      '<p>Las cuatro temporadas comparten este calendario. Puedes empezar una prueba desde una temporada y continuarla desde otra. Para jugar necesitas acceso a «El secreto de los dos mundos», la primera aventura de Código Valdemar.</p>'+
+      '<ul class="reto-periodos"><li><strong>Desafío diario</strong><span>Una prueba · 1 llave</span></li><li><strong>Misión semanal</strong><span>Tres pruebas de lunes a domingo · 2 llaves</span></li></ul>'+
+      '<p>Elige una prueba y marca tu respuesta. Las ediciones cambian a medianoche, hora de Madrid. Las llaves que hayas ganado se quedan en tu cuenta.</p>'+
+      (signed?'':guestActions)+'<p role="status" aria-live="polite"></p><div data-challenges></div></section>'+
       (signed||!standalone?published:'');
   }
   function question(item,withMesa) {
@@ -152,8 +157,7 @@
     panel.dataset.bound='1';
     const status=panel.querySelector('[role=status]'), list=panel.querySelector('[data-challenges]');
     if (!window.GameAccountBridge?.isSignedIn()) {
-      if(calendar)status.innerHTML='Disponible desde el primer caso de Código Valdemar. <a href="/#planes">Ver el pase</a> · <button type="button" class="text-link" data-action="auth-login">Entrar con mi cuenta</button>';
-      else status.textContent='Inicia sesión para consultar los retos de tus juegos.';
+      if(!calendar)status.textContent='Inicia sesión para consultar los retos de tus juegos.';
       return;
     }
     status.textContent=calendar?'Cargando el calendario…':'Buscando retos del equipo editorial…';
@@ -162,7 +166,11 @@
       if (!panel.isConnected) return;
       if(calendar)panel.querySelector('.reto-periodos').hidden=items.length>0;
       if(!calendar&&!items.length){panel.hidden=true;return;}
-      status.textContent=calendar?(items.length?'':'El calendario se abre con el primer caso de Código Valdemar.'):'Una llave por la primera resolución.';
+      status.textContent=calendar?(items.length?'':'Tu cuenta todavía no tiene acceso a las pruebas del calendario.'):'Una llave por la primera resolución.';
+      if(calendar&&!items.length){
+        list.innerHTML='<div class="calendar-access"><a class="button primary" href="/#planes">Ver la suscripción</a><a class="text-link" href="/#perfil">Consultar mi cuenta</a></div>';
+        return;
+      }
       list.innerHTML=items.map(item=>challengeCard(item,calendar)).join('');
       const cards=list.querySelectorAll('details');
       items.forEach((item,index)=>bindChallenge(cards[index],item,path,async()=>{

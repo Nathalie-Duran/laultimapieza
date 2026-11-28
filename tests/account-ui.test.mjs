@@ -12,13 +12,14 @@ async function appHarness({fullAccess=false,navLinks=[]}={}){
   const context=createContext({crypto:globalThis.crypto,structuredClone,AbortController,Response,URLSearchParams,console,
     document:{body:element('body'),getElementById:id=>element('#'+id),querySelector:element,querySelectorAll:selector=>selector==='[data-nav]'?navLinks:[],addEventListener(){}},
     location:{hash:'#perfil'},localStorage:{getItem:()=>null,setItem(){}},
-    setTimeout:()=>0,clearTimeout(){},setInterval(){},FormData,
+    history:{replaceState(_state,_title,url){context.location.hash=url.slice(url.indexOf('#'));}},
+    requestAnimationFrame(callback){callback();},setTimeout:()=>0,clearTimeout(){},setInterval(){},FormData,
     fetch:(...args)=>fetcher(...args),
     AccountAccess:{token:async()=>'test-token'},
     AccountUI:{start:async value=>{bridge=value;},signInPanel:()=>'<h1>Iniciar sesión</h1>',header:()=>'',accountCard:()=>'',open(){}},
     addEventListener(){},scrollTo(){}});
   context.window=context;
-  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js',...(fullAccess?['membership-flow.js']:[]),'monthly-access.js','experience-ui.js','profile-notebook.js','archive.js','como-se-juega.js',...(navLinks.length?['colecciones.js','valdemar-catalog.js','mundos-catalogo.js']:[])])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
+  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js',...(fullAccess?['membership-flow.js']:[]),'monthly-access.js','experience-ui.js','profile-notebook.js','archive.js','como-se-juega.js','retos-temporada.js','colecciones.js','valdemar-catalog.js','mundos-catalogo.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
   runInContext(source,context);bridge.cloud(true);bridge.loading(false);
   return {bridge,element,membership:context.ClubAccess,setFetch(value){fetcher=value;},credential(value){context.AccountAccess.user=value;},
     visit(hash){context.location.hash=hash;bridge.render();return element('#main').innerHTML;}};
@@ -28,7 +29,7 @@ test('el menú de escritorio y el móvil ofrecen los mismos destinos y adaptan l
   const menus=['<nav aria-label="Principal">','<nav class="mobile-nav"'].map(start=>{
     const from=html.indexOf(start),section=html.slice(from,html.indexOf('</nav>',from));
     return [...section.matchAll(/<a (.*?)>([\s\S]*?)<\/a>/g)].map(([,attrs,body])=>({
-      label:body.replace(/<span aria-hidden="true">[^<]*<\/span>|<[^>]+>/g,''),
+      label:attrs.match(/aria-label="([^"]+)"/)?.[1]||body.replace(/<span aria-hidden="true">[^<]*<\/span>|<[^>]+>/g,''),
       href:attrs.match(/href="([^"]+)"/)[1],dataset:{nav:attrs.match(/data-nav="([^"]+)"/)[1],navAudience:attrs.match(/data-nav-audience="([^"]+)"/)?.[1]},
       hidden:attrs.includes(' hidden'),classList:{toggle(){}},setAttribute(name,value){this[name]=value;},removeAttribute(name){delete this[name];}
     }));
@@ -39,16 +40,42 @@ test('el menú de escritorio y el móvil ofrecen los mismos destinos y adaptan l
     assert.deepEqual(showing.map(link=>link.label),names);
     assert.deepEqual(showing.filter(link=>link['aria-current']).map(link=>link.dataset.nav),[active]);
   });
-  const base=['Juegos','Temporadas','Retos extra'];
+  const base=['Juegos','Mapa de temporadas','Retos extra'];
   assert.match(app.visit('#casos'),/<h1>Juegos<\/h1>/);
   verify([...base,'Suscripción'],'casos');
-  assert.match(app.visit('#tableros'),/<h1>Temporadas<\/h1>/);
+  assert.match(app.visit('#tableros'),/<h1 id="universe-heading">Mapa de temporadas<\/h1>/);
   verify([...base,'Suscripción'],'tableros');
   app.setFetch(async()=>Response.json({profile:{userId:'persona',name:'Mi perfil'},sessions:[],activeSessionId:null,membership:{canPlay:false}}));
   await app.bridge.load();app.visit('#archivo');
   verify([...base,'Mis partidas','Mi cuenta'],'archivo');
   app.bridge.reset();app.visit('#casos');
   verify([...base,'Suscripción'],'casos');
+});
+
+test('el mapa ilustrado conserva los cuatro destinos durante el acceso, al cambiar de cuenta y en la ruta permanente',async()=>{
+  const app=await appHarness();
+  const verify=(html)=>{
+    assert.equal(html.split('/atlas-cuatro-mundos.webp').length-1,1);
+    const section=html.match(/<nav class="universe-chart"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+    assert.ok(section);
+    assert.deepEqual([...section.matchAll(/href="\/#([^"]+)"/g)].map(match=>match[1]),['mapa','expedicion','umbravia','necropolis']);
+  };
+  for(const loading of [true,false]){
+    app.bridge.loading(loading);
+    verify(app.visit('#inicio'));
+    verify(app.visit('#tableros?mundo=necropolis'));
+  }
+  for(const [userId,role,canPlay] of [['libre','member',false],['abonado','member',true],['editor','admin',true]]){
+    app.setFetch(async()=>Response.json({profile:{userId,name:userId},sessions:[],membership:{role,canPlay}}));
+    await app.bridge.load();
+    const home=app.visit('#inicio');
+    verify(home);
+    assert.ok(home.startsWith('<section class="universe-front"'));
+    assert.match(home,/href="\/#tableros">Ver el recorrido/);
+    verify(app.visit('#tableros?mundo=expedicion'));
+    app.bridge.reset();
+    verify(app.visit('#inicio'));
+  }
 });
 
 test('la guía se abre sin cuenta incluso durante la carga y el catálogo la enlaza en un clic',async()=>{
@@ -60,6 +87,32 @@ test('la guía se abre sin cuenta incluso durante la carga y el catálogo la enl
   assert.match(shell,/<a class="site-how-link" href="\/#como-se-juega"/);
   const catalog=await readFile(new URL('../web/valdemar-catalog.js',import.meta.url),'utf8');
   assert.match(catalog,/href="\/#como-se-juega">Cómo se juega<\/a>/);
+});
+
+test('Los enlaces antiguos llevan al único catálogo y los guardados personales siguen en Mis partidas',async()=>{
+  const nav={dataset:{nav:'casos'},classList:{toggle(){}},setAttribute(){},removeAttribute(){}};
+  const app=await appHarness({fullAccess:true,navLinks:[nav]});
+  for(const route of ['#historias-clasicas','#archivo-clasico?mes=2','#invitacion']){
+    const page=app.visit(route);
+    assert.match(page,/<h1>Juegos<\/h1>/);
+    assert.doesNotMatch(page,/archivo clásico|href="\/?#archivo-clasico/i);
+  }
+  const catalogueAction=/<a class="button primary" href="\/#casos">Elegir un juego<\/a>/;
+  assert.match(app.visit('#partida'),catalogueAction);
+  assert.match(app.visit('#mapa-clasico?seccion=sello'),/<h1>Mis partidas<\/h1>/);
+  const session={id:'guardada-1',caseId:'cartas-medianoche',ownerId:'persona',members:[{userId:'persona',name:'Ada'}],mode:'solo',history:[],status:'active'};
+  const response={profile:{userId:'persona',name:'Ada'},sessions:[session],activeSessionId:session.id,membership:{canPlay:true,ownAccess:true,calendar:{unlockedCaseIds:[session.caseId]}}};
+  app.setFetch(async()=>Response.json({...response,sessions:[],activeSessionId:null}));
+  await app.bridge.load();
+  assert.match(app.visit('#partida'),catalogueAction);
+  app.setFetch(async()=>Response.json(response));
+  await app.bridge.load();
+  assert.match(app.visit('#archivo'),/data-action="resume" data-id="guardada-1"/);
+  const pieces=app.visit('#mapa-clasico');
+  assert.match(pieces,/Mis piezas de Las doce noches/);
+  assert.doesNotMatch(pieces,/data-action="setup"|archivo clásico/i);
+  assert.match(source,/href="\/#casos">Elegir otro juego<\/a>/);
+  assert.doesNotMatch(source,/<select name="caseId"|<form id="setup-form"/);
 });
 test('Cambiar de cuenta limpia la vista y una respuesta anterior no puede restaurar sus datos',async()=>{
   const app=await appHarness();
@@ -121,7 +174,7 @@ test('cada entrada del cuaderno muestra la acción de acceso, pareja y archivo e
     assert.equal(paired.match(/<preferred-partner>/g)?.length,1);
     assert.equal(paired.match(/<profile-partners>/g)?.length,1);
     const style=app.visit('#perfil?seccion=estilo');
-    assert.match(style,/Tu estilo del archivo clásico/);assert.doesNotMatch(style,/class="trait-grid"|Descubre tu sello/);
+    assert.match(style,/Tu estilo de juego/);assert.doesNotMatch(style,/class="trait-grid"|Descubre tu sello/);
     const archive=app.visit('#archivo');
     assert.doesNotMatch(archive,/archive-memories/);
     assert.match(archive,/<details class="pn-archive-options">[\s\S]*data-action="progress-reset-open"/);

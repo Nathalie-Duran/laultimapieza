@@ -120,7 +120,7 @@
         '<p class="c87-meta">10-15 min aprox. · Un dispositivo · '+(storageBlocked?'Guardado durante esta visita':'Guardado local')+'</p><div class="c87-actions">'+
         control('start','Jugar en solitario','solo',true)+control('start','Jugar en pareja','duo')+'<gameplay-help context="demo"></gameplay-help></div>'+
         '<p class="c87-small">En solitario consultas ambas carpetas. En pareja os turnáis con el dispositivo y compartís en voz alta vuestras pistas.</p>'+
-        '<div class="c87-links">'+control('archive','Archivo de Marta y Tomás')+control('exit',exitLabel)+'</div></div></section>';
+        '<div class="c87-links">'+control('exit',exitLabel)+'</div></div></section>';
     }
     function handoff(){
       const role=roles[state.role];
@@ -237,14 +237,18 @@
     function savedMessage(){return storageBlocked?'Guardado temporal en esta página.':'Progreso guardado en este navegador.';}
     function endingPage(){
       const key=alternate?(state.ending==='emitir'?'custodiar':'emitir'):state.ending,ending=endings[key];
+      const member=window.ClubAccess?.canPlay===true;
+      const offer=member?{label:'Elegir un juego',href:'/#casos'}:window.ClubAccess?.offerAction||{href:'/#planes',label:'Ver la suscripción'};
+      const price=window.ClubAccess?.price;
       return '<section class="c87-ending"><figure class="c87-final-photo"><img src="/c87-caja-bobina.webp" width="640" height="640" alt="La bobina de la última emisión, recuperada en su caja de archivo."></figure><div class="c87-ending-copy"><p class="c87-kicker">'+(alternate?'Lectura alternativa':'Desenlace guardado')+'</p>'+heading(ending.title)+'<p class="c87-lead">'+ending.text+'</p>'+
         (alternate?'<p class="c87-small">Tu elección guardada sigue siendo «'+endings[state.ending].label+'».</p>':
           '<div class="c87-souvenir"><strong>Ficha de oyente · Cinta 87</strong><p>Recuerdo de muestra '+(storageBlocked?'disponible durante esta visita.':'guardado en este navegador.')+' No añade llaves al pase de temporada.</p></div>')+
-        '<div class="c87-actions">'+control('exit',exitLabel,'',true)+control('alternate',alternate?'Volver a mi desenlace':'Leer el otro desenlace')+'</div>'+
-        '<div class="c87-links">'+control('archive','Archivo de Marta y Tomás')+control('reset','Volver a jugar desde el principio')+'</div></div></section>';
+        '<div class="c87-followup"><h3>La siguiente pista está en una casa de Valdemar</h3><p>En <em>El secreto de los dos mundos</em>, una fotografía de infancia os lleva hasta la casa de Ada. '+(member?'':'La suscripción abre cuatro juegos al mes. <span data-c87-offer-price>'+safe(price?price+' por persona al mes.':'')+'</span>')+'</p><a class="c87-offer-link" data-c87-offer href="'+safe(offer.href)+'">'+safe(offer.label)+'</a></div>'+
+        '<div class="c87-actions">'+control('exit',exitLabel)+control('alternate',alternate?'Volver a mi desenlace':'Leer el otro desenlace')+'</div>'+
+        '<div class="c87-links">'+control('reset','Volver a jugar desde el principio')+'</div></div></section>';
     }
     function resetPage(){
-      return '<section class="c87-paper">'+heading('¿Reiniciar La cinta 87?')+'<p>Se perderá el progreso de esta demo en este navegador. Los expedientes de Marta y Tomás se guardan por separado.</p>'+
+      return '<section class="c87-paper">'+heading('¿Reiniciar La cinta 87?')+'<p>Se perderá el progreso de esta demo en este navegador.</p>'+
         '<div class="c87-actions">'+control('cancel-reset','Conservar mi partida','',true)+control('confirm-reset','Reiniciar la demo')+'</div></section>';
     }
     function markSignal(){
@@ -256,10 +260,9 @@
       if(!btn||!host.contains(btn))return;
       let action=btn.dataset.c87,value=btn.dataset.value;
       notice='';
-      if(action==='exit'||action==='archive'){
+      if(action==='exit'){
         stopAudio();
-        const callback=action==='exit'?options.onExit:options.onArchive;
-        if(callback)callback();else if(action==='exit')window.location.assign('/#casos');else window.location.assign('/cinta-87.html?archivo=1');
+        if(options.onExit)options.onExit();else window.location.assign('/#casos');
         return;
       }
       if(action==='reset'){resetting=true;draw(true);return;}
@@ -342,11 +345,18 @@
       notice='El progreso se ha actualizado en otra pestaña.';draw();
     }
     host.addEventListener('click',click);host.addEventListener('change',previewSlot);host.addEventListener('submit',submit);host.addEventListener('ended',audioEnded,true);
-    window.addEventListener('storage',storage);
+    function offerReady(){
+      const link=host.querySelector('[data-c87-offer]'),offer=window.ClubAccess?.offerAction;
+      if(!link||!offer||window.ClubAccess?.canPlay)return;
+      link.href=offer.href;link.textContent=offer.label;
+      const price=host.querySelector('[data-c87-offer-price]');
+      if(price&&window.ClubAccess.price)price.textContent=window.ClubAccess.price+' por persona al mes.';
+    }
+    window.addEventListener('storage',storage);window.addEventListener('club-offer-ready',offerReady);
     const handle={destroy(){
       if(disposed)return;
       disposed=true;worktop?.destroy();stopAudio();host.removeEventListener('click',click);host.removeEventListener('change',previewSlot);host.removeEventListener('submit',submit);
-      host.removeEventListener('ended',audioEnded,true);window.removeEventListener('storage',storage);host.replaceChildren();mounts.delete(host);
+      host.removeEventListener('ended',audioEnded,true);window.removeEventListener('storage',storage);window.removeEventListener('club-offer-ready',offerReady);host.replaceChildren();mounts.delete(host);
     }};
     mounts.set(host,handle);draw();
     return handle;

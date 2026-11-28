@@ -106,7 +106,7 @@ display-preferences label { display: flex; align-items: center; gap: .55rem; min
 }
 .atlas-universe *, .atlas-universe *::before, .atlas-universe *::after { box-sizing: border-box; }
 .atlas-universe > header { max-inline-size: none; margin-block-end: clamp(1.1rem,2.6vw,2.1rem); }
-.atlas-universe > header h1 { margin: 0; font-size: clamp(2.45rem,5.2vw,5.6rem); text-wrap: balance; }
+.atlas-universe > header h2 { margin: 0; font: normal clamp(1.9rem,3.2vw,3.3rem)/1.1 Georgia,serif; text-wrap: balance; }
 .atlas-universe > header p { margin: .65rem 0 0; max-inline-size: 58ch; }
 .atlas-universe .atlas-territories {
   display: grid;
@@ -201,14 +201,22 @@ display-preferences label { display: flex; align-items: center; gap: .55rem; min
 .atlas-universe .atlas-blocks { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: clamp(.7rem,2vw,1.8rem); }
 .atlas-universe .atlas-block { min-inline-size: 0; }
 .atlas-universe .atlas-side-stop {
-  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .45rem 1rem;
-  margin-block-start: 1.3rem; padding: .85rem 1rem; border-inline-start: .2rem solid #c8a76f; background: #25322d;
+  display:grid; grid-template-columns:minmax(9rem,23%) minmax(0,1fr); align-items:stretch; gap:clamp(.75rem,2.7vw,2.1rem);
+  margin:1rem 0 1.4rem; padding:0; overflow:hidden; border:1px solid #597066; border-radius:.5rem; background:#142421;
 }
-.atlas-universe .atlas-side-stop small { color: var(--atlas-amber); font-size: .8rem; }
-.atlas-universe .atlas-side-stop h3 { margin: .13rem 0; color: var(--atlas-paper); font: 500 1.4rem/1.2 Georgia,serif; }
-.atlas-universe .atlas-side-stop p { max-width: 59ch; margin: .35rem 0 0; color: var(--atlas-muted); line-height: 1.45; }
-.atlas-universe .atlas-side-stop nav { display: flex; flex-wrap: wrap; gap: 0 .85rem; }
+.atlas-universe .atlas-extra-photo { display:block; width:100%; height:100%; max-height:14rem; min-height:8rem; object-fit:cover; }
+.atlas-universe .atlas-extra-copy { align-self:center; min-width:0; padding:.85rem .95rem .85rem 0; }
+.atlas-universe .atlas-side-stop h3 { margin:0; color:#fff2d7; font:500 clamp(1.35rem,2.4vw,2.05rem)/1.15 var(--serif,Georgia,serif); overflow-wrap:break-word; }
+.atlas-universe .atlas-side-stop p { max-width:59ch; margin:.4rem 0; color:#e0e5d9; line-height:1.45; }
+.atlas-extra-actions { display:flex; flex-wrap:wrap; align-items:center; gap:.25rem 1rem; }
 .atlas-universe .atlas-side-stop a, .reto-local .reto-regreso { display: inline-flex; align-items: center; min-block-size: 2.75rem; color: #f3d69b; text-underline-offset: .2em; }
+.atlas-universe .atlas-side-stop a.atlas-extra-open { padding:.45rem .8rem; border:1px solid #ebbf79; border-radius:.25rem; color:#18221b; background:#f4ce8c; font-weight:700; text-decoration:none; }
+.atlas-universe .atlas-extra-actions a:focus-visible { outline:3px solid #fff0c4; outline-offset:3px; }
+@media (max-width:560px) {
+  .atlas-universe .atlas-side-stop { grid-template-columns:1fr; gap:0; }
+  .atlas-universe .atlas-extra-photo { height:clamp(6rem,26vw,8.5rem); min-height:0; object-position:center 52%; }
+  .atlas-universe .atlas-extra-copy { padding:.8rem; }
+}
 .reto-local .reto-paradas { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,18rem),1fr)); gap: .35rem 1rem; padding: 0; list-style: none; }
 .reto-local .reto-paradas a { display: flex; align-items: center; justify-content: space-between; gap: .65rem; min-block-size: 3.1rem; padding: .5rem .25rem; border-block-end: 1px solid #5d675d; color: #f3ecd8; text-decoration: none; }
 .reto-local .reto-paradas a:is(:hover,:focus-visible) strong { text-decoration: underline; }

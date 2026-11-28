@@ -270,6 +270,7 @@ test('El alta con correo crea la cuenta y solicita la verificación durante la p
   const source=await readFile(new URL('../web/auth-client.js',import.meta.url),'utf8');
   runInContext(source.replaceAll('import(', 'loadSdk('),context);
   for(const [from,expected] of [['#planes?revisar=1','#planes?revisar=1'],
+    ['#suscripcion?seccion=baja','#suscripcion?seccion=baja'],
     ['#perfil?seccion=pareja&juego=3','#perfil?seccion=pareja&juego=3'],
     ['#perfil?seccion=pareja&juego=99','#perfil'],['https://other.example.test/checkout','#perfil']]){
     calls.length=0;location.hash=from;

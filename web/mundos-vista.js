@@ -78,20 +78,22 @@
     }).join('')+'</nav>';
   }
   function accessMarkup(edition,item,allowed,completed,status) {
-    if(allowed)return `<a class="md-cta" href="#mundos-jugar?id=${item.id}">${completed?'Ver mi desenlace':edition.launch} <span aria-hidden="true">→</span></a>`;
+    const extra=window.RetosTemporada?.acceso(item.id,allowed)||'';
+    if(allowed)return `<a class="md-cta" href="#mundos-jugar?id=${item.id}">${completed?'Ver mi desenlace':edition.launch} <span aria-hidden="true">→</span></a>`+extra;
     const previous=status?.previousReady===false || !status;
     const info=previous
       ? 'Completa los doce casos '+edition.previous.from+'.'+(status?' Tu avance: '+status.previousCompleted+'/12.':'')
       : 'Este bloque todavía no está disponible en tu pase.';
-    return `<p class="md-locked-note">${esc(info)}</p><a class="md-cta md-cta-secondary" href="${previous?edition.previous.href:'#planes'}">${previous?edition.previous.back:'Consultar mi pase'}</a>`;
+    return `<p class="md-locked-note">${esc(info)}</p><a class="md-cta md-cta-secondary" href="${previous?edition.previous.href:'#planes'}">${previous?edition.previous.back:'Consultar mi pase'}</a>`+extra;
   }
   function refreshAccess(node,edition,item,available,done,status) {
     const box=node.querySelector('.md-access');
     const markup=accessMarkup(edition,item,available,done,status);
     if(box.innerHTML===markup)return;
-    const focused=box.contains(document.activeElement);
+    const active=box.contains(document.activeElement)?document.activeElement:null;
+    const nextFocus=active?.closest('.extra-ficha-link')?'.extra-ficha-link':'a';
     box.innerHTML=markup;
-    if(focused)box.querySelector('a')?.focus({preventScroll:true});
+    if(active)box.querySelector(nextFocus)?.focus({preventScroll:true});
   }
   function view(world,options={}) {
     const {edition,candidates,item}=boardData(world);
@@ -123,7 +125,7 @@
         <nav class="md-catalog-links" aria-label="Volver al territorio"><a href="${catalogLink}">Volver al bloque ${level+1}</a><a data-md-map-return href="${route(world,item.id)}">Situar en el mapa de ${esc(edition.short)}</a></nav>${card}</section>`;
     }
     return `<section class="md-world" data-md-world="${world}" data-md-selected="${item.id}" data-md-editor="${editorial}" aria-labelledby="md-world-title">
-      <header class="md-mast"><div><p class="md-caption">Temporada ${number(edition.number)} · ${esc(edition.genre)}</p><h1 id="md-world-title">${esc(edition.title)}</h1></div><div class="md-mast-end"><p>${esc(edition.intro)}</p>${world==='umbravia'||egypt?sealLink(edition,world,local):''}</div></header>
+      <header class="md-mast"><div><p class="md-caption">Temporada ${number(edition.number)} · ${esc(edition.genre)}</p><h1 id="md-world-title">${esc(edition.title)}</h1></div><div class="md-mast-end"><p>${esc(edition.intro)}</p><a class="extra-mapa-link" href="/#desafios?mundo=${world}">Ver los retos extra de la temporada</a>${world==='umbravia'||egypt?sealLink(edition,world,local):''}</div></header>
       <div class="md-atlas"><div class="md-board">
         <div class="md-map-window" data-zoom="${!!enlarged}" role="region" tabindex="0" aria-label="${esc(edition.boardLabel)}"><div class="md-surface">
           <img class="md-map-art" src="${edition.image}" width="1536" height="1024" alt="${esc(edition.imageAlt)}" fetchpriority="high">

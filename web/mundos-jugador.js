@@ -46,6 +46,9 @@
     const panel=el('article',null,'md-unavailable'),art=el('img');
     art.src='/mundo-'+c.item.id+'.webp';art.alt='';
     panel.append(art,el('h1',c.item.title),el('p',message));
+    if(new URLSearchParams(location.hash.split('?')[1]).get('seccion')==='reto'){
+      panel.append(link('Volver a los retos de '+worlds.nameOf(c.item.world),'/#desafios?mundo='+c.item.world));
+    }
     if(!c.bridge?.isSignedIn() || reason===401) {
       const login=el('button','Entrar en mi cuenta','md-cta');login.type='button';login.dataset.action='auth-login';panel.append(login);
     } else if(reason===402) {
@@ -89,6 +92,7 @@
     if(!active(c))return;
     if(tab!==c.tab){c.hour?.pause();if(c.sideVoice)window.ValdemarHour.stopVoice(c.sideVoice);}
     c.tab=tab;
+    c.frame.dataset.openExtra=String(tab==='side');
     for(const [k,panel] of Object.entries(c.panels))panel.hidden=k!==tab;
     for(const [k,btn] of Object.entries(c.controls))btn.setAttribute('aria-pressed',String(k===tab));
     c.scene?.returnFrom(c.panels[tab]);
@@ -159,10 +163,15 @@
   }
   function renderSide(c,feedback,replay=false) {
     const target=c.panels.side,side=c.data.side;
-    target.replaceChildren(el('p','Reto paralelo · '+c.data.parallelPrize+(c.data.parallelPrize===1?' llave':' llaves'),'md-caption'),el('h2',side.title));
+    target.replaceChildren(window.AventuraEscena.challengeHeader({
+      id:c.item.id,world:c.item.world,title:side.title,caseTitle:c.item.title,
+      photo:window.RetosTemporada?.ficha(c.item.id)?.photo||'/mundo-'+c.item.id+'.webp'
+    }));
     if(c.tab==='side')c.scene?.returnFrom(target);
     if(!replay && c.data.wallet.won.includes(c.item.id)){
-      target.append(live(feedback||'Reto resuelto. Ya ganaste la llave de este caso.'),button('Consultar mis pistas',()=>select(c,'help',true),'md-cta'),button('Repetir el reto sin premio adicional',()=>renderSide(c,'',true)));
+      target.append(live(feedback||'Reto resuelto. Ya recibiste las llaves de esta actividad.'),button('Consultar mis pistas',()=>select(c,'help',true),'md-cta'),button('Repetir el reto sin premio adicional',()=>{
+        renderSide(c,'',true);target.focus({preventScroll:true});
+      }));
       return;
     }
     target.append(el('p',side.brief,'md-question'));
@@ -202,7 +211,7 @@
       }});
     const nav=el('nav',null,'md-game-tabs');nav.setAttribute('aria-label','Secciones de la partida');
     c.controls={};c.panels={};
-    for(const [key,label] of [['main','Investigación'],['side','Reto paralelo'],['help','Pistas'],['end','Desenlace']]){
+    for(const [key,label] of [['main','Investigación'],['side','Reto extra'],['help','Pistas'],['end','Desenlace']]){
       const b=button(label,()=>select(c,key,true),'md-tab');b.dataset.mdTab=key;
       const p=el('section',null,'md-game-panel md-game-'+key+(key==='side'?' vhour':''));p.hidden=true;p.tabIndex=-1;
       p.id='md-panel-'+key;p.setAttribute('aria-label',label);b.setAttribute('aria-controls',p.id);

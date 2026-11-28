@@ -36,13 +36,13 @@
     bridge.loading(true);
     try{
       await bridge.load();if(run!==sequence)return;
-      bridge.loading(false);bridge.close();if(afterAccess){const destination=afterAccess;afterAccess='';if(location.hash!==destination)location.hash=destination;}bridge.render();bridge.continueSetup();
+      bridge.loading(false);bridge.close();if(afterAccess){const destination=afterAccess;afterAccess='';if(location.hash!==destination)location.hash=destination;}bridge.render();
       if(/^#planes\?revisar=[1-4]$/.test(location.hash))document.getElementById('pass-review-title')?.focus();
     }
     catch(e){if(run!==sequence)return;bridge.loading(false);bridge.render();bridge.toast(e.message);}
   }
   async function logout(){
-    ++sequence;lastIdentity=undefined;afterAccess='';bridge.reset();bridge.cancelSetup();bridge.close();location.hash='inicio';bridge.render();
+    ++sequence;lastIdentity=undefined;afterAccess='';bridge.reset();bridge.close();location.hash='inicio';bridge.render();
     try{await A().logout();bridge.toast('Has cerrado sesión. Tus partidas siguen guardadas en tu cuenta.');}
     catch{bridge.toast('No se pudo cerrar el acceso. Vuelve a pulsar «Cerrar sesión».');}
   }

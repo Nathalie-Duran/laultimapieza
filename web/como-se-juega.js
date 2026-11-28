@@ -12,12 +12,16 @@
     solo:'En solitario puedes consultar la documentación de ambos papeles. Cambia de carpeta si una observación queda sin explicar.',
     duo:'Cada persona consulta su carpeta desde su propia cuenta. Describe lo que ves y escucha qué añade la otra carpeta.',
     archivo:'En los expedientes de Marta y Tomás podéis repartiros la lectura en una pantalla. El marcador se conserva en el mismo navegador.',
-    clasico:'En el archivo clásico, sigue la escena y revisa el expediente antes de votar. En una partida compartida, cada participante registra su decisión.',
+    clasico:'Sigue la escena y revisa el expediente antes de votar. En una partida compartida, cada participante registra su decisión.',
     sala:'Cada estación de la sala de Ada es un minijuego independiente. Elige una, consulta sus reglas y completa su prueba. Cada premio se entrega una sola vez.',
     temporada:'Puedes investigar con las dos carpetas en solitario o emparejar dos cuentas con acceso al mismo juego.'
   };
 
   function view(){
+    const member=window.ClubAccess?.canPlay===true;
+    const action=member?{href:'/#casos',label:'Elegir un juego'}:window.ClubAccess?.offerAction||{href:'/#planes',label:'Ver la suscripción'};
+    const price=window.ClubAccess?.price;
+    const offer=member?'':`<p>Cada cuota abre cuatro juegos. En tres bloques completas los doce de una temporada.${price?' La cuota es de '+price+' por persona al mes.':''}</p>`;
     return `<article class="how-guide" aria-labelledby="how-title">
       <header class="how-heading"><h1 id="how-title">Cómo se juega</h1><p>En cada aventura hay algo que averiguar. Explora la escena, recoge pruebas y cruza lo que encuentres antes de tomar una decisión.</p></header>
       <section class="how-practice" aria-labelledby="how-practice-title"><div><h2 id="how-practice-title">Prueba con dos objetos</h2><p>Estas piezas aparecen en <em>La cinta 87</em>. Toca cada una para descubrir qué puede aportar a la investigación.</p></div>
@@ -33,9 +37,8 @@
       <section class="how-reference" aria-labelledby="how-return-title"><h2 id="how-return-title">Seguir otro día</h2>
         <p>La demo guarda el avance en este navegador. Para retomar un juego de temporada, entra en la misma cuenta y abre <a href="/#archivo">Mis partidas</a>. Espera a que el juego confirme tu última acción antes de salir.</p>
         <details><summary>¿Para qué sirven los retos extra?</summary><p>Son actividades opcionales. Al superar un reto por primera vez ganas llaves para pedir pistas. Puedes ver las opciones y el premio desde <a href="/#desafios">Retos extra</a>.</p></details>
-        <details><summary>¿Qué incluye cada mes de suscripción?</summary><p>Cada cuota abre cuatro juegos. Una temporada reúne doce, repartidos en tres bloques. En <a href="/#tableros">Temporadas</a> puedes consultar tu avance y el mapa. Para pasar a la siguiente, completa los doce desenlaces de la anterior.</p></details>
       </section>
-      <nav class="how-start" aria-label="Elegir una partida"><a href="/cinta-87.html">Probar La cinta 87 gratis</a><a href="/#casos">Explorar los juegos</a></nav>
+      <section class="how-reference" aria-labelledby="how-start-title"><h2 id="how-start-title">${member?'Tu próxima investigación':'Tu primera noche en Valdemar'}</h2>${offer}<nav class="how-start" aria-label="Elegir una partida"><a href="${action.href}">${action.label}</a><a href="/cinta-87.html" data-action="preview-open">Probar La cinta 87 sin cuenta</a></nav></section>
     </article>`;
   }
 

@@ -8,6 +8,10 @@
     return;
   }
   const archive=standalone && here.searchParams.get('archivo')==='1';
+  if(archive&&!window.VallejoArchive?.hasProgress()){
+    here.searchParams.delete('archivo');here.hash='';
+    location.replace(here.href);return;
+  }
   const sharedLink='https://www.laultimapieza.es/cinta-87.html?via=invitacion';
   const events={start:'demo_start',receipt:'demo_receipt',solved:'demo_solved',complete:'demo_complete',hint:'demo_hint'};
   let running=null,trigger=null,consent=false,started=false,countedStart=false;
@@ -24,13 +28,6 @@
     if(id<=12)return '/valdemar/'+code+'/';
     const world=['expedicion','umbravia','necropolis'][Math.floor((id-13)/12)];
     return '/#'+world+'?lugar='+((id-1)%12+1)+'&seccion=ficha';
-  }
-  function archiveUrl(){
-    const url=new URL('/cinta-87.html',location.origin);
-    url.searchParams.set('archivo','1');
-    const code=caseCode();if(code)url.searchParams.set('caso',code);
-    if(here.searchParams.get('via')==='invitacion')url.searchParams.set('via','invitacion');
-    return url.pathname+url.search;
   }
   function track(key){
     if(!Object.hasOwn(events,key))return;
@@ -89,7 +86,7 @@
     const game=document.createElement('div');host.replaceChildren(game,options());
     if(!standalone&&!host.open)host.showModal();
     const exitLabel=standalone?(caseCode()?'Volver a la ficha':'Volver al catálogo'):'Cerrar la demo';
-    running=window.Cinta87Demo.mount(game,{exitLabel,onArchive:()=>location.assign(archiveUrl()),onExit:exit,onEvent:track});
+    running=window.Cinta87Demo.mount(game,{exitLabel,onExit:exit,onEvent:track});
     if(!standalone)game.querySelector?.('[data-c87-heading]')?.focus();
   }
   window.CasePreview={open:(_format,origin)=>open(origin),close:exit,

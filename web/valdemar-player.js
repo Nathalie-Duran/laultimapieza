@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   let active;
-  const views = [['desk','Expediente'],['game','Reto paralelo'],['help','Sobre de ayuda'],['ending','Resolver el caso']];
+  const views = [['desk','Expediente'],['game','Reto extra'],['help','Sobre de ayuda'],['ending','Resolver el caso']];
   const covers = ['tren-detenido','habitacion-309','ultima-invitacion','frecuencia-17','marea-quieta','retrato-prestado','archivo-ausencias','jardin-invierno','ciudad-invisible','mesa-13','cartas-medianoche','cuaderno-investigacion'];
   const coverDescriptions = [
     'Una cinta de casete descansa en el banco de un andén bajo la lluvia.',
@@ -57,6 +57,7 @@
     active = null;
     previous.modeControl?.destroy();
     previous.scene?.destroy();
+    previous.legacyExtra?.destroy();
     previous.legacyExplorer?.destroy();
     previous.mansionView?.destroy();
     previous.hourView?.pause();
@@ -125,6 +126,7 @@
       renderHelp(c);
     }
     c.view=view;
+    c.frame.dataset.openExtra=String(view==='game');
     const game=view==='game', together=game && c.withDesk, desk=view==='desk'||together;
     if(!desk)pauseAudio(c.desk);
     c.desk.hidden=!desk;c.gamePanel.hidden=!game;c.pair.hidden=!desk&&!game;
@@ -190,7 +192,7 @@
     const story=c.data.story;
     c.desk=element('section',null,'vd-panel vd-desk');c.desk.tabIndex=-1;
     c.desk.id='vd-expediente-'+c.id;
-    c.returnToBoard=button('Volver al tablero',()=>{
+    c.returnToBoard=button('Volver al reto',()=>{
       c.deskToggle.focus({preventScroll:true});c.gamePanel.scrollIntoView({block:'start'});
     },'vd-link');
     c.evidence=element('div',null,'vd-evidence');
@@ -221,7 +223,10 @@
     window.Keyring.update(c.data,data);
     const wallet=c.data.wallet;
     c.balance.textContent=wallet.balance===1?'1 llave':wallet.balance+' llaves';
-    c.rewardStatus.textContent=wallet.won.includes(c.id)?'Ya has recibido la llave de este reto.':'Primera victoria: +'+c.data.parallelPrize+(c.data.parallelPrize===1?' llave.':' llaves.');
+    const prize=wallet.won.includes(c.id)?'Premio del reto recibido':c.data.parallelPrize+(c.data.parallelPrize===1?' llave':' llaves')+' al resolverlo por primera vez';
+    if(c.legacyExtra)c.legacyExtra.update({progress:prize});
+    else if(!c.scene||!window.MesaDeJuego)c.rewardStatus.textContent=prize;
+    else if(c.view==='game')c.scene.returnFrom(c.gamePanel);
     renderHelp(c);
   }
   function renderHelp(c) {
@@ -286,7 +291,11 @@
     c.rewardStatus=announcement();
     c.retryReward=button('Volver a comprobar la victoria',()=>earn(c,c.play));c.retryReward.hidden=true;
     c.restart=button('Reiniciar el reto',()=>mountGame(c));c.restart.hidden=true;
-    const heading=element('header',null,'vd-game-heading');
+    const title=c.game.title,meta=c.id>1?window.RetosTemporada?.ficha(c.id):null;
+    const heading=window.AventuraEscena.challengeHeader({
+      id:c.id,world:'valdemar',title,caseTitle:c.data.story.title,embedded:!c.scene,
+      photo:meta?.photo||(c.id===1?'/tren-detenido.jpg':'/valdemar-art-'+String(c.id).padStart(2,'0')+'.webp')
+    });
     c.deskToggle=button('Consultar expediente junto al reto',()=>{
       c.withDesk=!c.withDesk;
       if(!c.withDesk)c.hourView?.pause();
@@ -297,9 +306,19 @@
     },'vd-desk-toggle');
     c.deskToggle.setAttribute('aria-controls',c.desk.id);
     c.deskToggle.setAttribute('aria-expanded','false');
-    heading.append(element('h2',c.game.title),element('p',c.game.pitch,'vd-note'),c.deskToggle);
-    if(c.id===1)heading.append(element('p','Cada persona ve las vías de su época. Acordad una dirección en voz alta y pulsadla en las dos pantallas. Si os equivocáis, deshaced el movimiento en ambas.','vd-station-duo'));
-    c.gamePanel.append(heading,c.board,c.rewardStatus,c.retryReward,c.restart,
+    c.gamePanel.append(heading);
+    if(!c.scene){
+      const links=heading.querySelector('.reto-cabecera-nav');
+      links.append(button('Volver al escenario',()=>selectView(c,'desk',true),'ae-back'));
+      if(window.MesaDeJuego){
+        const mesa=element('div',null,'ae-mesa');c.gamePanel.append(mesa);
+        c.legacyExtra=window.MesaDeJuego.mount(mesa,{family:'valdemar',title,objective:c.game.pitch,help:{context:'reto',text:c.game.pitch}});
+      }else {const help=element('gameplay-help');help.setAttribute('context','reto');links.append(help);}
+    }
+    if(!c.legacyExtra)c.gamePanel.append(element('p',c.game.pitch,'vd-note'));
+    c.gamePanel.append(c.deskToggle);
+    if(c.id===1)c.gamePanel.append(element('p','Cada persona ve las vías de su época. Acordad una dirección en voz alta y pulsadla en las dos pantallas. Si os equivocáis, deshaced el movimiento en ambas.','vd-station-duo'));
+    c.gamePanel.append(c.board,c.rewardStatus,c.retryReward,c.restart,
       button('Consultar mi sobre',()=>selectView(c,'help',true),'vd-link'));
   }
   function decisionButtons(items,legend,submitLabel,submit,primary=true) {
@@ -416,7 +435,7 @@
     const nav=element('nav',null,'vd-tabs');nav.setAttribute('aria-label','Mesa de juego');
     c.viewButtons=new Map();
     const availableViews=c.data.hour?.hotel&&window.ValdemarHour?[views[0],['hotel','Recepción del hotel'],...views.slice(1)]:views;
-    for(const [id,label] of availableViews){const b=button(label,()=>selectView(c,id));b.dataset.view=id;c.viewButtons.set(id,b);nav.append(b);}
+    for(const [id,label] of availableViews){const b=button(label,()=>selectView(c,id,true));b.dataset.view=id;c.viewButtons.set(id,b);nav.append(b);}
     c.pair=element('div',null,'vd-pair');c.help=element('section',null,'vd-panel vd-help');c.ending=element('section',null,'vd-panel vd-ending');
     c.help.tabIndex=-1;c.ending.tabIndex=-1;
     if(c.data.hour?.hotel && window.ValdemarHour){c.hotel=element('section',null,'vd-panel vhour vhour-hotel-panel');c.hotel.tabIndex=-1;}
@@ -518,6 +537,7 @@
     c.mansionView?.destroy();
     c.hourView?.pause();pauseAudio(c.frame);
     c.frame.replaceChildren(element('h1','La mesa de Código Valdemar'),element('p',errorMessage(e)));
+    if(new URLSearchParams(location.hash.split('?')[1]).get('seccion')==='reto')c.frame.append(link('Volver a los retos de Código Valdemar','/#desafios?mundo=mapa','vd-link'));
     if(!c.bridge.isSignedIn() || e?.status===401){
       const login=element('button','Entrar','vd-primary');
       login.type='button';login.dataset.action='auth-login';c.frame.append(login);
