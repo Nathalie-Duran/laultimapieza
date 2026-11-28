@@ -129,6 +129,7 @@
     }
     function drawHeader(){
       header.replaceChildren();root.dataset.world=world;root.dataset.tab=tab;
+      root.dataset.device=String(tab==='scene'&&activeDevice&&state.stage?.room===roomId);
       const chapter=Math.max(1,Math.min(5,Number(state.stage?.chapter)||Math.ceil(Math.min(state.current||1,15)/3)));
       const completed=state.ending?15:Math.max(0,Math.min(15,(state.current||1)-1));
       const details=el('div','mansion-heading-group');
@@ -146,7 +147,7 @@
       }else header.append(el('p','mansion-progress',completed+'/15 pruebas resueltas'));
       const worlds=el('div','mansion-worlds');worlds.setAttribute('aria-label','Realidad de la mansión');
       const names=options.names||state.names;
-      if(paired){if(!names?.[world])worlds.append(el('span','mansion-world-name',labels[world]));}
+      if(paired){if(!names?.[world]&&(tab!=='scene'||activeDevice))worlds.append(el('span','mansion-world-name',labels[world]));}
       else for(const id of ['A','B']){
         const control=button(labels[id],()=>{
           if(world===id||busy)return;
@@ -315,24 +316,36 @@
       const caption=el('div','mansion-caption'),location=el('h3','mansion-room-title',room.title);
       location.tabIndex=-1;
       caption.append(el('span','mansion-location-world',labels[world]),location);
-      frame.append(caption);scene.append(frame);
-      if(details.childElementCount)scene.append(details);
-      panel.append(scene);
+      frame.append(caption);scene.append(frame);panel.append(scene);
+      const tools=el('aside','mansion-objective mansion-scene-tools');
+      const onDevice=localStage&&activeDevice;
+      if(stage){
+        const heading=el('h3','mansion-tools-heading',onDevice?room.title:'Objetos de esta casa');
+        tools.append(heading);
+        const task=localStage&&!onDevice&&(stage.contributions?.[world]?.objective||(stage.number===3?
+          (world==='A'?'Desde aquí controlas la manivela. La otra casa tiene una vista del interior del pozo.':'Desde aquí ves el fondo del pozo. La manivela se conserva en la otra casa.'):''));
+        if(task)tools.append(el('p','mansion-paper-task',task));
+      }
+      if(details.childElementCount)tools.append(details);
       if(selectedEvidence!=null&&localItems[selectedEvidence]){
         const extra=selectedEvidence>=2;
         const inspection=el('section','mansion-inspection');
-        inspection.append(evidenceCard(localItems[selectedEvidence]),returnButton(extra?selectedEvidence-2:selectedEvidence+(localStage?1:0),extra));panel.append(inspection);
+        inspection.append(evidenceCard(localItems[selectedEvidence]),returnButton(extra?selectedEvidence-2:selectedEvidence+(localStage?1:0),extra));tools.append(inspection);
       }
       if(stage){
-        if(shared)panel.append(mesaHost);
+        if(shared)tools.append(mesaHost);
         else {
           const objective=el('section','mansion-objective');
           objective.append(el('p','mansion-eyebrow','Objetivo actual'),el('h3',null,stage.title),el('p',null,stage.brief));
           if(!localStage)objective.append(button('Ir al objetivo',()=>travel(stage.room),'mansion-primary'));
-          panel.append(objective);
+          tools.append(objective);
         }
-        if(localStage&&activeDevice)panel.append(displayPuzzle(stage),message,returnButton(0));
+        if(onDevice){
+          const back=returnButton(0);back.className+=' mansion-device-back';
+          panel.append(back,displayPuzzle(stage),message);
+        }
       }
+      if(tools.childElementCount)panel.append(tools);
       if(state.current===1&&state.recordings?.carta)panel.append(recording(state.recordings.carta));
       if(stage?.recording)panel.append(recording(stage.recording));
       if(localItems.length>2){

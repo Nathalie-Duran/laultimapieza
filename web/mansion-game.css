@@ -484,6 +484,13 @@
   margin: 0;
   padding: clamp(.8rem,1.35vw,1.3rem);
 }
+.mansion-game-area .mansion-panel .mansion-scene-tools > .mansion-tools-heading {margin:0 0 .55rem}
+.mansion-game-area .mansion-scene-tools > .mansion-paper-task {color:var(--house-ink)}
+.mansion-game-area .mansion-scene-tools .mansion-examine {gap:.5rem}
+.mansion-game-area .mansion-scene-tools > .mansion-objective {margin:.9rem 0 0;padding:.4rem 0 0;border:0;border-block-start:1px solid var(--house-stroke);background:transparent}
+.mansion-game-area .mansion-scene-tools .mansion-inspection .mansion-card {margin-block:.55rem}
+.mansion-game-area .mansion-game[data-device="true"] .mansion-stage {display:none}
+.mansion-game-area .mansion-device-back {justify-self:start}
 .mansion-game-area .mansion-objective h3 { margin: .28rem 0 .45rem; font-size: clamp(1.45rem,2.15vw,2.2rem); }
 .mansion-game-area .mansion-objective .mansion-eyebrow { margin: 0; font-size: .78rem; }
 .mansion-game-area .mansion-objective p:not(.mansion-eyebrow) { margin: .45rem 0 .65rem; line-height: 1.45; }
@@ -520,6 +527,9 @@
   .mansion-game-area .mansion-game[data-tab="scene"] .mansion-panel > * { grid-column: 1 / -1; min-inline-size: 0; }
   .mansion-game-area .mansion-game[data-tab="scene"] .mansion-panel:has(> .mansion-objective) > .mansion-stage { grid-column: 1 / 5; grid-row: 1; }
   .mansion-game-area .mansion-game[data-tab="scene"] .mansion-panel > .mansion-objective { grid-column: 5 / -1; grid-row: 1; }
+  .mansion-game-area .mansion-game[data-device="true"] .mansion-panel > .mansion-device-back {grid-column:1/5;grid-row:1}
+  .mansion-game-area .mansion-game[data-device="true"] .mansion-panel > .mansion-puzzle {grid-column:1/5;grid-row:2}
+  .mansion-game-area .mansion-game[data-device="true"] .mansion-panel > .mansion-scene-tools {grid-column:5/-1;grid-row:1/span 2}
   .mansion-game-area .mansion-game[data-tab="scene"] .mansion-panel > details:not([open]) { grid-column: span 3; }
 }
 @media (max-width: 879px) {
