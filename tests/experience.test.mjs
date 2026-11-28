@@ -70,3 +70,24 @@ test('La portada lleva al mapa de cada territorio y ofrece una sola entrada a la
  assert.equal(front.split('href="/#planes"').length-1,1);
  assert.doesNotMatch(front,/Hotel Medianoche|Frecuencia 23:17/);
 });
+
+test('la oferta inicial cambia según apertura o acceso y la demo conserva su enlace de continuación',()=>{
+ const model={stories:ctx.STORIES,sessions:[],canPlay:false};
+ try{
+   ctx.ClubAccess={salesState:'waitlist',price:'29,95 €'};
+   let html=ctx.ExperienceUI.home(model);
+   assert.match(html,/<h1[^>]*>Cuatro juegos de misterio al mes<\/h1>/);
+   assert.match(html,/href="\/#alta-club">Avisarme cuando abra/);
+   assert.match(html,/29,95 €/);
+   ctx.ClubAccess.salesState='open';
+   ctx.CasePreview={hasProgress:()=>true};
+   html=ctx.ExperienceUI.home(model);
+   assert.match(html,/href="\/#planes">Ver la suscripción/);
+   assert.match(html,/data-home-demo-label>Continuar la demo/);
+   html=ctx.ExperienceUI.home({...model,canPlay:true});
+   assert.match(html,/href="\/#casos">Elegir un juego/);
+   assert.doesNotMatch(html,/Avisarme cuando abra|Ver la suscripción/);
+   ctx.ClubAccess.salesState='unknown';
+   assert.match(ctx.ExperienceUI.home(model),/href="\/#planes">Ver la suscripción/);
+ }finally{delete ctx.ClubAccess;delete ctx.CasePreview;}
+});

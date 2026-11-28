@@ -28,7 +28,8 @@ function simulatedEpisode(number,role){
       ...(number===12?{recording}:{})};
     return {title:'Escenario de pruebas',current:number,total:15,stage,revision,rooms,role,
       explore:{id:roomId,evidence:roomId===active.id?stage.evidence:[]},inventory:picked?[{title:'Arandela de ensayo',world:'B'}]:[],
-      missions:['una','dos','tres','cuatro'].map(id=>({id,title:'Misión de ensayo '+id,brief:'',available:false})),
+      missions:['una','dos','tres','cuatro'].map(id=>({id,title:'Misión de ensayo '+id,brief:'',room:'salon',
+        available:id==='una'&&number>=2,controls:[],evidence:[{role:'A',title:'Vestigio A',text:'Anotación de ensayo.'},{role:'B',title:'Vestigio B',text:'Marca de ensayo.'}]})),
       balance:hint?5:6,album:[{id:'carta',title:'Nota de ensayo',text:'«Única transcripción de ensayo.»'}],
       recordings:{carta:{title:'Oír la nota',audio:'/test-letter.wav',text:'Única transcripción de ensayo.'},...(number>=12?{radio:recording}:{})},ending:null};
   }
@@ -155,4 +156,34 @@ test('La mesa de placas desplaza las marcas de B y conserva los indicios privado
   assert.match(grid()[5],/A · Disco.*B · Anillo/);
   const duo=await view(6,'B');await duo.click('Abrir el mecanismo');
   assert.doesNotMatch(duo.host.querySelector('.mansion-photo-grid').textContent,/A ·/);
+});
+
+test('El manipulador conserva los grupos anotados y deja que el jugador los descifre con la clave',async()=>{
+  const {host,click}=await view(12,'A');
+  await click('Abrir el mecanismo');
+  await click('Pulsación larga —');
+  await click('Separar grupo');
+  await click('Pulsación corta ·');
+  const input=()=>host.querySelector('.mansion-code');
+  assert.equal(input().value,'');
+  assert.match(host.textContent,/larga \/ corta/);
+  await click('Inventario');await click('Escenario');
+  assert.match(host.textContent,/larga \/ corta/);
+  await click('Deshacer última pulsación');
+  assert.doesNotMatch(host.textContent,/larga \/ corta/);
+  input().value='XY';input().events.input();
+  await click('Pulsación larga —');await click('Separar grupo');
+  assert.equal(input().value,'XY');
+});
+
+test('Una misión se descubre en su sala y devuelve el foco al mismo hallazgo',async()=>{
+  const {host,click,document}=await view(2,'B');
+  const pin=()=>host.querySelector('.mansion-mission-pin');
+  assert.equal(pin().attrs['aria-label'],'Misión opcional · Misión de ensayo una');
+  await pin().events.click();
+  assert.equal(document.activeElement.textContent,'Misión de ensayo una');
+  assert.match(host.textContent,/Vestigio B/);assert.doesNotMatch(host.textContent,/Vestigio A/);
+  await click('Volver al lugar del hallazgo');
+  assert.equal(document.activeElement,pin());
+  const elsewhere=await view(3,'B');assert.equal(elsewhere.host.querySelector('.mansion-mission-pin'),undefined);
 });

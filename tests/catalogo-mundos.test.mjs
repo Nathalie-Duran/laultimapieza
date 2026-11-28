@@ -19,16 +19,21 @@ test('la miga de los cuatro mapas vuelve al territorio activo y su nombre se con
   for(const season of page.Colecciones.seasons){
     const route=season.board;
     page.location.hash='#'+route;
-    const crumb=page.Colecciones.mapBreadcrumb(route),menu=page.Colecciones.menu(route);
+    const crumb=page.Colecciones.breadcrumb(route),menu=page.Colecciones.menu(route);
     assert.ok(crumb.includes('href="/#tableros?mundo='+route+'"'));
-    assert.ok(crumb.includes(' Tableros</a>'));
+    assert.ok(crumb.includes(' Temporadas</a>'));
     assert.ok(!crumb.includes(season.name));
     assert.ok(menu.includes('href="/#'+route+'" aria-current="page"'));
     const map=route==='mapa'?page.ValdemarPlano.view({}):page.Mundos.view(route);
     const heading=map.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1];
     assert.ok(heading?.includes(season.name));
   }
-  assert.equal(page.Colecciones.mapBreadcrumb('casos'),'');
+  assert.equal(page.Colecciones.breadcrumb('casos'),'');
+  page.location.hash='#umbravia?lugar=11&seccion=ficha';
+  assert.match(page.Colecciones.breadcrumb('umbravia'),/href="\/#casos\?mundo=umbravia&amp;mes=3".*> Juegos<\/a>/);
+  page.location.hash='#mundos-jugar?id=35&seccion=reto';
+  assert.match(page.Colecciones.breadcrumb('mundos-jugar',35),/href="\/#desafios\?mundo=umbravia".*> Retos extra<\/a>/);
+  assert.match(page.Colecciones.breadcrumb('valdemar',6),/href="\/#casos\?mes=2".*> Juegos<\/a>/);
 });
 
 test('cada nombre editorial coincide en el catálogo, el mapa, el pase y la invitación al primer caso de su tablero',async()=>{
@@ -39,7 +44,9 @@ test('cada nombre editorial coincide en el catálogo, el mapa, el pase y la invi
     const name=names[index];
     assert.equal(season.name,name);
     page.location.hash=page.Colecciones.catalogRoute(season.board).replace(/^\//,'');
-    assert.ok(page.ValdemarCatalog.list({}).includes('<h1>'+name+'</h1>'));
+    const catalog=page.ValdemarCatalog.list({});
+    assert.ok(catalog.includes('<h1>Juegos</h1>'));
+    assert.ok(catalog.includes('aria-label="Bloques de '+name+'"'));
     const map=index?page.Mundos.view(season.board):page.ValdemarPlano.view({});
     assert.ok(map.includes(name));
     const mail=messageTemplate('case_invitation',{caseId:index*12+1});

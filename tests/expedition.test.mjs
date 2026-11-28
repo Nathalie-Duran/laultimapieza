@@ -1,6 +1,29 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {valdemarRequest} from '../valdemar-api.mjs';
+import {inspectInventory,useInventory,mergeInventory} from '../expedition.mjs';
+
+test('un cruce contextual de dos carpetas revela el hallazgo también al retomar una partida anterior',()=>{
+  const materials=[['plano','A'],['placa','B'],['lista','B']].map(([id,role])=>({id,label:id,role,body:'Observación en el archivo: '+id}));
+  const fieldLink={items:['plano','placa'],objective:'Busca de qué máquina se retiró la placa.',finding:'Los orificios encajan con el dibujo del torno.'};
+  const story={id:2,hour:{stages:[{materials,fieldLink}]}},record={};
+  const act=(role,operation,data={})=>useInventory(story,record,role,{index:0,operation,...data});
+  const view=(state,role)=>inspectInventory(story,state,role).rooms[0];
+  assert.equal(view(record,'A').fieldNote,undefined);
+  act('A','visit');
+  assert.deepEqual(view(record,'A').fieldNote,{objective:fieldLink.objective});
+  assert.throws(()=>act('A','collect',{item:'placa'}),{status:400});
+  act('A','collect',{item:'plano'});act('B','collect',{item:'lista'});act('B','collect',{item:'placa'});
+  act('A','combine',{items:['plano','lista']});
+  assert.equal(view(record,'B').fieldNote.finding,undefined);
+  act('B','combine',{items:['placa','plano']});
+  assert.equal(view(record,'A').fieldNote.finding,fieldLink.finding);
+  assert.equal(view(record,'A').items.find(x=>x.id==='placa').detail,undefined);
+  const oldRecord={inventory:{0:{items:['plano','placa'],links:[['plano','placa']]}}};
+  assert.equal(view(oldRecord,null).fieldNote.finding,fieldLink.finding);
+  const personal={};mergeInventory(personal,record);
+  assert.equal(view(personal,null).fieldNote.finding,fieldLink.finding);
+});
 
 test('Los cuatro tableros conservan la exploración individual, la combinación y el premio tras reabrir',async()=>{
   for(const id of [1,18,33,48]){

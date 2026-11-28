@@ -4,13 +4,13 @@ import {readFile} from 'node:fs/promises';
 import {createContext,runInContext} from 'node:vm';
 
 const source=await readFile(new URL('../public/app.js',import.meta.url),'utf8');
-async function appHarness({fullAccess=false}={}){
+async function appHarness({fullAccess=false,navLinks=[]}={}){
   const elements=new Map();
   const element=selector=>{if(!elements.has(selector))elements.set(selector,{innerHTML:'',textContent:'',dataset:{},open:false,hidden:false,
     classList:{add(){},remove(){},toggle(){}},addEventListener(){},setAttribute(){},replaceChildren(){this.innerHTML='';},close(){this.open=false;},showModal(){this.open=true;}});return elements.get(selector);};
   let fetcher=async()=>Response.json({}),bridge;
   const context=createContext({crypto:globalThis.crypto,structuredClone,AbortController,Response,URLSearchParams,console,
-    document:{body:element('body'),getElementById:id=>element('#'+id),querySelector:element,querySelectorAll:()=>[],addEventListener(){}},
+    document:{body:element('body'),getElementById:id=>element('#'+id),querySelector:element,querySelectorAll:selector=>selector==='[data-nav]'?navLinks:[],addEventListener(){}},
     location:{hash:'#perfil'},localStorage:{getItem:()=>null,setItem(){}},
     setTimeout:()=>0,clearTimeout(){},setInterval(){},FormData,
     fetch:(...args)=>fetcher(...args),
@@ -18,11 +18,38 @@ async function appHarness({fullAccess=false}={}){
     AccountUI:{start:async value=>{bridge=value;},signInPanel:()=>'<h1>Iniciar sesión</h1>',header:()=>'',accountCard:()=>'',open(){}},
     addEventListener(){},scrollTo(){}});
   context.window=context;
-  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js',...(fullAccess?['membership-flow.js']:[]),'monthly-access.js','experience-ui.js','profile-notebook.js','archive.js'])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
+  for(const file of ['stories.js','season.js','engine.js','profile-model.js','membership.js',...(fullAccess?['membership-flow.js']:[]),'monthly-access.js','experience-ui.js','profile-notebook.js','archive.js',...(navLinks.length?['colecciones.js','valdemar-catalog.js','mundos-catalogo.js']:[])])runInContext(await readFile(new URL('../public/'+file,import.meta.url),'utf8'),context);
   runInContext(source,context);bridge.cloud(true);bridge.loading(false);
   return {bridge,element,membership:context.ClubAccess,setFetch(value){fetcher=value;},credential(value){context.AccountAccess.user=value;},
     visit(hash){context.location.hash=hash;bridge.render();return element('#main').innerHTML;}};
 }
+test('el menú de escritorio y el móvil ofrecen los mismos destinos y adaptan la cuenta al entrar y salir',async()=>{
+  const html=await readFile(new URL('../web/index.html',import.meta.url),'utf8');
+  const menus=['<nav aria-label="Principal">','<nav class="mobile-nav"'].map(start=>{
+    const from=html.indexOf(start),section=html.slice(from,html.indexOf('</nav>',from));
+    return [...section.matchAll(/<a (.*?)>([\s\S]*?)<\/a>/g)].map(([,attrs,body])=>({
+      label:body.replace(/<span aria-hidden="true">[^<]*<\/span>|<[^>]+>/g,''),
+      href:attrs.match(/href="([^"]+)"/)[1],dataset:{nav:attrs.match(/data-nav="([^"]+)"/)[1],navAudience:attrs.match(/data-nav-audience="([^"]+)"/)?.[1]},
+      hidden:attrs.includes(' hidden'),classList:{toggle(){}},setAttribute(name,value){this[name]=value;},removeAttribute(name){delete this[name];}
+    }));
+  });
+  const app=await appHarness({navLinks:menus.flat()});
+  const verify=(names,active)=>menus.forEach(links=>{
+    const showing=links.filter(link=>!link.hidden);
+    assert.deepEqual(showing.map(link=>link.label),names);
+    assert.deepEqual(showing.filter(link=>link['aria-current']).map(link=>link.dataset.nav),[active]);
+  });
+  const base=['Juegos','Temporadas','Retos extra'];
+  assert.match(app.visit('#casos'),/<h1>Juegos<\/h1>/);
+  verify([...base,'Suscripción'],'casos');
+  assert.match(app.visit('#tableros'),/<h1>Temporadas<\/h1>/);
+  verify([...base,'Suscripción'],'tableros');
+  app.setFetch(async()=>Response.json({profile:{userId:'persona',name:'Mi perfil'},sessions:[],activeSessionId:null,membership:{canPlay:false}}));
+  await app.bridge.load();app.visit('#archivo');
+  verify([...base,'Mis partidas','Mi cuenta'],'archivo');
+  app.bridge.reset();app.visit('#casos');
+  verify([...base,'Suscripción'],'casos');
+});
 test('Cambiar de cuenta limpia la vista y una respuesta anterior no puede restaurar sus datos',async()=>{
   const app=await appHarness();
   app.setFetch(async()=>Response.json({profile:{userId:'alice',name:'Alice privada'},sessions:[],activeSessionId:null,membership:{canPlay:true}}));

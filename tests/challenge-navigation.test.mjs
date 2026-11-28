@@ -36,7 +36,7 @@ test('la portada enlaza cada destino y solo el tablero seleccionado enumera sus 
     assert.equal((html.match(/seccion=reto/g)||[]).length,1);
     assert.ok(html.includes('id='+id+'&amp;seccion=reto'));
     assert.ok(html.includes('data-reto-premio="'+id+'">'+(id===48?'2 llaves':'1 llave')));
-    assert.match(html,/Todos los desafíos/);
+    assert.match(html,/Todos los retos extra/);
     assert.doesNotMatch(context.Colecciones.challenges(),/seccion=reto/);
   }
   context.location.hash='#desafios?seccion=calendario';

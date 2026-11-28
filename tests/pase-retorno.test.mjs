@@ -6,7 +6,10 @@ import {createContext, runInContext} from 'node:vm';
 const scripts=await Promise.all(['membership-flow','experience-actions'].map(file=>
   readFile(new URL('../web/'+file+'.js',import.meta.url),'utf8')));
 
-async function storefront(salesOpen=true,partnerOffer){
+const offerPolicy={percentOff:50,regularAmountCents:2995,amountCents:null,currency:'eur'};
+const catalogs=await Promise.all(['valdemar-catalog','mundos-catalogo'].map(name=>readFile(new URL('../web/'+name+'.js',import.meta.url),'utf8')));
+
+async function storefront(salesOpen=true,partnerOffer=offerPolicy){
   let signedIn=false, opened=0;
   const clickHandlers=[], requests=[];
   const location={hash:'#planes',search:'',assign(url){this.destination=url;}};
@@ -19,7 +22,8 @@ async function storefront(salesOpen=true,partnerOffer){
     document:{body:{dataset:{}},addEventListener(type,handler){if(type==='click')clickHandlers.push(handler);}},
     AccountUI:{open(){opened++;}},ValdemarCatalog:{items:[]},addEventListener(){},
     fetch:async()=>({ok:true,json:async()=>({checkoutAvailable:salesOpen,partnerOffer})})});
-  for(const script of scripts)runInContext(script,page);
+  page.window=page;
+  for(const script of [...catalogs,...scripts])runInContext(script,page);
   await new Promise(resolve=>setImmediate(resolve));
   return {
     page,location,requests,opened:()=>opened,
@@ -41,7 +45,7 @@ test('Entrar desde el pase recupera su resumen y espera a la confirmación para 
   assert.equal(shop.opened(),1);
   assert.equal(shop.location.hash,'#planes?revisar=1');
   shop.login(1);
-  assert.match(shop.page.ClubAccess.plans(),/Revisa tu pase de los cuatro tableros/);
+  assert.match(shop.page.ClubAccess.plans(),/Revisa tu suscripción/);
   assert.equal(shop.requests.length,0);
   await shop.click(1);
   assert.match(shop.page.ClubAccess.plans(),/data-plan="four-boards-v1"/);
@@ -52,8 +56,8 @@ test('El enlace de revisión respeta tanto la temporada elegible como la preaper
   const active=await storefront();
   await active.click(1);
   active.login(2);
-  assert.doesNotMatch(active.page.ClubAccess.plans(),/Revisa tu pase de los cuatro tableros/);
-  assert.match(active.page.ClubAccess.plans(),/Contratar el pase de los cuatro tableros/);
+  assert.doesNotMatch(active.page.ClubAccess.plans(),/Revisa tu suscripción/);
+  assert.match(active.page.ClubAccess.plans(),/Suscribirme/);
   const waiting=await storefront(false);
   await waiting.click(1);
   assert.equal(waiting.opened(),0);
@@ -80,14 +84,18 @@ test('La ayuda y la retirada del aviso están disponibles sin contratar',async()
   }
 });
 
-test('el pase explica el orden de cuatro tableros, los tres bloques y el retorno de un miembro',async()=>{
+test('La cuota muestra cuatro juegos enlazados y tres bloques en la temporada',async()=>{
   const shop=await storefront(false);
   const guest=shop.page.ClubAccess.plans();
-  assert.deepEqual([...guest.matchAll(/<strong>(\d+)<span> \/ 12 aventuras/g)].map(match=>Number(match[1])),[4,8,12]);
-  for(const board of ['mapa','expedicion','umbravia','necropolis'])assert.ok(guest.includes('href="/#'+board+'"'));
+  assert.deepEqual([...guest.matchAll(/<strong>(\d+)<span> \/ 12 juegos/g)].map(match=>Number(match[1])),[4,8,12]);
+  assert.match(guest,/Cuatro juegos <em>cada mes/);
+  assert.match(guest,/href="\/#tableros">Ver las temporadas/);
+  for(const id of ['01','02','03','04'])assert.ok(guest.includes('href="/valdemar/'+id+'/"'));
+  assert.match(guest,/Hotel Medianoche/);
+  assert.match(guest,/automáticamente al abonar los 48 juegos/);
   assert.match(guest,/Ya tengo cuenta · Entrar/);
   assert.equal((guest.match(/29,95 €/g)||[]).length,1);
-  assert.match(guest,/Precio previsto, IVA incluido/);
+  assert.match(guest,/por persona al mes · IVA incluido/);
   assert.match(guest,/href="\/#alta-club"/);
   assert.doesNotMatch(guest,/class="pase-preguntas"|data-notice="join"|pase-peliculas/);
   shop.login(1);
@@ -120,11 +128,11 @@ test('alta, gestión y preguntas muestran solo las acciones del destino',async()
 test('El primer cobro y la recontratación siempre muestran el precio íntegro',async()=>{
   const policy={percentOff:50,regularAmountCents:2995,amountCents:null,currency:'eur'};
   const shop=await storefront(true,policy);
-  assert.match(shop.page.ClubAccess.plans(),/primera cuota por persona/);
+  assert.match(shop.page.ClubAccess.plans(),/La primera cuota se cobra al contratar/);
   for(const status of ['no_partner','saved','eligible']){
     shop.login(1,{...policy,status,eligible:status==='eligible'});
     const quote=shop.page.ClubAccess.plans();
-    assert.match(quote,/29,95 €<\/strong> primera cuota por persona/);
+    assert.match(quote,/29,95 €<\/strong> <span>por persona al mes/);
     assert.match(quote,/próxima renovación/);
     assert.doesNotMatch(quote,/data-partner-offer|Tu próxima renovación tiene|14,9[78]/);
     await shop.click(1);
@@ -138,7 +146,7 @@ test('El primer cobro y la recontratación siempre muestran el precio íntegro',
   assert.doesNotMatch(quote,/data-action="billing-checkout"|14,9[78]/);
   const waiting=await storefront(false,policy);
   waiting.login(1,{...policy,status:'eligible',eligible:true});
-  assert.match(waiting.page.ClubAccess.plans(),/abrirá próximamente/);
+  assert.match(waiting.page.ClubAccess.plans(),/contratación aún está cerrada/);
   assert.doesNotMatch(waiting.page.ClubAccess.plans(),/data-action="billing-checkout"/);
 });
 
@@ -178,4 +186,52 @@ test('La ayuda separa la elección mutua del papel y de la renovación',async()=
   shop.page.Colecciones={menu:()=>''};
   shop.page.ClubAccess.set({role:'admin'});
   assert.match(shop.page.ClubAccess.plans(),/href="\/#perfil\?seccion=pareja">Ver mi compañero de juego/);
+});
+
+test('El catálogo abonado, el plan antiguo y el acceso editorial no ofrecen otra compra',async()=>{
+  const shop=await storefront(true);
+  shop.login(1);
+  const seasons=Array.from({length:4},(_,index)=>({number:index+1,paidBlocks:[1,2,3],previousReady:index===0,completed:0,finishAccess:false}));
+  for(const ownAccess of [true,false]){
+    shop.page.ClubAccess.set({ownAccess,hasCustomer:true,partnerOffer:{status:'eligible',eligible:true},seasonAccess:{seasons,nextPurchase:null,billingPlan:'four-boards-v1'}});
+    for(const target of ['#planes','#suscripcion']){
+      shop.location.hash=target;
+      const page=shop.page.ClubAccess.plans();
+      assert.match(page,/catálogo (está )?abonado|Catálogo abonado/i);
+      assert.doesNotMatch(page,/billing-checkout|Tu próxima renovación tiene|data-notice="join"/);
+    }
+  }
+  shop.location.hash='#planes';
+  shop.page.ClubAccess.set({ownAccess:true,seasonAccess:{seasons:[seasons[0]],billingPlan:'season'}});
+  assert.match(shop.page.ClubAccess.plans(),/cobros de este pase de temporada han terminado/);
+  shop.page.ClubAccess.set({role:'admin'});
+  assert.match(shop.page.ClubAccess.plans(),/48 juegos abiertos/);
+  assert.doesNotMatch(shop.page.ClubAccess.plans(),/billing-checkout|data-notice|Suscribirme/);
+});
+
+test('Una configuración sin disponibilidad confirmada ofrece reintentar y conserva la demo',async()=>{
+  const shop=await storefront(null);
+  assert.equal(shop.page.ClubAccess.salesState,'unknown');
+  assert.match(shop.page.ClubAccess.plans(),/Volver a consultar/);
+  assert.match(shop.page.ClubAccess.plans(),/href="\/cinta-87.html"/);
+  assert.doesNotMatch(shop.page.ClubAccess.plans(),/billing-checkout|Avisarme de la apertura/);
+});
+
+test('Al retomar, el resumen corresponde al bloque que se puede abonar',async()=>{
+  const shop=await storefront(true);
+  shop.login(2);
+  shop.page.ClubAccess.set({seasonAccess:{seasons:[{number:2,paidBlocks:[1],previousReady:true,completed:4}],nextPurchase:{number:2,blocks:[2,3],remainingCycles:2}}});
+  const page=shop.page.ClubAccess.plans();
+  assert.match(page,/juegos del bloque 2/);
+  assert.match(page,/href="\/#expedicion\?lugar=5"/);
+  assert.doesNotMatch(page,/href="\/valdemar\/01\//);
+});
+
+test('Portada y pase comparten la disponibilidad y la tarifa general configurada',async()=>{
+  for(const open of [true,false]){
+    const shop=await storefront(open,offerPolicy);
+    assert.equal(shop.page.ClubAccess.salesState,open?'open':'waitlist');
+    assert.equal(shop.page.ClubAccess.price,'29,95 €');
+    assert.ok(shop.page.ClubAccess.plans().includes('<strong>'+shop.page.ClubAccess.price+'</strong>'));
+  }
 });

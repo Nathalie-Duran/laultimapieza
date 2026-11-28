@@ -195,3 +195,20 @@ test('el audio y la ilustración de la demo están disponibles en la distribuci�
   assert.equal(art.toString('ascii',8,12),'WEBP');
   assert.ok(sound.length>10000&&art.length>10000);
 });
+
+test('cada papel abre únicamente sus dos objetos ilustrados y conserva ambos materiales al reunirlos',async()=>{
+  const h=browser();
+  h.click('start','duo');h.click('uncover');
+  assert.match(h.html,/c87-magnetofono\.webp/);assert.match(h.html,/c87-acetato\.webp/);
+  assert.doesNotMatch(h.html,/c87-registro\.webp|c87-fichero\.webp/);
+  h.click('place','acetato');h.click('take','acetato');h.click('role');
+  assert.doesNotMatch(h.html,/c87-(?:magnetofono|acetato|fichero|registro)\.webp/);
+  h.click('uncover');assert.match(h.html,/c87-registro\.webp/);assert.match(h.html,/c87-fichero\.webp/);
+  h.click('place','hoja');h.click('take','hoja');h.click('view','bag');
+  assert.match(h.html,/data-slot="first"/);assert.match(h.html,/data-slot="second"/);
+  h.submit('combine',overlap);assert.ok(h.saved.combined);
+  for(const object of ['magnetofono','acetato','registro','fichero']){
+    const photo=await readFile(file('c87-'+object+'.webp'));
+    assert.equal(photo.toString('ascii',8,12),'WEBP',object);
+  }
+});
