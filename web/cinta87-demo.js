@@ -103,7 +103,7 @@
         '<div class="c87-opening-copy"><p class="c87-kicker">Archivo de Radio Valdemar · Demo gratuita</p>'+
         '<h1 tabindex="-1" data-c87-heading>La cinta 87</h1><p class="c87-lead">La última emisión de la estación está a punto de salir en antena otra vez. En el archivo quedan tres cajas y una sola contiene la grabación original.</p>'+
         '<p>Escucha la cinta piloto, localiza la bobina y decide qué hacer con su contenido.</p>'+
-        '<p class="c87-meta">10–15 min aprox. · Un dispositivo · Guardado local</p><div class="c87-actions">'+
+        '<p class="c87-meta">10-15 min aprox. · Un dispositivo · '+(storageBlocked?'Guardado durante esta visita':'Guardado local')+'</p><div class="c87-actions">'+
         control('start','Jugar en solitario','solo',true)+control('start','Jugar en pareja','duo')+'</div>'+
         '<p class="c87-small">En solitario consultas ambas carpetas. En pareja os turnáis con el dispositivo y compartís en voz alta vuestras pistas.</p>'+
         '<div class="c87-links">'+control('archive','Archivo de Marta y Tomás')+control('exit',exitLabel)+'</div></div></section>';
@@ -154,7 +154,7 @@
         detail='<p>El carrete piloto conserva el arranque de la última emisión. La ficha de su caja se perdió. Escucha la señal que precede al soplo.</p>'+
           '<audio controls preload="none" data-c87-pilot aria-label="Cinta piloto de la última emisión"><source src="/cinta87-piloto.wav" type="audio/wav"></audio>'+
           (transcript?'<blockquote data-c87-transcript tabindex="-1">Clic de arranque. Dos pulsos cortos, seguidos de un pulso largo. Después se oye el soplo de la cinta y un clic de parada.</blockquote>':control('transcript','Leer la transcripción'))+
-          (state.seen.includes('signal')?'<p class="c87-filed">Señal del piloto examinada</p>':'');
+          (state.seen.includes('signal')&&!notice?'<p class="c87-filed">Señal del piloto examinada</p>':'');
       }else if(id==='acetato'){
         detail='<p>Una lámina opaca tiene una sola ventana transparente. En el borde, alguien ha escrito a lápiz:</p><blockquote>Para leer la última tirada, pon la muesca del acetato sobre la franja negra de la hoja de contactos.</blockquote>'+objectButton('acetato');
       }else if(id==='libro'){
@@ -218,7 +218,7 @@
       const key=alternate?(state.ending==='emitir'?'custodiar':'emitir'):state.ending,ending=endings[key];
       return '<section class="c87-ending"><p class="c87-kicker">'+(alternate?'Lectura alternativa':'Desenlace guardado')+'</p>'+heading(ending.title)+'<p class="c87-lead">'+ending.text+'</p>'+
         (alternate?'<p class="c87-small">Tu elección guardada sigue siendo «'+endings[state.ending].label+'».</p>':
-          '<div class="c87-souvenir"><strong>Ficha de oyente · Cinta 87</strong><p>Recuerdo de muestra guardado en este navegador. No añade llaves al pase de temporada.</p></div>')+
+          '<div class="c87-souvenir"><strong>Ficha de oyente · Cinta 87</strong><p>Recuerdo de muestra '+(storageBlocked?'disponible durante esta visita.':'guardado en este navegador.')+' No añade llaves al pase de temporada.</p></div>')+
         '<div class="c87-actions">'+control('exit',exitLabel,'',true)+control('alternate',alternate?'Volver a mi desenlace':'Leer el otro desenlace')+'</div>'+
         '<div class="c87-links">'+control('archive','Archivo de Marta y Tomás')+control('reset','Volver a jugar desde el principio')+'</div></section>';
     }

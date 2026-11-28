@@ -84,7 +84,7 @@
       ? '<button type="button" data-mansion-letter>Abrir la carta de Ada</button>'
       : '<a href="/valdemar/01/?carta=1">Abrir la carta de Ada</a>';
     const enter='<a href="/#valdemar-jugar?id=1">Entrar en la mansión</a>';
-    const alternate=detailView ? '<a href="/vallejo.html?caso=01">Jugar la demo de La cinta 87</a>' : '<a href="/vallejo.html">Jugar la demo de La cinta 87</a>';
+    const alternate=detailView ? '<a href="/cinta-87.html?caso=01">Jugar la demo de La cinta 87</a>' : '<a href="/cinta-87.html">Jugar la demo de La cinta 87</a>';
     return `<section class="mansion-entry mansion-entry-cover" aria-labelledby="mansion-entry-title">
       <div class="mansion-entry-art"><img src="/mansion-room-1.webp" alt="La verja de hierro entreabierta da paso a la mansión de Valdemar." width="800" height="520" fetchpriority="high"></div>
       <div class="mansion-entry-copy"><p class="mansion-entry-kicker">Código Valdemar · Episodio 01</p><h1 id="mansion-entry-title">El secreto de los dos mundos</h1>
@@ -116,7 +116,7 @@
     const cta=entry(item,opts,unlocked);
     if(item.id===1)return mansionDetail(unlocked,message);
     const sample=item.id===2?`<button type="button" data-vd-start class="${unlocked?'vd-ghost':'vd-cta'}">Atender la llamada</button>`:'';
-    const demo=unlocked?'':`<a class="vd-textlink" href="/vallejo.html?caso=${number(item.id)}">Probar gratis la demo de La cinta 87</a>`;
+    const demo=unlocked?'':`<a class="vd-textlink" href="/cinta-87.html?caso=${number(item.id)}">Probar gratis la demo de La cinta 87</a>`;
     const actions=item.id===2?(unlocked?cta+sample:sample+cta.replace('class="vd-cta"','class="vd-ghost"')):cta;
     const adjacent=[get(item.id-1),get(item.id+1)].filter(Boolean).map(other=>
       `<a href="${path(other.id)}"><span>${other.id<item.id?'Expediente anterior':'Expediente siguiente'}</span><strong>${esc(other.title)}</strong></a>`
