@@ -118,7 +118,7 @@
           if (!this.hasAttribute('data-with-classic')) {
             const next=window.PlayerNotebook?.nextAdventure?.(games,access);
             const empty = element('p',next?'Tu primer caso está disponible.':'Todavía no tienes partidas guardadas.','sa-message');
-            const link = element('a',next?'Empezar '+next.title:'Explorar los casos','button primary');
+            const link = element('a',next?'Empezar '+next.title:'Explorar los juegos','button primary');
             link.href = next?'#'+next.route:'#casos';
             this.append(empty,link);
           }

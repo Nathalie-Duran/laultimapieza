@@ -54,7 +54,7 @@
   function view(standalone=false) {
     const heading=standalone?'<h1>Calendario de juego</h1>':'<h2>Calendario de juego</h2>';
     const signed=window.GameAccountBridge?.isSignedIn?.()===true;
-    const published='<section class="account-card" id="published-challenges"><h2>Desafíos de la edición</h2><p role="status" aria-live="polite"></p><div data-challenges></div></section>';
+    const published='<section class="account-card" id="published-challenges"><h2>Retos de la edición</h2><p role="status" aria-live="polite"></p><div data-challenges></div></section>';
     return '<section class="account-card reto-calendario" id="calendar-challenges">'+heading+'<ul class="reto-periodos"><li><strong>Desafío diario</strong><span>Una prueba · 1 llave</span></li><li><strong>Misión semanal</strong><span>Tres pruebas de lunes a domingo · 2 llaves</span></li></ul><p>Elige una prueba y marca tu respuesta. Si dejas pasar una edición, conservas las llaves y el avance de tus aventuras. Los periodos cambian a medianoche, hora de Madrid.</p><p role="status" aria-live="polite"></p><div data-challenges></div></section>'+
       (signed||!standalone?published:'');
   }
@@ -73,7 +73,7 @@
     const status=panel.querySelector('[role=status]'), list=panel.querySelector('[data-challenges]');
     if (!window.GameAccountBridge?.isSignedIn()) {
       if(calendar)status.innerHTML='Disponible desde el primer caso de Código Valdemar. <a href="/#planes">Ver el pase</a> · <button type="button" class="text-link" data-action="auth-login">Entrar con mi cuenta</button>';
-      else status.textContent='Inicia sesión para consultar los desafíos de tus casos.';
+      else status.textContent='Inicia sesión para consultar los retos de tus juegos.';
       return;
     }
     status.textContent=calendar?'Cargando el calendario…':'Buscando retos del equipo editorial…';
@@ -84,7 +84,7 @@
       if(!calendar&&!items.length){panel.hidden=true;return;}
       status.textContent=calendar?(items.length?'':'El calendario se abre con el primer caso de Código Valdemar.'):'Una llave por la primera resolución.';
       list.innerHTML=items.map(item=>`<details class="account-card"><summary>${calendar?esc(scheduleKinds[item.schedule.kind])+' · ':''}${esc(item.title)}${item.solved?' · Resuelto':''}</summary>
-        <p>${calendar?item.prize+(item.prize===1?' llave':' llaves'):'Tablero '+Math.ceil(item.caseId/12)+' · Caso '+((item.caseId-1)%12+1)} · ${item.total} ${item.total===1?'prueba':'pruebas'}${scheduleCaption(item.schedule,calendar)}</p>
+        <p>${calendar?item.prize+(item.prize===1?' llave':' llaves'):'Temporada '+Math.ceil(item.caseId/12)+' · Caso '+((item.caseId-1)%12+1)} · ${item.total} ${item.total===1?'prueba':'pruebas'}${scheduleCaption(item.schedule,calendar)}</p>
         <form data-challenge="${esc(item.id)}" data-index="${item.index}" data-revision="${item.revision}">
         <p role="status" aria-live="polite"></p><div data-question>${question(item)}</div></form></details>`).join('');
       list.onsubmit=async event=>{
@@ -120,7 +120,7 @@
       };
     } catch(error) {
       if(!panel.isConnected)return;
-      status.textContent=error.message||'No se pudieron cargar los desafíos.';
+      status.textContent=error.message||'No se pudieron cargar los retos.';
       list.innerHTML='<button type="button" class="button">Reintentar</button>';
       list.querySelector('button').onclick=()=>{delete panel.dataset.bound;list.replaceChildren();mountPanel(panelId,path,calendar);};
     }

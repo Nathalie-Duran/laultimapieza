@@ -244,12 +244,19 @@ details.archive-memories[open],
   }
 }
 
-@media (max-width: 760px) {
+.sidebar nav [data-nav][hidden], .mobile-nav [data-nav][hidden] { display: none !important; }
+.postal-visitor .topbar:has(.atlas-breadcrumb) { display:flex !important; min-block-size:44px; }
+.postal-visitor .topbar:has(.atlas-breadcrumb) .top-actions { display:none; }
+.vd-list .vd-catalog-intro { max-width:50ch; margin: .3rem 0 .65rem; }
+@media (max-width: 780px) {
   .mobile-nav,
   .postal-visitor .mobile-nav {
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     gap: .125rem;
     padding-inline: .25rem;
+  }
+  .mobile-nav:has([data-nav-audience="member"]:not([hidden])) {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
   }
   .mobile-nav a,
   .postal-visitor .mobile-nav a {

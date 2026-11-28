@@ -95,7 +95,7 @@
   }
   function view(world,options={}) {
     const {edition,candidates,item}=boardData(world);
-    if (!edition || !item) return '<section class="md-missing"><h1>Colección no disponible</h1><a href="#casos">Volver a los casos</a></section>';
+    if (!edition || !item) return '<section class="md-missing"><h1>Colección no disponible</h1><a href="#casos">Volver a los juegos</a></section>';
     const local=item.id-edition.offset, previous=candidates[(local+10)%12], next=candidates[local%12];
     const old=board?.element?.isConnected && board.world===world ? board.element : null;
     const enlarged=old?.querySelector('.md-map-window')?.dataset.zoom==='true';
@@ -130,7 +130,7 @@
           <div class="md-pins">${candidates.map(v=>pin(edition,world,v,item.id,allowed.has(v.id),done.has(v.id))).join('')}${edition.sealCenter?sealLink(edition,world,local,true):''}</div></div></div>
         ${egypt?chamberLevels(edition,world,level):''}<div class="md-board-tools"><span class="md-board-status" data-md-progress>${access?candidates.filter(v=>done.has(v.id)).length+' de 12 '+esc(edition.progress):'12 '+esc(edition.count)}</span>${world==='expedicion'?'<button type="button" class="md-roll" aria-describedby="md-roll-note" disabled>Mover el peón</button>':''}<button type="button" class="md-zoom" aria-pressed="${!!enlarged}">${enlarged?'Ver completo':'Ampliar'}</button></div>${world==='expedicion'?'<p id="md-roll-note" class="md-board-note" aria-live="polite"></p>':''}</div>
         ${card}</div>
-      <nav class="md-catalog-links" aria-label="Explorar el territorio"><a href="/#casos?mundo=${world}&amp;mes=${level+1}">Ver las aventuras de este bloque</a><a href="/#tableros?mundo=${world}">Mapa de los cuatro tableros</a></nav><details class="md-directory"${open?' open':''}><summary>${esc(edition.index)} <span>12</span></summary><ol>${candidates.map(v=>indexEntry(edition,world,v,item.id,allowed.has(v.id),done.has(v.id))).join('')}</ol></details></section>`;
+      <nav class="md-catalog-links" aria-label="Explorar el territorio"><a href="/#casos?mundo=${world}&amp;mes=${level+1}">Ver los juegos de este bloque</a><a href="/#tableros?mundo=${world}">Ver todas las temporadas</a></nav><details class="md-directory"${open?' open':''}><summary>${esc(edition.index)} <span>12</span></summary><ol>${candidates.map(v=>indexEntry(edition,world,v,item.id,allowed.has(v.id),done.has(v.id))).join('')}</ol></details></section>`;
   }
   function center(node,pin) {
     if (!pin || node.scrollWidth<=node.clientWidth+2 && node.scrollHeight<=node.clientHeight+2) return;

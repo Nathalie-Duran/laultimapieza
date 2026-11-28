@@ -19,7 +19,7 @@
     }
     if(authStatus!=='ready'){
       const message=authStatus==='error'?'No se ha podido conectar con el servicio de cuentas.':'El acceso con cuenta está desactivado en este momento.';
-      bridge.modal('<h2 id="modal-title">Acceso a tu cuenta</h2><p>'+message+'</p>'+(authStatus==='error'?action('Reintentar conexión','auth-reload',true):'<a class="button" href="#casos">Explorar los casos</a>'));
+      bridge.modal('<h2 id="modal-title">Acceso a tu cuenta</h2><p>'+message+'</p>'+(authStatus==='error'?action('Reintentar conexión','auth-reload',true):'<a class="button" href="#casos">Explorar los juegos</a>'));
       return;
     }
     if(A().user&&!A().user.emailVerified){verification();return;}
