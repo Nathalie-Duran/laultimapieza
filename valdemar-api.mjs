@@ -124,6 +124,25 @@ async function personalGames(data,scope,access,store,loadRelease,pairedCases) {
 
 function releasedStory(release,id) {
   const story = (id>CASE_ORDER.length ? release.nuevos : release.stories)?.find(item=>item.id===id);
+  if (id>=4 && id<=8 && story?.hour?.stages) {
+    const stages=story.hour.stages.map((stage,index)=>{
+      if (!stage.brief?.includes('Pruebas compartidas')) return stage;
+      let brief=stage.brief.replace(/En (?:las )?Pruebas compartidas/g,'En Evidencias');
+      if (id===5 && index===2) {
+        brief=brief.replace('el audio del poste y la matrícula con el libro de salidas. Después usad el registro de turnos para separar',
+          '«Prueba del embarcadero» y «Fotografías del amarre» con «Registro de servicios de la lonja» para separar');
+      }
+      if (id===7 && index===0) {
+        brief=brief.replace('con el inventario.','con «Fotoclub de Valdemar · Inventario de préstamos».');
+      }
+      if (id===8 && index===2) {
+        brief=brief.replace('La primera grabación, la de Pruebas compartidas, empezaba más adelante, en el banco.',
+          'La primera grabación empezaba más adelante, en el banco. Para escucharla de nuevo, abre el «Cuaderno de etapas resueltas» en Evidencias y busca «Paseo desde el banco» dentro de «La excursión sin nombre».');
+      }
+      return {...stage,brief};
+    });
+    return {...story,hour:{...story.hour,stages}};
+  }
   if (id!==9 || !story?.hour?.stages[2]?.task?.includes('Pruebas compartidas')) return story;
   const sample = release.samples?.find(item => item.id === id);
   if (!sample?.transcript || !sample.panels?.length) return story;
