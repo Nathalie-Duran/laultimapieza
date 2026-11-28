@@ -1,4 +1,8 @@
 /* The archive box and its four clues share one work surface. */
+.vp-game-guide { grid-column:1/-1; min-width:0; }
+.vp-desk:has(> .vp-game-guide) { grid-template-rows:auto minmax(0,1fr) auto auto; }
+.vp-desk > .vp-game-guide { max-height:min(29dvh,13rem); overflow:auto; }
+.vp-desk:has(> .vp-game-guide) > .vp-help { max-height:19dvh; }
 .vp-at-table .vp-table-hero .vp-table-start[hidden]{display:none}
 .vp-at-table .vp-material .vp-card-next{display:block;font-weight:700;line-height:1.35;color:#ffe2a9}
 #scene-preview.vallejo-player:has(.vp-at-table) {

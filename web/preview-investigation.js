@@ -386,6 +386,54 @@
     renderHints(st);
     note('Pista ' + h.entry.seen + '. ' + h.hints[h.entry.seen - 1]);
   }
+  const documentGoals={
+    '00_email_apertura.html':'Localiza la hora de recepción y averigua qué señal dejó el depósito.',
+    '01_ficha_admision.png':'Inspecciona las anotaciones del margen. Prueba a invertir la ficha o a subir el brillo.',
+    '02_plano_pabellon.png':'Sitúa las dos filas del plano antes de cruzarlas con el registro de rondas.',
+    '03_registro_rondas.png':'Con el plano a la vista, confronta las habitaciones nombradas y las que quedan enfrente.',
+    '04_carta_vallejo.png':'Examina el comienzo de los párrafos y conserva por separado el grupo de letras del final.',
+    '05_tabla_vigenere.png':'Busca la fila de cada letra de la clave y recorre sus columnas con el texto cifrado.',
+    '06_expediente_marta.html':'Reúne habitación, palabra y fecha para abrir el expediente de Marta.',
+    '00_email_tomas.html':'Averigua qué falta en la segunda entrega y por qué te envían el diario de Marta.',
+    '01_diario_marta.png':'Anota únicamente los números que Marta recuerda haber contado y examina la regla del diario.',
+    '02_grabacion_sesion1.wav':'Escucha o lee los golpes. Conserva el orden de los pares y las pausas entre ellos.',
+    '03_armario_medicacion.png':'Sigue en los cajones las posiciones que obtuviste al escuchar la grabación.',
+    '04_hoja_suelta.png':'Pon la hoja ante el espejo y recupera el fragmento escrito al revés.',
+    '05_expediente_tomas.html':'Ordena los tres fragmentos del diario, la cinta y la hoja para abrir el expediente de Tomás.'
+  };
+  function updateGameGuide(st){
+    if(!root.MesaDeJuego)return;
+    const current=st.sessions[st.section],doc=current.documents[st.index];
+    const atTable=st.mode==='table',tool=st.mode==='tool',opened=st.unlocked.has(current.id);
+    let objective, next;
+    if(atTable){
+      const move=tableAction(st);
+      objective=st.section?'Reconstruye la frase que quedó repartida entre el diario, la cinta y la hoja.':
+        st.receiptConfirmed?'Sigue el plano, las rondas y la carta para reunir los tres datos del expediente.':'Identifica el resguardo de la caja con la hora del correo y la señal del depósito.';
+      next={label:move.label,run:move.run};
+    }else if(tool){
+      objective=st.activeTool==='audio'?'Distingue la duración y el orden de las señales de la recepción.':'Compara la hora y el timbre con las tres copias del registro.';
+    }else{
+      objective=opened&&doc.type==='gate'?'El expediente ya está abierto. Puedes releer sus pruebas.':documentGoals[doc.file];
+      const step=st.section===0&&st.index===0?receptionStep(st):null;
+      if(step)next={label:step.label,run:()=>openMedium(st,step.format,0)};
+      else if(current.documents[st.index+1]){
+        const nextDoc=current.documents[st.index+1];
+        next={label:nextDoc.label,run:()=>select(st.section,st.index+1)};
+      }else if(opened&&!st.section)next={label:'Leer el segundo correo',run:()=>continueSession(st)};
+    }
+    if(!st.guideHost)st.guideHost=node('div','vp-game-guide');
+    if(atTable){if(st.guideHost.parentElement!==st.table)st.table.append(st.guideHost);}
+    else if(st.guideHost.parentElement!==st.desk)st.reader.after(st.guideHost);
+    const settings={family:'archivo',title:current.dossierLabel||current.title,objective,
+      progress:atTable?'Expediente '+(st.section+1)+' de 2':tool?'Recepción de la caja':'Documento '+(st.index+1)+' de '+current.documents.length,
+      next:next||null,result:doc.type==='gate'&&opened&&!atTable&&!tool?(st.section?'Tomás':'Marta')+' · Expediente abierto':null,
+      help:{context:'archivo',text:st.playMode==='duo'?'En pareja, podéis repartir la lectura y describiros las marcas de cada documento.':'En solitario puedes volver a cualquier documento que hayas abierto.',
+        steps:[objective,'En Documentos puedes saltar entre originales. Las imágenes y las grabaciones incluyen una lectura en texto.','Volver a la mesa conserva los documentos consultados y los expedientes abiertos.']}};
+    if(st.guide)st.guide.update(settings);else st.guide=root.MesaDeJuego.mount(st.guideHost,settings);
+    if(atTable)st.tableStart.hidden=true;
+    if(!atTable&&!tool&&next){st.next.hidden=true;st.nextSession.hidden=true;}
+  }
   function updateNav() {
     const st = state;
     if (!st) return;
@@ -462,6 +510,7 @@
     if (atTable || tool) {
       st.hintBox.open = false;
     } else renderHints(st);
+    updateGameGuide(st);
     if (st.consulted.size || st.playMode === 'duo' || st.hasBookmark) {
       st.hasBookmark = true;
       saveBookmark(st);
@@ -745,6 +794,7 @@
   }
   function dispose(st) {
     if (state !== st) return;
+    st.guide?.destroy();
     st.observers.forEach(observer => observer.disconnect());
     const host = dialog();
     host?.querySelectorAll('audio').forEach(player => player.pause());
