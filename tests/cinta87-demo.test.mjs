@@ -7,8 +7,9 @@ const file = name => new URL('../web/'+name,import.meta.url);
 const source = await readFile(file('cinta87-demo.js'),'utf8');
 const key = 'lup.cinta87.demo.v1';
 
-function browser({storage=new Map(),blocked=false,options={},transcripts=false}={}) {
+function browser({storage=new Map(),blocked=false,options={},transcripts=false,withTools=false}={}) {
   const listeners=new Map(),windowListeners=new Map(),events=[],destinations=[];
+  let deskTools=[];
   const localStorage={
     getItem(k){if(blocked)throw Error('storage blocked');return storage.get(k)??null;},
     setItem(k,value){if(blocked)throw Error('storage blocked');storage.set(k,value);},
@@ -26,12 +27,17 @@ function browser({storage=new Map(),blocked=false,options={},transcripts=false}=
   const window={localStorage,GamePreferences:{transcripts},location:{assign:path=>destinations.push(path)},
     addEventListener:(name,fn)=>windowListeners.set(name,fn),
     removeEventListener:name=>windowListeners.delete(name)};
+  if(withTools)window.MesaDeJuego={mount(_host,model){
+    deskTools=model.tools;
+    return {destroy(){deskTools=[];}};
+  }};
   runInNewContext(source,{window});
   const demo=window.Cinta87Demo;
   const mounting={onEvent:e=>events.push(e),...options};
   let handle=demo.mount(host,mounting);
   return {host,demo,events,destinations,storage,
     get html(){return host.innerHTML;},get saved(){return JSON.parse(storage.get(key)||'null');},
+    get tools(){return deskTools;},openTool(id){deskTools.find(tool=>tool.id===id).run();},
     click(action,value){
       const button=(host.innerHTML.match(/<button\b[^>]*>/g)||[]).find(tag=>tag.includes('data-c87="'+action+'"')&&(!value||tag.includes('data-value="'+value+'"')));
       assert.ok(button,'Visible action missing: '+action+' '+(value||''));
@@ -79,6 +85,45 @@ function gather(h,mode,listen=false){
 const overlap={first:'hoja',second:'acetato',side:'izquierda'};
 const original={box:'c2',mark:'triangulo'};
 
+test('la mesa muestra cuatro herramientas, permite releer hallazgos y conserva la deducción de un guardado anterior',()=>{
+  const h=browser({withTools:true});
+  h.click('start','solo');
+  assert.deepEqual(Array.from(h.tools,tool=>tool.label),['Escenario','Inventario','Evidencias','Pistas']);
+  assert.doesNotMatch(h.html,/c87-tabs|Pedir una pista/);
+  h.openTool('evidence');
+  assert.match(h.html,/Todavía no hay anotaciones/);
+  assert.doesNotMatch(h.html,/Dos pulsos|precinto triangular|franja negra|<table/);
+  h.openTool('scene');h.click('place','magnetofono');h.click('transcript');h.openTool('evidence');
+  assert.match(h.html,/Dos pulsos cortos y uno largo/);
+  assert.doesNotMatch(h.html,/precinto triangular|franja negra|<table/);
+  h.click('view','deduction');
+  assert.equal(h.saved.view,'deduction');
+  h.remount();
+  assert.equal(h.tools.find(tool=>tool.selected).id,'evidence');
+  assert.match(h.html,/¿Dónde está la cinta 87\?/);
+  assert.doesNotMatch(h.html,/data-c87-form="deduce"/);
+  h.openTool('hints');assert.match(h.html,/Abrir la primera pista/);
+  assert.equal(h.saved.hints,0);
+  h.click('hint');h.openTool('bag');h.openTool('hints');
+  assert.equal(h.saved.hints,1);
+  assert.match(h.html,/Reparte las dos comprobaciones/);
+});
+
+test('la carpeta de evidencias respeta el relevo de la pareja y comparte la tabla solo tras su revelado',()=>{
+  const h=browser();
+  gather(h,'duo');
+  h.click('view','evidence');
+  assert.match(h.html,/Parte de cierre/);
+  assert.doesNotMatch(h.html,/Dos pulsos cortos|Instrucción del sobre|<table/);
+  h.click('view','bag');h.submit('combine',overlap);
+  h.click('view','evidence');assert.match(h.html,/Releer la hoja de traslados revelada/);
+  h.click('role');assert.doesNotMatch(h.html,/Evidencias|Parte de cierre|<table/);
+  h.click('uncover');h.click('view','evidence');
+  assert.match(h.html,/Señal del piloto/);assert.match(h.html,/Instrucción del sobre/);
+  assert.doesNotMatch(h.html,/Parte de cierre|Margen de la hoja/);
+  h.click('view','deduction');assert.match(h.html,/data-c87-form="deduce"/);
+});
+
 test('las pistas abren el siguiente puesto, los errores dan feedback junto a la prueba y la identificación requiere dos indicios',()=>{
   const h=browser();
   assert.equal(h.demo.hasProgress(),false);
@@ -86,14 +131,14 @@ test('las pistas abren el siguiente puesto, los errores dan feedback junto a la 
   gather(h,'solo');
   assert.deepEqual(h.saved.seen,['signal','register']);
   assert.deepEqual(h.saved.items,['piloto','acetato','hoja']);
-  h.click('view','deduction');
+  h.click('view','evidence');h.click('view','deduction');
   assert.doesNotMatch(h.html,/data-c87-form="deduce"/);
   assert.match(h.html,/Revelar la hoja/);
   h.click('next');
   h.submit('combine',{first:'piloto',second:'hoja',side:'izquierda'});
   assert.match(h.html,/necesita una lámina/);
   assert.equal(h.host.focusTarget,'[data-c87-status]');
-  assert.ok(h.html.indexOf('necesita una lámina')<h.html.indexOf('Pedir una pista'));
+  assert.match(h.html,/data-c87-status>La mesa necesita una lámina/);
   h.submit('combine',{...overlap,side:'derecha'});
   assert.match(h.html,/Siguen viéndose dos tiradas/);
   assert.equal(h.saved.combined,false);
@@ -150,7 +195,7 @@ test('en pareja cada relevo y cada reanudación protege las carpetas y el audio 
 test('cada pista requiere una petición y el reinicio confirmado preserva los expedientes anteriores',()=>{
   const legacy='lup.vallejo.bookmark.v1',value='{"investigacion":"tomas"}';
   const h=browser({storage:new Map([[legacy,value]])});
-  h.click('start','solo');h.click('hints');
+  h.click('start','solo');h.click('view','hints');
   assert.doesNotMatch(h.html,/original está en C2/);
   h.click('hint');
   assert.match(h.html,/dos comprobaciones/);
@@ -162,7 +207,7 @@ test('cada pista requiere una petición y el reinicio confirmado preserva los ex
   assert.equal(h.host.focusTarget,'[data-c87-last-hint]');
   assert.equal(h.saved.hints,3);
   assert.doesNotMatch(h.html,/data-c87="hint"/);
-  h.click('view','deduction');
+  h.click('view','evidence');h.click('view','deduction');
   assert.doesNotMatch(h.html,/original está en C2|data-c87-form="deduce"/);
   h.click('reset');h.click('cancel-reset');
   assert.equal(h.demo.hasProgress(),true);

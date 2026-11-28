@@ -34,6 +34,13 @@
   const safe = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const otherRole = role => role==='cabina'?'deposito':'cabina';
   const unique = (value,allowed) => [...new Set(Array.isArray(value)?value.filter(v=>allowed.includes(v)):[])];
+  const sections = [
+    {id:'scene',view:'explore',label:'Escenario'},
+    {id:'bag',view:'bag',label:'Inventario'},
+    {id:'evidence',view:'evidence',label:'Evidencias'},
+    {id:'hints',view:'hints',label:'Pistas'}
+  ];
+  const validViews = new Set([...sections.map(section=>section.view),'deduction']);
   function fresh(mode) {
     return {version:1,mode,role:'cabina',view:'explore',detail:null,seen:[],items:[],combined:false,solved:false,ending:null,hints:0};
   }
@@ -41,7 +48,7 @@
     if(raw?.version!==1 || !['solo','duo'].includes(raw.mode))return null;
     const state=fresh(raw.mode);
     state.role=Object.hasOwn(roles,raw.role)?raw.role:'cabina';
-    state.view=['explore','bag','deduction'].includes(raw.view)?raw.view:'explore';
+    state.view=validViews.has(raw.view)?raw.view:'explore';
     state.detail=roles[state.role].places.includes(raw.detail)?raw.detail:null;
     state.seen=unique(raw.seen,['signal','register']);
     state.items=unique(raw.items,Object.keys(objects));
@@ -84,7 +91,7 @@
     mounts.get(host)?.destroy();
     const exitLabel=options.exitLabel||'Volver al catálogo';
     let state=read(),curtain=state?.mode==='duo'&&!state.ending,resetting=false,alternate=false;
-    let transcript=false,showHints=false,notice='',disposed=false,draft={},worktop=null,armed='';
+    let transcript=false,notice='',disposed=false,draft={},worktop=null,armed='';
     function event(name){try{options.onEvent?.(name)?.catch?.(()=>{});}catch{/* Analytics do not gate play. */}}
     function commit(){save(state);}
     function stopAudio(){for(const node of host.querySelectorAll('audio'))node.pause();}
@@ -104,10 +111,11 @@
         const objective=state.solved?'Decide qué hacer con la grabación.':nextStep().label+'.';
         worktop=window.MesaDeJuego.mount(host.querySelector('[data-c87-worktop]'),{family:'demo',title:'La cinta 87',
           progress:progress+' de 6 comprobaciones',objective,
-          help:{context:'demo',text:'Reúne los indicios de la cabina y del depósito.',steps:['Explora los objetos de tu carpeta.','Coteja los materiales en el inventario.','Examina el precinto y la señal antes de abrir una caja.']},tools:[]});
+          help:{context:'demo',text:'Reúne los indicios de la cabina y del depósito.',steps:['Explora los objetos del escenario.','Coteja los materiales en el inventario.','Relee las evidencias y contrasta tu deducción antes de abrir una caja.']},
+          tools:sections.map(section=>({id:section.id,label:section.label,selected:activeSection()===section.view,run:()=>goTo(section.view)}))});
       }
       if(focus){
-        const targets={notice:'[data-c87-status]',hint:'[data-c87-last-hint]',hints:'[data-c87-hint-heading]',transcript:'[data-c87-transcript]'};
+        const targets={notice:'[data-c87-status]',hint:'[data-c87-last-hint]',transcript:'[data-c87-transcript]'};
         host.querySelector(targets[focus]||'[data-c87-heading]')?.focus();
       }
     }
@@ -199,6 +207,23 @@
       else work='<p>La mesa de cotejo necesita un material de cada carpeta.</p>'+feedback()+nextButton();
       return '<section class="c87-paper"><p class="c87-kicker">Mesa compartida</p>'+heading('Inventario')+(state.items.includes('acetato')&&state.items.includes('hoja')&&!state.combined?'':contents)+work+'</section>';
     }
+    function evidence(){
+      const notes=[];
+      const canRead=role=>state.mode==='solo'||state.role===role;
+      if(canRead('cabina')){
+        if(state.seen.includes('signal'))notes.push(['magnetofono','Señal del piloto','Dos pulsos cortos y uno largo antes del soplo de la cinta.']);
+        if(state.items.includes('acetato'))notes.push(['acetato','Instrucción del sobre','La muesca del acetato se alinea con la franja negra de la hoja de contactos.']);
+      }
+      if(canRead('deposito')){
+        if(state.seen.includes('register'))notes.push(['libro','Parte de cierre','El original de andén llevaba un precinto triangular. Las copias de escucha llevaban un precinto circular.']);
+        if(state.items.includes('hoja'))notes.push(['hoja','Margen de la hoja','La franja negra está a la izquierda. La perforación de la derecha es del archivador.']);
+      }
+      const entries=notes.map(([id,title,text])=>'<li><img src="'+photos[id]+'" width="96" height="96" alt=""><div><h3>'+title+'</h3><p>'+text+'</p></div></li>').join('');
+      return '<section class="c87-paper"><p class="c87-kicker">'+(state.mode==='duo'?'Carpeta de '+roles[state.role].name:'Archivo de Radio Valdemar')+'</p>'+heading('Evidencias')+
+        (entries?'<ul class="c87-notes">'+entries+'</ul>':'<p>Todavía no hay anotaciones en esta carpeta. Examina los objetos del escenario para registrar tus primeros indicios.</p>')+
+        (state.combined?'<details class="c87-manifest"><summary>Releer la hoja de traslados revelada</summary>'+table()+'</details>':'')+
+        '<div class="c87-actions">'+control('view',state.solved?'Volver a la grabación recuperada':'Contrastar mi deducción','deduction',true)+'</div>'+feedback()+'</section>';
+    }
     function deduction(){
       if(state.solved){
         return '<section class="c87-paper"><p class="c87-kicker">Caja C2 · Original recuperado</p>'+heading('La última voz del andén')+
@@ -219,19 +244,25 @@
       return '<section class="c87-paper"><p class="c87-kicker">Mesa compartida</p>'+heading('¿Dónde está la cinta 87?')+work+'</section>';
     }
     function hints(){
-      if(!showHints)return '';
-      return '<aside class="c87-hints"><h3 data-c87-hint-heading tabindex="-1">Ayudas de la demo</h3>'+
-        (state.hints?'<ol>'+guidance.slice(0,state.hints).map((t,i)=>'<li'+(i===state.hints-1?' data-c87-last-hint tabindex="-1"':'')+'>'+t+'</li>').join('')+'</ol>':'<p>Abre una orientación si te has atascado.</p>')+
-        (state.hints<3?control('hint',state.hints===2?'Mostrar la solución completa':state.hints?'Abrir la siguiente pista':'Abrir la primera pista'):'')+'</aside>';
+      return '<section class="c87-paper c87-hints">'+heading('Pistas')+
+        (state.hints?'<ol>'+guidance.slice(0,state.hints).map((t,i)=>'<li'+(i===state.hints-1?' data-c87-last-hint tabindex="-1"':'')+'>'+t+'</li>').join('')+'</ol>':
+          '<p>'+(state.solved?'Has identificado la grabación.':'Si te has atascado, abre una pista gratuita.')+'</p>')+
+        (!state.solved&&state.hints<3?control('hint',state.hints===2?'Mostrar la solución completa':state.hints?'Abrir la siguiente pista':'Abrir la primera pista'):'')+
+        (state.solved?control('view','Volver a la grabación recuperada','deduction',true):'')+feedback()+'</section>';
+    }
+    function activeSection(){return state.view==='deduction'?'evidence':state.view;}
+    function goTo(view){
+      if(!validViews.has(view))return;
+      state.view=view;notice='';commit();draw(true);
     }
     function desk(){
       const role=roles[state.role];
+      const fallbackNav=window.MesaDeJuego?'':'<nav class="c87-tabs" aria-label="Herramientas de juego">'+sections.map(section=>
+        '<button type="button" data-c87="view" data-value="'+section.view+'"'+(activeSection()===section.view?' aria-current="page"':'')+'>'+section.label+'</button>').join('')+'</nav>';
       return '<header class="c87-bar"><div><small>Radio Valdemar · La cinta 87</small><strong>'+role.name+' · '+(state.mode==='solo'?'En solitario':'En pareja')+'</strong></div>'+
         control('role',state.mode==='duo'?'Dar el relevo a '+roles[otherRole(state.role)].name:'Cambiar a '+roles[otherRole(state.role)].name)+'</header>'+
-        '<nav class="c87-tabs" aria-label="Mesa de investigación">'+[['explore','Explorar'],['bag','Inventario'],['deduction','Deducción']].map(([key,label])=>
-          '<button type="button" data-c87="view" data-value="'+key+'"'+(state.view===key?' aria-current="page"':'')+'>'+label+'</button>').join('')+'</nav><div data-c87-worktop></div>'+
-        (state.view==='bag'?bag():state.view==='deduction'?deduction():investigation())+
-        (state.solved?'':'<div class="c87-links">'+control('hints',showHints?'Cerrar ayudas':'Pedir una pista')+'</div>'+hints())+
+        fallbackNav+'<div data-c87-worktop></div>'+
+        ({bag,evidence,deduction,hints,explore:investigation}[state.view]())+
         '<footer class="c87-foot"><span>'+savedMessage()+'</span><div class="c87-links">'+control('exit',exitLabel)+control('reset','Reiniciar demo')+'</div></footer>';
     }
     function savedMessage(){return storageBlocked?'Guardado temporal en esta página.':'Progreso guardado en este navegador.';}
@@ -267,7 +298,7 @@
       }
       if(action==='reset'){resetting=true;draw(true);return;}
       if(action==='cancel-reset'){resetting=false;draw(true);return;}
-      if(action==='confirm-reset' && resetting){state=null;save(null);resetting=false;curtain=false;alternate=false;transcript=false;showHints=false;armed='';draft={};draw(true);return;}
+      if(action==='confirm-reset' && resetting){state=null;save(null);resetting=false;curtain=false;alternate=false;transcript=false;armed='';draft={};draw(true);return;}
       if(resetting)return;
       if(action==='start'&&!state && ['solo','duo'].includes(value)){
         state=fresh(value);curtain=value==='duo';commit();event('start');draw(true);return;
@@ -291,8 +322,8 @@
         const step=nextStep();
         action=step.type;value=step.place||step.view;
       }
-      if(action==='view' && ['explore','bag','deduction'].includes(value)){state.view=value;showHints=false;}
-      else if(action==='role'){state.role=otherRole(state.role);state.view='explore';state.detail=null;curtain=state.mode==='duo';transcript=false;showHints=false;draft={};}
+      if(action==='view'){goTo(value);return;}
+      else if(action==='role'){state.role=otherRole(state.role);state.view='explore';state.detail=null;curtain=state.mode==='duo';transcript=false;draft={};}
       else if(action==='place' && roles[state.role].places.includes(value)){
         state.view='explore';state.detail=value;transcript=false;
         if(value==='libro'&&!state.seen.includes('register'))state.seen.push('register');
@@ -300,16 +331,19 @@
       else if(action==='transcript' && state.role==='cabina'&&state.detail==='magnetofono'){transcript=true;markSignal();}
       else if(action==='take' && ['acetato','hoja'].includes(value)&&state.detail===value && !state.items.includes(value)){
         state.items.push(value);notice=objects[value]+' en el inventario.';
-      }else if(action==='hints'){showHints=!showHints;}
-      else if(action==='hint' && showHints && state.hints<3){state.hints++;event('hint');}
+      }else if(action==='hint' && state.view==='hints' && !state.solved && state.hints<3){state.hints++;event('hint');}
       else if(action==='ending' && state.solved && Object.hasOwn(endings,value)){state.ending=value;event('complete');}
       else return;
       commit();
-      const focus=action==='hint'?'hint':action==='hints'&&showHints?'hints':action==='transcript'?'transcript':notice?'notice':true;
+      const focus=action==='hint'?'hint':action==='transcript'?'transcript':notice?'notice':true;
       draw(focus);
     }
     function previewSlot(e){
       const field=e.target,form=field.form;
+      if(form?.dataset.c87Form==='deduce'&&['box','mark'].includes(field.name)){
+        draft[field.name]=field.value;
+        return;
+      }
       if(form?.dataset.c87Form!=='combine'||!['first','second','side'].includes(field.name))return;
       draft[field.name]=field.value;
       const template=form.ownerDocument.createElement('template');
@@ -353,7 +387,7 @@
     }
     function storage(e){
       if(e.key!==storageKey && e.key!==null)return;
-      state=read();curtain=state?.mode==='duo'&&!state.ending;showHints=false;transcript=false;alternate=false;resetting=false;draft={};
+      state=read();curtain=state?.mode==='duo'&&!state.ending;transcript=false;alternate=false;resetting=false;draft={};
       notice='El progreso se ha actualizado en otra pestaña.';draw();
     }
     host.addEventListener('click',click);host.addEventListener('change',previewSlot);host.addEventListener('submit',submit);host.addEventListener('ended',audioEnded,true);
