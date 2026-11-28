@@ -34,11 +34,24 @@ export function operateHotel(story,record,role,input,now=Date.now()) {
       record.inventoryRevision=(record.inventoryRevision||0)+1;
       return true;
     }
-    if(!guard.archives?.[key])reject('Reconstruye primero el expediente de esta mesa.');
+
     if(index===3 && (record.hotelInventory?.witnesses?.length || 0)<3)
       reject('Visita a los tres testigos y enséñales sus objetos antes de cotejar las declaraciones.');
-    const correct=solutions[index][input.desk];
-    if(!Array.isArray(input.positions) || input.positions.length!==correct.length || !correct.every((v,i)=>input.positions[i]===v))
+    const physical=[
+      {A:[2,0,1],B:[1,2,0]}, {A:[0,1,3],B:[2,2,1]},
+      {A:[1,1],B:[1,2,0]}, {A:[1],B:[2,1]},
+      {A:[1,0,2],B:[2,0,1]}
+    ];
+    let positions=input.positions;
+    if(input.edition===2 && index===2 && input.desk==='A'){
+      const within=(x,y,left,top,right,bottom)=>x>=left&&x<=right&&y>=top&&y<=bottom;
+      if(!Array.isArray(positions)||positions.length!==4||!positions.every(Number.isFinite))
+        reject('Marca dos detalles en el positivo.');
+      const [x,y,u,v]=positions;
+      positions=[Number(within(x,y,69,12,87,40)),Number(within(u,v,51,52,70,83))];
+    }
+    const correct=(input.edition===2?physical:solutions)[index][input.desk];
+    if(!Array.isArray(positions) || positions.length!==correct.length || !correct.every((v,i)=>positions[i]===v))
       reject('Las marcas no coinciden. Contrasta cada posición con el documento del otro puesto.');
     guard.done[key]=true;
   }
