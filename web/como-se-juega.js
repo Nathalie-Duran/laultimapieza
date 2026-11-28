@@ -73,7 +73,12 @@
     const back=appendText(actions,'button','Volver al juego');back.type='button';back.autofocus=true;back.addEventListener('click',()=>dlg.close());
     const more=appendText(actions,'a','Guía completa (otra pestaña)');more.href=guidePath;more.target='_blank';more.rel='noopener';
     dlg.addEventListener('cancel',event=>event.stopPropagation());
-    dlg.addEventListener('close',()=>{dlg.remove();if(trigger?.isConnected)trigger.focus({preventScroll:true});},{once:true});
+    dlg.addEventListener('close',()=>{
+      const active=doc.activeElement;
+      const restore=!active||active===doc.body||active===doc.documentElement||dlg.contains(active);
+      dlg.remove();
+      if(restore&&trigger?.isConnected)trigger.focus({preventScroll:true});
+    },{once:true});
     doc.body.append(dlg);dlg.showModal();back.focus({preventScroll:true});
   }
 

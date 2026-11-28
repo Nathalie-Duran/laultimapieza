@@ -105,8 +105,15 @@
       }).join('');
       const progress=this.allowed?'<div class="ma87-progress"><strong>'+this.won.size+' de '+room.games.length+' estaciones resueltas</strong><progress aria-label="Estaciones resueltas" value="'+this.won.size+'" max="'+room.games.length+'"></progress><span>'+keys(earned)+' de '+total+'</span><a class="sala-al-juego" href="/#mundos-jugar?id='+room.caseId+'&amp;retomar=1">Ir al primer juego de la temporada</a></div>':'';
       const trouble=this.accessError?'<div class="sala-aviso" role="status">No se ha podido consultar tu acceso. <button type="button" data-room-retry>Volver a comprobar</button></div>':'';
-      this.innerHTML='<section class="ma87-lobby"><header class="ma87-hero">'+photo(room.photo,'ma87-scene')+'<div class="ma87-intro"><p>'+esc(seasons[this.number])+'</p><h1>'+esc(room.title)+'</h1><p>'+esc(room.intro||room.description||'Seis estaciones independientes para investigar con los objetos de esta sala.')+'</p><button type="button" data-room-explore>Explorar las estaciones</button></div></header>'+progress+trouble+
+      this.innerHTML='<section class="ma87-lobby"><header class="ma87-hero">'+photo(room.photo,'ma87-scene')+'<div class="ma87-intro"><p>'+esc(seasons[this.number])+'</p><h1>'+esc(room.title)+'</h1><p>'+esc(room.intro||room.description||'Seis estaciones independientes para investigar con los objetos de esta sala.')+'</p></div></header><div data-ma-mesa></div>'+progress+trouble+
         '<section class="ma87-section"><h2 tabindex="-1" data-room-list>Las seis estaciones</h2><p>Consigue hasta '+keys(total)+' para pedir pistas en tus juegos. Cada mesa entrega su premio la primera vez que la resuelves.</p><div class="ma87-stations">'+tiles+'</div></section></section>';
+      this.mesa=window.MesaDeJuego.mount(this.querySelector('[data-ma-mesa]'),{
+        family:'sala',title:room.title,next:{label:'Explorar las estaciones',run:()=>this.querySelector('[data-room-list]')?.focus()},
+        help:{context:'sala',text:'Puedes jugar en '+room.title+' con acceso al primer juego de '+seasons[this.number]+'.',
+          steps:['Elige «'+room.games[0].title+'» o cualquier otra estación y abre su ficha para ver la prueba.',
+            'Examina el material, prepara tu respuesta y pulsa «Comprobar mi solución».',
+            'Vuelve a las estaciones para probar otra mesa o continuar un intento en esta pestaña.']}
+      });
       if(focusId)this.stationButton(focusId)?.focus();
     }
     stationButton(id){return [...this.querySelectorAll('[data-room-station]')].find(b=>b.dataset.roomStation===id);}
@@ -205,7 +212,6 @@
       if(b.hasAttribute('data-room-station'))this.detail(b.dataset.roomStation);
       else if(b.hasAttribute('data-room-play'))this.play(b.dataset.roomPlay);
       else if(b.hasAttribute('data-room-close'))this.querySelector('dialog[open]')?.close();
-      else if(b.hasAttribute('data-room-explore'))this.querySelector('[data-room-list]')?.focus();
       else if(b.hasAttribute('data-room-login')){const d=b.closest('dialog');d.dataset.restore='no';d.close();}
       else if(b.hasAttribute('data-room-retry'))this.load();
       else if(b.hasAttribute('data-room-piece')||b.hasAttribute('data-room-dial'))this.changePiece(b);

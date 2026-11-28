@@ -210,7 +210,7 @@
       prompt: 'Devuelve una ficha a cada asiento. Confronta los rastros del fieltro con las marcas que dejó el bolsillo de cada jugador.',
       evidence: [
         evidence('Fieltro levantado', 'En la ventana se ve un contorno circular. La silla de la puerta conserva un contorno triangular. En la esquina hay otro círculo.'),
-        evidence('Tres pañuelos', 'El jugador de la ventana guardó la ficha con una muesca. El de la puerta tenía dos. El de la esquina tenía tantas como el de la puerta.')
+        evidence('Tres pañuelos', 'Los tres bolsillos conservan cinco cortes de muesca en total. El pañuelo de la esquina tiene el mismo número de cortes que el de la puerta.')
       ],
       pieces: [
         piece('hueso', 'Ficha de hueso', '○ ··', 'Circular, dos muescas.'), piece('zinc', 'Ficha de zinc', '△ ·', 'Triangular, una muesca.'),
@@ -218,7 +218,7 @@
         piece('lata', 'Ficha de lata', '□ ··', 'Cuadrada, dos muescas.')
       ],
       slots: positions('Silla de la ventana', 'Silla de la puerta', 'Silla de la esquina'),
-      hint: 'Las dos sillas con marca circular pertenecían a jugadores distintos. Sus pañuelos distinguen una ficha de la otra.',
+      hint: 'Cuenta las muescas de las tres fichas que elegiste. Dos jugadores deben tener la misma cantidad, y entre los tres deben sumar cinco.',
       feedback: 'El borde o las muescas de una ficha no encajan con los rastros de su silla.',
       success: 'Cada huella encuentra su ficha y los tres puestos vuelven a distinguirse.'
     }
