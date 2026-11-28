@@ -21,6 +21,11 @@
       `<a href="${listing?catalogRoute(s.board):'/#'+s.board}"${current===s.board?' aria-current="page"':''}>${listing?'<img src="/'+s.art+'" width="72" height="64" alt="">':''}<small>T0${i+1} · ${s.genre}</small><span>${s.name}</span></a>`
     ).join('')+'</nav>';
   }
+  function mapBreadcrumb(route) {
+    const season=seasons.find(item=>item.board===route);
+    if(!season)return '';
+    return '<nav aria-label="Ruta de navegación"><a class="atlas-breadcrumb" href="/#tableros?mundo='+season.board+'"><span aria-hidden="true">←</span> Tableros</a></nav>';
+  }
   function cards(access) {
     return '<div class="colecciones-cards">'+seasons.map((s,i)=>{
       const pass=access?.seasons?.find(p=>p.number===i+1);
@@ -58,7 +63,7 @@
       if(previous)return {line:'Termina los doce pasos del tablero anterior',label:'Volver a '+previous.name,href:'/#'+previous.board};
     }
     if(pass && allowed.size)return {line:'Has terminado las aventuras disponibles',label:'Consultar mi pase',href:'/#planes'};
-    if(number===1 && items[0])return {line:pass?'Primera parada de Código Valdemar':'Empieza en Código Valdemar',label:items[0].title,href:window.ValdemarCatalog.path(items[0].id)};
+    if(number===1 && items[0])return {line:'Primera aventura',label:items[0].title,href:window.ValdemarCatalog.path(items[0].id)};
     return {line:'Primera parada del territorio',label:items[0]?.place||season.name,href:placeHref(season,1)};
   }
   function nextMarkup(action) {
@@ -207,5 +212,5 @@
       return `<li><a href="/#${s.board}?seccion=sello">${s.seal}</a><small>${s.name} · ${editorial?'12 juegos':(pass?.completed||0)+'/12 piezas'}</small></li>`;
     }).join('')+'</ul></section>';
   }
-  window.Colecciones=Object.freeze({seasons:Object.freeze(seasons),catalogBoard,catalogRoute,menu,discover,boards,seals,challenges});
+  window.Colecciones=Object.freeze({seasons:Object.freeze(seasons),catalogBoard,catalogRoute,mapBreadcrumb,menu,discover,boards,seals,challenges});
 })();
