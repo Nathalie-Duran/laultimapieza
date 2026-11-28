@@ -23,9 +23,40 @@
   }
   function roleAllowed(x,world){return !x?.role||x.role==='both'||x.role==='AB'||x.role===world;}
   function roomImage(id,world='A'){const index=rooms.indexOf(id);return index>=0?'/mansion-'+(world==='B'?'ruin':'room')+'-'+(index+1)+'.webp':null;}
+  function presentationState(state){
+    const stage=state?.stage;
+    if(stage?.number!==1||stage.title!=='Los cuatro guardianes')return state;
+    const abandoned=stage.contributions?.B;
+    const brief=stage.brief?.replace('solo giran en la casa','se colocan en la casa');
+    const objective=abandoned?.objective?.replace('Para girar los dos escudos','Para colocar los dos escudos');
+    if(brief===stage.brief&&objective===abandoned?.objective)return state;
+    return {...state,stage:{...stage,brief,contributions:abandoned?
+      {...stage.contributions,B:{...abandoned,objective}}:stage.contributions}};
+  }
   const photographedBenches=new Set(['elementos','esferas','riego','vias','presencia','morse','intercambio','acta','paneles']);
-  function dressWorkbench(puzzle){
+  function directPositions(puzzle,fields,draft){
+    const kind=puzzle.dataset.kind;
+    if(kind!=='esferas'&&kind!=='vias')return;
+    const dials=Array.from(puzzle.querySelectorAll('.mansion-dial'));
+    for(const dial of dials){
+      const legend=dial.querySelector('legend');
+      const field=fields.find(field=>field.label===legend?.textContent&&field.options?.length);
+      if(!field)continue;
+      const positions=el('div','mansion-index-positions');
+      for(const option of field.options){
+        const key=el('label','mansion-position');
+        const input=el('input');input.type='radio';input.name='mansion-position-'+field.id;
+        input.value=String(option.value);input.checked=String(draft[field.id]??'')===input.value;
+        input.addEventListener('change',()=>{if(input.checked)draft[field.id]=input.value;});
+        const mark=el('span','mansion-engraving');mark.dataset.mark=input.value;mark.setAttribute('aria-hidden','true');
+        key.append(input,mark,el('span','mansion-position-name',option.label));positions.append(key);
+      }
+      dial.className='mansion-control mansion-index-selector';dial.replaceChildren(legend,positions);
+    }
+  }
+  function dressWorkbench(puzzle,fields,draft){
     if(!photographedBenches.has(puzzle.dataset.kind))return puzzle;
+    directPositions(puzzle,fields,draft);
     const surface=el('div','mansion-bench-surface');
     const desk=el('div','mansion-bench-console');
     let inventory=null;
@@ -49,7 +80,7 @@
     return puzzle;
   }
   function mount(host,options){
-    let state=options.state?.mansion||options.state,role=options.role||state?.role;
+    let state=presentationState(options.state?.mansion||options.state),role=options.role||state?.role;
     const paired=role==='A'||role==='B';
     let world=paired?role:'A',tab='scene',disposed=false,busy=false,requestId=0,activeDevice=false,selectedEvidence=null;
     let openMission=null,missionSource=null,roomId=state?.explore?.id||state?.stage?.room||rooms[0],notice='',noticeError=false,saveText=options.resumed?'Partida recuperada':'';
@@ -117,7 +148,7 @@
       if(!next||!Array.isArray(next.rooms))return;
       if(Number.isFinite(state?.revision)&&Number.isFinite(next.revision)&&next.revision<state.revision)return;
       const advanced=next.current!==state?.current||Boolean(next.ending)!==Boolean(state?.ending);
-      state=next;
+      state=presentationState(next);
       if(advanced){roomId=state.stage?.room||roomId;activeDevice=false;selectedEvidence=null;openMission=null;missionSource=null;pendingHint=null;}
       else if(!keepRoom&&next.explore?.id)roomId=next.explore.id;
       if(next.explore?.id===roomId)explore=next.explore;
@@ -247,7 +278,7 @@
         perform:(action,extra={})=>act({...extra,op:'act',...params,action:action.id,world}),
         submit:answers=>act({op:'solve',...params,answers,world})
       });
-      return dressWorkbench(puzzle);
+      return dressWorkbench(puzzle,shownStage.controls,drafts.get(key));
     }
     function drawMap(){
       const map=el('details','mansion-map mansion-atlas');

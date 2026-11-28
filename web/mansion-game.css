@@ -549,6 +549,7 @@
 
 /* Shared case lighting, readable by either investigator. */
 .mansion-game-area .mansion-game {
+  box-sizing:border-box;
   --house-ink:#f5ead7;
   --house-muted:#c9bdab;
   --house-metal:#edc78a;
@@ -759,6 +760,47 @@
 .mansion-game .mansion-bench-console .mansion-dial .mansion-pieces { grid-template-columns:2.75rem minmax(0,1fr) 2.75rem; }
 .mansion-game .mansion-bench-console .mansion-dial .mansion-piece { border-radius:50%; }
 .mansion-game .mansion-bench-console .mansion-dial .mansion-readout { font-size:.9rem; }
+.mansion-game .mansion-index-positions {
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.35rem;
+}
+.mansion-game .mansion-position {
+  position:relative; display:grid; min-inline-size:0; min-block-size:3.5rem;
+  place-content:center; justify-items:center; gap:.22rem; padding:.35rem .12rem;
+  border:1px solid #8c7958; border-radius:.2rem;
+  background:linear-gradient(#473c2d,#30291f); color:#f0dfb8;
+  font:500 .88rem/1.18 var(--house-serif); text-align:center; cursor:pointer;
+}
+.mansion-game .mansion-position input {
+  position:absolute; width:1px; height:1px; margin:0; padding:0;
+  clip-path:inset(50%); overflow:hidden; white-space:nowrap;
+}
+.mansion-game .mansion-position:has(input:checked) {
+  background:linear-gradient(#e2c389,#c8a669); color:#292012;
+  border-color:#ffe7af; box-shadow:inset 0 -2px 4px #775a35;
+}
+.mansion-game .mansion-position:has(input:focus-visible) { outline:3px solid #ffdc7c; outline-offset:2px; }
+.mansion-game .mansion-engraving { display:grid; place-items:center; inline-size:1.5rem; block-size:1.5rem; }
+.mansion-game .mansion-engraving[data-mark="luna"]::before {
+  content:""; display:block; width:1.3rem; height:1.3rem; border-radius:50%;
+  box-shadow:inset .31rem -.15rem currentColor;
+}
+.mansion-game .mansion-engraving[data-mark="sol"]::before {
+  content:""; width:.7rem; height:.7rem; border:1px solid currentColor; border-radius:50%;
+  box-shadow:0 -.58rem 0 -.25rem currentColor,.41rem -.41rem 0 -.25rem currentColor,.58rem 0 0 -.25rem currentColor,.41rem .41rem 0 -.25rem currentColor,0 .58rem 0 -.25rem currentColor,-.41rem .41rem 0 -.25rem currentColor,-.58rem 0 0 -.25rem currentColor,-.41rem -.41rem 0 -.25rem currentColor;
+}
+.mansion-game .mansion-engraving[data-mark="estrella"]::before {
+  content:""; width:1.35rem; height:1.35rem; background:currentColor;
+  clip-path:polygon(50% 0,60% 35%,98% 36%,68% 58%,80% 95%,50% 73%,20% 95%,32% 58%,2% 36%,40% 35%);
+}
+.mansion-game [data-kind="vias"] .mansion-engraving {
+  position:relative; width:.5rem; height:1.3rem; border-inline:1.5px solid currentColor;
+}
+.mansion-game [data-kind="vias"] .mansion-engraving::after {
+  content:""; position:absolute; inset:0 -.18rem;
+  background:repeating-linear-gradient(to top,transparent 0 4px,currentColor 4px 5px);
+}
+.mansion-game [data-kind="vias"] .mansion-engraving[data-mark="izquierda"] { transform:rotate(-32deg); }
+.mansion-game [data-kind="vias"] .mansion-engraving[data-mark="derecha"] { transform:rotate(32deg); }
 .mansion-game .mansion-bench-console details.mansion-reference {
   margin:0 0 .6rem; padding:.45rem .65rem; border:1px solid #89775d;
   background:#e2d4b9; color:#322a1e; font-family:var(--house-serif);
@@ -783,5 +825,6 @@
 }
 @media (forced-colors:active) {
   .mansion-game .mansion-bench-surface { background:Canvas; }
+  .mansion-game .mansion-position:has(input:checked) { border:3px solid Highlight; }
   .mansion-game .mansion-bench-console .mansion-piece[aria-pressed="true"] { border:3px solid Highlight; }
 }
