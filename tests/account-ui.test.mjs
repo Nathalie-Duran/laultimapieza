@@ -97,15 +97,22 @@ test('Los enlaces antiguos llevan al único catálogo y los guardados personales
     assert.match(page,/<h1>Juegos<\/h1>/);
     assert.doesNotMatch(page,/archivo clásico|href="\/?#archivo-clasico/i);
   }
+  const catalogueAction=/<a class="button primary" href="\/#casos">Elegir un juego<\/a>/;
+  assert.match(app.visit('#partida'),catalogueAction);
   assert.match(app.visit('#mapa-clasico?seccion=sello'),/<h1>Mis partidas<\/h1>/);
   const session={id:'guardada-1',caseId:'cartas-medianoche',ownerId:'persona',members:[{userId:'persona',name:'Ada'}],mode:'solo',history:[],status:'active'};
   const response={profile:{userId:'persona',name:'Ada'},sessions:[session],activeSessionId:session.id,membership:{canPlay:true,ownAccess:true,calendar:{unlockedCaseIds:[session.caseId]}}};
+  app.setFetch(async()=>Response.json({...response,sessions:[],activeSessionId:null}));
+  await app.bridge.load();
+  assert.match(app.visit('#partida'),catalogueAction);
   app.setFetch(async()=>Response.json(response));
   await app.bridge.load();
   assert.match(app.visit('#archivo'),/data-action="resume" data-id="guardada-1"/);
   const pieces=app.visit('#mapa-clasico');
   assert.match(pieces,/Mis piezas de Las doce noches/);
   assert.doesNotMatch(pieces,/data-action="setup"|archivo clásico/i);
+  assert.match(source,/href="\/#casos">Elegir otro juego<\/a>/);
+  assert.doesNotMatch(source,/<select name="caseId"|<form id="setup-form"/);
 });
 test('Cambiar de cuenta limpia la vista y una respuesta anterior no puede restaurar sus datos',async()=>{
   const app=await appHarness();
