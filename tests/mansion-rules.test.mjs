@@ -8,6 +8,23 @@ const solve=(record,answers,role='solo',mission)=>applyMansion(record,role,{op:'
 const act=(record,role,action)=>applyMansion(record,role,{op:'act',stage:record.mansion.current,action});
 const status=code=>error=>error.status===code;
 
+test('el telégrafo contrasta los pulsos y la clave de la edición, sin exponerlos al otro papel',()=>{
+  const edition=structuredClone(sample),level=edition.levels[11];
+  level.controls=[{id:'llamada',type:'code',label:'Lectura'}];
+  level.evidence=[{role:'A',title:'Emisión',signal:'.- / -... / .',text:'Escucha los grupos.'},
+    {role:'B',title:'Código',text:'A ·–; B –···; E ·.'}];
+  level.solution={llamada:'ABE'};
+  const game=createMansionRules(edition),record={};startMansion(record).current=12;
+  const send=answers=>game.applyMansion(record,'A',{op:'solve',stage:12,answers});
+  assert.equal(game.inspectMansion(record,'B').stage.evidence.some(clue=>clue.signal),false);
+  for(const answers of [{llamada:'AEB'},{llamada:'ABE',extra:'x'},{llamada:['ABE']}]){
+    assert.equal(send(answers).correct,false);
+    assert.equal(record.mansion.current,12);
+  }
+  assert.equal(send({llamada:'  Ábe '}).correct,true);
+  assert.equal(record.mansion.current,13);
+});
+
 test('el motor requiere una edición y solo muestra los datos de la realidad, sala y etapa disponibles',()=>{
   assert.throws(()=>createMansionRules({}),status(503));
   const record={};

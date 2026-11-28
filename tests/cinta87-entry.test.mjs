@@ -17,20 +17,48 @@ class Node {
   close(){this.open=false;}
   focus(){this.focused=true;}
 }
-function page(path,standalone,alias=false,hasArchiveProgress=false){
+function page(path,standalone,alias=false,hasArchiveProgress=false,lazy=null){
   const url=new URL(path,'https://www.laultimapieza.es'),dest=[],metrics=[],sessions=[],hooks={},documentHooks={};
   const location={href:url.href,search:url.search,origin:url.origin,assign:path=>dest.push(path),replace:path=>dest.push(path)};
   const history={state:null,pushed:0,backCount:0,pushState(state){this.pushed++;this.state=state;},back(){this.backCount++;this.state=null;}};
   const surface=new Node(standalone?'main':'dialog'),modal=new Node('dialog');
+  const requested=[];
   const document={body:{dataset:alias?{cintaAlias:''}:standalone?{vallejoStandalone:'true'}:{}},activeElement:null,
-    getElementById:id=>id===(standalone?'cinta87-standalone-host':'scene-preview')?surface:id==='modal'?modal:null,
+    getElementById:id=>id===(standalone?'cinta87-standalone-host':'scene-preview')?surface:id==='modal'?modal:id==='c87-saved-scripts'&&lazy?{content:{querySelectorAll:()=>lazy.map(src=>({src}))}}:null,
     createElement:t=>new Node(t),createTextNode:t=>t,querySelector:()=>null,addEventListener:(name,cb)=>{documentHooks[name]=cb;}};
   const window={location,history,VallejoArchive:{hasProgress:()=>hasArchiveProgress},addEventListener:(n,cb)=>{hooks[n]=cb;},dispatchEvent(){},
     Cinta87Demo:{mount:(host,callbacks)=>{const s={host,callbacks,destroyed:false};sessions.push(s);return {destroy:()=>{s.destroyed=true;}};},
       hasProgress:()=>sessions.length>0,isComplete:()=>false}};
+  if(lazy){
+    delete window.VallejoArchive;
+    document.head={append(script){
+      requested.push(script.src);
+      if(script.src===lazy.at(-1))window.VallejoArchive={hasProgress:()=>hasArchiveProgress};
+      script.onload();
+    }};
+  }
   runInNewContext(entry,{window,document,URL,location,history,CustomEvent:class{},fetch:async(_,init)=>{metrics.push(JSON.parse(init.body));}});
-  return {url,window,documentHooks,hooks,surface,sessions,history,dest,metrics};
+  return {url,window,documentHooks,hooks,surface,sessions,history,dest,metrics,requested};
 }
+test('la demo pública evita descargar el reproductor anterior y una visita guardada carga sus dependencias en orden',async()=>{
+  const html=await read('cinta-87.html');
+  const template=html.match(/<template id="c87-saved-scripts">[\s\S]*?<\/template>/)[0];
+  const dependencies=[...template.matchAll(/src="([^"]+)"/g)].map(m=>m[1]);
+  assert.equal(dependencies.length,4);
+  assert.match(dependencies.at(-1),/preview-investigation\.js/);
+  const publicHTML=html.replace(template,'');
+  for(const dep of dependencies)assert.equal(publicHTML.includes(dep),false);
+  const fresh=page('/cinta-87.html',true,false,false,dependencies);
+  assert.deepEqual(fresh.requested,[]);
+  assert.equal(fresh.sessions.length,1);
+  for(const saved of [false,true]){
+    const historical=page('/cinta-87.html?archivo=1&caso=28',true,false,saved,dependencies);
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.deepEqual(historical.requested,dependencies);
+    assert.deepEqual(historical.dest,saved?[]:['https://www.laultimapieza.es/cinta-87.html?caso=28']);
+    assert.equal(historical.sessions.length,0);
+  }
+});
 test('un enlace compartido abre la demo sin cuenta y recupera la ficha al salir',()=>{
   const demo=page('/cinta-87.html?via=invitacion&caso=04',true);
   assert.equal(demo.sessions.length,1);

@@ -6,10 +6,40 @@ import {createGameApi} from '../game-api.mjs';
 const puzzle={id:'ae519d13-da39-4f05-ab16-3ab9b4df7c34',revision:1,caseId:2,status:'published',
   title:'La fecha de la carta',prompt:'La carta se escribió dos días antes del 4 de mayo. ¿Qué fecha llevaba?',options:['1 de mayo','2 de mayo'],answer:1,explanation:'Dos días antes del 4 es el día 2.'};
 test('el editor valida la respuesta, las alternativas distintas, el caso y el estado',()=>{
-  assert.deepEqual(validateChallenge(puzzle),{...puzzle,schedule:{kind:'always',startsOn:null,endsOn:null}});
+  assert.deepEqual(validateChallenge(puzzle),{...puzzle,prize:1,rewardType:'simple',schedule:{kind:'always',startsOn:null,endsOn:null}});
   for(const extra of [{caseId:49},{options:['Sí',' sí']},{answer:2},{status:'deleted'},{revision:-1}]){
     assert.throws(()=>validateChallenge({...puzzle,...extra}),{status:400});
   }
+});
+test('las variantes guardan la versión empezada y la primera misión concede el premio anunciado una sola vez',async()=>{
+  const alt={prompt:'¿En qué mes nació Ada?',options:['Abril','Mayo'],answer:0,explanation:'El acta dice abril.'};
+  let row=validateChallenge({...puzzle,variants:[alt],prize:3,rewardType:'mission'});
+  for(const input of [{...puzzle,prize:3},{...puzzle,rewardType:'advanced',prize:1},{...puzzle,prize:4,rewardType:'mission'},{...puzzle,variants:[puzzle]}]){
+    assert.throws(()=>validateChallenge(input),{status:400});
+  }
+  const members=new Map();
+  const store={getMemberData:async uid=>structuredClone(members.get(uid)||{}),saveMemberData:async(uid,data)=>members.set(uid,structuredClone(data)),
+    listChallenges:async()=>[row],lockChallenge:async()=>row,countChallenge:async()=>{},countStage:async()=>{}};
+  const run=(uid,input)=>playPublished(store,{uid,editorial:false,billing:{membership:async()=>({seasonAccess:{availableCases:[2]}})},input});
+  const cases=new Map();
+  for(let i=0;i<24;i++){
+    const uid='participante-'+i,info=(await run(uid)).items[0];
+    assert.equal(info.prize,3);assert.equal(info.rewardType,'mission');
+    assert.equal(info.variants,undefined);assert.equal(info.answer,undefined);
+    cases.set(info.prompt,uid);
+  }
+  assert.equal(cases.size,2);
+  const uid=cases.get(alt.prompt);
+  const guess=option=>run(uid,{id:row.id,revision:row.revision,index:0,option});
+  assert.equal((await guess(1)).correct,false);
+  row=validateChallenge({...row,revision:2,variants:[{...alt,prompt:'¿Quién firmó la carta?'},alt]});
+  assert.equal((await run(uid)).items[0].prompt,alt.prompt);
+  assert.equal((await guess(0)).next.solved,true);
+  const before=structuredClone(members.get(uid));
+  const entries=before.valdemarSeasonOne.paid.entries;
+  assert.ok(entries.some(entry=>entry.id===row.id&&entry.amount===3));
+  await guess(0);
+  assert.deepEqual(members.get(uid),before);
 });
 test('un guardado no reemplaza la revisión de otra sesión',async()=>{
   const store=challengeStore(async()=>({affectedRows:0}));

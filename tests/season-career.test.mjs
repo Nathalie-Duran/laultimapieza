@@ -73,11 +73,22 @@ test('las 24 estaciones, los retos de edición y la cooperación cuentan una vez
   assert.equal(profile.xp,10+16*10+8*30+10+30+10);
   assert.equal(profile.skills.find(s=>s.name==='Habilidad').points,24);
   assert.equal(profile.skills.find(s=>s.name==='Cooperación').points,4);
+  assert.equal(profile.achievements.find(a=>a.name==='Investigación en equipo').progress,4);
   assert.equal(profile.skills.find(s=>s.name==='Inteligencia').points,3);
   assert.equal(profile.achievements.filter(a=>a.goal===6&&a.progress===6).length,4);
   assert.ok(profile.specializations.includes('Mecanismos'));
   assert.equal(seasonCareer(data,'editorial').xp,0);
   assert.equal(seasonCareer({valdemarCaseProgress:{paid:{1:{mode:'duo',inventory:{0:{items:[]}}}}}},'paid').xp,0);
+});
+
+test('una misión editorial entrega experiencia por su tipo aunque cambie su número de llaves',()=>{
+  const data={};
+  for(const importe of [1,2,3]){
+    for(let i=0;i<3;i++)creditPublishedChallenge(data,'paid','edicion-prueba-'+importe,1,importe,false,'Ensayo','mission');
+  }
+  const career=seasonCareer(data,'paid');
+  assert.equal(career.xp,60);
+  assert.equal(career.achievements.find(a=>a.name==='Primera edición resuelta').progress,3);
 });
 
 test('Account navigation renders collectible progress and the key history for the signed-in owner', async () => {

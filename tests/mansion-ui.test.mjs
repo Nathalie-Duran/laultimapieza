@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
+import '../web/motor-aventuras.js';
 
 function simulatedEpisode(number,role){
   const locations=['vestibulo','salon','patio','estudio','galeria','invernadero','tunel','laboratorio'];
@@ -63,7 +64,7 @@ async function view(number=1,role='solo'){
     querySelector(token){return this.querySelectorAll(token)[0];}
   }
   document.createElement=tag=>new Node(tag);
-  const window={};
+  const window={MotorAventuras:globalThis.MotorAventuras};
   for(const file of ['mansion-puzzles.js','mansion-game.js'])
     runInNewContext(await readFile(new URL('../web/'+file,import.meta.url),'utf8'),{window,document});
   const episode=simulatedEpisode(number,role);

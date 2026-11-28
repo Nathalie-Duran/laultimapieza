@@ -15,7 +15,10 @@ test('ayuda y privacidad tienen rutas de vuelta, enlaces internos válidos y con
     assert.match(source,/href="\/#planes\?seccion=preguntas"/);
     if(name==='privacidad.html'){
       assert.match(source,/href="\/#perfil\?seccion=pareja">Gestionar mi compañero</);
-      assert.match(source,/href="\/#perfil\?seccion=cuenta">Abrir cuenta y suscripción</);
+      assert.match(source,/href="\/#perfil\?seccion=cuenta">Configuración</);
+      assert.match(source,/href="\/#suscripcion\?seccion=baja">Dar de baja mi suscripción</);
+      assert.match(source,/Empiezan desactivados/);
+      assert.doesNotMatch(source,/archivo opcional de Marta y Tomás/);
       assert.match(source,/href="\/#planes\?gestion=aviso">Gestionar mi aviso</);
     }
     const ids=[...source.matchAll(/ id="([^"]+)"/g)].map(m=>m[1]);
@@ -47,7 +50,7 @@ test('los documentos del servicio solo se ofrecen cuando hay una URL publicada v
 
 test('accesibilidad ofrece una sola vuelta a la guía de origen y conserva los dos ajustes por dispositivo',async()=>{
   const source=await readFile(new URL('display-preferences.js',web),'utf8');
-  for(const [origin,expected] of [['ayuda','/ayuda.html'],['privacidad','/privacidad.html'],['https://otras.example','/#inicio']]){
+  for(const [origin,expected] of [['ayuda','/ayuda.html'],['privacidad','/privacidad.html'],['perfil','/#perfil?seccion=cuenta'],['https://otras.example','/#inicio']]){
     class Item {
       constructor(){this.children=[];this.dataset={};this.events={};}
       append(...items){this.children.push(...items);}

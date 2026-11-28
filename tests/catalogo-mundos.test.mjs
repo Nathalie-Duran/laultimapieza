@@ -14,6 +14,26 @@ async function publicSite(){
   return page;
 }
 
+test('las 48 fichas llevan a su propia reliquia y solo anuncian el bloque cuya cuota está programada',async()=>{
+  const page=await publicSite(),future=Date.now()+30*86400000;
+  const access={availableCases:[],completed:[],seasons:[1,2,3,4].map(number=>({number,completed:2,previousReady:true,availableCases:[]}))};
+  for(const [i,season] of page.Colecciones.seasons.entries()){
+    const first=i*12+5;
+    page.ClubAccess={state:{seasonAccess:access,renewal:{status:'active'},nextRenewalAt:future,
+      nextUnlock:{at:future,season:i+1,block:2,caseIds:[first,first+1,first+2,first+3]}}};
+    for(let local=1;local<=12;local++){
+      page.location.hash='#'+season.board+'?lugar='+local+'&seccion=ficha';
+      const html=i?page.Mundos.view(season.board,{seasonAccess:access}):page.ValdemarCatalog.detail(local,{seasonAccess:access});
+      assert.ok(html.includes('href="/#'+season.board+'?seccion=sello">Reliquia · '+season.seal+' · 2/12 piezas'));
+      assert.equal(html.includes('Próximo pago previsto'),local>=5&&local<=8);
+    }
+    const atlas=page.Colecciones.boards(access);
+    assert.equal((atlas.match(/Próximo pago previsto/g)||[]).length,1);
+    page.ClubAccess.state.renewal.status='scheduled';
+    assert.equal(page.Colecciones.proximoBloque(first),'');
+  }
+});
+
 test('la miga de los cuatro mapas vuelve al territorio activo y su nombre se conserva en el selector y el h1',async()=>{
   const page=await publicSite();
   for(const season of page.Colecciones.seasons){

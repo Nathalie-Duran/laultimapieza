@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMailer,messageTemplate,mailKey} from '../mail-service.mjs';
 import {createBilling} from '../billing.mjs';
+import {createHmac} from 'node:crypto';
 test('Mail stays disabled without explicit activation and verified sender configuration',async()=>{
  let called=false;await createMailer({MAIL_ENABLED:'true'},()=>{called=true;}).process(()=>{called=true;});assert.equal(called,false);
  assert.match(messageTemplate('welcome',{name:'<script>alert(1)</script>'}).html,/&lt;script&gt;/);
@@ -41,4 +42,64 @@ test('los correos de alta y renovación describen el bloque y las llaves del con
      else assert.doesNotMatch(content,/incluye una llave/);
    }
  }
+});
+
+test('los diez correos tienen un asunto propio y salen una vez por el proveedor simulado',async()=>{
+ const kinds=['welcome','subscription','subscription','case_finished','board_finished','pair_confirmed','new_challenge','inactivity','subscription_cancelled','payment_failed'];
+ const jobs=kinds.map((type,i)=>({type,id:'test-'+i,email:'member@example.test',data:{renewal:i===2,uid:'player',invoice:'in_open',caseId:12,effectiveAt:Date.UTC(2026,11,1)}}));
+ const sent=new Map(),ack=[];
+ const store={claimMail:async()=>jobs.shift(),finishMail:async(id)=>ack.push(id),noticeStillWanted:async()=>true,getMemberData:async()=>({cycles:[]})};
+ const mailer=createMailer({MAIL_ENABLED:'true',MAIL_FROM:'test@example.test',RESEND_API_KEY:'local'},async(_url,options)=>{
+   const message=JSON.parse(options.body),key=options.headers['Idempotency-Key'];
+   assert.deepEqual(message.to,['member@example.test']);
+   assert.ok(message.subject&&message.html.includes(message.subject)&&message.text.includes(message.subject));sent.set(key,message.subject);
+   return Response.json({id:'delivery-'+key});
+ });
+ await mailer.process(fn=>fn(store));await mailer.process(fn=>fn(store));
+ assert.equal(ack.length,10);assert.equal(new Set(sent.values()).size,10);
+});
+
+test('un impago de la cuota genera un aviso por factura; si se recupera antes del envío se retira',async()=>{
+ const secret='solo-pruebas',now=Math.floor(Date.now()/1000),customer='cus_member',subscription='sub_member',email='member@example.test';
+ const sub={id:subscription,customer,status:'active',metadata:{lup_uid:'player'},items:{data:[{price:{id:'price_pass'}}]}};
+ const line={price:{id:'price_pass'},period:{start:now-120,end:now+86400}};
+ const failed={id:'in_retry',customer,customer_email:email,billing_reason:'subscription_cycle',parent:{subscription_details:{subscription}},lines:{data:[line]}};
+ const receipts=[],jobs=new Map();let data={customer,subscription,scheduleConfigured:true};
+ const store={getMemberData:async()=>structuredClone(data),saveMemberData:async(_,next)=>{data=structuredClone(next);},
+   findCustomer:async id=>id===customer?'player':null,enqueueMail:async(id,email,type,details)=>{if(!jobs.has(id))jobs.set(id,{id,email,type,data:details,status:'pending'});},
+   claimMail:async()=>{const next=[...jobs.values()].find(j=>j.status==='pending');if(next)next.status='processing';return next;},
+   finishMail:async id=>{jobs.get(id).status='sent';},cancelMail:async id=>{jobs.get(id).status='cancelled';}};
+ const withStore=fn=>fn(store);
+ const provider=async address=>{
+   const route=new URL(address).pathname;
+   if(route==='/v1/subscriptions')return Response.json({data:[sub]});
+   if(route==='/v1/invoices')return Response.json({data:receipts});
+   if(route==='/v1/customers/'+customer)return Response.json({id:customer,email});
+   throw Error('Ruta inesperada '+route);
+ };
+ const billing=createBilling({STRIPE_SECRET_KEY:'local',STRIPE_WEBHOOK_SECRET:secret,STRIPE_PRICE_ID:'price_pass'},provider);
+ async function webhook(type,object){
+   const body=JSON.stringify({type,data:{object}}),stamp=Math.floor(Date.now()/1000);
+   const signature=createHmac('sha256',secret).update(stamp+'.'+body).digest('hex');
+   const request=new Request('https://example.test/webhook',{method:'POST',body,headers:{'stripe-signature':'t='+stamp+',v1='+signature}});
+   assert.equal((await billing.webhook(request,withStore)).status,200);
+ }
+ await webhook('invoice.payment_failed',failed);await webhook('invoice.payment_failed',failed);
+ await webhook('invoice.payment_failed',{...failed,id:'in_other',parent:{subscription_details:{subscription:'sub_other'}}});
+ assert.equal(jobs.size,1);assert.equal(data.cycles.length,0);
+ receipts.push({...failed,currency:'eur',amount_paid:2995,status:'paid',status_transitions:{paid_at:now}});
+ await webhook('invoice.paid',failed);await webhook('invoice.payment_failed',failed);
+ const liveFailure={...failed,id:'in_new',customer_email:null};await webhook('invoice.payment_failed',liveFailure);
+ const sent=[];const mailer=createMailer({MAIL_ENABLED:'true',MAIL_FROM:'qa@example.test',RESEND_API_KEY:'local'},async(_,options)=>{
+   sent.push(options.headers['Idempotency-Key']);return Response.json({id:'ok'});
+ });
+ await mailer.process(withStore);await mailer.process(withStore);
+ assert.equal(jobs.get(mailKey('payment_failed',failed.id)).status,'cancelled');
+ assert.deepEqual(sent.filter(id=>id===mailKey('payment_failed',liveFailure.id)),[mailKey('payment_failed',liveFailure.id)]);
+ sub.cancel_at_period_end=true;sub.cancel_at=line.period.end;
+ await webhook('customer.subscription.updated',sub);await webhook('customer.subscription.updated',sub);
+ sub.status='canceled';sub.ended_at=line.period.end;sub.cancellation_details={reason:'cancellation_requested'};
+ await webhook('customer.subscription.deleted',sub);await mailer.process(withStore);
+ const cancellations=[...jobs.values()].filter(j=>j.type==='subscription_cancelled');
+ assert.equal(cancellations.length,1);assert.equal(cancellations[0].data.effectiveAt,line.period.end*1000);assert.equal(cancellations[0].status,'sent');
 });

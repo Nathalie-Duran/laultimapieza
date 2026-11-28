@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
+import '../web/motor-aventuras.js';
 
 const file = name => new URL('../web/'+name,import.meta.url);
 const source = await readFile(file('cinta87-demo.js'),'utf8');
 const key = 'lup.cinta87.demo.v1';
 
-function browser({storage=new Map(),blocked=false,options={},transcripts=false,withTools=false}={}) {
+function browser({storage=new Map(),blocked=false,options={},transcripts=false,withTools=false,motor=globalThis.MotorAventuras}={}) {
   const listeners=new Map(),windowListeners=new Map(),events=[],destinations=[];
   let deskTools=[];
   const localStorage={
@@ -24,7 +25,7 @@ function browser({storage=new Map(),blocked=false,options={},transcripts=false,w
     removeEventListener:name=>listeners.delete(name),
     replaceChildren(){this.innerHTML='';}
   };
-  const window={localStorage,GamePreferences:{transcripts},location:{assign:path=>destinations.push(path)},
+  const window={localStorage,MotorAventuras:motor,GamePreferences:{transcripts},location:{assign:path=>destinations.push(path)},
     addEventListener:(name,fn)=>windowListeners.set(name,fn),
     removeEventListener:name=>windowListeners.delete(name)};
   if(withTools)window.MesaDeJuego={mount(_host,model){
@@ -84,6 +85,57 @@ function gather(h,mode,listen=false){
 
 const overlap={first:'hoja',second:'acetato',side:'izquierda'};
 const original={box:'c2',mark:'triangulo'};
+
+test('cada intento de la demo llega desde los dos controles al evaluador compartido',()=>{
+  const calls=[];
+  const motor={evaluarPrueba(rule,attempt){
+    calls.push([rule.tipo,rule.mecanica,JSON.parse(JSON.stringify(attempt))]);
+    return globalThis.MotorAventuras.evaluarPrueba(rule,attempt);
+  }};
+  const h=browser({motor});
+  gather(h,'solo');
+  h.submit('combine',{...overlap,first:'acetato',second:'acetato'});
+  assert.equal(h.saved.combined,false);
+  h.submit('combine',overlap);h.click('next');
+  assert.deepEqual(calls,[
+    ['conjunto',undefined,['acetato','acetato']],
+    ['conjunto',undefined,['hoja','acetato']],
+    ['seleccion',undefined,'izquierda']
+  ]);
+  for(const box of ['a4','b6','c2'])for(const mark of ['circulo','triangulo','cuadrado']){
+    if(box==='c2'&&mark==='triangulo')continue;
+    h.submit('deduce',{box,mark});
+    assert.deepEqual(calls.at(-1),['mecanica','cotejar-ficha',[box,mark]]);
+    assert.equal(h.saved.solved,false);
+  }
+  h.submit('deduce',original);
+  assert.deepEqual(calls.at(-1),['mecanica','cotejar-ficha',['c2','triangulo']]);
+  assert.equal(h.saved.solved,true);
+});
+
+test('la plantilla de autor permite cotejar otro registro y rechaza dos fichas indistinguibles',()=>{
+  const motor=globalThis.MotorAventuras;
+  const prueba=motor.plantillaPrueba('cotejar-ficha');
+  assert.equal(prueba.tipo,'prueba');
+  assert.ok(prueba.materiales.length>=3);
+  assert.ok(prueba.opciones.some(o=>o.id==='norte'));
+  assert.ok(prueba.opciones.some(o=>o.id==='espiga'));
+  const rule={tipo:'mecanica',mecanica:prueba.mecanica,parametros:prueba.parametros};
+  const {fichas}=rule.parametros;
+  assert.ok(motor.evaluarPrueba(rule,['oeste','espiga']));
+  assert.equal(motor.evaluarPrueba(rule,['norte','espiga']),false);
+  rule.parametros.senal=[2,2,1];
+  assert.ok(motor.evaluarPrueba(rule,['sur','espiga']));
+  fichas.push({...fichas[1],id:'cantera'});
+  assert.equal(motor.evaluarPrueba(rule,['sur','espiga']),false);
+});
+
+test('la entrada independiente carga el motor antes de la interfaz de la demo',async()=>{
+  const page=await readFile(file('cinta-87.html'),'utf8');
+  const scripts=[...page.matchAll(/<script defer src="\/([^"?]+)(?:\?[^"]*)?"/g)].map(m=>m[1]);
+  assert.ok(scripts.includes('motor-aventuras.js'));
+  assert.ok(scripts.indexOf('motor-aventuras.js')<scripts.indexOf('cinta87-demo.js'));
+});
 
 test('la mesa muestra cuatro herramientas, permite releer hallazgos y conserva la deducción de un guardado anterior',()=>{
   const h=browser({withTools:true});

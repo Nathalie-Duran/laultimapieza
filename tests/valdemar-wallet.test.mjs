@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {runInNewContext} from 'node:vm';
 import { creditAdventureEnding,creditMansionArcade,creditSeasonArcade,markRoomCooperation,creditSecretMission, creditPublishedChallenge, creditValdemarWelcome, valdemarWallet, withValdemarTransaction } from '../valdemar-wallet.mjs';
 
 const owner = 'owner';
@@ -31,6 +33,30 @@ function memory(initial) {
     }
   };
 }
+
+test('el historial identifica los minijuegos y conserva el título ganado al reeditar el calendario',async()=>{
+  const data={};
+  creditMansionArcade(data,'paid','cartas',2);
+  creditSeasonArcade(data,'paid',13,'portulano',1);
+  creditPublishedChallenge(data,'paid','edicion-de-ensayo',1,3,true,'La prueba del museo');
+  creditPublishedChallenge(data,'paid','edicion-de-ensayo',1,1,true,'Nuevo título del editor');
+  creditPublishedChallenge(data,'paid','archivo-antiguo',1,1,true);
+  const {balance,history}=await memory(data).run(store=>valdemarWallet(store,owner,{seasonAccess:{availableCases:[1,13]}}));
+  assert.equal(balance,7);
+  assert.equal(history[0].activity,'Las cartas de Ada');
+  assert.equal(history[1].station,'portulano');
+  assert.equal(history[2].activity,'La prueba del museo');
+  assert.equal(history[3].activity,undefined);
+  assert.ok(history.every(row=>!Object.hasOwn(row,'id')));
+  const window={Colecciones:{seasons:[{name:'Valdemar'},{name:'Expedición'}]},
+    SalasMundosCatalogo:{2:{games:[{id:'portulano',title:'La carta del piloto'}]}}};
+  const document={createElement:()=>({children:[],append(...nodes){this.children.push(...nodes);},get childElementCount(){return this.children.length;}})};
+  runInNewContext(await readFile(new URL('../web/keyring.js',import.meta.url),'utf8'),{document,window});
+  const movimientos=window.Keyring.history({history}).children[1].children.map(n=>n.textContent).join('\n');
+  for(const nombre of ['Las cartas de Ada','La carta del piloto','La prueba del museo','Desafío del calendario']){
+    assert.ok(movimientos.includes(nombre));
+  }
+});
 
 test('confirmed subscription receives one welcome regardless of renewal and synchronization replays', () => {
   const d = purchased();

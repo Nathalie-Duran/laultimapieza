@@ -31,6 +31,17 @@ test('El estado pedido en el cuadro de señales tiene una única configuración'
   assert.equal(checkFieldInstrument(13,solutions[0]),true);
 });
 
+test('la placa compartida conserva los ajustes anteriores incluso si dos posiciones encienden las mismas luces',()=>{
+  const instrument=getFieldInstrument(13);
+  assert.equal(instrument.placa.salidas.length,3);
+  for(let setting=0;setting<8;setting++){
+    const expected=setting.toString(2).padStart(3,'0'),edition={instrument,answer:expected};
+    for(let other=0;other<8;other++){
+      assert.equal(checkFieldInstrument(13,other.toString(2).padStart(3,'0'),edition),other===setting);
+    }
+  }
+});
+
 const browserCode=await readFile(new URL('../web/field-instruments.js',import.meta.url),'utf8');
 function element(tag) {
   return {tag,children:[],events:{},value:'',checked:false,focus(){},
@@ -41,7 +52,7 @@ function all(root,tag){
   return [ ...(root.tag===tag?[root]:[]), ...root.children.flatMap(item=>all(item,tag)) ];
 }
 test('Las ruedas, las luces y las láminas representan el ajuste enviado al juego',()=>{
-  const browser={window:{},document:{createElement:element,createTextNode:text=>({...element('text'),textContent:text})}};
+  const browser={window:{MotorAventuras:globalThis.MotorAventuras},document:{createElement:element,createTextNode:text=>({...element('text'),textContent:text})}};
   runInNewContext(browserCode,browser);
   function setup(id){
     const root=element('div');
