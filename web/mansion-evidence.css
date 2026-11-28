@@ -1,0 +1,30 @@
+.mansion-evidence-portrait,.mansion-evidence-plates{width:100%;min-width:0}
+.mansion-evidence-paper{position:relative;isolation:isolate;margin:.5rem 0 .85rem;width:min(100%,35rem);container-type:inline-size}
+.mansion-evidence-paper-image{display:block;width:100%;height:auto;max-height:none;border-radius:3px}
+.mansion-evidence-paper .mansion-evidence-hand{position:absolute;top:23%;left:9%;width:65%;margin:0;padding:0;border:0;background:transparent;box-shadow:none;color:#38291f;font:italic clamp(.95rem,4.8cqw,1.75rem)/1.25 Georgia,"Times New Roman",serif;transform:rotate(-3deg);overflow-wrap:break-word}
+.mansion-evidence-paper [hidden],.mansion-evidence-portrait [hidden],.mansion-evidence-slide[hidden]{display:none!important}
+.mansion-evidence-description{margin:.75rem 0;color:inherit}
+.mansion-evidence-description summary{cursor:pointer;min-height:44px;padding:.65rem .3rem}
+.mansion-evidence-description p{max-width:60ch}
+.mansion-evidence-plate-name{margin:.35rem 0 .5rem;color:inherit;font-weight:650}
+.mansion-evidence-lightbox{position:relative;box-sizing:border-box;max-width:40rem;padding:.9rem .75rem .75rem 1.8rem;background:#524439;border:1px solid #8e7b62;border-radius:5px;box-shadow:inset 0 0 0 4px #2f2925}
+.mansion-evidence-x{display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:.13rem}
+.mansion-evidence-y{position:absolute;top:2.17rem;left:0;bottom:.75rem;width:1.8rem;display:grid;grid-template-rows:repeat(3,1fr)}
+.mansion-evidence-x span,.mansion-evidence-y span{display:grid;place-items:center;color:#fff1d2;font:600 .88rem/1.15 system-ui,sans-serif}
+.mansion-evidence-aperture{isolation:isolate;position:relative;overflow:hidden;width:100%;aspect-ratio:4/2.85;background:radial-gradient(ellipse at 36% 45%,#32423c,#121c18 90%);border:1px solid #a39d87}
+.mansion-evidence-aperture::after{content:"";pointer-events:none;position:absolute;inset:0;z-index:3;background:linear-gradient(to right,transparent calc(100% - 1px),#c4bd8c83 0) 0 0/25% 100%,linear-gradient(to bottom,transparent calc(100% - 1px),#c4bd8c83 0) 0 0/100% calc(100% / 3)}
+.mansion-evidence-slide{position:absolute;inset:0;background:linear-gradient(165deg,transparent 30%,#b9b89a11 52%,transparent 70%);box-shadow:inset 0 0 0 1px #c8ddd345;transition:transform .32s ease}
+.mansion-evidence-slide.mansion-evidence-overlay{opacity:.65;mix-blend-mode:screen}
+.mansion-evidence-object{display:block;position:absolute;width:21%;aspect-ratio:1;transform:translate(-50%,-50%);background-image:url('/mansion-evidence-placa.webp');background-size:300% 100%;background-repeat:no-repeat}
+.mansion-evidence-object[data-kind="portrait"]{background-position:0% 50%}
+.mansion-evidence-object[data-kind="lamp"]{background-position:50% 50%}
+.mansion-evidence-object[data-kind="vase"]{background-position:100% 50%}
+.mansion-evidence-object[data-kind="pin"]{width:4.5%;aspect-ratio:1;background:linear-gradient(152deg,transparent 42%,#534b3f 44% 60%,transparent 62%),radial-gradient(circle at 35% 27%,#e9e4cc 0,#aaa795 35%,#504d48 72%,#282c29 92%);border-radius:50%;box-shadow:1px 2px 2px #0c100b}
+.mansion-evidence-object[data-kind="other"]{width:23%;aspect-ratio:auto;background:none;color:#fff1d6;font-size:.85rem;text-align:center;line-height:1.1}
+.mansion-evidence-compare{display:flex;align-items:center;gap:.55rem;min-height:44px;cursor:pointer}
+.mansion-evidence-plates .mansion-evidence-compare input[type="checkbox"]{inline-size:1.2rem;block-size:1.2rem;min-block-size:0;flex:none}
+.mansion-evidence-plates .mansion-photo-grid{width:100%;max-width:40rem;table-layout:fixed;border-collapse:collapse;font-size:.93rem}
+.mansion-evidence-plates .mansion-photo-grid caption{text-align:left;padding:.3rem 0}
+.mansion-evidence-plates .mansion-photo-grid :is(td,th){border:1px solid currentColor;padding:.3rem;overflow-wrap:anywhere}
+@media(max-width:430px){.mansion-evidence-paper .mansion-evidence-hand{width:70%}.mansion-evidence-plates .mansion-photo-grid{font-size:.85rem}}
+@media(prefers-reduced-motion:reduce){.mansion-evidence-slide{transition:none}}

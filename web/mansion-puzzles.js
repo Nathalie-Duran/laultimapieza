@@ -33,17 +33,27 @@
     const symbols={escudos:'⬟',reloj:'↑',esferas:'◑',riego:'✣',vias:'┗'};
     needle.textContent=symbols[kind];
     needle.setAttribute('aria-hidden','true');face.append(needle);
+    const clockHand=kind==='reloj'&&(field.id==='agujaHoras'||field.id==='agujaMinutos');
+    if(clockHand){
+      face.style.cssText='position:relative;width:8rem;height:8rem';face.setAttribute('aria-hidden','true');
+      for(const [value,x,y] of [['XII',50,12],['III',88,50],['VI',50,88],['IX',12,50]]){
+        const mark=el('span','',value);mark.style.cssText='position:absolute;left:'+x+'%;top:'+y+'%;transform:translate(-50%,-50%);font:600 .77rem Georgia,serif';face.append(mark);
+      }
+      needle.textContent='';needle.style.cssText='position:absolute;left:50%;bottom:50%;transform-origin:bottom center;background:var(--house-metal);border-radius:4px;width:4px;height:'+(field.id==='agujaHoras'?'23%':'34%');
+    }
     const adjust=direction=>{position=(position<0?(direction>0?0:entries.length-1):(position+direction+entries.length)%entries.length);draw();};
     const back=button('−',()=>adjust(-1),'mansion-piece'),next=button('+',()=>adjust(1),'mansion-piece');
     back.setAttribute('aria-label','Retroceder en '+field.label);
     next.setAttribute('aria-label','Avanzar en '+field.label);
     const buttons=el('div','mansion-pieces');
     function draw() {
-      if(position<0){read.textContent='Sin ajustar';return;}
+      if(position<0){read.textContent='Sin ajustar';if(clockHand)needle.hidden=true;return;}
       const option=entries[position];draft[field.id]=String(option.value);read.textContent=option.label;
       if(kind==='escudos'||kind==='esferas'){
         const marks={ciervo:'🦌',cuervo:'🐦',búho:'🦉',lobo:'🐺',luna:'☾',sol:'☀',estrella:'★'};
         needle.textContent=marks[option.value]||symbols[kind];
+      }else if(clockHand){
+        needle.hidden=false;needle.style.transform='translateX(-50%) rotate('+(Number(option.value)*(field.id==='agujaHoras'?30:6))+'deg)';
       }else needle.style.transform='rotate('+Math.round(position*360/entries.length)+'deg)';
     }
     read.setAttribute('aria-live','polite');buttons.append(back,read,next);wrap.append(title,face,buttons);draw();return wrap;
@@ -119,7 +129,8 @@
     const row=el('div','mansion-pieces'),read=el('output','mansion-readout');
     const tokens=draft[field.id+'Tokens']||[];draft[field.id+'Tokens']=tokens;
     function draw(){read.textContent=tokens.length?tokens.join(' · '):'Sin colocar';draft[field.id]=tokens.join('');}
-    for(const symbol of symbols)row.append(button(symbol,()=>{if(tokens.length<4){tokens.push(symbol);draw();}},'mansion-piece'));
+    const limit=Math.min(4,Number(field.maxLength)||4);
+    for(const symbol of symbols)row.append(button(symbol,()=>{if(tokens.length<limit){tokens.push(symbol);draw();}},'mansion-piece'));
     read.setAttribute('aria-live','polite');box.append(row,read,button('Retirar la última pieza',()=>{tokens.pop();draw();}));draw();return box;
   }
   function morse(field,draft){
@@ -185,14 +196,88 @@
     redraw();
     return {node:wrap,redraw};
   }
+  function wellMechanism(stage,actions,world,perform){
+    const section=el('section','mansion-well'),frame=el('figure','mansion-well-view');
+    const day=world==='A',recovered=stage.ready===true;
+    const depth=stage.wellDepth;
+    const state=day?'day':'night';
+    frame.dataset.view=recovered?'recovered':state;
+    const photo=el('img','mansion-well-photo');
+    photo.src=day&&!recovered?'/mansion-room-3.webp':'/mansion-well-detail.webp';
+    photo.alt=recovered?'La llave antigua que acabáis de recuperar.':day
+      ?'El torno de la manivela, con tres marcas para detener el cordón.'
+      :'El interior del pozo. La llave está en un saliente de la pared.';
+    frame.append(photo);
+    const label=el('figcaption','mansion-well-caption',recovered?'Llave recuperada':day?'Torno de la manivela':'Interior del brocal');
+    frame.append(label);
+    const reachLabels={above:'El imán cuelga por encima de la llave.',at:'El imán está a la altura del saliente.',below:'El imán ha pasado de largo y cuelga bajo la llave.'};
+    const numerals=['','I','II','III'];
+    if(!day&&!recovered){
+      if(stage.wellMark){
+        const notches=el('span','mansion-well-marks',numerals[stage.wellMark]);
+        notches.setAttribute('aria-label',stage.wellMark+' incisiones en la piedra junto a la llave');
+        notches.setAttribute('role','img');
+        frame.append(notches);
+      }
+      if(depth){
+        const rope=el('span','mansion-well-cord');
+        rope.setAttribute('aria-hidden','true');
+        rope.style.setProperty('--well-drop',['0%','24%','45%','72%'][depth]);
+        rope.append(el('span','mansion-well-magnet'));frame.append(rope);
+      }
+    }
+    section.append(frame);
+    if(recovered){
+      section.append(el('p','mansion-well-instruction','La llave salió del pozo. Prueba la cerradura que reconociste durante la investigación.'));
+      return section;
+    }
+    const byId=new Map(actions.map(a=>[a.id,a]));
+    const pickup=byId.get(day?'cordon':'iman'),combine=byId.get('atar'),fish=byId.get('pescar');
+    const rigged=Boolean(combine?.done);
+    const instruction=el('p','mansion-well-instruction');
+    const choices=el('div','mansion-well-choices');
+    const actuate=(action,label)=>choices.append(button(label||action.label,()=>perform(action),'mansion-action'));
+    if(pickup&&!pickup.done){
+      instruction.textContent=day?'Junto a la campana hay un cordón de algodón que soportaría el peso de la llave.':'El herrero dejó un imán en su cajón. Una viruta de hierro se pega a sus extremos.';
+      actuate(pickup);
+    }else if(!rigged){
+      instruction.textContent=combine?.enabled?'Las piezas de las dos casas han llegado al brocal. Puedes montar la sonda.':day
+        ?'El cordón está listo. Alguien debe buscar con qué sujetar la llave en la casa abandonada.'
+        :'Tienes el imán. En la casa habitada hay que encontrar con qué bajarlo.';
+      if(combine?.enabled)actuate(combine);
+    }else if(day){
+      instruction.textContent='La cuerda tiene tres marcas. Sujétala donde te indique quien ve la llave desde el otro lado.';
+      const group=el('fieldset','mansion-well-depth');
+      group.append(el('legend',null,'Marca de la cuerda'));
+      const row=el('div','mansion-well-choices');
+      for(const n of [1,2,3]){
+        const control=button(numerals[n],()=>perform({id:'profundidad'},{depth:n}),'mansion-piece');
+        control.setAttribute('aria-label','Sujetar la cuerda en la marca '+numerals[n]);
+        control.setAttribute('aria-pressed',String(depth===n));row.append(control);
+      }
+      group.append(row);choices.append(group);
+    }else{
+      const title=stage.wellMark?'Junto a la llave hay '+stage.wellMark+' incisiones. ':'';
+      instruction.textContent=title+(depth?(reachLabels[stage.wellReach]||'La cuerda cuelga frente al saliente.'):'La cuerda todavía está arriba. Comunica la marca a la casa habitada.');
+      if(fish&&depth)actuate(fish,'Acercar el imán a la llave');
+    }
+    section.append(instruction,choices);
+    return section;
+  }
   function render({stage,draft,actions,submit,perform,world,inventory,mission}) {
     const [kind,title,symbol]=mission?['mission','Resolver la misión','◇']:mechanisms[Number(stage.number)-1]||['mesa',stage.title,'◇'];
     const box=el('section','mansion-puzzle');box.dataset.kind=kind;
     const heading=el('h3','mansion-puzzle-title',title);heading.tabIndex=-1;
     box.append(heading);
-    const plates=kind==='fotografias'?spatialPhoto(draft,world,stage.evidence):null;
+    const contribution=stage.contributions?.[world];
+    if(contribution?.objective)box.append(el('p','mansion-role-objective',contribution.objective));
+    const realWell=kind==='pozo'&&Number.isInteger(stage.wellDepth);
+    if(realWell)box.append(wellMechanism(stage,actions||[],world,perform));
+    const plates=kind==='fotografias'?(window.MansionEvidence?.plates(draft,world,stage.evidence)??spatialPhoto(draft,world,stage.evidence)):null;
     if(plates)box.append(plates.node);
-    if(kind==='guardian'||mission&&stage.id==='nox'){
+    if(kind==='guardian'&&world==='B'&&window.MansionEvidence?.portrait){
+      box.append(window.MansionEvidence.portrait(draft,stage.evidence));
+    }else if(kind==='guardian'||mission&&stage.id==='nox'){
       const image=el('img','mansion-character');
       image.src=kind==='guardian'?(world==='A'?'/mansion-elias.webp':'/mansion-photo.webp'):'/mansion-nox.webp';
       image.alt=kind==='guardian'?(world==='A'?'Elías junto al fuego':'La fotografía de los dos niños'):'Nox en la mansión';
@@ -218,7 +303,7 @@
         for(const part of parts)copy.append(el('blockquote',null,part));box.append(copy);
       }
     }
-    if(['pozo','riego','vias','presencia','intercambio'].includes(kind)){
+    if(!realWell&&['pozo','riego','vias','presencia','intercambio'].includes(kind)){
       const bench=el('div','mansion-device-rack'),objects=inventory||[];
       bench.append(el('h4',null,'Objetos sobre la mesa'));
       if(objects.length){
@@ -229,7 +314,7 @@
     }
     if(stage.panelStatus)box.append(el('p','mansion-readout',['A','B'].map(id=>'Panel '+id+' · '+(stage.panelStatus[id]?'enclavado':'pendiente')).join(' / ')));
     const actionBox=el('div','mansion-pieces');
-    for(const action of actions||[]){
+    for(const action of realWell?[]:actions||[]){
       const control=button('',()=>perform(action),'mansion-action');
       const icon=el('span','mansion-symbol',symbol);icon.setAttribute('aria-hidden','true');
       control.disabled=action.done===true||action.enabled===false;
@@ -237,6 +322,11 @@
       control.append(icon,el('span','mansion-piece-label',action.label+(action.done?' · Hecho':'')));actionBox.append(control);
     }
     if(actionBox.childElementCount)box.append(actionBox);
+    if(realWell&&!stage.ready)return box;
+    if(contribution?.done){
+      const confirmation=el('p','mansion-readout','Tu parte está resuelta. El mecanismo conserva tu ajuste mientras se resuelve la otra casa.');
+      confirmation.setAttribute('role','status');box.append(confirmation);return box;
+    }
     const fields=(stage.controls||[]).filter(field=>!field.role||field.role==='both'||field.role===world);
     {
       const form=el('form','mansion-controls');
@@ -254,10 +344,10 @@
         else if(!isChoice&&kind==='fotografias'&&field.id==='casilla'){
           const cells=[1,2,3].flatMap(row=>['A','B','C','D'].map(col=>({value:col+row,label:col+row})));
           control=tiles({...field,options:cells},draft,kind);
-        }else control=!isChoice?textField(field,draft):dialKinds.has(kind)?dial(field,draft,kind):kind==='radio'?tuned(field,draft):tiles(field,draft,kind,field.id==='ajuste'?plates?.redraw:null);
+        }else control=!isChoice?textField(field,draft):dialKinds.has(kind)?dial(field,draft,kind):kind==='radio'&&field.id==='frecuencia'?tuned(field,draft):tiles(field,draft,kind,field.id==='ajuste'?plates?.redraw:null);
         form.append(control);
       }
-      const send=el('button','mansion-primary',stage.submitLabel||'Comprobar el mecanismo');send.type='submit';
+      const send=el('button','mansion-primary',stage.submitLabel||(realWell?'Probar la cerradura':contribution?'Comprobar mi parte':'Comprobar el mecanismo'));send.type='submit';
       if(stage.ready===false){send.disabled=true;form.append(el('p','mansion-reference','Completa primero las manipulaciones del escenario en ambas casas.'));}
       const note=el('p','mansion-status');note.setAttribute('role','status');note.tabIndex=-1;
       form.append(send,note);

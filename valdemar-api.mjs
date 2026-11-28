@@ -241,6 +241,7 @@ function copyMansionProgress(personal, shared) {
     (old.current===shared.current && old.revision>shared.revision))));
   const merged = structuredClone(keep ? old : shared);
   merged.missions=[...new Set([...(old?.missions || []), ...shared.missions])];
+  if(old?.discoveries || shared.discoveries) merged.discoveries=[...new Set([...(old?.discoveries||[]),...(shared.discoveries||[])])];
   personal.mansion = merged;
 }
 
@@ -274,7 +275,7 @@ async function mansionSession({store,data,uid,scope,editorial,pair,mode,partner,
   if (op==='inspect') return view(holder);
   if ((!mode || waitingForPartner) && !['start','legacy'].includes(op)) throw new ApiError(409,'Elige la modalidad antes de entrar en la mansión.','MODE_REQUIRED');
   if (op==='legacy' && !legacy) throw new ApiError(409,'Esta cuenta carece de una partida anterior de la estación.','EDITION_UNAVAILABLE');
-  if (!['legacy','start','act','solve','hint'].includes(op)) throw new ApiError(400,'Elige una acción de la mansión.');
+  if (!['legacy','start','act','solve','hint','observe'].includes(op)) throw new ApiError(400,'Elige una acción de la mansión.');
   if (!['legacy','start'].includes(op) && edition!=='mansion') throw new ApiError(409,'Abre la mansión antes de continuar.','EDITION_REQUIRED');
   const before = hasCaseActivity(data,scope,1);
   const records = (data.valdemarCaseProgress ||= {})[scope] ||= {};

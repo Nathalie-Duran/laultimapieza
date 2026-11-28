@@ -1,4 +1,5 @@
 import {ApiError} from './auth-provider.mjs';
+import {createMansionNotebook} from './mansion-notebook.mjs';
 import './web/motor-aventuras.js';
 
 const A='A', B='B', both='both';
@@ -20,11 +21,32 @@ export function createMansionRules(edition) {
   }
   const {title:episodeTitle,chapters,letterEntry,conclusion,endingEntries,recordings:media,panelAnswers,panelHints,
     rooms,objects,levels,hints,explanations,sideQuests}=edition;
+  const notebook=createMansionNotebook(rooms,levels);
+  const assignments=new Map();
+  for(const level of levels.filter(item=>item.contributions)){
+    const fields=new Map();
+    for(const world of [A,B]){
+      const part=level.contributions[world];
+      if(!part?.objective || !Array.isArray(part.controlIds) || !part.controlIds.length)
+        throw new ApiError(503,'Falta preparar uno de los papeles de esta prueba.','MANSION_EDITION_UNAVAILABLE');
+      for(const id of part.controlIds){
+        if(fields.has(id) || !level.controls.some(control=>control.id===id) || !Object.hasOwn(level.solution||{},id))
+          throw new ApiError(503,'Los mandos de esta prueba están pendientes de revisión.','MANSION_EDITION_UNAVAILABLE');
+        fields.set(id,world);
+      }
+    }
+    if(fields.size!==level.controls.length || fields.size!==Object.keys(level.solution).length)
+      throw new ApiError(503,'Esta prueba tiene una decisión sin asignar.','MANSION_EDITION_UNAVAILABLE');
+    assignments.set(level,fields);
+  }
   const permitted = (role,world) => role === 'solo' || world === both || world === role;
   function checkRole(role) {
     if (!['solo',A,B].includes(role)) throw new ApiError(403,'Este puesto no tiene acceso a la mansión.');
   }
-  const seenBy = (all,role) => all.filter(entry => permitted(role,entry.role)).map(entry=>({...entry,world:entry.role}));
+  const seenBy = (all,role) => all.filter(entry => permitted(role,entry.role)).map(entry=>{
+    const id=notebook.idFor(entry);
+    return {...entry,...(id?{id}:{}),world:entry.role};
+  });
   const flagFor = (stage,id) => stage + ':' + id;
   const hasAction = (s,id) => s.flags.includes(flagFor(s.current,id));
   function mansionHint(record,tier,role='solo') {
@@ -34,6 +56,19 @@ export function createMansionRules(edition) {
     if (tier==='open') return hints[s.current-1][0];
     if (tier==='second') return hints[s.current-1][1];
     if (tier!=='solution') throw new ApiError(400,'Ese nivel de pista no existe.');
+    const level=levels[s.current-1];
+    if (level.contributions && role!=='solo'){
+      const part=level.contributions[role];
+      if(part.solutionHint) return part.solutionHint;
+      return part.controlIds.map(id=>{
+        const control=level.controls.find(field=>field.id===id);
+        const answer=level.solution[id];
+        const label=control.options?.find(option=>option.value===answer)?.label||answer;
+        return control.label+' · '+label;
+      }).join('. ')+'.';
+    }
+    if(level.well && role===A) return 'Une el cordón con el imán. Sujeta la manivela en la marca que se ve junto a la llave en la otra casa.';
+    if(level.well && role===B) return 'El saliente lleva la marca '+['','I','II','III'][level.well.target]+'. Indica esa profundidad a quien maneja la manivela y recoge la llave con el imán.';
     if (s.current!==15) return explanations[s.current-1];
     const {A:first,B:second}=panelHints;
     if (role===A) return first;
@@ -41,14 +76,19 @@ export function createMansionRules(edition) {
     return first+' '+second;
   }
   const available = (s,action) => (action.needs || []).every(item => s.items.includes(item));
+  const actionRole=(level,action)=>level.well && action.id==='pescar'?B:action.role;
   function actionViews(level,s,role) {
-    return (level.actions || []).filter(action=>permitted(role,action.role)).map(action=>{
+    return (level.actions || []).filter(action=>permitted(role,actionRole(level,action))).map(action=>{
       const done=hasAction(s,action.id), ready=available(s,action);
-      return {id:action.id,label:action.label,role:action.role,world:action.role,enabled:!done&&ready,done,
+      const world=actionRole(level,action);
+      return {id:action.id,label:action.label,role:world,world,enabled:!done&&ready,done,
         reason:done?'Ya se ha realizado.':ready?'':'Falta un objeto en el inventario compartido.'};
     });
   }
   function controlViews(level,s,role) {
+    const fields=assignments.get(level);
+    if(fields) return level.controls.filter(control=>permitted(role,fields.get(control.id)))
+      .map(control=>({...control,role:fields.get(control.id)}));
     if (level !== levels[14]) return level.controls;
     return level.controls.map(control => control.id === 'panel' ?
       {...control,options:control.options.filter(opt=>permitted(role,opt.value)&&!s.panels.includes(opt.value))} : control);
@@ -66,13 +106,27 @@ export function createMansionRules(edition) {
     const room=rooms.find(r=>r[0]===(roomId || level.room));
     if (!room) throw new ApiError(404,'Ese lugar no figura en el plano.');
     if (room[2]>s.current) throw new ApiError(409,'Ese lugar todavía está cerrado.');
-    const [id,title,,placeA,placeB]=room;
+    const [id,title]=room;
     const stage=s.completed?null:{number:s.current,chapter:chapters[Math.floor((s.current-1)/3)],title:level.title,
       room:level.room,brief:level.brief,evidence:seenBy(level.evidence,role),controls:controlViews(level,s,role),
       actions:actionViews(level,s,role),
       ready:(level.requires || []).every(action=>hasAction(s,action))};
     if (stage && s.current===15) stage.panelStatus={A:s.panels.includes(A),B:s.panels.includes(B)};
-    const placeEvidence=[{role:A,title:'Casa habitada',text:placeA},{role:B,title:'Casa abandonada',text:placeB}];
+    if(stage && level.contributions) {
+      stage.contributions=Object.fromEntries([A,B].map(world=>[world,{
+        done:hasAction(s,'part-'+world),
+        ...(permitted(role,world)?{objective:level.contributions[world].objective}:{})
+      }]));
+    }
+    if(stage && level.well) {
+      const depth=s.wellDepth||0,target=level.well.target;
+      stage.wellDepth=depth;
+      if(role!==A){
+        stage.wellMark=target;
+        stage.wellReach=!depth?null:depth===target?'at':depth<target?'above':'below';
+      }
+    }
+    const placeEvidence=[notebook.roomPlace(id,A),notebook.roomPlace(id,B)];
     for (const visited of levels.slice(0,s.current)) {
       if (visited.room===id) placeEvidence.push(...visited.evidence);
     }
@@ -81,7 +135,7 @@ export function createMansionRules(edition) {
     if (s.current===12 && stage) stage.recording=media.radio;
     if (s.completed) recordings.final=media.final;
     return {title:episodeTitle,intro:letterEntry.text,role,recordings,current:s.current,total:15,
-      completed:s.completed,revision:s.revision,stage,
+      completed:s.completed,revision:s.revision,stage,notebook:notebook.known(s,role),
       rooms:rooms.map(([id,title,min])=>({id,title,unlocked:min<=s.current})),
       explore:{id,title,evidence:seenBy(placeEvidence,role),actions:stage?.room===id?stage.actions:[]},
       inventory:s.items.filter(key=>!['A','B'].includes(role)||!['A','B'].includes(objects[key][1])||objects[key][1]===role).map(key=>({id:key,title:objects[key][0],world:objects[key][1]})),
@@ -104,7 +158,7 @@ export function createMansionRules(edition) {
   const plain = x => x!==null && typeof x==='object' && !Array.isArray(x);
   function radioCall(level) {
     const signal=level?.evidence?.find(entry=>typeof entry.signal==='string')?.signal;
-    if(!signal||!Object.hasOwn(level.solution,'llamada')||Object.keys(level.solution).length!==1)return null;
+    if(!signal||!Object.hasOwn(level.solution,'llamada'))return null;
     const pulses=signal.split('/').map(group=>group.trim());
     const key={};
     for(const entry of level.evidence){
@@ -120,12 +174,47 @@ export function createMansionRules(edition) {
   function matches(answers,solution,level) {
     if(!plain(answers)||Object.values(answers).some(value=>typeof value!=='string'||value.length>100))return false;
     const engine=globalThis.MotorAventuras;
-    const radio=radioCall(level);
+    const radio=Object.keys(solution).length===1&&Object.hasOwn(solution,'llamada')?radioCall(level):null;
     if(radio){
       return engine.intentoValido({tipo:'campos',campos:['llamada']},answers)&&
         engine.evaluarPrueba(radio,answers.llamada.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,''));
     }
     return engine.evaluarPrueba({tipo:'campos',respuesta:solution,normalizacion:'texto'},answers);
+  }
+  function finishStage(record,s,level) {
+    const stageCompleted=s.current;
+    updateItems(s,level.onWin);
+    s.current++;
+    return commit(record,s,{stageCompleted,message:'Prueba resuelta. Se ha abierto el siguiente paso.'});
+  }
+  function submitContribution(record,s,level,role,input) {
+    const world=input.world??role;
+    if(world!==A && world!==B) throw new ApiError(400,'Elige la casa desde la que estás actuando.');
+    if(!permitted(role,world)) throw new ApiError(403,'Ese mecanismo se maneja desde la otra casa.');
+    if(hasAction(s,'part-'+world)) return unchanged('Tu parte ya está resuelta y guardada.',true);
+    const part=level.contributions[world];
+    const expected=Object.fromEntries(part.controlIds.map(id=>[id,level.solution[id]]));
+    if(!matches(input.answers,expected,level)) return unchanged(part.feedback||'Revisa las pistas de tu mecanismo.');
+    s.flags.push(flagFor(s.current,'part-'+world));
+    if(hasAction(s,'part-'+(world===A?B:A))) return finishStage(record,s,level);
+    return commit(record,s,{message:part.success||'Tu parte está resuelta. Falta la maniobra de la otra casa.'});
+  }
+  function wasSubmitted(s,role,input){
+    if(input.op!=='solve'||input.mission!==undefined||!Number.isInteger(input.stage)||input.stage<1||input.stage>=s.current)return false;
+    const world=input.world??role,previous=levels[input.stage-1];
+    if((world!==A&&world!==B)||!permitted(role,world)||!previous.contributions)return false;
+    if(!s.flags.includes(flagFor(input.stage,'part-'+world)))return false;
+    const expected=Object.fromEntries(previous.contributions[world].controlIds.map(id=>[id,previous.solution[id]]));
+    return matches(input.answers,expected,previous);
+  }
+  function setDepth(record,s,role,input) {
+    if(role===B || input.world===B) throw new ApiError(403,'La manivela se maneja desde la casa habitada.');
+    if(!Number.isInteger(input.depth) || input.depth<1 || input.depth>3) throw new ApiError(400,'Elige una de las tres marcas de la cuerda.');
+    if(hasAction(s,'pescar')) return unchanged('La llave ya está en el inventario.',true);
+    if(!hasAction(s,'atar')) return unchanged('Sujeta primero el imán al cordón.');
+    if(s.wellDepth===input.depth) return unchanged('La cuerda ya está sujeta en esa marca.',true);
+    s.wellDepth=input.depth;
+    return commit(record,s,{message:'La cuerda ha quedado sujeta en la marca '+['','I','II','III'][s.wellDepth]+'.'});
   }
   function finishPanel(record,s,role,answers) {
     const panel=answers?.panel;
@@ -141,9 +230,14 @@ export function createMansionRules(edition) {
 
   function applyMansion(record,role,input) {
     checkRole(role);
-    if (!plain(input) || !['act','solve'].includes(input.op)) throw new ApiError(400,'Operación de la mansión desconocida.');
+    if (!plain(input) || !['observe','act','solve'].includes(input.op)) throw new ApiError(400,'Operación de la mansión desconocida.');
     const s=record.mansion || freshState();
+    if(wasSubmitted(s,role,input))return unchanged('Tu parte de esa prueba ya está resuelta y guardada.',true);
     if (input.stage!==s.current) throw new ApiError(409,'La prueba ha cambiado. Actualiza el episodio antes de continuar.');
+    if(input.op==='observe') {
+      const result=notebook.observe(s,role,input);
+      return result.changed?commit(record,s,result):result;
+    }
     if (input.mission!==undefined) {
       const mission=sideQuests.find(q=>q.id===input.mission);
       if (!mission) throw new ApiError(404,'Esta misión no figura en el cuaderno.');
@@ -157,22 +251,27 @@ export function createMansionRules(edition) {
     if (s.completed) return unchanged('El desenlace ya está guardado en el álbum.',true);
     const level=levels[s.current-1];
     if (input.op==='act') {
+      if(level.well && input.action==='profundidad') return setDepth(record,s,role,input);
       const action=(level.actions || []).find(a=>a.id===input.action);
       if (!action) throw new ApiError(400,'Esa interacción no está disponible en esta prueba.');
-      if (!permitted(role,action.role)) throw new ApiError(403,'Esa interacción pertenece a la otra casa.');
+      const actor=actionRole(level,action);
+      if (!permitted(role,actor) || (input.world!==undefined && !permitted(input.world,actor)))
+        throw new ApiError(403,'Esa interacción pertenece a la otra casa.');
       if (hasAction(s,action.id)) return unchanged('La interacción ya está guardada.',true);
       if (!available(s,action)) return unchanged('Busca los objetos que faltan antes de hacer eso.');
+      if(level.well && action.id==='pescar' && s.wellDepth!==level.well.target) {
+        if(!s.wellDepth) return unchanged('La cuerda sigue enrollada en la otra casa.');
+        return unchanged(s.wellDepth<level.well.target?'La sonda se balancea por encima del saliente.':'La sonda ha pasado de largo.');
+      }
       updateItems(s,action);
       s.flags.push(flagFor(s.current,action.id));
       return commit(record,s,{message:action.give?'Has obtenido '+objects[action.give][0]+'.':'La interacción ha quedado guardada.'});
     }
     if (s.current===15) return finishPanel(record,s,role,input.answers);
     if (!(level.requires || []).every(key=>hasAction(s,key))) return unchanged('Aún hay una interacción pendiente en la sala.');
+    if(level.contributions) return submitContribution(record,s,level,role,input);
     if (!matches(input.answers || {},level.solution,level)) return unchanged('El mecanismo no responde. Contrasta otra vez las pistas de las dos casas.');
-    const stageCompleted=s.current;
-    updateItems(s,level.onWin);
-    s.current++;
-    return commit(record,s,{stageCompleted,message:'Prueba resuelta. Se ha abierto el siguiente paso.'});
+    return finishStage(record,s,level);
   }
   return {inspectMansion,applyMansion,mansionHint};
 }

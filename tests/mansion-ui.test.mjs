@@ -10,6 +10,7 @@ function simulatedEpisode(number,role){
   const active=rooms[number===6?4:Math.min(number-1,7)];
   const recording={title:'Lectura de ensayo',audio:'/test-recording.wav',text:'Un mensaje ficticio.'};
   let picked=false,hint=false,revision=0;
+  const notebook=[];
   function state(roomId=active.id){
     let controls=[{id:'texto',label:'Dato de ensayo',type:'code',maxLength:5}];
     if(number===5)controls=[{id:'ruedaTest',label:'Fichas de prueba',type:'code',symbols:['Ne','Li','Mg']}];
@@ -22,12 +23,12 @@ function simulatedEpisode(number,role){
     const marks=[
       {role:'A',title:'Primera lámina de ensayo',text:'Disco de muestra.',kind:'photo-grid',marks:[{cell:'B2',label:'Disco'}]},
       {role:'B',title:'Segunda lámina de ensayo',text:'Anillo de muestra.',kind:'photo-grid',marks:[{cell:'A2',label:'Anillo'}]}
-    ].filter(item=>role==='solo'||item.role===role);
+    ].filter(item=>role==='solo'||item.role===role).map(item=>({...item,id:'ensayo-'+item.role}));
     const stage={number,chapter:'Taller',room:active.id,title:'Mecanismo de ensayo '+number,brief:'Inspecciona el prototipo.',
       hintOptions:[{op:'open',cost:1,text:hint?'Orientación compartida de ensayo.':null}],evidence:number===6?marks:[],
       controls,actions:number===3?[{id:'muestra',role:'B',label:'Tomar arandela de ensayo',enabled:!picked,done:picked}]:[],
       ...(number===12?{recording}:{})};
-    return {title:'Escenario de pruebas',current:number,total:15,stage,revision,rooms,role,
+    return {title:'Escenario de pruebas',current:number,total:15,stage,revision,rooms,role,notebook:[...notebook],
       explore:{id:roomId,evidence:roomId===active.id?stage.evidence:[]},inventory:picked?[{title:'Arandela de ensayo',world:'B'}]:[],
       missions:['una','dos','tres','cuatro'].map(id=>({id,title:'Misión de ensayo '+id,brief:'',room:'salon',
         available:id==='una'&&number>=2,controls:[],evidence:[{role:'A',title:'Vestigio A',text:'Anotación de ensayo.'},{role:'B',title:'Vestigio B',text:'Marca de ensayo.'}]})),
@@ -36,13 +37,17 @@ function simulatedEpisode(number,role){
   }
   function act(input){
     if(input.op==='act'){assert.equal(input.action,'muestra');picked=true;revision++;}
+    if(input.op==='observe'){
+      const clue=state().stage.evidence.find(item=>item.id===input.evidenceId);
+      assert.equal(clue.role,input.world);notebook.push({...clue,world:input.world});revision++;
+    }
     if(input.op==='hint'){hint=true;revision++;}
     return {correct:true,mansion:state(input.roomId)};
   }
   return {state,act};
 }
 
-async function view(number=1,role='solo'){
+async function view(number=1,role='solo',episode=simulatedEpisode(number,role)){
   const document={};
   class Node{
     constructor(tag){this.tag=tag;this.children=[];this.dataset={};this.events={};this.attrs={};this.style={setProperty(){}};}
@@ -67,7 +72,6 @@ async function view(number=1,role='solo'){
   const window={MotorAventuras:globalThis.MotorAventuras};
   for(const file of ['mansion-puzzles.js','mansion-game.js'])
     runInNewContext(await readFile(new URL('../web/'+file,import.meta.url),'utf8'),{window,document});
-  const episode=simulatedEpisode(number,role);
   const calls=[],host=new Node('div');
   const handle=window.MansionGame.mount(host,{state:episode.state(),role,act:async input=>{
     calls.push(input);
@@ -75,7 +79,7 @@ async function view(number=1,role='solo'){
   }});
   function find(tag,text){const item=host.nodes().find(node=>node.tag===tag&&node.textContent===text);assert.ok(item,'Control '+text);return item;}
   const click=async text=>{await find('button',text).events.click();await Promise.resolve();};
-  return {host,calls,handle,click,find,document};
+  return {host,calls,handle,click,find,document,open:()=>host.querySelector('.mansion-device-pin').events.click()};
 }
 
 test('El escenario abre con su foto, ocho salas y navegación de teclado entre los cuatro paneles',async()=>{
@@ -105,8 +109,8 @@ test('Las pistas solo se compran al confirmar el precio; después se pueden rele
 test('Cada una de las quince pruebas monta su mecanismo; las fotos y los sonidos respetan la etapa',async()=>{
   const kinds=[];
   for(let n=1;n<=15;n++){
-    const {host,click}=await view(n);
-    await click('Abrir el mecanismo');
+    const {host,open}=await view(n);
+    await open();
     const puzzle=host.querySelector('.mansion-puzzle');assert.ok(puzzle);kinds.push(puzzle.dataset.kind);
     assert.ok(puzzle.nodes().some(node=>node.tag==='form'));
     const audio=host.nodes().filter(node=>node.tag==='audio');
@@ -122,10 +126,10 @@ test('Cada una de las quince pruebas monta su mecanismo; las fotos y los sonidos
 
 test('El mecanismo tiene una sola entrada y la vuelta restaura el foco en su punto de la escena',async()=>{
   const {host,click,document}=await view();
-  assert.equal(host.nodes().filter(node=>node.tag==='button'&&node.textContent==='Abrir el mecanismo').length,1);
-  await click('Abrir el mecanismo');assert.ok(host.querySelector('.mansion-puzzle'));
+  assert.equal(host.nodes().filter(node=>node.tag==='button'&&node.textContent==='Examinar el arco').length,1);
+  await click('Examinar el arco');assert.ok(host.querySelector('.mansion-puzzle'));
   await click('Volver al escenario');assert.equal(host.querySelector('.mansion-puzzle'),undefined);
-  assert.equal(document.activeElement.textContent,'Abrir el mecanismo');
+  assert.equal(document.activeElement.textContent,'Examinar el arco');
 });
 
 test('Una carta del álbum conserva un solo texto y un solo reproductor en Evidencias',async()=>{
@@ -139,7 +143,7 @@ test('Un jugador en pareja conserva su realidad y las acciones del inventario so
   const {host,click,calls}=await view(3,'B');
   assert.equal(host.nodes().some(x=>x.className==='mansion-world-choice'),false);
   assert.ok(host.nodes().some(x=>x.src==='/mansion-ruin-3.webp'));
-  await click('Abrir el mecanismo');
+  await click('Mirar dentro del pozo');
   const item=host.nodes().find(x=>x.tag==='button'&&x.textContent.includes('Tomar arandela de ensayo'));
   await item.events.click();
   assert.equal(calls[0].op,'act');
@@ -149,19 +153,33 @@ test('Un jugador en pareja conserva su realidad y las acciones del inventario so
 
 test('La mesa de placas desplaza las marcas de B y conserva los indicios privados de cada jugador',async()=>{
   const solo=await view(6);
-  await solo.click('Casa abandonada');await solo.click('Abrir el mecanismo');
+  await solo.click('Primera lámina de ensayo');
+  await solo.click('Casa abandonada');await solo.click('Segunda lámina de ensayo');await solo.open();
   const grid=()=>solo.host.querySelector('.mansion-photo-grid').nodes().filter(node=>node.tag==='td').map(node=>node.textContent);
   assert.match(grid()[5],/A · Disco/);
   assert.match(grid()[4],/B · Anillo/);
   await solo.click('Mover a la derecha');
   assert.match(grid()[5],/A · Disco.*B · Anillo/);
-  const duo=await view(6,'B');await duo.click('Abrir el mecanismo');
+  const duo=await view(6,'B');await duo.click('Segunda lámina de ensayo');await duo.open();
   assert.doesNotMatch(duo.host.querySelector('.mansion-photo-grid').textContent,/A ·/);
+});
+
+test('El cuaderno guarda un indicio al examinarlo, lo recupera al reabrir y distingue las dos casas',async()=>{
+  const episode=simulatedEpisode(6,'solo'),first=await view(6,'solo',episode);
+  await first.click('Evidencias');assert.doesNotMatch(first.host.textContent,/Disco de muestra/);
+  await first.click('Escenario');await first.click('Primera lámina de ensayo');
+  assert.equal(first.calls[0].op,'observe');assert.equal(first.calls[0].roomId,'galeria');
+  await first.click('Evidencias');assert.match(first.host.textContent,/Disco de muestra/);
+  await first.click('Casa abandonada');assert.doesNotMatch(first.host.textContent,/Disco de muestra/);
+  first.handle.destroy();
+  const resumed=await view(6,'solo',episode);
+  await resumed.click('Evidencias');assert.match(resumed.host.textContent,/Disco de muestra/);
+  await resumed.click('Escenario');await resumed.click('Primera lámina de ensayo');assert.equal(resumed.calls.length,0);
 });
 
 test('El manipulador conserva los grupos anotados y deja que el jugador los descifre con la clave',async()=>{
   const {host,click}=await view(12,'A');
-  await click('Abrir el mecanismo');
+  await click('Examinar el receptor');
   await click('Pulsación larga —');
   await click('Separar grupo');
   await click('Pulsación corta ·');

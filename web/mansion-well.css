@@ -1,0 +1,76 @@
+.mansion-well {
+  display: grid;
+  gap: .8rem;
+  max-inline-size: 48rem;
+}
+.mansion-well-view {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid var(--house-stroke);
+  border-radius: .35rem;
+  background: var(--house-black);
+  aspect-ratio: 850 / 560;
+}
+.mansion-well-photo {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+.mansion-well-view[data-view=day] .mansion-well-photo {
+  transform: scale(1.8);
+  transform-origin: 81% 44%;
+}
+.mansion-well-view[data-view=recovered] .mansion-well-photo {
+  transform: scale(2.75);
+  transform-origin: 63% 50%;
+}
+.mansion-well-caption {
+  position: absolute;
+  inset-block-start: .65rem;
+  inset-inline-start: .65rem;
+  padding: .22rem .55rem;
+  max-inline-size: calc(100% - 1.3rem);
+  border-radius: .2rem;
+  color: #fff1d7;
+  background: #14211ff2;
+  font-size: .9rem;
+}
+.mansion-well-marks {
+  position: absolute;
+  left: 58%;
+  top: 54%;
+  transform: rotate(-9deg);
+  color: #fcdfae;
+  text-shadow: 1px 2px 2px #292016;
+  font: bold clamp(1.1rem,3.2vw,1.75rem)/1 Georgia,serif;
+}
+.mansion-well-cord {
+  position: absolute;
+  top: 0;
+  left: 67.7%;
+  height: var(--well-drop);
+  width: 4px;
+  background: repeating-linear-gradient(150deg,#92734c 0 3px,#e4cba4 3px 5px);
+  box-shadow: 1px 1px 2px #171512;
+}
+.mansion-well-magnet {
+  position: absolute;
+  top: 100%;
+  left: -5px;
+  width: 15px;
+  height: 17px;
+  border: 3px solid #d2d2c9;
+  border-bottom: 0;
+  border-radius: 55% 55% 0 0;
+  filter: drop-shadow(1px 1px 1px #161714);
+}
+.mansion-well-instruction,.mansion-role-objective {margin: 0; color: var(--house-ink);}
+.mansion-well-depth {border: 0; padding: 0; margin: 0;}
+.mansion-well-depth legend {margin-block-end: .35rem;}
+.mansion-well-choices {display: flex; flex-wrap: wrap; gap: .55rem;}
+.mansion-well-choices:empty {display:none;}
+.mansion-well-choices button {min-block-size: 44px; min-inline-size: 44px;}
+.mansion-well-depth [aria-pressed=true] {background:var(--house-metal);color:var(--house-black);}
