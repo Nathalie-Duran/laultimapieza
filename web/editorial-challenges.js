@@ -5,8 +5,55 @@
   const request = (path,input,method) => window.GameAccountBridge.request(path,input,method);
   const canManage = () => window.ClubAccess?.state?.canManage===true;
   const publicPath = '/api/published-challenges', adminPath = '/api/admin/challenges';
+  if(typeof customElements!=='undefined' && !customElements.get('challenge-keyring'))customElements.define('challenge-keyring',class extends HTMLElement {
+    connectedCallback(){
+      this.panel=this.closest('.adventure-challenges');
+      this.refresh=()=>this.showWallet();
+      this.panel?.addEventListener('mansion-arcade-reward',this.refresh);
+      this.panel?.addEventListener('editorial-challenge-solved',this.refresh);
+      this.showWallet();
+      this.showResume();
+    }
+    disconnectedCallback(){
+      this.panel?.removeEventListener('mansion-arcade-reward',this.refresh);
+      this.panel?.removeEventListener('editorial-challenge-solved',this.refresh);
+    }
+    async showResume(){
+      if(!window.GameAccountBridge?.isSignedIn())return;
+      const link=this.panel?.querySelector('.reto-acciones a[href="/#archivo"]');
+      if(!link)return;
+      try{
+        const {games}=await request('/api/valdemar/partidas');
+        if(!link.isConnected)return;
+        const latest=games.filter(game=>game.available&&!game.finished && Number.isInteger(game.id)&&game.id>=1&&game.id<=48)
+          .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)||b.current-a.current||a.id-b.id)[0];
+        if(!latest)return;
+        const title=latest.title || [...(window.ValdemarCatalog?.items||[]),...(window.MundosCatalogo||[])].find(game=>game.id===latest.id)?.title;
+        link.href='/#'+(latest.id<=12?'valdemar-jugar':'mundos-jugar')+'?id='+latest.id+'&retomar=1';
+        link.textContent=title?'Continuar '+title:'Continuar mi partida';
+      }catch{/* The saved-games link remains usable if the latest checkpoint is unavailable. */}
+    }
+    async showWallet(){
+      this.innerHTML='<div><h2>Tu llavero</h2><p>Una pista orientativa cuesta una llave. Una pista detallada cuesta dos y la solución explicada cuesta tres.</p></div>';
+      if(!window.GameAccountBridge?.isSignedIn())return;
+      const status=document.createElement('p');
+      status.setAttribute('role','status');
+      status.textContent='Consultando saldo…';
+      this.append(status);
+      try{
+        const {wallet}=await request('/api/valdemar/seasons');
+        if(!status.isConnected || !wallet)return;
+        status.textContent=wallet.balance+(wallet.balance===1?' llave disponible':' llaves disponibles');
+        const won=new Set(wallet.won);
+        for(const label of this.panel.querySelectorAll('[data-reto-premio]')){
+          if(won.has(Number(label.dataset.retoPremio)))label.textContent='Premio recibido';
+        }
+      }catch{if(status.isConnected)status.textContent='El saldo se mostrará cuando recuperes la conexión.';}
+    }
+  });
   function view() {
-    return '<section class="account-card" id="published-challenges"><h2>Desafíos y aventuras</h2><p role="status" aria-live="polite"></p><div data-challenges></div></section>';
+    return '<section class="account-card reto-calendario" id="calendar-challenges"><h2>El calendario de juego</h2><ul class="reto-periodos"><li><strong>Desafío diario</strong><span>Una prueba · 1 llave</span></li><li><strong>Misión semanal</strong><span>Tres pruebas de lunes a domingo · 2 llaves</span></li></ul><p>Participa cuando te apetezca. Si dejas pasar una edición, conservas las llaves y el avance de tus aventuras. Los periodos cambian a medianoche, hora de Madrid.</p><p role="status" aria-live="polite"></p><div data-challenges></div></section>'+
+      '<section class="account-card" id="published-challenges"><h2>Desafíos de la edición</h2><p>Pruebas adicionales que el equipo publica para los casos del tablero.</p><p role="status" aria-live="polite"></p><div data-challenges></div></section>';
   }
   function question(item){
     return `<fieldset><legend>Prueba ${item.index+1} de ${item.total} · ${esc(item.prompt)}</legend>
@@ -14,24 +61,27 @@
       <button type="submit" class="button primary">Comprobar respuesta</button>`;
   }
   async function mount() {
-    const panel=document.getElementById('published-challenges');
+    await Promise.all([mountPanel('published-challenges',publicPath,false),mountPanel('calendar-challenges','/api/calendar-challenges',true)]);
+  }
+  async function mountPanel(panelId,path,calendar) {
+    const panel=document.getElementById(panelId);
     if (!panel || panel.dataset.bound) return;
     panel.dataset.bound='1';
     const status=panel.querySelector('[role=status]'), list=panel.querySelector('[data-challenges]');
     if (!window.GameAccountBridge?.isSignedIn()) {
-      status.textContent='Inicia sesión para consultar los desafíos de tus casos.';
+      status.textContent=calendar?'El calendario se abre con el primer caso de Valdemar.':'Inicia sesión para consultar los desafíos de tus casos.';
       return;
     }
     status.textContent='Cargando desafíos…';
     try {
-      const {items}=await request(publicPath);
+      const {items}=await request(path);
       if (!panel.isConnected) return;
-      status.textContent=items.length ? 'Gana una llave la primera vez que resuelvas cada desafío.' : 'Todavía no hay desafíos editoriales publicados para tus casos disponibles.';
-      list.innerHTML=items.map(item=>`<details class="account-card"><summary>${esc(item.title)}${item.solved?' · Resuelto':''}</summary>
+      status.textContent=calendar?(items.length?'Ediciones disponibles ahora.':'El calendario se abre con el primer caso de Valdemar.'):(items.length?'Gana una llave la primera vez que resuelvas cada desafío.':'Todavía no hay desafíos editoriales publicados para tus casos disponibles.');
+      list.innerHTML=items.map(item=>`<details class="account-card"><summary>${calendar?esc(scheduleKinds[item.schedule.kind])+' · ':''}${esc(item.title)}${item.solved?' · Resuelto':''}</summary>
         <p>Tablero ${Math.ceil(item.caseId/12)} · Caso ${(item.caseId-1)%12+1} · ${item.total} ${item.total===1?'prueba':'pruebas'} ${scheduleCaption(item.schedule)}</p>
-        <form data-challenge="${esc(item.id)}" data-index="${item.index}" data-revision="${item.revision}">
+        ${calendar?'<p>'+item.prize+(item.prize===1?' llave':' llaves')+' por la primera resolución.</p>':''}<form data-challenge="${esc(item.id)}" data-index="${item.index}" data-revision="${item.revision}">
         <p role="status" aria-live="polite"></p><div data-question>${question(item)}</div></form></details>`).join('');
-      list.addEventListener('submit',async event=>{
+      list.onsubmit=async event=>{
         const form=event.target;
         if(!form.matches('[data-challenge]'))return;
         event.preventDefault();
@@ -39,7 +89,7 @@
         if(button.disabled)return;
         button.disabled=true;
         try {
-          const result=await request(publicPath,{id:form.dataset.challenge,revision:Number(form.dataset.revision),index:Number(form.dataset.index),option:Number(form.elements.option.value)},'POST');
+          const result=await request(path,{id:form.dataset.challenge,revision:Number(form.dataset.revision),index:Number(form.dataset.index),option:Number(form.elements.option.value)},'POST');
           if(!panel.isConnected)return;
           feedback.textContent=result.correct?result.explanation:'Revisa las pistas y prueba otra respuesta.';
           if(result.correct && !result.next.solved){
@@ -50,15 +100,23 @@
           if(result.correct && result.next.solved){
             const summary=form.closest('details').querySelector('summary');
             if(!summary.textContent.endsWith(' · Resuelto'))summary.textContent+=' · Resuelto';
+            panel.dispatchEvent(new CustomEvent('editorial-challenge-solved',{bubbles:true}));
           }
-        } catch(error){if(panel.isConnected)feedback.textContent=error.message||'No se ha podido comprobar la respuesta.';}
+        } catch(error){
+          if(!panel.isConnected)return;
+          if(calendar && error.status===404){
+            delete panel.dataset.bound;
+            await mountPanel(panelId,path,true);
+            status.textContent='El calendario ha cambiado. Elige una de las ediciones disponibles.';
+          }else feedback.textContent=error.message||'No se ha podido comprobar la respuesta.';
+        }
         finally{button.disabled=false;}
-      });
+      };
     } catch(error) {
       if(!panel.isConnected)return;
       status.textContent=error.message||'No se pudieron cargar los desafíos.';
       list.innerHTML='<button type="button" class="button">Reintentar</button>';
-      list.querySelector('button').onclick=()=>{delete panel.dataset.bound;list.replaceChildren();mount();};
+      list.querySelector('button').onclick=()=>{delete panel.dataset.bound;list.replaceChildren();mountPanel(panelId,path,calendar);};
     }
   }
   const scheduleKinds={always:'Permanente',daily:'Desafío diario',weekly:'Misión semanal',event:'Evento especial'};
