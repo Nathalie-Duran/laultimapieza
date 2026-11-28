@@ -49,9 +49,13 @@
     briefing.append(el('summary',null,'Leer la apertura del caso'));
     if(story.question)briefing.append(el('p',null,story.question));
     if(story.intro)briefing.append(el('p',null,story.intro));
-    host.replaceChildren(toolbar,heading,stage,party,setup,objective,tools,instrument);
+    const mesaHost=el('div','ae-mesa');
+    const shared=window.MesaDeJuego?.mount(mesaHost,{family:world,title:story.title});
+    const mesaHome=el('div','ae-mesa-home');
+    if(shared){mesaHome.append(mesaHost);caption.replaceChildren(place);host.replaceChildren(toolbar,heading,stage,party,setup,mesaHome,instrument);}
+    else host.replaceChildren(toolbar,heading,stage,party,setup,objective,tools,instrument);
     if(story.intro||story.question)host.append(briefing);
-    let lastMode,signature,currentHour,light=false,lastPoint;
+    let lastMode,signature,currentHour,light=false,lastPoint,secondaryPanel=null,sceneContext={};
     host.addEventListener('click',event=>{const point=event.target.closest?.('button');if(point&&host.contains(point))lastPoint=point;},true);
     const back=button('Volver al escenario',()=>{
       actions('scene');
@@ -59,9 +63,36 @@
       point?.focus({preventScroll:true});(point||stage).scrollIntoView({block:'center'});
     },'ae-back');
     function returnFrom(target){
-      if(!target||back.parentElement===target)return;
+      if(!target)return;
+      if(shared){
+        secondaryPanel=target.closest?.('.md-game-side,.vd-game,.md-game-help,.vd-help,.md-game-end,.vd-ending,.vhour-hotel-panel')||null;
+        syncMesa();
+      }
+      if(back.parentElement===target)return;
       if(target.tagName==='DETAILS'&&target.firstElementChild)target.firstElementChild.after(back);
       else target.prepend(back);
+    }
+    function syncMesa(){
+      if(!shared)return;
+      const section=frame.dataset.playMode==='pending'?null:secondaryPanel;
+      if(!section){
+        if(mesaHost.parentElement!==mesaHome)mesaHome.append(mesaHost);
+        shared.update(sceneContext);return;
+      }
+      if(mesaHost.parentElement!==section)section.prepend(mesaHost);
+      const data=read(),base={...sceneContext,tools:[],objective:'',next:null};
+      if(section.matches('.md-game-side,.vd-game')){
+        const complete=data.wallet?.won?.includes(options.id);
+        const side=data.side;
+        const pitch=section.querySelector('.vd-game-heading .vd-note')?.textContent;
+        shared.update({...base,progress:complete?'Premio del reto recibido':'Reto extra',
+          objective:complete?'':side?.brief||pitch||'',help:{context:'reto',text:side?.task||'Examina el tablero y utiliza sus controles para resolver el reto.',
+          steps:['Consulta la consigna del reto.','Prueba una respuesta o manipula las piezas.','Al terminar puedes volver a la investigación.']}});
+      }else if(section.matches('.md-game-help,.vd-help')){
+        shared.update({...base,progress:'Consulta de pistas'});
+      }else if(section.matches('.vhour-hotel-panel')){
+        shared.update({...base,progress:'Hotel Medianoche',objective:'Examina el hotel y contrasta las pruebas con los testimonios.'});
+      }else shared.update({...base,progress:data.progress?.choice?'Desenlace guardado':sceneContext.progress,objective:currentHour?.stage?'Termina las etapas de la investigación para abrir el desenlace.':''});
     }
     function marker(text,name,info,slot){
       const control=button('',()=>actions(name,info),'ae-marker');
@@ -107,6 +138,18 @@
       goalLabel.textContent=phase?.title||'Objetivo actual';
       goal.textContent=phase?(phase.brief===phase.task?'':phase.brief||''):data.progress?.choice?'Releer el desenlace guardado.':data.progress?.deduced?'Decidir cómo cerrar la historia.':'Contrastar la deducción final.';
       goal.hidden=!goal.textContent;
+      if(shared){
+        const ready=mode!=='pending';
+        const step=phase?[progress.textContent,phase.title].filter(Boolean).join(' · '):progress.textContent;
+        sceneContext={
+          progress:ready?step:'',
+          objective:ready?goal.textContent:'Elige la modalidad para abrir el escenario.',
+          help:{context:together?'duo':'temporada',text:'Los puntos del escenario abren el lugar, sus pruebas y la decisión de esta etapa.',
+            steps:['Examina las pruebas de tu carpeta.','Reúne los objetos en el inventario y contrasta lo que has observado.','Resuelve la etapa para abrir la siguiente estancia.']},
+          tools:ready?[{id:'bag',label:style.bag,run:()=>actions('bag')},{id:'evidence',label:'Evidencias',run:()=>actions('evidence')}]:[]
+        };
+        syncMesa();
+      }
       if(world==='expedicion'||world==='valdemar'){
         const list=el('ol','ae-route');
         for(const [index,step] of (state.stages||[]).entries()){
@@ -148,7 +191,7 @@
     }
     const observer=new MutationObserver(()=>update());
     observer.observe(frame,{attributes:true,attributeFilter:['data-play-mode','data-play-paper']});
-    return {update,returnFrom,focus(){markers.querySelector('button')?.focus({preventScroll:true});host.scrollIntoView({block:'start'});},destroy(){observer.disconnect();explorer.destroy();}};
+    return {update,returnFrom,focus(){markers.querySelector('button')?.focus({preventScroll:true});host.scrollIntoView({block:'start'});},destroy(){observer.disconnect();explorer.destroy();shared?.destroy();}};
   }
   window.AventuraEscena=Object.freeze({mount,mountExplorer});
 })();

@@ -14,6 +14,10 @@
   const itemPhoto=id=>photos[id==='piloto'?'magnetofono':id];
   const boxNames = {a4:'A4',b6:'B6',c2:'C2'};
   const marks = {circulo:'Precinto circular',triangulo:'Precinto triangular',cuadrado:'Precinto cuadrado'};
+  const manifests = {a4:{beats:[1,1,3],mark:'circulo'},b6:{beats:[1,3,3],mark:'triangulo'},c2:{beats:[1,1,3],mark:'triangulo'}};
+  function signalStrip(beats){
+    return '<span class="c87-signal" aria-hidden="true">'+beats.map(length=>'<i class="'+(length===1?'short':'long')+'"></i>').join('')+'</span>';
+  }
   const endings = {
     emitir:{label:'Emitir el fragmento',title:'La estación vuelve al aire',
       text:'Esa noche suena la voz de la jefa de andén en una radio encendida en el antiguo vestíbulo. Una oyente reconoce el silbato de su madre. Al día siguiente trae una fotografía para acompañar la grabación.'},
@@ -73,20 +77,21 @@
   const heading = text => '<h2 tabindex="-1" data-c87-heading>'+safe(text)+'</h2>';
   const option = (value,label,selected) => '<option value="'+safe(value)+'"'+(value===selected?' selected':'')+'>'+safe(label)+'</option>';
   function select(name,label,choices,selected) {
-    return '<label>'+safe(label)+'<select name="'+name+'" required><option value="">Elige una opción</option>'+
+    return '<label>'+safe(label)+'<select name="'+name+'"><option value="">Elige una opción</option>'+
       Object.entries(choices).map(([key,text])=>option(key,text,selected)).join('')+'</select></label>';
   }
   function mount(host,options={}) {
     mounts.get(host)?.destroy();
     const exitLabel=options.exitLabel||'Volver al catálogo';
     let state=read(),curtain=state?.mode==='duo'&&!state.ending,resetting=false,alternate=false;
-    let transcript=false,showHints=false,notice='',disposed=false,draft={};
+    let transcript=false,showHints=false,notice='',disposed=false,draft={},worktop=null,armed='';
     function event(name){try{options.onEvent?.(name)?.catch?.(()=>{});}catch{/* Analytics do not gate play. */}}
     function commit(){save(state);}
     function stopAudio(){for(const node of host.querySelectorAll('audio'))node.pause();}
     function draw(focus=false){
       if(disposed)return;
       stopAudio();
+      worktop?.destroy();worktop=null;
       let page;
       if(resetting)page=resetPage();
       else if(!state)page=prologue();
@@ -94,6 +99,13 @@
       else if(state.ending)page=endingPage();
       else page=desk();
       host.innerHTML='<div class="c87">'+page+(!state||curtain||resetting||state.ending?feedback():'')+'</div>';
+      if(state&&!curtain&&!resetting&&!state.ending&&window.MesaDeJuego){
+        const progress=state.seen.length+state.items.filter(id=>id!=='piloto').length+Number(state.combined)+Number(state.solved);
+        const objective=state.solved?'Decide qué hacer con la grabación.':nextStep().label+'.';
+        worktop=window.MesaDeJuego.mount(host.querySelector('[data-c87-worktop]'),{family:'demo',title:'La cinta 87',
+          progress:progress+' de 6 comprobaciones',objective,
+          help:{context:'demo',text:'Reúne los indicios de la cabina y del depósito.',steps:['Explora los objetos de tu carpeta.','Coteja los materiales en el inventario.','Examina el precinto y la señal antes de abrir una caja.']},tools:[]});
+      }
       if(focus){
         const targets={notice:'[data-c87-status]',hint:'[data-c87-last-hint]',hints:'[data-c87-hint-heading]',transcript:'[data-c87-transcript]'};
         host.querySelector(targets[focus]||'[data-c87-heading]')?.focus();
@@ -112,7 +124,7 @@
     }
     function handoff(){
       const role=roles[state.role];
-      return '<section class="c87-curtain"><p class="c87-kicker">La cinta 87 · Relevo privado</p>'+heading('Entrega el dispositivo a '+role.name)+
+      return '<section class="c87-curtain"><span class="c87-closed-folder" aria-hidden="true"></span><p class="c87-kicker">La cinta 87 · Relevo privado</p>'+heading('Entrega el dispositivo a '+role.name)+
         '<p>La persona que lleva '+role.name+' abre su carpeta cuando la otra haya dejado de mirar. Después podréis contaros lo que habéis averiguado.</p>'+
         '<div class="c87-actions">'+control('uncover','Ya tengo el dispositivo','',true)+control('exit',exitLabel)+'</div></section>';
     }
@@ -154,7 +166,7 @@
       if(id==='magnetofono'){
         detail='<p>Restauración pasó el arranque de la casete 87 a este carrete piloto para escucharlo en el magnetófono. Escucha la señal que precede al soplo.</p>'+
           '<audio controls preload="none" data-c87-pilot aria-label="Cinta piloto de la última emisión"><source src="/cinta87-piloto.wav" type="audio/wav"></audio>'+
-          (transcript?'<blockquote data-c87-transcript tabindex="-1">Clic de arranque. Dos pulsos cortos, seguidos de un pulso largo. Después se oye el soplo de la cinta y un clic de parada.</blockquote>':control('transcript','Leer la transcripción'))+
+          (transcript?'<figure class="c87-trace" data-c87-transcript tabindex="-1">'+signalStrip([1,1,3])+'<figcaption>Clic de arranque. Dos pulsos cortos, seguidos de un pulso largo. Después se oye el soplo de la cinta y un clic de parada.</figcaption></figure>':control('transcript','Ver la señal y leer la transcripción'))+
           (state.seen.includes('signal')&&!notice?'<p class="c87-filed">Señal del piloto examinada</p>':'');
       }else if(id==='acetato'){
         detail='<p>Una lámina opaca tiene una sola ventana transparente. En el borde, alguien ha escrito a lápiz:</p><blockquote>Para leer la última tirada, pon la muesca del acetato sobre la franja negra de la hoja de contactos.</blockquote>'+objectButton('acetato');
@@ -168,17 +180,24 @@
       return '<section class="c87-paper c87-inspection"><div class="c87-inspection-photo"><img src="'+photos[id]+'" alt="" width="600" height="600"></div><div class="c87-inspection-copy"><p class="c87-kicker">'+role.room+'</p>'+heading(places[id])+detail+feedback()+(examined(id)?nextButton():'')+
         '<div class="c87-links">'+control('back','Volver a '+role.room.toLowerCase())+'</div></div></section>';
     }
+    function lightTable(){
+      const objectNames=Object.fromEntries(state.items.map(id=>[id,objects[id]]));
+      const slot=(field,label)=>'<button type="button" class="c87-carrier" data-c87="place-item" data-value="'+field+'" data-slot="'+field+'">'+(objectNames[draft[field]]?'<img src="'+itemPhoto(draft[field])+'" alt="">':'')+'<span>'+label+'</span><strong>'+(objectNames[draft[field]]||'Sin objeto')+'</strong></button>';
+      const layer=field=>objectNames[draft[field]]?'<img class="c87-layer-'+field+'" src="'+itemPhoto(draft[field])+'" data-material="'+draft[field]+'" alt="">':'';
+      return '<p>Elige un objeto y toca un soporte para colocarlo. Pon el segundo material en el otro soporte y ajusta la muesca al margen que señalan los documentos.</p><form data-c87-form="combine"><fieldset class="c87-lightbox"><legend>Revelar la ficha del último turno</legend>'+
+        '<div class="c87-tray" aria-label="Objetos de la mesa">'+state.items.map(id=>'<button type="button" data-c87="arm" data-value="'+id+'" aria-pressed="'+(armed===id)+'"><img src="'+itemPhoto(id)+'" alt=""><span>'+objects[id]+'</span></button>').join('')+'</div>'+
+        '<div class="c87-supports">'+slot('first','Soporte A')+slot('second','Soporte B')+'</div>'+
+        '<div class="c87-registration" aria-label="Vista de las dos capas"><div class="c87-light-panel" data-aligned="'+safe(draft.side||'')+'">'+layer('first')+layer('second')+'</div><div class="c87-guides"><strong>Alinear la muesca</strong>'+['izquierda','derecha'].map(side=>'<button type="button" data-c87="align" data-value="'+side+'" aria-pressed="'+(side===draft.side)+'">'+(side==='izquierda'?'Margen izquierdo':'Margen derecho')+'</button>').join('')+'</div></div>'+
+        '<details class="c87-manual"><summary>Colocar con listas de selección</summary>'+select('first','Objeto del soporte A',objectNames,draft.first)+select('second','Objeto del soporte B',objectNames,draft.second)+select('side','¿Dónde colocas la muesca?',{izquierda:'Margen izquierdo',derecha:'Margen derecho'},draft.side)+'</details>'+
+        '<button type="submit" class="c87-control c87-primary">Superponer los objetos</button></fieldset></form>'+feedback();
+    }
     function bag(){
-      const held=Object.fromEntries(state.items.map(id=>[id,objects[id]]));
       const contents=state.items.length?'<ul class="c87-inventory">'+state.items.map(id=>'<li><img src="'+itemPhoto(id)+'" width="96" height="96" alt=""><strong>'+objects[id]+'</strong></li>').join('')+'</ul>':'<p>Aún no hay objetos. Explora las dos carpetas para reunir el material.</p>';
       let work='';
       if(state.combined)work=table()+feedback()+nextButton();
-      else if(state.items.includes('acetato') && state.items.includes('hoja'))work='<form data-c87-form="combine"><fieldset class="c87-lightbox"><legend>Revelar la ficha del último turno</legend>'+
-        ['first','second'].map((field,i)=>'<div class="c87-slot"><div class="c87-slot-preview" aria-hidden="true" data-slot="'+field+'">'+(held[draft[field]]?'<img src="'+itemPhoto(draft[field])+'" alt="">':'')+'</div>'+select(field,i?'Colocar encima':'Colocar sobre la mesa',held,draft[field])+'</div>').join('')+
-        select('side','¿Dónde colocas la muesca?',{izquierda:'Margen izquierdo',derecha:'Margen derecho'},draft.side)+
-        '<button type="submit" class="c87-control c87-primary">Superponer los objetos</button></fieldset></form>'+feedback();
+      else if(state.items.includes('acetato') && state.items.includes('hoja'))work=lightTable();
       else work='<p>La mesa de cotejo necesita un material de cada carpeta.</p>'+feedback()+nextButton();
-      return '<section class="c87-paper"><p class="c87-kicker">Mesa compartida</p>'+heading('Inventario')+contents+work+'</section>';
+      return '<section class="c87-paper"><p class="c87-kicker">Mesa compartida</p>'+heading('Inventario')+(state.items.includes('acetato')&&state.items.includes('hoja')&&!state.combined?'':contents)+work+'</section>';
     }
     function deduction(){
       if(state.solved){
@@ -193,8 +212,8 @@
       if(!state.seen.includes('register'))missing.push('Consultar el libro de salidas en el depósito.');
       if(!state.combined)missing.push('Revelar la hoja de traslados en el inventario.');
       const work=missing.length?'<p>Para identificar el original falta:</p><ul>'+missing.map(t=>'<li>'+t+'</li>').join('')+'</ul>'+feedback()+nextButton():
-        table()+'<form data-c87-form="deduce"><fieldset><legend>Identificar la grabación original</legend>'+
-        '<fieldset class="c87-choices"><legend>¿Qué caja abrirás?</legend>'+Object.entries(boxNames).map(([id,label])=>'<label><input type="radio" name="box" required value="'+id+'"'+(draft.box===id?' checked':'')+'><span class="c87-reel-box" aria-hidden="true"></span><span>Caja '+label+'</span></label>').join('')+'</fieldset>'+
+        '<details class="c87-manifest"><summary>Consultar la hoja de traslados en texto</summary>'+table()+'</details><form data-c87-form="deduce"><fieldset><legend>Identificar la grabación original</legend>'+
+        '<fieldset class="c87-choices c87-boxes"><legend>¿Qué caja abrirás?</legend>'+Object.entries(boxNames).map(([id,label])=>'<label><input type="radio" name="box" required value="'+id+'"'+(draft.box===id?' checked':'')+'><span class="c87-box-photo"><img src="/c87-caja-bobina.webp" width="420" height="420" alt=""></span><strong>Caja '+label+'</strong>'+signalStrip(manifests[id].beats)+'<span class="c87-box-facts">'+manifests[id].beats.map(n=>n===1?'Corto':'Largo').join(' · ')+'</span><span class="c87-seal-label">'+marks[manifests[id].mark]+'</span></label>').join('')+'</fieldset>'+
         '<fieldset class="c87-choices"><legend>¿Qué precinto acredita que es el original?</legend>'+Object.entries(marks).map(([id,label])=>'<label><input type="radio" name="mark" required value="'+id+'"'+(draft.mark===id?' checked':'')+'><span class="c87-stamp c87-stamp-'+id+'" aria-hidden="true"></span><span>'+label+'</span></label>').join('')+'</fieldset>'+
         '<button type="submit" class="c87-control c87-primary">Contrastar la deducción</button></fieldset></form>'+feedback();
       return '<section class="c87-paper"><p class="c87-kicker">Mesa compartida</p>'+heading('¿Dónde está la cinta 87?')+work+'</section>';
@@ -207,10 +226,10 @@
     }
     function desk(){
       const role=roles[state.role];
-      return '<header class="c87-bar"><div><small>Demo gratuita · La cinta 87</small><strong>'+role.name+' · '+(state.mode==='solo'?'En solitario':'En pareja')+'</strong></div>'+
+      return '<header class="c87-bar"><div><small>Radio Valdemar · La cinta 87</small><strong>'+role.name+' · '+(state.mode==='solo'?'En solitario':'En pareja')+'</strong></div>'+
         control('role',state.mode==='duo'?'Dar el relevo a '+roles[otherRole(state.role)].name:'Cambiar a '+roles[otherRole(state.role)].name)+'</header>'+
         '<nav class="c87-tabs" aria-label="Mesa de investigación">'+[['explore','Explorar'],['bag','Inventario'],['deduction','Deducción']].map(([key,label])=>
-          '<button type="button" data-c87="view" data-value="'+key+'"'+(state.view===key?' aria-current="page"':'')+'>'+label+'</button>').join('')+'</nav>'+
+          '<button type="button" data-c87="view" data-value="'+key+'"'+(state.view===key?' aria-current="page"':'')+'>'+label+'</button>').join('')+'</nav><div data-c87-worktop></div>'+
         (state.view==='bag'?bag():state.view==='deduction'?deduction():investigation())+
         (state.solved?'':'<div class="c87-links">'+control('hints',showHints?'Cerrar ayudas':'Pedir una pista')+'</div>'+hints())+
         '<footer class="c87-foot"><span>'+savedMessage()+'</span><div class="c87-links">'+control('exit',exitLabel)+control('reset','Reiniciar demo')+'</div></footer>';
@@ -218,11 +237,11 @@
     function savedMessage(){return storageBlocked?'Guardado temporal en esta página.':'Progreso guardado en este navegador.';}
     function endingPage(){
       const key=alternate?(state.ending==='emitir'?'custodiar':'emitir'):state.ending,ending=endings[key];
-      return '<section class="c87-ending"><p class="c87-kicker">'+(alternate?'Lectura alternativa':'Desenlace guardado')+'</p>'+heading(ending.title)+'<p class="c87-lead">'+ending.text+'</p>'+
+      return '<section class="c87-ending"><figure class="c87-final-photo"><img src="/c87-caja-bobina.webp" width="640" height="640" alt="La bobina de la última emisión, recuperada en su caja de archivo."></figure><div class="c87-ending-copy"><p class="c87-kicker">'+(alternate?'Lectura alternativa':'Desenlace guardado')+'</p>'+heading(ending.title)+'<p class="c87-lead">'+ending.text+'</p>'+
         (alternate?'<p class="c87-small">Tu elección guardada sigue siendo «'+endings[state.ending].label+'».</p>':
           '<div class="c87-souvenir"><strong>Ficha de oyente · Cinta 87</strong><p>Recuerdo de muestra '+(storageBlocked?'disponible durante esta visita.':'guardado en este navegador.')+' No añade llaves al pase de temporada.</p></div>')+
         '<div class="c87-actions">'+control('exit',exitLabel,'',true)+control('alternate',alternate?'Volver a mi desenlace':'Leer el otro desenlace')+'</div>'+
-        '<div class="c87-links">'+control('archive','Archivo de Marta y Tomás')+control('reset','Volver a jugar desde el principio')+'</div></section>';
+        '<div class="c87-links">'+control('archive','Archivo de Marta y Tomás')+control('reset','Volver a jugar desde el principio')+'</div></div></section>';
     }
     function resetPage(){
       return '<section class="c87-paper">'+heading('¿Reiniciar La cinta 87?')+'<p>Se perderá el progreso de esta demo en este navegador. Los expedientes de Marta y Tomás se guardan por separado.</p>'+
@@ -245,7 +264,7 @@
       }
       if(action==='reset'){resetting=true;draw(true);return;}
       if(action==='cancel-reset'){resetting=false;draw(true);return;}
-      if(action==='confirm-reset' && resetting){state=null;save(null);resetting=false;curtain=false;alternate=false;transcript=false;showHints=false;draft={};draw(true);return;}
+      if(action==='confirm-reset' && resetting){state=null;save(null);resetting=false;curtain=false;alternate=false;transcript=false;showHints=false;armed='';draft={};draw(true);return;}
       if(resetting)return;
       if(action==='start'&&!state && ['solo','duo'].includes(value)){
         state=fresh(value);curtain=value==='duo';commit();event('start');draw(true);return;
@@ -254,6 +273,17 @@
       if(action==='uncover' && curtain){curtain=false;draw(true);return;}
       if(curtain)return;
       if(state.ending){if(action==='alternate'){alternate=!alternate;draw(true);}return;}
+      if(state.view==='bag'&&!state.combined&&['arm','place-item','align'].includes(action)){
+        if(action==='arm'&&state.items.includes(value))armed=value;
+        else if(action==='place-item'&&['first','second'].includes(value)){
+          if(state.items.includes(armed))draft[value]=armed;
+          else notice='Selecciona un objeto de la bandeja primero.';
+        }else if(action==='align'&&['izquierda','derecha'].includes(value))draft.side=value;
+        else return;
+        draw(notice?'notice':false);
+        if(!notice)host.querySelector('[data-c87="'+action+'"][data-value="'+value+'"]')?.focus();
+        return;
+      }
       if(action==='next'){
         const step=nextStep();
         action=step.type;value=step.place||step.view;
@@ -277,10 +307,11 @@
     }
     function previewSlot(e){
       const field=e.target,form=field.form;
-      if(form?.dataset.c87Form!=='combine'||!['first','second'].includes(field.name))return;
-      const slot=form.querySelector('[data-slot="'+field.name+'"]');
+      if(form?.dataset.c87Form!=='combine'||!['first','second','side'].includes(field.name))return;
       draft[field.name]=field.value;
-      slot.innerHTML=state.items.includes(field.value)?'<img src="'+itemPhoto(field.value)+'" alt="">':'';
+      const template=form.ownerDocument.createElement('template');
+      template.innerHTML=lightTable();
+      for(const selector of ['.c87-supports','.c87-registration'])form.querySelector(selector).replaceWith(template.content.querySelector(selector));
     }
     function submit(e){
       const form=e.target;
@@ -314,7 +345,7 @@
     window.addEventListener('storage',storage);
     const handle={destroy(){
       if(disposed)return;
-      disposed=true;stopAudio();host.removeEventListener('click',click);host.removeEventListener('change',previewSlot);host.removeEventListener('submit',submit);
+      disposed=true;worktop?.destroy();stopAudio();host.removeEventListener('click',click);host.removeEventListener('change',previewSlot);host.removeEventListener('submit',submit);
       host.removeEventListener('ended',audioEnded,true);window.removeEventListener('storage',storage);host.replaceChildren();mounts.delete(host);
     }};
     mounts.set(host,handle);draw();

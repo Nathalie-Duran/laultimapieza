@@ -29,6 +29,8 @@
     message.setAttribute('role','status');message.tabIndex=-1;
     root.setAttribute('aria-label','El secreto de los dos mundos');tabs.setAttribute('role','tablist');
     tabs.setAttribute('aria-label','Cuaderno de la mansión');panel.setAttribute('role','tabpanel');panel.id='mansion-content';
+    const mesaHost=el('div','mansion-objective mj-mansion-host');
+    const shared=window.MesaDeJuego?.mount(mesaHost,{family:'mansion',title:state?.title||'El secreto de los dos mundos'});
     root.append(header,tabs,panel,message);host.replaceChildren(root);
     const arcade=el('details','mansion-arcade-drawer');arcade.append(el('summary',null,'Sala de juegos'));
     const explorer=el('lup-explorador');explorer.setAttribute('case-id','1');
@@ -114,7 +116,15 @@
       const completed=state.ending?15:Math.max(0,Math.min(15,(state.current||1)-1));
       const details=el('div','mansion-heading-group');
       details.append(el('p','mansion-eyebrow','Capítulo '+chapters[chapter-1]+(state.stage?.chapter?' · '+state.stage.chapter:'')),el('h1','mansion-title',state.title||'El secreto de los dos mundos'));
-      header.append(details,el('p','mansion-progress',completed+'/15 pruebas resueltas'));
+      header.append(details);
+      if(shared){
+        const stage=state.stage;
+        shared.update({progress:completed+'/15 pruebas resueltas'+(stage?.title?' · '+stage.title:''),
+          objective:stage?.brief||'',help:{context:paired?'duo':'solo',
+            text:paired?'Cada persona observa una realidad de la casa. Comparad lo que ocurre en la misma habitación.':'Puedes alternar entre la casa habitada y la abandonada para comparar la misma habitación.',
+            steps:['Abre los puntos de la fotografía para examinar los objetos.','Consulta las evidencias y opera el mecanismo de la sala.','Usa el mapa para volver a las habitaciones abiertas.']},
+          next:stage&&tab==='scene'&&stage.room!==roomId?{label:'Ir al objetivo',run:()=>travel(stage.room)}:null});
+      }else header.append(el('p','mansion-progress',completed+'/15 pruebas resueltas'));
       const worlds=el('div','mansion-worlds');worlds.setAttribute('aria-label','Realidad de la mansión');
       const names=options.names||state.names;
       if(paired){if(!names?.[world])worlds.append(el('span','mansion-world-name',labels[world]));}
@@ -256,10 +266,13 @@
         const inspection=el('section','mansion-inspection');inspection.append(evidenceCard(localItems[selectedEvidence]),returnButton(selectedEvidence+(localStage?2:1)));panel.append(inspection);
       }
       if(stage){
-        const objective=el('section','mansion-objective');
-        objective.append(el('p','mansion-eyebrow','Objetivo actual'),el('h3',null,stage.title),el('p',null,stage.brief));
-        if(!localStage)objective.append(button('Ir al objetivo',()=>travel(stage.room),'mansion-primary'));
-        panel.append(objective);
+        if(shared)panel.append(mesaHost);
+        else {
+          const objective=el('section','mansion-objective');
+          objective.append(el('p','mansion-eyebrow','Objetivo actual'),el('h3',null,stage.title),el('p',null,stage.brief));
+          if(!localStage)objective.append(button('Ir al objetivo',()=>travel(stage.room),'mansion-primary'));
+          panel.append(objective);
+        }
         if(localStage&&activeDevice)panel.append(displayPuzzle(stage),returnButton(1));
       }
       if(state.current===1&&state.recordings?.carta)panel.append(recording(state.recordings.carta));
@@ -349,6 +362,7 @@
       panel.setAttribute('aria-labelledby','mansion-tab-'+tab);
       panel.replaceChildren();
       if(tab==='scene')drawScene();else if(tab==='bag')drawBag();else if(tab==='evidence')drawEvidence();else drawHints();
+      if(shared&&(tab!=='scene'||!state.stage))root.insertBefore(mesaHost,tabs);
       message.textContent=notice;message.dataset.error=String(noticeError);
     }
     function update(value){
@@ -356,7 +370,7 @@
       if(!next||next.revision===state?.revision&&next.current===state?.current&&next.explore?.id===state?.explore?.id)return;
       apply(value,true);draw();
     }
-    function destroy(){disposed=true;requestId++;stopAudio();root.remove();}
+    function destroy(){disposed=true;requestId++;stopAudio();shared?.destroy();root.remove();}
     if(state){observe(state.stage?.evidence);draw();}
     return {update,destroy};
   }
