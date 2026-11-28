@@ -344,6 +344,7 @@
     const plate=make('div','hm-document-plate');
     const scene=sourceSurface[evidence.id];
     const background=typeof scene==='number'?roomPhoto(scene):prop(scene||art);
+    if(evidence.id==='protocolo')background.src='/hotel-placa-senales.webp';
     background.classList.add('hm-document-image');plate.append(background);
     const work=make('div','hm-document-work');
     const heading=make('h5','',title);
@@ -367,7 +368,7 @@
     const phoneState=isPhone?make('p','hm-phone-state','Auricular en su soporte'):null;
     if(phoneState){phoneState.setAttribute('role','status');label.append(phoneState);}
     const dock=make('div','hm-doc-dock');
-    plate.append(dock);
+    work.append(label,dock);
     if(isCalendar){
       tabs.classList.add('hm-calendar');
       for(const day of ['L','M','X','J','V','S','D']){
@@ -419,6 +420,17 @@
     }else{
       pages.forEach(([label],i)=>tabs.append(newTab(label,i)));
     }
+    if(evidence.id==='protocolo'){
+      background.alt='Placa de latón con seis pilotos de servicio';
+      const lamps=make('div','hm-plate-lamps');
+      pages.slice(0,6).forEach(([name],i)=>{
+        const lamp=action(name,()=>buttons[i].click(),'hm-plate-lamp');
+        lamp.style.left=[24.3,41.5,58.8][i%3]+'%';
+        lamp.style.top=(i<3?37.7:63)+'%';
+        lamp.title=name;lamps.append(lamp);
+      });
+      plate.append(lamps);
+    }
     work.append(sheet);
     if(signal)work.append(signal);
     show(isLetter || isPhone?-1:0);return folder;
@@ -432,6 +444,7 @@
       const img=materialImages[evidence.id];
       const thumb=card.querySelector('.vhour-format-photo');
       if(img && thumb){thumb.classList.add('hm-photo');thumb.style.backgroundImage='url("'+file(img)+'")';}
+      if(evidence.id==='protocolo' && thumb)thumb.style.backgroundImage='url(/hotel-placa-senales.webp)';
       const reader=clipReader(evidence),summary=card.querySelector('summary');
       if(reader && summary) {
         card.classList.add('hm-evidence-card');

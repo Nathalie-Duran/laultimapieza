@@ -231,3 +231,24 @@
 .guard-controls .guard-tray{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;padding:0;margin:.5rem 0}
 .guard-controls :is(.guard-tray,.hm-jackboard,.hm-rack) button{margin:0}
 @media(max-width:760px){.hotel-desk-instrument{display:contents}.hotel-desk-instrument>.guard-scene{grid-row:1}.hotel-desk-objects{grid-row:2}.guard-controls{grid-row:3;padding:0}}
+
+/* Keep the object at its native proportions and the reading controls on paper. */
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-evidence-shelf .vhour-stack,
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-evidence-shelf .vhour-stack:has(.vhour-material[open]:not([hidden])){
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));grid-auto-flow:row;gap:.7rem
+}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-evidence-shelf .vhour-stack>.vhour-material:not([hidden]){grid-column:auto;grid-row:auto;width:100%;box-sizing:border-box}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-evidence-shelf .vhour-stack>.vhour-material[open]:not([hidden]){grid-column:1/-1;grid-row:auto;order:-1}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-document:not(.hm-document-planta){display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);align-items:start;background:#211d18}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-document:not(.hm-document-planta) .hm-document-plate{display:block;min-height:0;margin:0;padding:0;background:#211d18}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-document:not(.hm-document-planta) .hm-document-plate:before{display:none}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-document:not(.hm-document-planta) .hm-document-image{position:static;display:block;object-fit:contain;width:100%!important;height:auto!important;z-index:auto;filter:none;transform:none}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-document:not(.hm-document-planta) .hm-document-work{display:block;padding:clamp(.85rem,2vw,1.6rem);background:#f1e8d7;color:#30271c;min-width:0}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-document-work .hm-document-heading{padding:0;text-align:left;background:none}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-document-work .hm-document-heading h5{font:normal clamp(1.4rem,2vw,2rem)/1.15 Georgia,serif;color:#30271c;text-shadow:none}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-document-work .hm-doc-dock{position:static;min-width:0;width:auto;max-width:none;margin:.9rem 0;padding:0;background:none;box-shadow:none;border:0;transform:none}
+#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-instrument-label{display:block;width:auto;padding:0;color:#57402a;background:transparent}
+.hm-plate-lamps{position:absolute;inset:0;pointer-events:none}
+.hm-plate-lamp{pointer-events:auto;position:absolute;transform:translate(-50%,-50%);width:9%;height:auto;aspect-ratio:1;border:0;border-radius:50%;background:transparent;font-size:0;padding:0;cursor:pointer}
+.hm-plate-lamp:is(:hover,:focus-visible){outline:3px solid #ffdc93;box-shadow:0 0 1rem #ffbf4b}
+@media(max-width:800px){#valdemar-player [data-hotel-ui] .hotel-evidencias .hm-document:not(.hm-document-planta){grid-template-columns:minmax(0,1fr)}}
