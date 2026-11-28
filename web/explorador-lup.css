@@ -1,6 +1,9 @@
 lup-explorador { display:block; width:100%; min-width:0; margin-block:1rem; color:#f4ecd7; }
 lup-explorador details { min-width:0; border:1px solid #7d826e; border-radius:.75rem; background:#162723; }
 lup-explorador summary { cursor:pointer; padding:.9rem 1rem; min-height:46px; color:#e8ce9c; font-weight:700; }
+lup-explorador summary strong {font-size:1.1rem}
+lup-explorador summary span {display:block;max-width:66ch;margin:.3rem 0 0;color:#f4ecd7;font-weight:400;line-height:1.45}
+lup-explorador a {display:inline-flex;align-items:center;min-height:44px;color:#f1d39b;text-decoration:underline;text-underline-offset:.2em}
 lup-explorador details[open] > summary { border-bottom:1px solid #53645a; }
 lup-explorador details > div { padding:.4rem clamp(.8rem,3vw,1.25rem) 1rem; }
 lup-explorador h4 { margin:.6rem 0; color:#fff1cf; font:500 1.4rem/1.25 Georgia,serif; }
