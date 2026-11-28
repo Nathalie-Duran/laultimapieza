@@ -152,6 +152,9 @@
 .c87 .c87-boxes label strong { font:700 1.18rem/1.3 system-ui,sans-serif; color:inherit }
 .c87 .c87-box-photo { width:100%; display:block; aspect-ratio:2/1; overflow:hidden; border-radius:.18rem; background:#203d32 }
 .c87 .c87-box-photo img { display:block; width:100%; height:100%; object-fit:cover; object-position:center 48% }
+.c87 .c87-box-photo { position:relative }
+.c87 .c87-box-tag { position:absolute; display:inline-flex; align-items:center; gap:.24rem; right:.3rem; bottom:.32rem; padding:.18rem .32rem; border:1px solid #564428; border-radius:.12rem; color:#291f16; background:#fff0c9; font:700 .78rem/1.2 ui-monospace,monospace; transform:rotate(-3deg) }
+.c87 .c87-box-tag .c87-stamp { width:.73rem; height:.73rem; background:#65382b }
 .c87 .c87-boxes label input { z-index:1; top:.55rem; left:.55rem; box-shadow:0 0 0 2px #fff8e8 }
 .c87 .c87-box-facts,.c87 .c87-seal-label { color:inherit; font:.83rem/1.35 system-ui,sans-serif; text-align:center }
 .c87 .c87-manifest,.c87 .c87-manual { grid-column:1/-1; margin:.6rem 0; padding:.15rem .65rem; border:1px solid #aaa28a; border-radius:.3rem; background:#f6efdc; color:#263e32 }

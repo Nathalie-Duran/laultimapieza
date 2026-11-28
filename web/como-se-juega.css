@@ -49,3 +49,7 @@ gameplay-help button { color:#f4e5c0; padding:.45rem .7rem; border:1px solid #76
   .site-how-link{max-inline-size:4.2rem; white-space:normal; text-align:center; padding:0 .1rem; font-size:.78rem;}
   .how-objects{gap:.5rem;}
 }
+@media(max-width:360px){
+  .postal-visitor .sidebar .public-account-actions { gap:.2rem; }
+  .postal-visitor .sidebar .public-account-actions .postal-login { padding-inline:.45rem; }
+}

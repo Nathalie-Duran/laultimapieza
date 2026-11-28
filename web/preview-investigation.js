@@ -174,7 +174,7 @@
       }
     }
     const index = st.lastIndex[st.section] || 0;
-    return { label:index ? 'Continuar con los documentos' : st.section ? 'Leer el segundo correo' : 'Leer el correo de la caja', run:()=>select(st.section,index) };
+    return { label:index ? 'Retomar '+st.sessions[st.section].documents[index].label : st.section ? 'Leer el segundo correo' : 'Leer el correo de la caja', run:()=>select(st.section,index) };
   }
   function tableCards(st) {
     st.tableGrid.replaceChildren();

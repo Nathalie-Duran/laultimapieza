@@ -7,7 +7,7 @@
     {name:'Libro de salidas',role:'Archivo',photo:'/c87-registro.webp',detail:'Busca qué marca identificaba cada tipo de cinta. Anota el precinto que corresponde al original.'}
   ];
   const modes={
-    reto:'Cada prueba tiene una respuesta. El avance se guarda al acertar. Puedes conseguir el premio una vez por edición.',
+    reto:'Los retos son opcionales. Cada reto indica su objetivo y ofrece su premio al resolverlo por primera vez.',
     demo:'En La cinta 87 os turnáis con la misma pantalla. En solitario puedes consultar las dos carpetas.',
     solo:'En solitario puedes consultar la documentación de ambos papeles. Cambia de carpeta si una observación queda sin explicar.',
     duo:'Cada persona consulta su carpeta desde su propia cuenta. Describe lo que ves y escucha qué añade la otra carpeta.',
