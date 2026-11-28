@@ -108,7 +108,7 @@
   function mountEditors(){
     root.EditorialChallenges?.adminMount();
     if(root.customElements&&!root.customElements.get('author-workshop')){
-      import('/gestion-aventuras.js?v=6623af45d472').catch(()=>{const panel=host()?.querySelector('author-workshop');if(panel)panel.textContent='No se ha podido abrir el taller. Recarga Gestión para reintentar.';});
+      import('/gestion-aventuras.js?v=2570f2b4fb93').catch(()=>{const panel=host()?.querySelector('author-workshop');if(panel)panel.textContent='No se ha podido abrir el taller. Recarga Gestión para reintentar.';});
     }
   }
   function summary(data) {
@@ -508,7 +508,7 @@
     const title='<h2>Seguimiento de pruebas</h2>';
     if(!rows?.length)return '<section class="mg-panel">'+title+'<p>Todavía no se han registrado intentos de las nuevas mediciones en este periodo.</p></section>';
     const cell=v=>format(Number(v));
-    const titleOf=r=>r.game.startsWith('juego/')?caseName(Number(r.game.slice(6))):r.game.slice(6);
+    const titleOf=r=>r.game.startsWith('juego/')?caseName(Number(r.game.slice(6))):r.game.replace(/^autor\//,'');
     const stalled=rows.filter(r=>Number(r.inactive)>0&&Number(r.started)>0)
       .sort((a,b)=>Number(b.inactive)-Number(a.inactive)||b.inactive/b.started-a.inactive/a.started).slice(0,3);
     const signal=stalled.length?'<h3>Pruebas que conviene revisar</h3><ol>'+stalled.map(r=>'<li>'+escape(titleOf(r))+' · '+escape(r.trial)+' — '+cell(r.inactive)+' de '+cell(r.started)+' partidas siguen sin resolver tras 14 días de inactividad.</li>').join('')+'</ol>':'';

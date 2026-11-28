@@ -163,10 +163,8 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
       if(path==='/api/admin/accounts/profile'){
         if(!canManageSite(user)||!origin||!origins.includes(origin))fail(403,'La edición de perfiles está reservada a la propietaria.');
         if(method!=='PUT')fail(405,'Método no permitido.');
-        const name=typeof input.name==='string'?input.name.trim():'';
-        if(!name||name.length>32||typeof input.previous!=='string'||!input.previous||input.previous.length>32||
-          typeof input.ref!=='string'||!/^[a-f0-9]{64}$/.test(input.ref)||typeof input.updatedAt!=='string'||input.updatedAt.length>30||!Number.isFinite(Date.parse(input.updatedAt)))fail(400,'Vuelve a buscar la ficha y escribe un nombre de hasta 32 caracteres.');
-        return json(await withStore(store=>store.renameSupportProfile(input.ref,input.previous,input.updatedAt,name)));
+        const {renameSupportProfile}=await import('./case-review.mjs');
+        return json(await withStore(store=>renameSupportProfile(store,input)));
       }
       if(path==='/api/admin/challenges'){
         if(!canManageSite(user))fail(403,'Esta edición está reservada a la propietaria.');

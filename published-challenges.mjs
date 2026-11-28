@@ -108,7 +108,7 @@ export async function playPublished(store,{uid,billing,editorial,input,calendar=
   const progressKey=id=>calendar?'calendar/'+id:id;
   if (!input) {
     const rows=editions||await store.listChallenges(true);
-    return {items:rows.filter(row=>isChallengeAvailable(row,now)&&access.availableCases.includes(row.caseId)).map(row=>playerItem(row,results[progressKey(row.id)],uid))};
+    return {items:rows.filter(row=>isChallengeAvailable(row,now)&&access.availableCases.includes(row.caseId)).map(row=>playerItem(row,results[progressKey(row.id)],uid,calendar))};
   }
   if(!uuid.test(input.id))throw new ApiError(400,'Elige un desafío.');
   const row=editions?editions.find(item=>item.id===input.id):await store.lockChallenge(input.id);
@@ -132,13 +132,14 @@ export async function playPublished(store,{uid,billing,editorial,input,calendar=
     if(correct && index===completed.length)completed.push(key);
     const firstFinish=completed.length===stages.length && !prior?.solved;
     if(firstAttempt || firstSolution)visits[receipt]=correct?'solved':'attempted';
-    results[keyForRow]={solved:Boolean(prior?.solved||firstFinish),completed,stageVisits:visits};
+    const earned=prior?.earned??(prior?.solved?(calendar?row.prize:1):firstFinish?(row.prize??1):null);
+    results[keyForRow]={solved:Boolean(prior?.solved||firstFinish),completed,stageVisits:visits,...(earned?{earned}:{})};
     if(firstFinish) creditPublishedChallenge(data,scope,row.id,row.caseId,row.prize??1,calendar,row.title,row.rewardType);
     if(!calendar&&!editorial&&(first||firstFinish))await store.countChallenge(row.id,first,firstFinish);
     if(!calendar&&!editorial&&(firstAttempt||firstSolution))await store.countStage(row.id,index,key,firstAttempt,firstSolution);
     await store.saveMemberData(uid,data);
   }
-  return {correct,...(correct?{explanation:stage.explanation,next:playerItem(row,results[keyForRow],uid)}:{})};
+  return {correct,...(correct?{explanation:stage.explanation,next:playerItem(row,results[keyForRow],uid,calendar)}:{})};
 }
 
 function signature(stage){
@@ -167,11 +168,11 @@ function completedStages(stages,record){
   }
   return completed;
 }
-function playerItem(row,record,uid) {
+function playerItem(row,record,uid,calendar) {
   const stages=assignedStages(row,record,uid), count=completedStages(stages,record).length;
   const index=Math.min(count,stages.length-1), stage=stages[index];
   return {id:row.id,caseId:row.caseId,title:row.title,revision:row.revision,index,total:stages.length,schedule:normalizeChallengeSchedule(row.schedule),...(row.prize?{prize:row.prize}:{}),
-    ...(row.rewardType?{rewardType:row.rewardType}:{}),
+    ...(row.rewardType?{rewardType:row.rewardType}:{}),...(record?.solved?{earned:record.earned??(calendar?row.prize:1)}:{}),
     prompt:stage.prompt,options:stage.options,solved:count===stages.length,
     ...(stage.materials?{objective:stage.objective,materials:stage.materials}:{})};
 }
