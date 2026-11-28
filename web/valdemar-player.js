@@ -427,6 +427,7 @@
     if(['pistas','extra','inventario','escenario','evidencias'].includes(section))return section;
     if(section==='resolver'&&c.data.hour.stage)return 'resolver';
     if(!c.data.hour.stage)return 'desenlace';
+    if(c.id===4)return 'escenario';
     if(c.id===2 && c.data.hour.inventory?.shift)return 'resolver';
     return 'evidencias';
   }
@@ -491,6 +492,48 @@
       destroy(){observer.disconnect();mesa.destroy();}
     };
   }
+  function configureRadioDesk(c,navigation){
+    const shell=navigation.shell, tabs=shell.querySelector('.case-nav');
+    const status=shell.querySelector('.case-progress');
+    const guide=shell.querySelector('.case-instrucciones');
+    const dock=element('aside',null,'mj-objective-dock'),host=element('div');
+    const mesa=window.MesaDeJuego.mount(host,{family:'valdemar',title:c.data.story.title});
+    dock.setAttribute('aria-label','Objetivo de la aventura');
+    c.frame.dataset.hotelUi='true';
+    shell.classList.add('hotel-partida');
+    shell.prepend(dock);
+    mesa.dockObjective(dock);
+    tabs.className='hotel-tabs';
+    const buttonFor=key=>tabs.querySelector('[data-case-go="'+key+'"]');
+    for(const key of ['escenario','inventario','evidencias','pistas'])tabs.append(buttonFor(key));
+    const controls=element('nav',null,'hotel-related');
+    controls.setAttribute('aria-label','Acciones de la partida');
+    for(const key of ['resolver','desenlace','extra'])controls.append(buttonFor(key));
+    status.hidden=true;
+    shell.append(host,controls);
+    const bind=navigation.bind;
+    navigation.bind=(key,node)=>{
+      bind(key,node);
+      shell.insertBefore(node,controls);
+      if(key==='evidencias')node.classList.add('hotel-evidencias','hm-evidence-shelf');
+    };
+    const scenario=shell.querySelector('.case-scenario');
+    scenario.classList.add('vd-panel');
+    let hour=c.data.hour;
+    function refresh(){
+      const stage=hour.stage;
+      mesa.update({progress:hour.current+'/'+hour.stages.length+' pruebas resueltas'+(stage?' · '+stage.title:''),
+        objective:stage?(stage.task||stage.brief||c.data.story.question):'Abre el desenlace para cerrar el caso.',
+        saved:status.querySelector('.case-save')?.textContent||'',help:false,tools:[],tutorial:'',next:null});
+    }
+    const progress=navigation.progress,destroy=navigation.destroy;
+    navigation.progress=value=>{hour=value;progress(value);refresh();};
+    const observer=new MutationObserver(refresh);
+    observer.observe(status,{childList:true,subtree:true,characterData:true});
+    navigation.destroy=()=>{observer.disconnect();mesa.destroy();destroy();};
+    guide.classList.add('hotel-instrucciones');
+    refresh();
+  }
   function buildAdventure(c,catalogItem){
     const story=c.data.story;
     const hotel=c.id===2&&Boolean(c.data.hour.hotel);
@@ -506,6 +549,7 @@
       window.AventuraEscena.caseNavigation(c.frame,select,{world:'valdemar',id:c.id,story,
         image:catalogItem?.image||'/valdemar-art-'+String(c.id).padStart(2,'0')+'.webp',place:catalogItem?.place,
         alt:coverDescriptions[c.id-1],read:()=>c.data,actions,playerName:()=>c.bridge.playerName?.()});
+    if(c.id===4)configureRadioDesk(c,navigation);
     c.navigation=navigation;
     const screen=(key,cls)=>{const node=element('section',null,'vd-panel '+cls);navigation.bind(key,node);return node;};
     if(hotel){c.frame.dataset.hotelUi='true';c.hotel=screen('escenario','vhour vhour-hotel-panel');}
