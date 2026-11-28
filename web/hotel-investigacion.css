@@ -105,7 +105,7 @@
 .hm-door[data-closed=true]{background:repeating-linear-gradient(-45deg,transparent 0 5px,#bdcbb14a 6px 8px);border-style:dashed}
 .hm-plan-text{color:#f3ead0;font-size:.92rem;line-height:1.45;margin:.55rem 0 0!important}
 .hm-original>summary,.hm-evidence-viewer summary{display:list-item;cursor:pointer;text-decoration:underline;text-underline-offset:.18rem;padding:.65rem .1rem}
-.vhour-hotel [data-hotel-object] + .vhour-clipping {display:flow-root}
+.vhour-hotel [data-hotel-object] + .vhour-clipping {display:grid;grid-template-columns:minmax(0,2.8fr) minmax(245px,1fr);grid-auto-flow:row dense;align-content:start}
 .vhour-hotel [data-hotel-object] + .vhour-clipping:before {content:'';float:left;width:clamp(5rem,28%,10rem);aspect-ratio:1;box-shadow:0 2px 5px #0005;margin:0 .8rem .4rem 0;background-size:cover;background-position:center;border-radius:.2rem}
 .vhour-hotel [data-hotel-object=plano] + .vhour-clipping:before {background-image:url('/hotel-medianoche-planta.webp')}
 .vhour-hotel [data-hotel-object=recibo] + .vhour-clipping:before {background-image:url('/hotel-medianoche-registro.webp')}
@@ -148,3 +148,73 @@
 .hm-document-protocolo .hm-document-image{object-position:43% 35%}
 .guard-desk{background:#132522;color:#f4eee1;border:1px solid #857857;border-radius:12px;padding:clamp(14px,3vw,32px);max-width:60rem;margin:auto}.guard-desk nav,.guard-instruments{display:flex;gap:.65rem;flex-wrap:wrap}.guard-desk button,.guard-desk select{padding:.65rem .9rem;margin:.25rem;border:1px solid #b89a63;border-radius:6px;background:#243c38;color:#fff7e9;font:inherit}.guard-desk button[aria-pressed=true],.guard-desk button:hover{background:#75613e}.guard-desk h3{font-family:Georgia,serif;font-size:clamp(1.4rem,3vw,2.4rem);margin:.65em 0}.guard-scene{position:relative;overflow:hidden;border:1px solid #99815e;border-radius:7px}.guard-scene>img{display:block;width:100%;height:clamp(150px,29vw,365px);object-fit:cover}.guard-instruments{margin:1rem 0}.guard-instruments label{display:grid;flex:1;min-width:9rem}.guard-paper{margin:1rem 0;padding:1.25rem;background:#eee3c9;color:#302e25;border-left:5px solid #9b754b;font:1.08rem/1.55 Georgia,serif}.guard-plan{position:absolute;inset:14% 10%;background:#e5daaad9;box-shadow:0 0 2rem #ffdc8d}.guard-trace{position:absolute;inset:15% 8%;display:flex;border:3px solid #344e50;color:#273d40}.guard-trace span{display:grid;place-items:end center;padding:.4rem;flex:1;border-right:2px solid;font:bold clamp(13px,3vw,26px) Georgia}.guard-trace:last-child{border:3px dashed #985929;color:#8c431c}.guard-trace:last-child span{place-items:start center}.guard-lens{position:absolute;top:23%;width:25%;aspect-ratio:1;border:5px solid #ac8d5b;border-radius:100%;background-size:360%;box-shadow:0 6px 12px #0009}
 .guard-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14em),1fr));gap:.5rem}.guard-cards button{text-align:left;color:#2d2924;background:#ebdfc4;line-height:1.45;border-left:5px solid #966d39}.guard-cards button:disabled{opacity:.45}.guard-instruments fieldset{min-width:8em;flex:1;border:1px solid #947a54;border-radius:7px}.guard-instruments legend{padding:0 .4em}.guard-instruments button[aria-pressed=true]{box-shadow:inset 0 -3px #f8ce7f}
+
+/* Hotel Medianoche: a wide stage, a quiet navigation strip and a paper evidence rail. */
+body:has(#valdemar-player [data-hotel-ui="true"]){
+  background:linear-gradient(180deg,rgba(12,14,19,.76),#101217 57rem),url("/hotel-estancia-recepcion.webp") center top/cover fixed;
+}
+main#main:has(#valdemar-player [data-hotel-ui="true"]){
+  width:min(96%,114rem);max-width:none;padding-inline:clamp(12px,2vw,42px);box-sizing:border-box;margin-inline:auto;
+}
+#valdemar-player:has([data-hotel-ui="true"]),#valdemar-player .vd-player[data-hotel-ui="true"]{
+  width:100%;max-width:none;margin-inline:0;padding-inline:0;
+}
+#valdemar-player .vd-player[data-hotel-ui="true"]{
+  --hotel-paper:#f0e6d5;--hotel-ink:#201f21;--hotel-wine:#642c34;--hotel-brass:#dab980;
+  color:var(--hotel-paper);font-family:"Segoe UI",Arial,sans-serif;
+}
+#valdemar-player [data-hotel-ui] .vd-block-entry[data-state="playing"]{
+  background:linear-gradient(90deg,#10131bea 7%,#17161c9e 58%,#100f1526),url("/hotel-estancia-recepcion.webp") center 48% / cover;
+  border:0;border-radius:0;padding:clamp(16px,2.1vw,36px);color:#fff4e1;
+}
+#valdemar-player [data-hotel-ui] .vd-block-entry[data-state="playing"] .vd-block-cover{background:transparent;border:0}
+#valdemar-player [data-hotel-ui] .vd-block-entry[data-state="playing"] h1{font:normal clamp(32px,3.2vw,60px)/1.04 Georgia,serif;color:#fff5e5;margin:.22em 0}
+#valdemar-player [data-hotel-ui] .hotel-partida{background:#15171c;border:0;border-radius:0;margin:0;padding:0 0 clamp(18px,2vw,40px)}
+#valdemar-player [data-hotel-ui] .hotel-nav{background:#1c1d22;border:0;border-bottom:1px solid #494038;padding:0 clamp(12px,2.4vw,40px);gap:clamp(4px,1.2vw,28px)}
+#valdemar-player [data-hotel-ui] .hotel-nav .hotel-go{border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:#d7d1c6;min-height:50px;font:550 clamp(15px,.97vw,20px)/1.2 "Segoe UI",sans-serif;padding:10px 7px}
+#valdemar-player [data-hotel-ui] .hotel-nav .hotel-go[aria-pressed=true]{color:#f8dfab;border-bottom-color:#e6bd7b;background:none}
+#valdemar-player [data-hotel-ui] .hotel-progress,#valdemar-player [data-hotel-ui] .hotel-instrucciones{margin:0;padding:10px clamp(16px,2.4vw,40px);font:500 15px/1.45 "Segoe UI",sans-serif;border:0;color:#d6c6a9}
+#valdemar-player [data-hotel-ui] .hotel-instrucciones{padding-block:2px 10px}
+#valdemar-player [data-hotel-ui] .hotel-partida>.vd-panel{box-sizing:border-box;background:transparent;color:#f2e8dc;border:0;border-radius:0;box-shadow:none;padding:clamp(16px,2.4vw,40px);margin:0}
+#valdemar-player [data-hotel-ui] .hotel-evidencias h2,#valdemar-player [data-hotel-ui] .hotel-resolver h2{
+  color:#f6ecdc;font:normal clamp(30px,2.8vw,55px)/1.06 Georgia,serif;letter-spacing:-.03em;margin:0 0 .35em
+}
+#valdemar-player [data-hotel-ui] .hotel-consigna{font:400 clamp(16px,1vw,20px)/1.5 "Segoe UI",sans-serif;border:0;background:none;padding:0;color:#cec7bd;max-width:78ch}
+#valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-shelf-tools{padding:12px 0;border:0;margin-bottom:7px}
+#valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-shelf-tools h4{font:500 19px/1.3 Georgia,serif;color:#ead8b9}
+#valdemar-player [data-hotel-ui] .vhour-filter button{font:500 15px/1.2 "Segoe UI",sans-serif;min-height:42px;padding:8px 15px}
+#valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-stack{display:grid;grid-template-columns:1fr;align-items:start;gap:14px}
+#valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-material{grid-column:auto;min-width:0;margin:0;border:0;border-radius:4px;background:var(--hotel-paper);color:var(--hotel-ink);overflow:hidden}
+#valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-material>summary{padding:12px 16px;min-height:68px;color:var(--hotel-ink);background:linear-gradient(110deg,#f6eddd,#e6d8c2);border:0;gap:12px}
+#valdemar-player [data-hotel-ui] .vhour-material-name strong{font:500 clamp(18px,1.25vw,26px)/1.18 Georgia,serif;color:#221e20}
+#valdemar-player [data-hotel-ui] .vhour-material-name small,#valdemar-player [data-hotel-ui] .vhour-role{font:600 12px/1.45 "Segoe UI",sans-serif;color:#6c4142;letter-spacing:.06em}
+#valdemar-player [data-hotel-ui] .hm-document{padding:0;margin:0;border:0;border-radius:0}
+#valdemar-player [data-hotel-ui] :is(.hm-document-voz,.hm-document-candela) .hm-document-plate{min-height:clamp(340px,28vw,560px);background:#17171a}
+#valdemar-player [data-hotel-ui] :is(.hm-document-voz,.hm-document-candela) .hm-document-plate:before{background:linear-gradient(0deg,#100f14e8 0%,transparent 50%,#14101588)}
+#valdemar-player [data-hotel-ui] :is(.hm-document-voz,.hm-document-candela) .hm-document-heading{text-align:left;padding:clamp(18px,2vw,36px);background:none}
+#valdemar-player [data-hotel-ui] .hm-document-heading h5{font:normal clamp(26px,2.3vw,46px)/1.12 Georgia,serif;color:#fff2df}
+#valdemar-player [data-hotel-ui] :is(.hm-document-voz,.hm-document-candela) .hm-doc-dock{align-self:stretch;width:auto;padding:16px clamp(16px,2vw,38px) 24px;background:transparent}
+#valdemar-player [data-hotel-ui] .hm-instrument-label{font:500 15px/1.4 "Segoe UI",sans-serif;margin:0 0 9px}
+#valdemar-player [data-hotel-ui] :is(.hm-document-voz,.hm-document-candela) .hm-source-tabs{display:flex;gap:10px;flex-wrap:wrap}
+#valdemar-player [data-hotel-ui] .hm-source-tabs .hm-chip{font:600 16px/1.3 "Segoe UI",sans-serif;min-height:46px;padding:10px 16px;border-radius:4px;box-shadow:none}
+#valdemar-player [data-hotel-ui] :is(.hm-document-voz,.hm-document-candela) .hm-chip:first-child{background:#f2d7a4;color:#231d17;border:1px solid #ebc788}
+#valdemar-player [data-hotel-ui] .hm-original>summary,#valdemar-player [data-hotel-ui] .hotel-registro>summary{font:500 15px/1.35 "Segoe UI",sans-serif;padding:14px 16px}
+#valdemar-player [data-hotel-ui] .guard-desk{max-width:none;background:#211e21;border:0;border-radius:4px}
+#valdemar-player [data-hotel-ui] .guard-desk button{font:550 16px/1.4 "Segoe UI",sans-serif;min-height:44px}
+#valdemar-player [data-hotel-ui] .guard-scene{border:0}
+@media(min-width:1000px){
+  #valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-stack:has(.vhour-material[open]:not([hidden])){display:grid;grid-template-columns:minmax(0,2.8fr) minmax(245px,1fr);grid-auto-flow:row dense;align-content:start}
+  #valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-stack:has(.vhour-material[open]:not([hidden]))>.vhour-material[open]{grid-column:1;grid-row:1 / span 12;width:auto}
+  #valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-stack:has(.vhour-material[open]:not([hidden]))>.vhour-material:not([open]){grid-column:2;width:auto}
+  #valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-stack{display:flex;flex-wrap:wrap}
+  #valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-stack>.vhour-material:not([open]){flex:1 1 240px}
+}
+@media(max-width:700px){
+  main#main:has(#valdemar-player [data-hotel-ui="true"]){width:100%;padding:0 4px}
+  #valdemar-player [data-hotel-ui] .hotel-nav{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:0;padding:0}
+  #valdemar-player [data-hotel-ui] .hotel-nav .hotel-go{min-height:44px;padding:6px 2px;font-size:14px}
+  #valdemar-player [data-hotel-ui] .hotel-partida>.vd-panel{padding:14px 9px}
+  #valdemar-player [data-hotel-ui] .hm-evidence-shelf .vhour-shelf-tools{flex-wrap:wrap}
+  #valdemar-player [data-hotel-ui] .hm-source-tabs .hm-chip{flex:1 1 130px}
+  #valdemar-player [data-hotel-ui] .vhour-filter button{font-size:13px;padding:7px 8px}
+}
