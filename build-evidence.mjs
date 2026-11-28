@@ -60,7 +60,7 @@ const valdemarPaths = [];
 for (const item of ctx.ValdemarCatalog.items) {
   const path = ctx.ValdemarCatalog.path(item.id);
   const directory = new URL('.'+path, publicDir);
-  const title = item.title+' · La Última Pieza';
+  const title = item.title+' · Código Valdemar · La Última Pieza';
   const metadata = head(title, item.question, base+path, base+item.image)
     .replace(/<meta property="og:image:(?:width|height)"[^>]*>/g, '');
   const html = source
@@ -80,7 +80,7 @@ const landing = source
   .replace('</head>', () => head(landingTitle, landingDescription, base+'/', base+'/atlas-cuatro-mundos.webp').replace(/<meta property="og:image:(?:width|height)"[^>]*>/g,'')+'</head>')
   .replace(main+'</main>', () => main+ctx.ExperienceUI.home({stories,canPlay:false,sessions:[]})+'</main>');
 await writeFile(new URL('index.html',publicDir),landing);
-const publicPaths = ['/', '/vallejo.html', ...valdemarPaths, ...stories.map(s => '/caso/'+s.id+'/')];
+const publicPaths = ['/', '/cinta-87.html', ...valdemarPaths, ...stories.map(s => '/caso/'+s.id+'/')];
 const sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n'
   + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
   + publicPaths.map(path => '  <url><loc>'+escape(base+path)+'</loc></url>').join('\n')
