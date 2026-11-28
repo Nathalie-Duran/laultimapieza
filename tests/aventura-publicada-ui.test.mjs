@@ -37,6 +37,7 @@ test('la elección de modalidad es explícita y el catálogo omite ediciones aus
   await list.connectedCallback();assert.equal(list.children.length,0);
   await game.open('solo');assert.equal(calls.at(-1).path,'/api/aventuras/ejemplo?modo=solo');
   assert.equal(shots[0].saved,'La primera acción guardará tu partida.');
+  assert.deepEqual(Array.from(shots[0].tools,t=>t.label),['Escenario','Inventario','Evidencias','Pistas']);
 });
 test('cada control transmite la respuesta y el papel que el servidor ha mostrado',async()=>{
   for(const [tipo,data,want] of [['numero',[3.5],3.5],['punto',[1,4],[1,4]],['rumbo',['N'],'N'],['lista',['luz; calle'],['luz','calle']],['texto',['llave'],'llave']]){
