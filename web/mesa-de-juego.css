@@ -39,6 +39,8 @@
   .mesa-juego { gap:.55rem; padding:.65rem .8rem }
   .mesa-juego .mj-reading { flex-basis:100% }
   .mesa-juego .mj-actions { width:100% }
+  .vd-player .ae-stage .ae-marker { width:max-content; max-width:41% }
+  .vd-player .ae-stage .ae-marker-label { overflow-wrap:break-word; -webkit-line-clamp:3 }
 }
 @media(forced-colors:active) {
   .mesa-juego,.mesa-juego :is(.mj-tool,.mj-next,.mj-help) { border:1px solid ButtonText }
