@@ -274,3 +274,66 @@ dialog.ma87-detail .ma87-actions :is(button,a):first-child, .ma87-panel .ma87-ac
 }
 
 dialog.ma87-detail .ma87-access { color: #fff5df; }
+
+.ma87-panel .ma-specimen {
+  display:block; inline-size:100%; aspect-ratio:1/1; background-size:400% 300%;
+  background-repeat:no-repeat; background-color:#202823; box-shadow:inset 0 0 0 1px #92734452;
+}
+.ma-specimen-museo {background-image:url('/sala-objetos-museo.webp')}
+.ma-specimen-espejo {background-image:url('/sala-objetos-espejo.webp')}
+.ma87-panel .ma-vitrines {max-width:51rem; padding:.55rem; border:1px solid #796340; border-radius:.35rem; background:#302a21; gap:.35rem}
+.ma87-panel .ma-vitrines .ma-object,.ma87-panel .ma-pane button {
+  display:flex; flex-direction:column; align-items:stretch; justify-content:start; width:100%;
+  overflow:hidden; padding:0; gap:0; background:#252a23; color:#f4ead5; border:1px solid #75684c;
+}
+.ma87-panel .ma-object small,.ma87-panel .ma-pane button small {
+  display:block; width:100%; padding:.4rem .12rem; font-size:clamp(.72rem,1.65vw,.9rem); line-height:1.18; color:inherit;
+}
+.ma87-panel .ma-object:is(.ma-selected,:hover),.ma87-panel .ma-pane button:is(.ma-selected,:hover) {outline:2px solid #dec076; outline-offset:-2px; background:#594a30; color:#fff8e9}
+.ma87-panel .ma-object.ma-selected small,.ma87-panel .ma-object:hover small,.ma87-panel .ma-pane button[aria-pressed=true] small {color:#fff8e9}
+.ma87-panel .ma-inspect:has(.ma-specimen) {display:grid; grid-template-columns:minmax(6rem,12rem) minmax(0,1fr); gap:1rem; align-items:center; max-width:51rem}
+.ma87-panel .ma-inspect p {margin:.35rem 0 .65rem}
+.ma87-panel .ma-inspect button {margin:0}
+.ma87-panel .ma-mirror {max-width:54rem}
+.ma87-panel .ma-pane {padding:.35rem; background:#4b402d; gap:.22rem; border:1px solid #766043}
+.ma87-panel .ma-reflected .ma-specimen {transform:scaleX(-1)}
+.ma87-panel .ma-gears label {background:#252922;color:#fff1d4;border:1px solid #8c7754;align-content:start}
+.ma87-panel .ma-gears label select {align-self:end}
+.ma87-panel .ma-gear {
+  width:min(85%,7rem); aspect-ratio:1; margin:.55rem auto;
+  background:radial-gradient(circle,#332719 0 30%,#b5955c 31% 33%,#604a2d 34% 39%,#bc9a61 41% 53%,#5a4124 58%,transparent 59%),
+    repeating-conic-gradient(from 0deg,#c6a76b 0deg calc(var(--tooth-step)*.45),transparent calc(var(--tooth-step)*.47) var(--tooth-step));
+  border-radius:50%; filter:drop-shadow(0 3px 1px #181810);
+}
+.ma87-panel .ma-gear b {background:#3a2c1c;color:#fff0cc; border:1px solid #917447;min-width:1.85em;height:1.85em}
+.ma87-panel .ma-garden {max-width:33rem; gap:3px; background:#4b4734; border:1px solid #73644c}
+.ma87-panel .ma-garden :is(button,.ma-fixed) {padding:0;overflow:hidden;align-content:start;place-items:stretch;background-color:#252d25;color:#fff0cf;border:1px solid #78684a}
+.ma87-panel .ma-garden small {padding:.3rem .15rem;color:inherit;line-height:1.14;align-self:center}
+.ma87-panel .ma-pipe {
+  display:block; position:relative; width:100%; aspect-ratio:1.5;
+  background:radial-gradient(ellipse at 55% 40%,#586247,#353d2d 64%,#202b24);
+}
+.ma87-panel .ma-pipe-hub {
+  position:absolute; left:50%;top:50%; width:26%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(circle at 38% 33%,#c0ac81,#715d3c 54%,#bca57c 59%,#413a28 70%);box-shadow:0 2px 3px #171d15;
+}
+.ma87-panel .ma-arm {display:block;position:absolute;background:linear-gradient(90deg,#463a27,#c5ab74 14%,#675537 30%,#71654c 71%,#d1bb85 85%,#473e2b)}
+.ma87-panel .ma-arm-0,.ma87-panel .ma-arm-2 {width:17%;height:51%;left:41.5%}
+.ma87-panel .ma-arm-0 {top:0}.ma87-panel .ma-arm-2 {bottom:0}
+.ma87-panel .ma-arm-1,.ma87-panel .ma-arm-3 {width:51%;height:25.5%;top:37.25%;background:linear-gradient(#463a27,#c5ab74 14%,#675537 30%,#71654c 71%,#d1bb85 85%,#473e2b)}
+.ma87-panel .ma-arm-1 {right:0}.ma87-panel .ma-arm-3 {left:0}
+.ma87-panel .ma-fixed[data-bed="0"] .ma-pipe {background:radial-gradient(ellipse at center,#708e82,#314c45 70%,#263b34)}
+.ma87-panel .ma-fixed:is([data-bed="3"],[data-bed="8"]) .ma-pipe {background:repeating-linear-gradient(135deg,#706952 0px,#6d6551 4px,#5c594b 5px,#726a55 9px)}
+.ma87-panel .ma-fragments button,.ma87-panel .ma-slip {
+  color:#382d1e; background:linear-gradient(118deg,#d8bd8d,#f5ead4 17%,#eaddc0 95%,#c0a579);
+  border-color:#9d8459; border-radius:2px 6px 3px 2px; box-shadow:0 2px 4px #211c1822;
+}
+.ma87-panel .ma-fragments button {padding:.85rem 1rem;line-height:1.45;font-family:Georgia,serif}
+.ma87-panel .ma-slip {border-inline-start:.35rem solid #804939}
+@media(max-width:560px) {
+  .ma87-panel .ma-vitrines {grid-template-columns:repeat(3,minmax(0,1fr))}
+  .ma87-panel .ma-gears {gap:.35rem}
+  .ma87-panel .ma-gears label {padding:.4rem .2rem}
+  .ma87-panel .ma-gears select {font-size:.78rem;padding:.2rem}
+  .ma87-panel .ma-inspect:has(.ma-specimen) {grid-template-columns:minmax(5rem,38%) minmax(0,1fr);gap:.5rem}
+}

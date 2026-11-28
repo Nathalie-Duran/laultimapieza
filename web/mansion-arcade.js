@@ -5,12 +5,12 @@
   const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const keyCount=n=>n===1?'1 llave':n+' llaves';
   const clues=[
-    ['♟','Peón de ébano con un arañazo en la cabeza.'], ['⚿','Llave de bronce con el ojo cuadrado.'],
-    ['☽','Luna de plata con dos perforaciones en el borde.'], ['☾','Luna lisa con un engaste de cobre.'],
-    ['⚙','Rueda de caja de música con un diente roto.'], ['♞','Caballo negro sobre una peana de nogal.'],
-    ['✂','Tijeras de bordar con una pluma grabada.'], ['⚓','Ancla de latón con una cuerda enrollada.'],
-    ['♜','Torre de ajedrez con una ventana roja.'], ['⚓','Ancla pequeña cuyo cabo fue cortado al ras.'],
-    ['✥','Aguja de solapa en forma de flor.'], ['♘','Caballo de marfil con la peana rajada.']
+    'Peón de ébano con un arañazo en la cabeza.', 'Llave de bronce con el ojo cuadrado.',
+    'Luna de plata con dos perforaciones en el borde.', 'Luna lisa con un engaste de cobre.',
+    'Rueda de caja de música con un diente roto.', 'Caballo negro sobre una peana de nogal.',
+    'Tijeras de bordar con una pluma grabada.', 'Ancla de latón con una cuerda enrollada.',
+    'Torre de ajedrez con una ventana roja.', 'Ancla pequeña cuyo cabo fue cortado al ras.',
+    'Aguja de solapa en forma de flor.', 'Caballo de marfil con la peana rajada.'
   ];
   const fragments=[
     ['h','Retiré el papel azul y encajé la hebilla en el broche del cuaderno.'],
@@ -19,13 +19,15 @@
     ['l','Al levantar el lacre descubrí una hebilla envuelta en papel azul.']
   ];
   const rooms=[
-    ['✶','estrella de seis puntas'],['☾','luna creciente','●','luna llena'],['♜','torre de ajedrez'],
-    ['♧','trébol','♤','pica'],['◷','reloj de pared'],['✉','sobre cerrado'],
-    ['♕','corona'],['♫','dos notas musicales'],['⚓','ancla','⚿','llave']
+    ['estrella de seis puntas'],['luna creciente','luna llena',9],['torre de ajedrez'],
+    ['trébol','pica',10],['reloj de pared'],['sobre cerrado'],
+    ['corona'],['dos notas musicales'],['ancla','llave',11]
   ];
   const pipes=[[1],[1,2],[2],[],[0,1,3],[0,1],[1],[1,2],[]];
   const joints=[1,4,5,7],directions=['norte','este','sur','oeste'];
-  const pipeSigns={'01':'└','02':'│','03':'┘','12':'┌','13':'─','23':'┐','012':'├','013':'┴','023':'┤','123':'┬'};
+  function specimen(sheet,index){
+    return `<span class="ma-specimen ma-specimen-${sheet}" aria-hidden="true" style="background-position:${index%4*100/3}% ${Math.floor(index/4)*50}%"></span>`;
+  }
   const initial={
     archivo:()=>({words:['',''],offset:0}),
     relojero:()=>({teeth:[0,0,0]}),
@@ -47,14 +49,14 @@
   }
   function clock(s) {
     return `<p>La rueda de entrada tiene 12 dientes. La rueda central gira una vez por cada dos vueltas de la entrada. Su piñón gira con ella y da tres vueltas por cada vuelta de la salida. El grabado de la platina indica que los dientes del piñón y de la rueda de salida suman 48.</p>
-      <div class="ma-gears">${['Rueda central','Piñón central','Rueda de salida'].map((label,i)=>`<label><span class="ma-gear" aria-hidden="true">⚙<b>${s.teeth[i]||'·'}</b></span>${label}<select data-field="gear${i}"><option value="0">Dientes…</option>${[12,18,24,30,36].map(v=>'<option value="'+v+'"'+(v===s.teeth[i]?' selected':'')+'>'+v+' dientes</option>').join('')}</select></label>`).join('')}</div><p class="ma-small">En dos ruedas engranadas, la rueda con más dientes gira más despacio.</p>`;
+      <div class="ma-gears">${['Rueda central','Piñón central','Rueda de salida'].map((label,i)=>`<label><span class="ma-gear" aria-hidden="true" style="--tooth-step:${360/(s.teeth[i]||18)}deg"><b>${s.teeth[i]||'·'}</b></span>${label}<select data-field="gear${i}"><option value="0">Elige los dientes</option>${[12,18,24,30,36].map(v=>'<option value="'+v+'"'+(v===s.teeth[i]?' selected':'')+'>'+v+' dientes</option>').join('')}</select></label>`).join('')}</div><p class="ma-small">En dos ruedas engranadas, la rueda con más dientes gira más despacio.</p>`;
   }
   function museum(s) {
-    const item=(glyph,detail,i)=>`<button type="button" data-act="look" data-value="${i}" aria-label="Examinar vitrina ${i+1}" class="ma-object ${s.items.includes(i)?'ma-selected':''}"><b aria-hidden="true">${glyph}</b><small>Vitrina ${i+1}${s.items.includes(i)?' · marcada':''}</small></button>`;
+    const item=(_,i)=>`<button type="button" data-act="look" data-value="${i}" aria-label="Examinar vitrina ${i+1}${s.items.includes(i)?', marcada':''}" class="ma-object ${s.items.includes(i)?'ma-selected':''}">${specimen('museo',i)}<small>Vitrina ${i+1}${s.items.includes(i)?' · marcada':''}</small></button>`;
     const i=s.examined;
     return `<p>El inventario pide una luna de plata con dos perforaciones, un ancla sin cabo y un caballo blanco con la peana rajada. Examina las vitrinas y marca las tres piezas de la lista.</p>
-      <div class="ma-vitrines">${clues.map(([g,d],n)=>item(g,d,n)).join('')}</div>
-      <div class="ma-inspect" aria-live="polite">${i===null?'Elige una vitrina para acercar la lupa.':`<strong>Vitrina ${i+1}</strong> ${clues[i][1]} <button data-act="mark" type="button">${s.items.includes(i)?'Quitar marca':'Marcar pieza'}</button>`}</div><p class="ma-small">Piezas marcadas · ${s.items.length} de 3</p>`;
+      <div class="ma-vitrines">${clues.map(item).join('')}</div>
+      <div class="ma-inspect" aria-live="polite">${i===null?'Elige una vitrina para examinar la pieza.':`${specimen('museo',i)}<div><strong>Vitrina ${i+1}</strong><p>${clues[i]}</p> <button data-act="mark" type="button">${s.items.includes(i)?'Quitar marca':'Marcar pieza'}</button></div>`}</div><p class="ma-small">Piezas marcadas · ${s.items.length} de 3</p>`;
   }
   function letters(s) {
     return `<p>Los cuatro fragmentos son de la misma carta. Sigue el recorrido de los objetos para ordenar lo que hizo Ada. En el margen dejó una indicación manuscrita.</p>
@@ -65,18 +67,19 @@
       <label>Mensaje secreto <input data-field="message" maxlength="24" autocomplete="off" value="${esc(s.message)}"></label>`;
   }
   function garden(s) {
-    const fixed={0:['≈','Aljibe, salida este'],2:['❀','Rosal, toma sur'],3:['▧','Sendero de grava'],6:['✿','Lirios, toma este'],8:['▧','Sendero de grava']};
+    const fixed={0:'Aljibe, salida este',2:'Rosal, toma sur',3:'Sendero de grava',6:'Lirios, toma este',8:'Sendero de grava'};
+    const connection=ends=>`<span class="ma-pipe" aria-hidden="true">${ends.map(d=>'<i class="ma-arm ma-arm-'+d+'"></i>').join('')}${ends.length?'<i class="ma-pipe-hub"></i>':''}</span>`;
     return `<p>Gira las acequias para llevar el agua del aljibe al rosal y a los lirios. Cada boca de una acequia debe encajar con la boca de su vecina. El norte queda arriba.</p><div class="ma-garden">${pipes.map((ends,i)=>{
       const j=joints.indexOf(i);
-      if(j===-1) return `<div class="ma-fixed"><b aria-hidden="true">${fixed[i][0]}</b><small>${fixed[i][1]}</small></div>`;
+      if(j===-1) return `<div class="ma-fixed" data-bed="${i}">${connection(ends)}<small>${fixed[i]}</small></div>`;
       const turned=ends.map(end=>(end+s.turns[j])%4).sort(), labels=turned.map(d=>directions[d]).join(', ');
-      return `<button data-act="turn" data-value="${j}" type="button" aria-label="Girar acequia ${j+1}. Bocas al ${labels}"><b aria-hidden="true">${pipeSigns[turned.join('')]}</b><small>${labels}</small></button>`;
+      return `<button data-act="turn" data-value="${j}" type="button" aria-label="Girar acequia ${j+1}. Bocas al ${labels}">${connection(turned)}<small>${labels}</small></button>`;
     }).join('')}</div>`;
   }
   function mirror(s) {
-    const pane=(reflected)=>`<div><h4>${reflected?'Reflejo':'Salón'}</h4><div class="ma-pane ${reflected?'ma-reflected':''}">${rooms.map(([glyph,desc,other,otherDesc],i)=>{
-      const selected=s.items.includes(i), name=(reflected&&otherDesc)||desc, symbol=(reflected&&other)||glyph;
-      return `<button type="button" data-act="difference" data-value="${i}" aria-pressed="${selected}" aria-label="${reflected?'Reflejo':'Salón'}, ${name}" class="${selected?'ma-selected':''}"><b aria-hidden="true">${symbol}</b><small>${name}</small></button>`;
+    const pane=(reflected)=>`<div><h4>${reflected?'Reflejo':'Salón'}</h4><div class="ma-pane ${reflected?'ma-reflected':''}">${rooms.map(([desc,otherDesc,otherIndex],i)=>{
+      const selected=s.items.includes(i), name=(reflected&&otherDesc)||desc, image=reflected&&otherDesc?otherIndex:i;
+      return `<button type="button" data-act="difference" data-value="${i}" aria-pressed="${selected}" aria-label="${reflected?'Reflejo':'Salón'}, ${name}" class="${selected?'ma-selected':''}">${specimen('espejo',image)}<small>${name}</small></button>`;
     }).join('')}</div></div>`;
     return `<p>El espejo invierte las posiciones como corresponde, pero tres objetos cambian de identidad. Marca esas tres parejas en cualquiera de los dos lados.</p><div class="ma-mirror">${pane(false)}${pane(true)}</div><p class="ma-small">Diferencias marcadas · ${s.items.length} de 3</p>`;
   }
@@ -177,7 +180,7 @@
       if(!game) {
         this.innerHTML=this.lobby(back);
       } else {
-        this.innerHTML=`<section class="ma-panel ma87-panel"><header class="reto-cabecera"><img class="reto-foto" src="/sala-${esc(game.id)}.webp" width="768" height="512" alt="" decoding="async"><div class="reto-cabecera-copy"><p class="reto-procedencia">Sala de Ada · ${esc(stationDetails[game.id].kind)}</p>${this.heading(game.title)}</div></header>${this.shared?'<div data-ma-mesa></div>':''}
+        this.innerHTML=`<section class="ma-panel ma87-panel" data-station="${esc(game.id)}"><header class="reto-cabecera"><img class="reto-foto" src="/sala-${esc(game.id)}.webp" width="768" height="512" alt="" decoding="async"><div class="reto-cabecera-copy"><p class="reto-procedencia">Sala de Ada · ${esc(stationDetails[game.id].kind)}</p>${this.heading(game.title)}</div></header>${this.shared?'<div data-ma-mesa></div>':''}
           ${screens[game.id](this.states[game.id])}<div class="ma-actions ma87-actions"><button type="button" class="ma-check" data-act="check" ${this.busy?'disabled':''}>${checks[game.id]}</button>
           ${this.shared?'':'<button type="button" data-act="back">Sala de minijuegos</button>'}${back}</div><p data-ma-feedback role="status" aria-live="polite">${esc(this.notice)}</p></section>`;
       }
@@ -279,7 +282,9 @@
       if(act==='undo')state.order.pop();
       if(act==='turn')state.turns[Number(value)]=(state.turns[Number(value)]+1)%4;
       this.show();
-      if(act==='letter')this.querySelector('[data-act="letter"]:not(:disabled),[data-act="undo"]')?.focus();
+      if(act==='look')this.focusControl('mark');
+      else if(act==='mark')this.focusControl('look',state.examined);
+      else if(act==='letter')this.querySelector('[data-act="letter"]:not(:disabled),[data-act="undo"]')?.focus();
       else if(act==='difference' && btn.closest('.ma-reflected'))this.querySelector('.ma-reflected [data-value="'+value+'"]')?.focus();
       else this.focusControl(act,value);
     }

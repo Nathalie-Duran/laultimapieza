@@ -1,0 +1,201 @@
+.mansion-game .mansion-notebook {
+  --file-paper: #eee4cf;
+  --file-ink: #302b23;
+  --file-fade: #675a46;
+  min-inline-size: 0;
+}
+.mansion-game .mansion-notebook-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .3rem 1rem;
+  padding-block: .45rem .85rem;
+  margin-block-end: 1rem;
+  border-block-end: 1px solid var(--house-stroke, #7c735c);
+}
+.mansion-game .mansion-notebook-heading h3 {
+  margin: 0;
+  font: 500 clamp(2.1rem,4.8vw,3.6rem)/1.06 var(--house-serif, Georgia, serif);
+  color: var(--house-ink,#f3e7cd);
+}
+.mansion-game .mansion-notebook-heading p {
+  margin: 0;
+  color: var(--house-muted,#d2c6a8);
+}
+.mansion-game .mansion-notebook-layout {
+  display: grid;
+  grid-template-columns: minmax(0,1.5fr) minmax(17rem,1fr);
+  align-items: start;
+  gap: clamp(1rem,2.5vw,2.2rem);
+}
+.mansion-game .mansion-notebook-layout > * { min-inline-size: 0; }
+.mansion-game .mansion-notebook-section {
+  font: 500 1.55rem/1.15 var(--house-serif,Georgia,serif);
+  color: var(--house-ink,#f3e7cd);
+  margin: 0 0 .7rem;
+}
+.mansion-game .mansion-notebook-empty {
+  display: flex;
+  align-items: end;
+  min-block-size: clamp(15rem,28vw,24rem);
+  padding: clamp(.9rem,2.3vw,1.7rem);
+  border: 1px solid var(--house-stroke,#7c735c);
+  border-radius: 3px;
+  background: linear-gradient(0deg,#191812 0%,#201b14dd 27%,#201b1400 70%),
+    url("/mansion-cuaderno-libro.webp") center 42% / cover;
+}
+.mansion-game .mansion-notebook-empty-copy { max-inline-size: 34rem; }
+.mansion-game .mansion-notebook-empty-copy p { margin: 0 0 .6rem; color: #fbefdc; line-height: 1.5; }
+.mansion-game button.mansion-note-return {
+  min-block-size: 2.75rem;
+  padding: .45rem .85rem;
+  border: 1px solid #967744;
+  border-radius: 3px;
+  background: #ead7a9;
+  color: #302619;
+  font: 650 .97rem/1.3 var(--house-sans,system-ui,sans-serif);
+}
+.mansion-game button.mansion-note-return:hover {background:#ffecbc; color:#261c0e;}
+.mansion-game :is(.mansion-note-return,.mansion-notebook-room summary):focus-visible {
+  outline: 3px solid #fff8e2;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #5c4930;
+}
+.mansion-game .mansion-notebook-room {
+  margin: 0 0 .65rem;
+  overflow: visible;
+  border: 1px solid #766e5b;
+  border-radius: 3px;
+  background: #242a25;
+}
+.mansion-game .mansion-notebook-room > summary {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  min-block-size: 3rem;
+  cursor: pointer;
+  list-style: none;
+  padding: .55rem .85rem;
+  color: #f4e7cf;
+  font: 600 1.1rem/1.3 var(--house-serif,Georgia,serif);
+}
+.mansion-game .mansion-notebook-room > summary::-webkit-details-marker { display: none; }
+.mansion-game .mansion-notebook-room > summary::before {
+  content: '';
+  flex: none;
+  width: .48rem;
+  height: .48rem;
+  border: solid #d8bd82;
+  border-width: 2px 2px 0 0;
+  transform: rotate(45deg);
+}
+.mansion-game .mansion-notebook-room[open] > summary::before { transform: rotate(135deg); }
+.mansion-game .mansion-notebook-room > summary small {
+  margin-inline-start: auto;
+  text-align: end;
+  color: #dfceb0;
+  font: 500 .85rem/1.3 var(--house-sans,system-ui,sans-serif);
+}
+.mansion-game .mansion-notebook-entries {display: grid; gap: .65rem; padding: .2rem .65rem .7rem;}
+.mansion-game .mansion-notebook-entries > .mansion-note-return {justify-self: start;}
+.mansion-game .mansion-note-sheet {
+  display: grid;
+  grid-template-columns: minmax(5.6rem,28%) minmax(0,1fr);
+  align-items: start;
+  gap: clamp(.7rem,1.2vw,1.2rem);
+  min-width: 0;
+  padding: clamp(.7rem,1.3vw,1.2rem);
+  color: var(--file-ink,#302b23);
+  border-inline-start: 3px solid #b39b6e;
+  border-radius: 2px;
+  background-color: var(--file-paper,#eee4cf);
+  box-shadow: inset 0 -1px #aa977b;
+  container-type: inline-size;
+}
+.mansion-game .mansion-note-print {
+  display: block;
+  inline-size: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 3px solid #fffae9;
+  outline: 1px solid #a9926f;
+  box-shadow: 1px 2px 3px #51442d38;
+  margin: 1px;
+}
+.mansion-game .mansion-note-body { min-width: 0; }
+.mansion-game .mansion-note-recent {
+  display: block; color:#675132; margin-block-end:.2rem;
+  font: 650 .8rem/1.3 var(--house-sans,system-ui,sans-serif);
+}
+.mansion-game .mansion-note-detail {color:#362c1c; margin-top:.6rem;}
+.mansion-game .mansion-note-detail summary {
+  cursor:pointer; min-height:2.75rem; align-content:center; color:#42341c;
+  font:600 .95rem/1.4 var(--house-sans,system-ui,sans-serif);
+}
+.mansion-game .mansion-note-grid {
+  width:100%; table-layout:fixed; border-collapse:collapse; font-size:.8rem; text-align:center;
+}
+.mansion-game .mansion-note-grid th:first-child,.mansion-game .mansion-note-grid td:first-child {width:1.45rem;}
+.mansion-game .mansion-note-grid :is(th,td) {
+  border:1px solid #a59478; padding:.15rem .05rem; color:#393126; background:transparent;
+  overflow-wrap:anywhere; text-align:center;
+}
+.mansion-game .mansion-note-grid .mansion-note-mark {background-color:#dcc9a7;}
+.mansion-game .mansion-note-sheet .mansion-note-title {
+  margin: 0 0 .45rem;
+  color: #342c20;
+  font: 600 clamp(1.1rem,2.2vw,1.5rem)/1.17 var(--house-serif,Georgia,serif);
+  overflow-wrap: break-word;
+}
+.mansion-game .mansion-note-sheet .mansion-note-copy {
+  color: #312e26;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0;
+  overflow-wrap: break-word;
+}
+.mansion-game .mansion-note-sheet .mansion-signal {color:#443420;overflow-wrap:anywhere;}
+.mansion-game .mansion-note-sheet .mansion-audio {min-width:0;}
+.mansion-game .mansion-note-sheet .mansion-audio button {
+  min-height: 2.75rem;
+  padding: .45rem .7rem;
+  border: 1px solid #78664b;
+  border-radius: 2px;
+  background: #e8d9b9;
+  color: #352a19;
+}
+.mansion-game .mansion-note-sheet .mansion-audio button:is(:hover,:focus-visible) {
+  background: #dac79e; color: #281e0e;
+}
+.mansion-game .mansion-note-sheet .mansion-audio button:focus-visible {
+  outline: 3px solid #4b3719; outline-offset: 2px;
+}
+.mansion-game .mansion-note-sheet audio {width:min(100%,28rem);}
+.mansion-game .mansion-notebook-archive {display:grid; gap:.7rem;}
+.mansion-game .mansion-notebook-archive > .mansion-notebook-section {margin:0;}
+.mansion-game .mansion-notebook-archive .mansion-note-sheet {display:block;}
+.mansion-game .mansion-notebook-archive .mansion-note-print {
+  aspect-ratio: 2.75;
+  margin: 0 0 .8rem;
+  object-position: center 52%;
+}
+.mansion-game .mansion-inspection .mansion-note-sheet {
+  display: block;
+  margin-block: .45rem .7rem;
+}
+.mansion-game .mansion-inspection .mansion-note-print {
+  aspect-ratio: 2;
+  margin-block-end: .75rem;
+}
+@media (max-width: 760px) {
+  .mansion-game .mansion-notebook-layout {grid-template-columns: minmax(0,1fr);}
+}
+@media (max-width: 440px) {
+  .mansion-game .mansion-notebook-room .mansion-note-sheet {grid-template-columns: minmax(0,1fr);}
+  .mansion-game .mansion-note-print {aspect-ratio:2.35; margin:0;}
+  .mansion-game .mansion-notebook-archive .mansion-note-print {aspect-ratio:2.3;}
+}
+@media (forced-colors: active) {
+  .mansion-game :is(.mansion-notebook-empty,.mansion-note-sheet,.mansion-note-print,.mansion-notebook-room) {border: 1px solid CanvasText;}
+}
