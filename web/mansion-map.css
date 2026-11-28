@@ -1,0 +1,113 @@
+/* The house plan and its paper index share one set of native destination buttons. */
+.mansion-game .mansion-map.mansion-atlas {
+  --map-ink:#302519;
+  --map-muted:#63513b;
+  --map-line:#b6a17c;
+  --map-paper:#e8d9b8;
+  container-type:inline-size;
+  padding:0;
+  overflow:hidden;
+  background:#221f19;
+  border:1px solid #716044;
+  border-radius:.35rem;
+}
+.mansion-game .mansion-atlas > .mansion-map-heading {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:.3rem .65rem;
+  min-height:3.15rem;
+  padding:.65rem 1rem;
+  background:linear-gradient(100deg,#242a21,#1b201a 76%);
+  color:#efddac;
+  list-style:none;
+  cursor:pointer;
+}
+.mansion-atlas .mansion-map-heading::-webkit-details-marker {display:none}
+.mansion-atlas .mansion-map-heading::before {
+  content:"";width:.48rem;height:.48rem;box-sizing:border-box;
+  border-right:2px solid currentColor;border-top:2px solid currentColor;
+  transform:rotate(45deg);margin-right:.1rem;
+}
+.mansion-atlas[open] .mansion-map-heading::before {transform:translateY(-2px) rotate(135deg)}
+.mansion-atlas .mansion-map-heading-title {font:500 1.17rem/1.25 Georgia,serif}
+.mansion-atlas .mansion-map-count {margin-left:auto;font:500 .86rem/1.3 system-ui,sans-serif;color:#ddd0ad}
+.mansion-atlas .mansion-map-spread {
+  display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);
+  color:var(--map-ink);background:var(--map-paper);
+}
+.mansion-atlas .mansion-map-plate {
+  position:relative;align-self:center;min-width:0;background:#dfc99b;
+}
+.mansion-atlas .mansion-map-engraving {
+  display:block;aspect-ratio:3/2;width:100%;height:auto;max-width:none;object-fit:fill;
+}
+.mansion-atlas .mansion-map-pins {position:absolute;inset:0;pointer-events:none}
+.mansion-game .mansion-map-pins .mansion-room {
+  position:absolute;left:var(--px);top:var(--py);transform:translate(-50%,-50%);
+  display:grid;place-items:center;min-width:44px;min-height:44px;
+  width:44px;height:44px;padding:0;isolation:isolate;pointer-events:auto;
+  background:transparent;color:#fff4ca;border:0;border-radius:50%;
+  opacity:1;box-shadow:none;text-shadow:none;
+  font:600 .92rem/1 Georgia,serif;font-variant-numeric:tabular-nums;
+}
+.mansion-game .mansion-map-pins .mansion-room::before {
+  content:"";position:absolute;z-index:-1;inset:5px;border-radius:50%;
+  background:#304d42;border:1px solid #fcf0c8;
+  box-shadow:0 0 0 1.5px #362e20,0 2px 3px #392b1e85;
+}
+.mansion-game .mansion-map-pins .mansion-room:disabled {background:transparent;color:#302515;opacity:1}
+.mansion-game .mansion-map-pins .mansion-room:disabled::before {
+  inset:8px;background:#e1cc98;border:1px solid #4d402e;box-shadow:0 1px 2px #40372588;
+}
+.mansion-game .mansion-map-pins .mansion-room[aria-current="location"] {background:transparent;color:#fff3d3}
+.mansion-game .mansion-map-pins .mansion-room[aria-current="location"]::before {
+  inset:1px;background:#422f1e;border:2px solid #4d3221;box-shadow:inset 0 0 0 2px #f5d388,0 0 0 2px #faedc5,0 2px 7px #231a13b3;
+}
+.mansion-game .mansion-map-pins .mansion-room:enabled:hover::before {background:#5c452b}
+.mansion-game .mansion-atlas :is(summary,button):focus-visible {
+  outline:3px solid #ffc75d;outline-offset:1px;box-shadow:0 0 0 5px #302219;
+}
+.mansion-atlas .mansion-map-index {
+  align-self:stretch;display:flex;flex-direction:column;justify-content:center;
+  min-width:0;padding:clamp(.85rem,2.2vw,2.4rem) clamp(1rem,2.4vw,2.5rem);
+  border-left:1px solid var(--map-line);
+  background:linear-gradient(90deg,#c3aa7e99 0,transparent 8%),linear-gradient(122deg,#eadcbb,#f3e8cf 62%,#e7d5af);
+}
+.mansion-game .mansion-atlas .mansion-map-index-heading {
+  margin:0 0 .35rem;font:500 clamp(1.4rem,2vw,1.85rem)/1.2 Georgia,serif;color:var(--map-ink);
+}
+.mansion-game .mansion-atlas .mansion-map-index-list {list-style:none;margin:0;padding:0;color:var(--map-ink)}
+.mansion-atlas .mansion-map-index-list > li {list-style:none;margin:0;padding:0;border-bottom:1px solid var(--map-line)}
+.mansion-atlas .mansion-map-entry {
+  display:grid;grid-template-columns:1.5rem minmax(0,1fr) auto;align-items:center;
+  column-gap:.45rem;min-height:44px;padding:.25rem 0;line-height:1.2;
+}
+.mansion-atlas .mansion-map-entry-number {font:500 .86rem/1.2 Georgia,serif;color:#625233;font-variant-numeric:tabular-nums}
+.mansion-atlas .mansion-map-entry-title {font:500 1rem/1.2 Georgia,serif;color:var(--map-ink)}
+.mansion-atlas .mansion-map-entry-status {font:500 .78rem/1.3 system-ui,sans-serif;color:var(--map-muted);white-space:nowrap}
+.mansion-atlas .mansion-map-entry:not([data-room-state="locked"]) {cursor:pointer}
+.mansion-atlas .mansion-map-entry:not([data-room-state="locked"]):hover .mansion-map-entry-title {text-decoration:underline;text-underline-offset:.2em}
+.mansion-atlas .mansion-map-entry[data-room-state="current"] .mansion-map-entry-status {color:#20352a;font-weight:700}
+.mansion-atlas .mansion-map-entry[data-room-state="current"] .mansion-map-entry-title {font-weight:700}
+@container (max-width:44rem) {
+  .mansion-atlas .mansion-map-spread {display:block}
+  .mansion-atlas .mansion-map-index {
+    padding:.9rem 1rem 1.1rem;border-left:0;border-top:1px solid var(--map-line);
+    background:linear-gradient(180deg,#ddcba7,#f2e6ca 14%,#e6d4ac);
+  }
+  .mansion-atlas .mansion-map-index-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:1.25rem}
+  .mansion-atlas .mansion-map-entry {grid-template-columns:1.5rem minmax(0,1fr);padding-block:.45rem}
+  .mansion-atlas .mansion-map-entry-status {grid-column:2}
+}
+@container (max-width:24rem) {
+  .mansion-game .mansion-atlas > .mansion-map-heading {padding:.6rem .7rem;gap:.25rem .5rem}
+  .mansion-atlas .mansion-map-count {flex-basis:100%;padding-left:1.15rem}
+  .mansion-atlas .mansion-map-index {padding:.75rem .7rem}
+  .mansion-atlas .mansion-map-index-list {column-gap:.6rem}
+  .mansion-atlas .mansion-map-entry {grid-template-columns:1.05rem minmax(0,1fr);column-gap:.3rem}
+}
+@media (forced-colors:active) {
+  .mansion-game .mansion-map-pins .mansion-room::before {background:ButtonFace!important;border:2px solid ButtonText!important}
+  .mansion-game .mansion-map-pins .mansion-room[aria-current]::before {outline:2px solid Highlight}
+}

@@ -23,8 +23,64 @@
   }
   function roleAllowed(x,world){return !x?.role||x.role==='both'||x.role==='AB'||x.role===world;}
   function roomImage(id,world='A'){const index=rooms.indexOf(id);return index>=0?'/mansion-'+(world==='B'?'ruin':'room')+'-'+(index+1)+'.webp':null;}
+  function presentationState(state){
+    const stage=state?.stage;
+    if(stage?.number!==1||stage.title!=='Los cuatro guardianes')return state;
+    const abandoned=stage.contributions?.B;
+    const brief=stage.brief?.replace('solo giran en la casa','se colocan en la casa');
+    const objective=abandoned?.objective?.replace('Para girar los dos escudos','Para colocar los dos escudos');
+    if(brief===stage.brief&&objective===abandoned?.objective)return state;
+    return {...state,stage:{...stage,brief,contributions:abandoned?
+      {...stage.contributions,B:{...abandoned,objective}}:stage.contributions}};
+  }
+  const photographedBenches=new Set(['elementos','esferas','riego','vias','presencia','morse','intercambio','acta','paneles']);
+  function directPositions(puzzle,fields,draft){
+    const kind=puzzle.dataset.kind;
+    if(kind!=='esferas'&&kind!=='vias')return;
+    const dials=Array.from(puzzle.querySelectorAll('.mansion-dial'));
+    for(const dial of dials){
+      const legend=dial.querySelector('legend');
+      const field=fields.find(field=>field.label===legend?.textContent&&field.options?.length);
+      if(!field)continue;
+      const positions=el('div','mansion-index-positions');
+      for(const option of field.options){
+        const key=el('label','mansion-position');
+        const input=el('input');input.type='radio';input.name='mansion-position-'+field.id;
+        input.value=String(option.value);input.checked=String(draft[field.id]??'')===input.value;
+        input.addEventListener('change',()=>{if(input.checked)draft[field.id]=input.value;});
+        const mark=el('span','mansion-engraving');mark.dataset.mark=input.value;mark.setAttribute('aria-hidden','true');
+        key.append(input,mark,el('span','mansion-position-name',option.label));positions.append(key);
+      }
+      dial.className='mansion-control mansion-index-selector';dial.replaceChildren(legend,positions);
+    }
+  }
+  function dressWorkbench(puzzle,fields,draft){
+    if(!photographedBenches.has(puzzle.dataset.kind))return puzzle;
+    directPositions(puzzle,fields,draft);
+    const surface=el('div','mansion-bench-surface');
+    const desk=el('div','mansion-bench-console');
+    let inventory=null;
+    const contents=Array.from(puzzle.children);
+    puzzle.replaceChildren();
+    for(const child of contents){
+      if(child.className==='mansion-puzzle-title'||child.className==='mansion-role-objective'){
+        puzzle.append(child);
+      }else if(child.className==='mansion-device-rack'){
+        const pieces=child.querySelector('ul');
+        if(pieces){
+          inventory=el('details','mansion-bench-inventory');
+          inventory.append(el('summary',null,'Material disponible ('+pieces.childElementCount+')'),pieces);
+        }
+      }else if(child.className==='mansion-pieces'){
+        child.className+=' mansion-bench-handles';surface.append(child);
+      }else desk.append(child);
+    }
+    surface.append(desk);puzzle.append(surface);
+    if(inventory)puzzle.append(inventory);
+    return puzzle;
+  }
   function mount(host,options){
-    let state=options.state?.mansion||options.state,role=options.role||state?.role;
+    let state=presentationState(options.state?.mansion||options.state),role=options.role||state?.role;
     const paired=role==='A'||role==='B';
     let world=paired?role:'A',tab='scene',disposed=false,busy=false,requestId=0,activeDevice=false,selectedEvidence=null;
     let openMission=null,missionSource=null,roomId=state?.explore?.id||state?.stage?.room||rooms[0],notice='',noticeError=false,saveText=options.resumed?'Partida recuperada':'';
@@ -92,7 +148,7 @@
       if(!next||!Array.isArray(next.rooms))return;
       if(Number.isFinite(state?.revision)&&Number.isFinite(next.revision)&&next.revision<state.revision)return;
       const advanced=next.current!==state?.current||Boolean(next.ending)!==Boolean(state?.ending);
-      state=next;
+      state=presentationState(next);
       if(advanced){roomId=state.stage?.room||roomId;activeDevice=false;selectedEvidence=null;openMission=null;missionSource=null;pendingHint=null;}
       else if(!keepRoom&&next.explore?.id)roomId=next.explore.id;
       if(next.explore?.id===roomId)explore=next.explore;
@@ -140,7 +196,7 @@
         const stage=state.stage;
         shared.update({progress:completed+'/15 pruebas resueltas'+(stage?.title?' · '+stage.title:''),saved:saveText,
           objective:stage?.brief||'Revisa la fotografía final y lee el desenlace que has guardado.',
-          tutorial:stage&&completed===0?'Examina un objeto del escenario. Lo que descubras quedará en Evidencias. '+(paired?'Coméntalo con tu pareja y probad vuestra deducción desde las dos casas.':'Cambia de casa para comparar los hallazgos y probar tu deducción.'):'',help:{context:paired?'duo':'solo',
+          tutorial:stage&&completed===0&&!activeDevice?'Examina un objeto del escenario. Lo que descubras quedará en Evidencias. '+(paired?'Coméntalo con tu pareja y probad vuestra deducción desde las dos casas.':'Cambia de casa para comparar los hallazgos y probar tu deducción.'):'',help:{context:paired?'duo':'solo',
             text:paired?'Cada persona observa una realidad de la casa. Comparad lo que ocurre en la misma habitación.':'Puedes alternar entre la casa habitada y la abandonada para comparar la misma habitación.',
             steps:['Abre los puntos de la fotografía para examinar los objetos.','Consulta las evidencias y opera el mecanismo de la sala.','Usa el mapa para volver a las habitaciones abiertas.']},
           next:stage&&tab==='scene'&&stage.room!==roomId?{label:'Ir al objetivo',run:()=>travel(stage.room)}:null});
@@ -217,24 +273,51 @@
       const observed=new Set(observations().map(clue=>clue.title+'|'+clue.text));
       const shownStage={...stage,controls:(stage.controls||[]).filter(control=>roleAllowed(control,world))};
       if(stage.number===6)shownStage.evidence=(stage.evidence||[]).filter(clue=>observed.has(clue.title+'|'+clue.text));
-      return window.MansionPuzzles.render({
+      const puzzle=window.MansionPuzzles.render({
         stage:shownStage,mission,world,inventory:state.inventory,draft:drafts.get(key),actions:(stage.actions||[]).filter(item=>roleAllowed(item,world)),
         perform:(action,extra={})=>act({...extra,op:'act',...params,action:action.id,world}),
         submit:answers=>act({op:'solve',...params,answers,world})
       });
+      return dressWorkbench(puzzle,shownStage.controls,drafts.get(key));
     }
     function drawMap(){
-      const map=el('details','mansion-map');map.append(el('summary',null,'Mapa de la mansión'));
-      const places=el('div','mansion-rooms');
+      const map=el('details','mansion-map mansion-atlas');
+      const summary=el('summary','mansion-map-heading');
+      const unlocked=state.rooms.filter(room=>room.unlocked).length;
+      const count=unlocked+' de '+state.rooms.length+' estancias abiertas';
+      summary.append(el('span','mansion-map-heading-title','Mapa de la mansión'),el('span','mansion-map-count',count));
+      const spread=el('div','mansion-map-spread'),plate=el('div','mansion-map-plate');
+      const engraving=el('img','mansion-map-engraving');
+      engraving.alt='';engraving.src='/mansion-estancias-plano.webp';engraving.width=1200;engraving.height=800;
+      engraving.loading='lazy';engraving.decoding='async';plate.append(engraving);
+      const places=el('div','mansion-map-pins');
+      const key=el('div','mansion-map-index');
+      key.append(el('h3','mansion-map-index-heading','Estancias'));
+      const list=el('ol','mansion-map-index-list');
       for(const [index,room] of state.rooms.entries()){
-        const choice=button('',()=>travel(room.id),'mansion-room');
-        choice.append(el('span','mansion-room-number',String(index+1).padStart(2,'0')),el('span',null,room.title));
+        const current=room.id===roomId,position=rooms.indexOf(room.id);
+        const n=String(index+1).padStart(2,'0');
+        const status=current?'Estás aquí':room.unlocked?'Abierta':'Cerrada';
+        const choice=button(n,async()=>{
+          await travel(room.id);
+          if(disposed||roomId!==room.id||activeDevice)return;
+          const heading=panel.querySelector('.mansion-room-title');
+          if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView?.({block:'nearest'});}
+        },'mansion-room');
+        choice.id='mansion-map-room-'+room.id;
         choice.disabled=!room.unlocked;
-        if(room.id===roomId)choice.setAttribute('aria-current','location');
-        if(!room.unlocked)choice.append(el('small',null,'Cerrado'));
+        if(current)choice.setAttribute('aria-current','location');
+        choice.setAttribute('aria-label',room.title+' · '+status);
+        choice.style.setProperty('--px',([16,39,62,84][(position<0?index:position)%4])+'%');
+        choice.style.setProperty('--py',(position<0?index:position)<4?'41%':'84%');
+        const item=el('li'),label=el('label','mansion-map-entry');
+        label.htmlFor=choice.id;
+        label.dataset.roomState=current?'current':room.unlocked?'open':'locked';
+        label.append(el('span','mansion-map-entry-number',n),el('span','mansion-map-entry-title',room.title),el('span','mansion-map-entry-status',status));
+        item.append(label);list.append(item);
         places.append(choice);
       }
-      map.append(places);return map;
+      plate.append(places);key.append(list);spread.append(plate,key);map.append(summary,spread);return map;
     }
     function drawScene(){
       const stage=state.stage;
@@ -346,7 +429,6 @@
         }
       }
       if(tools.childElementCount)panel.append(tools);
-      if(state.current===1&&state.recordings?.carta)panel.append(recording(state.recordings.carta));
       if(stage?.recording)panel.append(recording(stage.recording));
       if(localItems.length>2){
         const ledger=el('details','mansion-room-notes');ledger.append(el('summary',null,'Otras observaciones de la sala'));
@@ -358,7 +440,9 @@
         panel.append(ledger);
       }
       panel.append(drawMap());
-      panel.append(recording(storm));
+      const sounds=el('div','mansion-soundtrack');
+      if(state.current===1&&state.recordings?.carta)sounds.append(recording(state.recordings.carta));
+      sounds.append(recording(storm));panel.append(sounds);
       panel.append(explorer);
     }
     function missions(){

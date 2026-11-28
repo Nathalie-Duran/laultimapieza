@@ -1,0 +1,65 @@
+.mansion-game .mansion-puzzle .atrezo-control {
+  display: block;
+  min-width: 0;
+  width: min(100%, 34rem);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--house-ink);
+}
+.mansion-game .atrezo-control legend {padding: 0 0 .45rem; font-weight: 650;}
+.mansion-game .atrezo-clock, .mansion-game .atrezo-radio {position: relative; isolation: isolate; width: 100%; margin-inline: auto;}
+.mansion-game .atrezo-clock {max-width: 26rem;}
+.mansion-game .atrezo-radio {max-width: 34rem;}
+.mansion-game .atrezo-photo {
+  display: block; width: 100%; height: auto; border-radius: 3px; background: #282319;
+}
+.mansion-game .atrezo-clock-dial {position: absolute; left: 15.22%; top: 12.97%; width: 69.22%; height: 71.70%;}
+.mansion-game button.atrezo-hour-mark {
+  position: absolute; z-index: 2; display: grid; place-content: center;
+  min-width: 0; min-height: 0; width: 17%; height: 17%; margin: 0; padding: 0;
+  transform: translate(-50%,-50%); border: 1px solid transparent; border-radius: 50%;
+  box-shadow: none; background: transparent; color: #382710;
+  font: 700 clamp(15px,3vw,23px)/1 Georgia,serif; text-shadow: 0 1px 0 #f2ddb5;
+}
+.mansion-game button.atrezo-hour-mark:hover,
+.mansion-game button.atrezo-hour-mark[aria-checked="true"] {background: #ead2a2; color: #33210c; border-color: #785526;}
+.mansion-game button.atrezo-hour-mark:focus-visible {outline: 3px solid #33210c; outline-offset: 1px;}
+.mansion-game .atrezo-clock-hand {
+  position:absolute; left:50%; bottom:50%; width:3.5%; height:36%;
+  transform-origin: 50% 100%; transform: translateX(-50%) rotate(var(--hand-angle,0deg));
+  background: linear-gradient(90deg,#201809 10%,#60421c 44%,#b79b5b 53%,#382911 62%);
+  clip-path: polygon(50% 0,77% 20%,68% 73%,90% 86%,75% 100%,25% 100%,10% 86%,32% 73%,23% 20%);
+  pointer-events:none;
+}
+.mansion-game .atrezo-clock-hand.short {height:27%; width:5%;}
+.mansion-game .atrezo-clock-hand[hidden] {display:none;}
+.mansion-game .atrezo-clock-hub {
+  position: absolute; left: 50%; top: 50%; width: 5.3%; aspect-ratio:1; transform:translate(-50%,-50%);
+  background: radial-gradient(circle at 32% 28%,#ffe9a9,#ae873e 33%,#392c14 65%,#cea55d 86%); border-radius: 50%; pointer-events:none;
+}
+.mansion-game .atrezo-radio-scale {
+  position: absolute; left: 15%; top: 56.8%; width: 69%; height: 11.2%; color:#341e10;
+}
+.mansion-game .atrezo-ticks {
+  position: absolute; inset: 0 0 10%; border-bottom: 1px solid #5b3c18;
+  background: repeating-linear-gradient(90deg, #51391b 0 1px, transparent 1.5px calc(100% / var(--radio-intervals,11))) bottom/100% 27% no-repeat;
+}
+.mansion-game .atrezo-tick-label {position:absolute; top:6%; transform:translateX(-50%); color:#3a2918; font:700 clamp(11px,1.9vw,16px)/1 Georgia,serif;}
+.mansion-game .atrezo-radio-needle {
+  position: absolute; top:-5%; height:110%; width:3px; border-left:1px solid #572719;
+  transform:translateX(-50%); background:#bc4324; box-shadow:1px 0 1px #5e431e; pointer-events:none;
+}
+.mansion-game input.atrezo-tuner {
+  position:absolute; inset:50% auto auto 0; z-index:1; transform:translateY(-50%);
+  width:100%; height:max(100%,44px); margin:0; padding:0; opacity:0; cursor:ew-resize;
+}
+.mansion-game .atrezo-radio-scale:focus-within {outline:3px solid #3e2810; outline-offset:4px; box-shadow:0 0 0 7px #e9d8ab;}
+.mansion-game .atrezo-readout {display:block; padding:.55rem 0 .2rem; text-align:center; color:var(--house-ink); font-variant-numeric:tabular-nums;}
+.mansion-game .mansion-puzzle:is([data-kind="reloj"],[data-kind="radio"]) .mansion-controls:has(.atrezo-control) {display:flex; flex-direction:column; align-items:center;}
+@media (forced-colors:active) {
+  .mansion-game .atrezo-clock-dial,.mansion-game .atrezo-radio-scale {background:Canvas;color:CanvasText;}
+  .mansion-game .atrezo-hour-mark[aria-checked="true"] {outline:3px solid Highlight;}
+  .mansion-game .atrezo-radio-needle {background:CanvasText;}
+  .mansion-game .atrezo-clock-hand,.mansion-game .atrezo-clock-hub {background:CanvasText;}
+}
