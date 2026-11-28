@@ -1,0 +1,210 @@
+.mansion-game .inventory-heading,
+.mansion-game .inventory-mission-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: .75rem 1.5rem;
+}
+.mansion-game .inventory-heading { margin-block: .3rem 1rem; }
+.mansion-game .inventory-heading h3,
+.mansion-game .inventory-mission-heading h3 {
+  margin: 0;
+  font: 400 clamp(1.8rem,3vw,2.65rem)/1.1 var(--house-serif);
+}
+.mansion-game .inventory-heading p,
+.mansion-game .inventory-mission-heading p { margin: .35rem 0 0; color: var(--house-muted); }
+.mansion-game .inventory-empty {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  align-items: center;
+  min-height: clamp(14rem,24vw,21rem);
+  border: 1px solid #756444;
+  background: #191915;
+}
+.mansion-game .inventory-empty-img {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 65% 54%;
+}
+.mansion-game .inventory-empty::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg,#171713 0%,#171713f5 19%,#171713d9 35%,#1817137a 50%,transparent 67%);
+}
+.mansion-game .inventory-empty-copy {
+  width: min(46%,27rem);
+  box-sizing: content-box;
+  padding: clamp(1.1rem,3vw,3rem);
+}
+.mansion-game .inventory-empty-copy h4 {
+  margin: 0;
+  font: 400 clamp(1.55rem,3.6vw,2.85rem)/1.05 var(--house-serif);
+  color: #fff1d0;
+  text-wrap: balance;
+}
+.mansion-game .inventory-empty-copy p { margin: .65rem 0 1rem; color: #ecdfc6; line-height: 1.5; }
+.mansion-game .inventory-shelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(min(100%,13rem),1fr));
+  align-items: start;
+  gap: .875rem;
+}
+.mansion-game .mansion-inventory-object {
+  min-width: 0;
+  border: 1px solid #6e614a;
+  border-radius: .2rem;
+  background: #25231d;
+  color: #fff2d7;
+  overflow: hidden;
+}
+.mansion-game .mansion-inventory-object > summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  cursor: pointer;
+  list-style: none;
+  color: inherit;
+}
+.mansion-game .mansion-inventory-object > summary::-webkit-details-marker { display: none; }
+.mansion-game .inventory-object-img { width: 100%; height: auto; aspect-ratio: 1; display: block; object-fit: cover; background: #181712; }
+.mansion-game .inventory-object-name { padding: .85rem .95rem .25rem; font: 400 1.35rem/1.16 var(--house-serif); }
+.mansion-game .inventory-object-verb { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .2rem .95rem .75rem; font-size: .9rem; color: #f1ca88; }
+.mansion-game .inventory-object-verb::after {
+  content: "";
+  width: .48rem;
+  height: .48rem;
+  margin-inline-end: .16rem;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.mansion-game .mansion-inventory-object[open] .inventory-object-verb::after { transform: rotate(225deg); }
+.mansion-game .inventory-object-copy { padding: .8rem .95rem 1rem; border-top: 1px solid #6c6048; }
+.mansion-game .inventory-object-copy p { margin: .35rem 0 .7rem; color: #f3e7d2; }
+.mansion-game .inventory-object-world { font-size: .86rem; color: #e5c997; }
+.mansion-game .mansion-inventory-object:focus-within { outline: 2px solid #f9ce88; outline-offset: 2px; }
+.mansion-game .mansion-inventory-object > summary:focus-visible { outline: 3px solid #f9ce88; outline-offset: -4px; }
+.mansion-game .mansion-missions {
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  align-items: stretch;
+  gap: 1rem;
+  margin-block-start: clamp(1.8rem,4.4vw,3.4rem);
+}
+.mansion-game .inventory-mission-heading { grid-column: 1 / -1; }
+.mansion-game .mansion-missions > .mansion-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #665b47;
+  border-radius: .2rem;
+  background: #21211c;
+  color: #f5ead3;
+}
+.mansion-game .inventory-mission-cover { position: relative; overflow: hidden; }
+.mansion-game .inventory-mission-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1.9;
+  object-fit: cover;
+  background: #29261f;
+}
+.mansion-game .inventory-mission-reward {
+  position: absolute;
+  inset: auto .65rem .65rem auto;
+  padding: .26rem .55rem;
+  border: 1px solid #b09a66;
+  background: #211b12eb;
+  color: #ffe0a2;
+  font-size: .82rem;
+  font-weight: 650;
+}
+.mansion-game .inventory-mission-body { flex: 1; padding: .9rem 1rem 1rem; }
+.mansion-game .inventory-mission-body h4 { margin: 0; color: #fff0d2; font: 400 clamp(1.23rem,2vw,1.65rem)/1.1 var(--house-serif); }
+.mansion-game .inventory-mission-body p { margin: .5rem 0 .65rem; color: #e4dac5; line-height: 1.45; }
+.mansion-game .inventory-mission-body .inventory-mission-status { margin-bottom: 0; color: #d2c6af; }
+.mansion-game .inventory-mission-body button { margin: .3rem .4rem 0 0; }
+.mansion-game .mansion-missions > [data-state="complete"] .inventory-mission-status { color: #b2dac3; }
+.mansion-game .mansion-missions > [data-open="true"] { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(9rem,32%) 1fr; align-items: stretch; }
+.mansion-game .mansion-missions > [data-open="true"] .inventory-mission-img { height: 100%; max-height: 14rem; }
+.mansion-game .inventory-mission-work { grid-column: 1 / -1; display: grid; gap: .65rem; min-width: 0; padding: 1rem; border-top: 1px solid #665b47; }
+@media (max-width:900px) {
+  .mansion-game .mansion-missions { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:650px) {
+  .mansion-game .inventory-empty { display: flex; flex-direction: column; align-items: stretch; }
+  .mansion-game .inventory-empty-img { position: static; width: 100%; aspect-ratio: 2.35; height: auto; object-fit: cover; }
+  .mansion-game .inventory-empty::before { background: none; }
+  .mansion-game .inventory-empty-copy { width: auto; padding: 1rem 1.1rem 1.2rem; }
+  .mansion-game .inventory-mission-heading { display: block; }
+  .mansion-game .inventory-shelf { grid-template-columns: repeat(2,minmax(0,1fr)); gap:.65rem; }
+  .mansion-game .inventory-object-name { padding: .55rem .65rem .2rem; font-size: 1.05rem; }
+  .mansion-game .inventory-object-verb { padding: .2rem .65rem .55rem; }
+  .mansion-game .inventory-object-copy { padding: .65rem; }
+  .mansion-game .inventory-object-copy button { padding-inline: .5rem; }
+}
+@media (max-width:440px) {
+  .mansion-game .mansion-missions { grid-template-columns: 1fr; gap: .75rem; }
+  .mansion-game .mansion-missions > .mansion-card {
+    display: grid;
+    grid-template-columns: minmax(6rem,32%) minmax(0,1fr);
+  }
+  .mansion-game .inventory-mission-img { height: 100%; min-height: 6.5rem; }
+  .mansion-game .inventory-mission-reward { inset: auto .3rem .35rem; padding: .18rem .25rem; text-align: center; }
+  .mansion-game .inventory-mission-body { align-self: center; padding: .8rem; }
+  .mansion-game .inventory-mission-work { padding: .65rem; }
+}
+@media (forced-colors:active) {
+  .mansion-game .inventory-empty-copy { background: Canvas; }
+  .mansion-game .inventory-mission-reward { background: Canvas; color: CanvasText; }
+}
+.mansion-game .inventory-shelf .mansion-inventory-object:only-child {
+  --single-photo:clamp(9rem,20vw,15rem);
+  grid-column: 1 / -1;
+  position: relative;
+  min-height: var(--single-photo);
+  background: linear-gradient(105deg,#302a20,#22221c 78%);
+}
+.mansion-game .inventory-shelf .mansion-inventory-object:only-child > summary {
+  min-height: var(--single-photo);
+  padding: .85rem clamp(1rem,3vw,2.5rem) .85rem calc(var(--single-photo) + clamp(1rem,3vw,2.5rem));
+  box-sizing: border-box;
+  align-content: center;
+  justify-items: start;
+}
+.mansion-game .mansion-inventory-object:only-child .inventory-object-img {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: var(--single-photo);
+  height: 100%;
+  object-fit: contain;
+  background:#1e2119;
+}
+.mansion-game .mansion-inventory-object:only-child .inventory-object-name {
+  padding: 0;
+  font-size: clamp(1.35rem,2.8vw,2.3rem);
+}
+.mansion-game .mansion-inventory-object:only-child .inventory-object-verb {
+  padding: .45rem .1rem 0 0;
+  gap: .85rem;
+}
+.mansion-game .mansion-inventory-object:only-child[open] > summary { min-height: auto; }
+.mansion-game .mansion-inventory-object:only-child .inventory-object-copy {
+  margin-left: var(--single-photo);
+  padding-inline: clamp(1rem,3vw,2.5rem);
+}
+@media (max-width:650px) {
+  .mansion-game .inventory-shelf .mansion-inventory-object:only-child { --single-photo:clamp(6.6rem,34vw,9rem); }
+  .mansion-game .inventory-shelf .mansion-inventory-object:only-child > summary { position: relative; min-height:var(--single-photo); }
+  .mansion-game .mansion-inventory-object:only-child .inventory-object-copy { margin-left: 0; padding: .8rem 1rem 1rem; }
+}
