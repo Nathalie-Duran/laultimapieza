@@ -7,7 +7,7 @@ import {worldSeasonAccess} from '../valdemar-wallet.mjs';
 async function atlas(hash='#tableros') {
   const context=createContext({URLSearchParams,location:{hash}});
   context.window=context;
-  for(const file of ['valdemar-catalog','mundos-catalogo','sellos-temporadas','colecciones']) {
+  for(const file of ['retos-temporada','valdemar-catalog','mundos-catalogo','sellos-temporadas','colecciones']) {
     runInContext(await readFile(new URL('../web/'+file+'.js',import.meta.url),'utf8'),context);
   }
   return context.Colecciones;
@@ -52,7 +52,11 @@ test('el enlace al mundo elegido sobrevive al recargado y el epílogo depende de
 test('cada territorio conduce a una actividad secundaria real y solo los casos abiertos lanzan el reto',async()=>{
   const publicAtlas=await atlas(),guest=publicAtlas.boards();
   assert.equal((guest.match(/class="atlas-side-stop"/g)||[]).length,4);
-  assert.match(guest,/href="\/#desafios\?seccion=sala">Visitar la sala de juegos/);
+  assert.match(guest,/href="\/#desafios\?seccion=sala">Visitar la sala de Ada/);
+  for(const {board} of publicAtlas.seasons){
+    assert.ok(guest.includes('class="atlas-extra-photo" src="/extras-'+board+'.webp"'));
+    assert.ok(guest.includes('href="/#desafios?mundo='+board+'">Ver todos los retos'));
+  }
   const room=await atlas('#desafios?seccion=sala');
   assert.match(room.challenges(),/<mansion-arcade><\/mansion-arcade>/);
   const {mansionArcadeCatalog}=await import('../web/mansion-arcade-catalog.js');
@@ -62,7 +66,7 @@ test('cada territorio conduce a una actividad secundaria real y solo los casos a
     const modulePattern=new RegExp('<aside class="atlas-side-stop" aria-labelledby="atlas-side-'+(index+2)+'">([\\s\\S]*?)</aside>');
     const guestModule=guest.match(modulePattern)[1];
     assert.equal((guestModule.match(/<a /g)||[]).length,1);
-    assert.ok(guestModule.includes('href="/#desafios?mundo='+board+'">Explorar los retos'));
+    assert.ok(guestModule.includes('href="/#desafios?mundo='+board+'">Ver todos los retos'));
     assert.doesNotMatch(guestModule,/lugar=|seccion=reto|Ver la parada/);
     const chosen=await atlas('#desafios?mundo='+board);
     assert.ok(!chosen.challenges().includes('seccion=reto'));

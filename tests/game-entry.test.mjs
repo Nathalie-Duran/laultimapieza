@@ -14,6 +14,7 @@ async function load(file) {
       insertBefore(item,before){item.remove();this.children.splice(before?this.children.indexOf(before):this.children.length,0,item);item.parentElement=this;},
       append(...items) { for(const item of items)this.insertBefore(item,null); },
       prepend(...items) {for(const item of [...items].reverse())this.insertBefore(item,this.children[0]);},
+      get nextSibling(){const siblings=this.parentElement?.children||[];return siblings[siblings.indexOf(this)+1];},
       remove(){if(this.parentElement){this.parentElement.children=this.parentElement.children.filter(node=>node!==this);this.parentElement=null;}},
       replaceChildren(...items) {for(const item of [...this.children])item.remove();this.append(...items);},
       matches(selector){return selector.split(',').some(part=>(this.className||'').split(' ').includes(part.slice(1)));},
@@ -27,6 +28,7 @@ async function load(file) {
       querySelector(selector) {
         if (selector === '[data-visit-room]') return this.nodes().find(item => item.dataset.visitRoom);
         if (selector === '.vd-taller h4') return this.nodes().find(item => item.className === 'vd-taller')?.children.find(item => item.tag === 'h4');
+        if (selector.startsWith('.')) return this.nodes().find(item => item.matches(selector));
         return this.nodes().find(item => item.tag === selector);
       },
       querySelectorAll() { return this.nodes().filter(item => item.dataset.focusKey); }
@@ -92,9 +94,17 @@ test('La escena cambia con la etapa, respeta el papel y conecta cada punto con s
     const common=nodes().find(n=>n.className==='mesa-juego');
     assert.match(nodes().find(n=>n.className==='mj-progress').textContent,/Etapa 2 de 2/);
     nodes().find(n=>n.dataset.tool==='bag').listeners.click();assert.deepEqual(calls.pop(),['bag',undefined]);
-    const side=node();side.className='md-game-side';data.side={brief:'Ajusta la rueda de muestra'};
+    const side=node();side.className='md-game-side';data.side={brief:'Ajusta la rueda de muestra'};data.parallelPrize=2;
+    const cover=window.AventuraEscena.challengeHeader({id:14,world,title:'El mecanismo',caseTitle:'Caso de ensayo',photo:'/prueba.webp'});
+    side.append(cover,node());
     ui.returnFrom(side);
+    assert.equal(cover.querySelector('h1').textContent,'El mecanismo');
+    assert.equal(cover.querySelector('img').src,'/prueba.webp');
+    assert.equal(cover.querySelector('a').href,'/#desafios?mundo='+(world==='valdemar'?'mapa':world));
+    assert.equal(cover.querySelector('.reto-cabecera-nav').children.at(-1).className,'ae-back');
+    assert.equal(side.children[1].className,'ae-mesa');
     assert.equal(side.nodes().find(n=>n.className==='mesa-juego'),common);
+    assert.match(side.nodes().find(n=>n.className==='mj-progress').textContent,/2 llaves/);
     assert.equal(side.nodes().find(n=>n.className==='mj-goal').textContent,'Ajusta la rueda de muestra');
     assert.equal(side.nodes().find(n=>n.className==='mj-help').textContent,'Cómo se juega');
     ui.returnFrom(node());
