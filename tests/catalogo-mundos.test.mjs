@@ -21,7 +21,7 @@ test('la miga de los cuatro mapas vuelve al territorio activo y su nombre se con
     page.location.hash='#'+route;
     const crumb=page.Colecciones.breadcrumb(route),menu=page.Colecciones.menu(route);
     assert.ok(crumb.includes('href="/#tableros?mundo='+route+'"'));
-    assert.ok(crumb.includes(' Temporadas</a>'));
+    assert.ok(crumb.includes(' Mapa de temporadas</a>'));
     assert.ok(!crumb.includes(season.name));
     assert.ok(menu.includes('href="/#'+route+'" aria-current="page"'));
     const map=route==='mapa'?page.ValdemarPlano.view({}):page.Mundos.view(route);

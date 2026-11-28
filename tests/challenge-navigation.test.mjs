@@ -92,7 +92,7 @@ test('el mismo calendario se descubre desde cinco cabeceras y conserva el origen
     const calendar=ctx.Colecciones.challenges();
     assert.ok(calendar.includes('class="reto-regreso" href="'+start+'"'));
     assert.match(calendar,/<h1>Calendario de retos<\/h1>/);
-    assert.match(calendar,/Los cuatro juegos comparten este calendario/);
+    assert.match(calendar,/Las cuatro temporadas comparten este calendario/);
     assert.match(calendar,/acceso a «El secreto de los dos mundos»/);
     assert.match(calendar,/Desafío diario/);
     assert.match(calendar,/Misión semanal/);

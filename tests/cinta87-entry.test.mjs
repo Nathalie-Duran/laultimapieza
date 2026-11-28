@@ -17,7 +17,7 @@ class Node {
   close(){this.open=false;}
   focus(){this.focused=true;}
 }
-function page(path,standalone,alias=false){
+function page(path,standalone,alias=false,hasArchiveProgress=false){
   const url=new URL(path,'https://www.laultimapieza.es'),dest=[],metrics=[],sessions=[],hooks={},documentHooks={};
   const location={href:url.href,search:url.search,origin:url.origin,assign:path=>dest.push(path),replace:path=>dest.push(path)};
   const history={state:null,pushed:0,backCount:0,pushState(state){this.pushed++;this.state=state;},back(){this.backCount++;this.state=null;}};
@@ -25,13 +25,13 @@ function page(path,standalone,alias=false){
   const document={body:{dataset:alias?{cintaAlias:''}:standalone?{vallejoStandalone:'true'}:{}},activeElement:null,
     getElementById:id=>id===(standalone?'cinta87-standalone-host':'scene-preview')?surface:id==='modal'?modal:null,
     createElement:t=>new Node(t),createTextNode:t=>t,querySelector:()=>null,addEventListener:(name,cb)=>{documentHooks[name]=cb;}};
-  const window={location,history,addEventListener:(n,cb)=>{hooks[n]=cb;},dispatchEvent(){},
+  const window={location,history,VallejoArchive:{hasProgress:()=>hasArchiveProgress},addEventListener:(n,cb)=>{hooks[n]=cb;},dispatchEvent(){},
     Cinta87Demo:{mount:(host,callbacks)=>{const s={host,callbacks,destroyed:false};sessions.push(s);return {destroy:()=>{s.destroyed=true;}};},
       hasProgress:()=>sessions.length>0,isComplete:()=>false}};
   runInNewContext(entry,{window,document,URL,location,history,CustomEvent:class{},fetch:async(_,init)=>{metrics.push(JSON.parse(init.body));}});
   return {url,window,documentHooks,hooks,surface,sessions,history,dest,metrics};
 }
-test('un enlace compartido abre la demo sin cuenta; conserva el caso al visitar el archivo y volver',()=>{
+test('un enlace compartido abre la demo sin cuenta y recupera la ficha al salir',()=>{
   const demo=page('/cinta-87.html?via=invitacion&caso=04',true);
   assert.equal(demo.sessions.length,1);
   const {callbacks}=demo.sessions[0];
@@ -41,12 +41,15 @@ test('un enlace compartido abre la demo sin cuenta; conserva el caso al visitar 
   checkbox.checked=true;checkbox.events.change();callbacks.onEvent('receipt');
   assert.deepEqual(demo.metrics.map(e=>e.event),['demo_start','demo_receipt']);
   checkbox.checked=false;checkbox.events.change();callbacks.onEvent('complete');assert.equal(demo.metrics.length,2);
-  callbacks.onArchive();assert.equal(demo.dest[0],'/cinta-87.html?archivo=1&caso=04&via=invitacion');
-  callbacks.onExit();assert.equal(demo.dest[1],'/valdemar/04/');
+  assert.equal(callbacks.onArchive,undefined);
+  callbacks.onExit();assert.equal(demo.dest[0],'/valdemar/04/');
   const independent=page('/cinta-87.html?caso=https://otra.example',true);independent.sessions[0].callbacks.onExit();
   assert.equal(independent.sessions[0].callbacks.exitLabel,'Volver al catálogo');
   assert.deepEqual(independent.dest,['/#casos']);
-  const archive=page(demo.dest[0],true);assert.equal(archive.sessions.length,0);
+  const obsolete='/cinta-87.html?archivo=1&caso=04&via=invitacion#estante';
+  const fresh=page(obsolete,true);
+  assert.deepEqual(fresh.dest,['https://www.laultimapieza.es/cinta-87.html?caso=04&via=invitacion']);
+  const archive=page(obsolete,true,false,true);assert.equal(archive.sessions.length,0);assert.deepEqual(archive.dest,[]);
 });
 test('la dirección anterior mantiene el caso, el archivo y el fragmento en la nueva dirección comercial',()=>{
   for(const suffix of ['', '?via=invitacion&caso=04', '?caso=29&archivo=1#estante']){
@@ -65,8 +68,8 @@ test('las 36 fichas de los otros tableros abren la demo y el botón de salida re
     const dest=html.match(/class="md-demo-link" href="([^"]+)"/)?.[1];
     assert.equal(dest,'/cinta-87.html?caso='+item.id,item.title);
     const demo=page(dest,true);
-    demo.sessions[0].callbacks.onArchive();demo.sessions[0].callbacks.onExit();
-    assert.deepEqual(demo.dest,['/cinta-87.html?archivo=1&caso='+item.id,'/'+hash]);
+    demo.sessions[0].callbacks.onExit();
+    assert.deepEqual(demo.dest,['/'+hash]);
   }
 });
 test('la portada abre la misma aventura en diálogo y Atrás/Adelante restaura el foco y la sesión',()=>{

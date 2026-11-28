@@ -87,7 +87,7 @@ test('La ayuda y la retirada del aviso están disponibles sin contratar',async()
 test('La cuota muestra cuatro juegos enlazados y tres bloques en la temporada',async()=>{
   const shop=await storefront(false);
   const guest=shop.page.ClubAccess.plans();
-  assert.deepEqual([...guest.matchAll(/<strong>(\d+)<span> \/ 12 juegos/g)].map(match=>Number(match[1])),[4,8,12]);
+  assert.deepEqual([...guest.matchAll(/class="pase-bloque-juegos">Juegos<\/span><strong>([\d–]+)<\/strong>/g)].map(match=>match[1]),['1–4','5–8','9–12']);
   assert.match(guest,/Cuatro juegos <em>cada mes/);
   assert.match(guest,/href="\/#tableros">Ver las temporadas/);
   for(const id of ['01','02','03','04'])assert.ok(guest.includes('href="/valdemar/'+id+'/"'));
@@ -248,9 +248,32 @@ test('Mi suscripción identifica la baja, los avisos y las facturas con acciones
   for(const [status,label] of [['scheduled','Baja programada'],['ended','Suscripción finalizada']]){
     shop.page.ClubAccess.set({...member,renewal:{status,effectiveAt:1805000000000}});
     const page=shop.page.ClubAccess.plans();
-    assert.ok(page.includes(label));assert.doesNotMatch(page,/data-renewal="review"/);
+    assert.ok(page.includes(label));assert.match(page,/data-renewal="review"/);
   }
   for(const account of [{hasCustomer:false},{...member,renewal:{status:'none'}},{role:'admin'}]){
-    shop.page.ClubAccess.set(account);assert.doesNotMatch(shop.page.ClubAccess.plans(),/data-renewal="review"/);
+    shop.page.ClubAccess.set(account);assert.match(shop.page.ClubAccess.plans(),/data-renewal="review"/);
   }
+});
+
+test('La FAQ lleva a la baja de cualquier cuenta y conserva la gestión tras iniciar sesión',async()=>{
+  const shop=await storefront(false);
+  assert.match(shop.page.ClubAccess.plans(),/Preguntas frecuentes<\/a> · <a href="\/#suscripcion\?seccion=baja">Dar de baja mi suscripción/);
+  shop.location.hash='#planes?seccion=preguntas';
+  const faq=shop.page.ClubAccess.plans();
+  const link=/<a href="\/(#suscripcion\?seccion=baja)">Dar de baja mi suscripción<\/a>/;
+  assert.match(faq.match(/<nav[^>]+aria-label="Gestiones de suscripción"[\s\S]*?<\/nav>/)[0],link);
+  const inside=faq.match(/<details><summary>¿Cómo gestiono o cancelo mi suscripción\?[\s\S]*?<\/details>/)[0];
+  shop.location.hash=inside.match(link)[1];
+  assert.match(shop.page.ClubAccess.plans(),/id="baja-titulo"[^>]*>Dar de baja mi suscripción/);
+  assert.match(shop.page.ClubAccess.plans(),/Inicia sesión con la cuenta/);
+  shop.login(1);
+  for(const role of ['admin','member']){
+    shop.page.ClubAccess.set({role,hasCustomer:false});
+    const view=shop.page.ClubAccess.plans();
+    assert.match(view,/No hay renovaciones que cancelar/);
+    assert.doesNotMatch(view,/Confirmar la baja|billing-portal/);
+  }
+  shop.page.ClubAccess.set({role:'admin'});
+  assert.match(shop.page.ClubAccess.plans(),/No hemos podido comprobar/);
+  assert.deepEqual(shop.requests,[]);
 });
