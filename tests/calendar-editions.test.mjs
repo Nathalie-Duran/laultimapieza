@@ -2,9 +2,34 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {calendarEditions} from '../calendar-challenges.mjs';
 import {playPublished} from '../published-challenges.mjs';
+import {worldSeasonAccess} from '../valdemar-wallet.mjs';
 
 const at=(value)=>Date.parse(value);
 const schedule=(date,kind)=>calendarEditions(at(date)).find(item=>item.schedule.kind===kind);
+test('el calendario exige acceso a la primera aventura y reconoce los accesos conservados',async()=>{
+  const now=at('2026-11-28T12:00Z'),day=86400000;
+  let data={active:false,cycles:[0,1,2].map(i=>({
+    id:'cuota-'+i,subscription:'historica',start:now-(4-i)*30*day,end:now-(3-i)*30*day
+  }))};
+  let access=worldSeasonAccess(data,{now});
+  assert.equal(access.seasons[0].finishAccess,true);
+  const store={getMemberData:async()=>structuredClone(data),saveMemberData:async(_,record)=>{data=record;}};
+  const billing={membership:async()=>({seasonAccess:access})};
+  const play=input=>playPublished(store,{uid:'cuenta',billing,calendar:true,now,input});
+  const [daily]=calendarEditions(now);
+  const answer={id:daily.id,revision:daily.revision,index:0,option:daily.answer};
+  assert.ok((await play()).items.some(item=>item.id===daily.id));
+  assert.equal((await play(answer)).correct,true);
+  for(const nextCase of [13,25,37]){
+    access={availableCases:[1,nextCase]};
+    assert.equal((await play()).items.find(item=>item.id===daily.id).solved,true);
+    await play(answer);
+  }
+  assert.equal(data.valdemarSeasonOne.paid.entries.length,1);
+  access={availableCases:[13,25,37]};
+  assert.deepEqual((await play()).items,[]);
+  await assert.rejects(play(answer),{status:404});
+});
 test('el título semanal permite buscar la valija sin revelar la sala de destino',()=>{
   const destinations=new Set();
   for(let week=0;week<53;week++){

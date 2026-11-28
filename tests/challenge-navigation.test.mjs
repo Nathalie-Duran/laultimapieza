@@ -74,11 +74,33 @@ test('las fichas enfocadas distinguen jugar, consultar la aventura o abrir la su
     ctx.location.hash='#desafios?mundo='+board+'&reto=99';
     assert.match(ctx.Colecciones.challenges(),/class="extras-list"/);
   }
-  ctx.location.hash='#desafios?seccion=calendario';
-  const calendar=ctx.Colecciones.challenges();
-  assert.match(calendar,/<h1>Calendario de juego<\/h1>/);
-  assert.match(calendar,/Desafío diario/);
-  assert.match(calendar,/Misión semanal/);
   ctx.location.hash='#desafios?seccion=sala';
   assert.match(ctx.Colecciones.challenges(),/<mansion-arcade>/);
+});
+
+test('el mismo calendario se descubre desde cinco cabeceras y conserva el origen al volver',async()=>{
+  const ctx=await gallery();
+  for(const origin of ['',...boards]){
+    const start=origin?galleryHref(origin):'/#desafios';
+    ctx.location.hash=start.slice(1);
+    const directory=ctx.Colecciones.challenges();
+    const links=[...directory.matchAll(/<a class="extras-calendar" href="([^"]+)"/g)];
+    assert.equal(links.length,1);
+    assert.match(directory.slice(0,directory.indexOf('</header>')),/Abrir el calendario/);
+    assert.equal(links[0][1],'/#desafios?seccion=calendario'+(origin?'&amp;mundo='+origin:''));
+    ctx.location.hash=links[0][1].slice(1).replace('&amp;','&');
+    const calendar=ctx.Colecciones.challenges();
+    assert.ok(calendar.includes('class="reto-regreso" href="'+start+'"'));
+    assert.match(calendar,/<h1>Calendario de retos<\/h1>/);
+    assert.match(calendar,/Los cuatro juegos comparten este calendario/);
+    assert.match(calendar,/acceso a «El secreto de los dos mundos»/);
+    assert.match(calendar,/Desafío diario/);
+    assert.match(calendar,/Misión semanal/);
+    assert.match(calendar,/Ver la suscripción/);
+    assert.match(calendar,/data-action="auth-login"/);
+  }
+  ctx.location.hash='#desafios?seccion=calendario&mundo=externo';
+  assert.match(ctx.Colecciones.challenges(),/class="reto-regreso" href="\/#desafios"/);
+  ctx.GameAccountBridge={isSignedIn:()=>true};
+  assert.doesNotMatch(ctx.Colecciones.challenges({availableCases:[1,13]}),/data-action="auth-login"/);
 });
