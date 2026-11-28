@@ -27,6 +27,7 @@ function callToPlay(s,m){
  if(p?.completed&&saved)return `<button class="button primary" data-action="archive-open" data-id="${esc(saved.id)}">Ver mi desenlace</button>`;
  if(!m.canPlay)return '<a class="button primary" href="#planes">Ver suscripción</a>';
  if(root.MonthlyAccess&&!root.MonthlyAccess.allowed(s,m))return root.MonthlyAccess.label(s,m)+'<a class="button" href="#planes">Ver mi suscripción</a>';
+ if(saved&&p.status==='needs_solution')return `<button class="button primary" data-action="resume" data-id="${esc(saved.id)}">Resolver el enigma pendiente</button>`;
  return saved?`<button class="button primary" data-action="resume" data-id="${esc(saved.id)}">Continuar · ${p.decisions}/${p.totalDecisions} decisiones</button>`:`<button class="button primary" data-action="setup" data-case="${esc(s.id)}">Empezar esta experiencia</button>`;
 }
 function seasonMeter(m){return `<div class="season-meter"><span><b>${count(m)}</b> de 12 piezas recuperadas</span><span>${Math.round(count(m)/12*100)}%</span><progress max="12" value="${count(m)}" aria-label="Experiencias completadas">${count(m)} de 12</progress></div>`;}

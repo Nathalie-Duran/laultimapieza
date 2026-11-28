@@ -247,6 +247,8 @@ details.archive-memories[open],
 .sidebar nav [data-nav][hidden], .mobile-nav [data-nav][hidden] { display: none !important; }
 .postal-visitor .topbar:has(.atlas-breadcrumb) { display:flex !important; min-block-size:44px; }
 .postal-visitor .topbar:has(.atlas-breadcrumb) .top-actions { display:none; }
+.page:has(> .topbar .atlas-breadcrumb) :is(.md-standalone-file > .md-catalog-links,.vd-detail > .vd-route-links) > a:first-child,
+.page:has(> .topbar .atlas-breadcrumb) .mansion-public > .vd-route-links:has(> a:only-child) { display:none; }
 .vd-list .vd-catalog-intro { max-width:50ch; margin: .3rem 0 .65rem; }
 @media (max-width: 780px) {
   .mobile-nav,
