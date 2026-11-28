@@ -20,7 +20,7 @@ export function cancellationSummary(data){
  return {status:history?.status==='active'?'active':'unknown'};
 }
 
-export async function subscriptionCancellation({stripe,secret,store,uid,confirmation,clock=Date.now}){
+export async function subscriptionCancellation({stripe,secret,store,uid,confirmation,clock=Date.now,onScheduled}){
  const change=confirmation!==undefined;
  const data=await store.getMemberData(uid,{readOnly:!change});
  if(!data.customer)return {status:'none'};
@@ -61,6 +61,7 @@ export async function subscriptionCancellation({stripe,secret,store,uid,confirma
    const effectiveAt=Math.min(cutoff||Infinity,finish||Infinity,end)*1000;
    const voluntary=marked||sub.cancel_at_period_end||sub.cancellation_details?.reason==='cancellation_requested';
    if(change&&voluntary&&!prior){data.renewalStop={subscription:sub.id,effectiveAt};await store.saveMemberData(uid,data);}
+   if(change&&voluntary)await onScheduled?.(data.customer,sub.id,effectiveAt);
    return {status:voluntary?'scheduled':'ending',effectiveAt};
  }
  if(end*1000<=now)throw unavailable();
@@ -84,5 +85,6 @@ export async function subscriptionCancellation({stripe,secret,store,uid,confirma
  data.subscription=sub.id;data.renewalStop={subscription:sub.id,effectiveAt:end*1000};
  if(schedule)data.scheduleConfigured=true;
  await store.saveMemberData(uid,data);
+ await onScheduled?.(data.customer,sub.id,end*1000);
  return {status:'scheduled',effectiveAt:end*1000};
 }

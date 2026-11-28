@@ -1,3 +1,4 @@
+import './web/motor-aventuras.js';
 import {createHash} from 'node:crypto';
 
 function estacion(huecos, huella, sinOrden = false) {
@@ -39,11 +40,11 @@ export function validaEstacion(temporada, id, intento) {
   if (!Number.isInteger(temporada) || !Object.hasOwn(salas, temporada) ||
       typeof id !== 'string' || !Object.hasOwn(salas[temporada], id)) return false;
   const regla = salas[temporada][id];
-  if (!Array.isArray(intento) || intento.length !== regla.huecos) return false;
-  for (const valor of intento) {
+  const valores=globalThis.MotorAventuras.canonizarPiezas(regla.sinOrden?'conjunto':'secuencia',intento,regla.huecos);
+  if (!valores) return false;
+  for (const valor of valores) {
     if (typeof valor !== 'string' || !/^[a-zA-Z0-9-]{1,32}$/.test(valor)) return false;
   }
-  const valores = regla.sinOrden ? [...intento].sort() : intento;
   const huella = createHash('sha256').update(JSON.stringify([temporada, id, valores])).digest('hex');
-  return huella === regla.huella;
+  return globalThis.MotorAventuras.evaluarPrueba({tipo:'seleccion',respuesta:regla.huella},huella);
 }

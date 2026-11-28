@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
+import './web/motor-aventuras.js';
 
 // Re-run the shipped, deterministic challenge handlers against a detached control
 // tree. The submitted input contains positions and option indices, never code,
@@ -86,15 +87,13 @@ function validEvent(move) {
 }
 
 export function verifyValdemarVictory(caseId, moves) {
-  if (!Number.isInteger(caseId) || caseId < 1 || caseId > 12
-      || !Array.isArray(moves) || moves.length < 1 || moves.length > 1024
-      || !moves.every(validEvent)) return false;
+  if (!Number.isInteger(caseId) || caseId < 1 || caseId > 12) return false;
 
   const host = new ControlTree('div');
   let won = false;
   games[caseId].mount(host, () => { won = true; });
-  for (const move of moves) {
-    if (won) return false;
+  function apply(move) {
+    if (!validEvent(move)) return false;
     const select = Array.isArray(move);
     const control = host.controls()[select ? move[0] : move];
     if (!control || control.disabled) return false;
@@ -110,6 +109,7 @@ export function verifyValdemarVictory(caseId, moves) {
       if (caseId === 4 && ['ref','actual'].includes(control.dataset.control)) return false;
       control.handlers.click();
     }
+    return true;
   }
-  return won;
+  return globalThis.MotorAventuras.reproducirPrueba(moves,{maxPasos:1024,aplicar:apply,resuelta:()=>won});
 }

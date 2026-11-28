@@ -109,7 +109,7 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           if(!origin||!origins.includes(origin))fail(403,'Confirma la baja desde tu perfil.');
           if(input?.confirm!==true||typeof input.confirmation!=='string'||input.confirmation.length>120)fail(400,'Revisa la fecha y confirma la baja.');
         }
-        return json(await withStore(store=>billing.cancellation(store,uid,method==='POST'?input.confirmation:undefined)));
+        return json(await withStore(store=>billing.cancellation(store,uid,method==='POST'?input.confirmation:undefined,user.emailVerified===true?user.email:undefined)));
       }
       if(path==='/api/me/play-notices'){
         if(user.emailVerified!==true)fail(403,'Confirma tu correo para gestionar estos avisos.');
@@ -159,6 +159,14 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
         const name=typeof input.name==='string' ? input.name.trim() : '';
         if(!name || name.length>32)fail(400,'Escribe el nombre de perfil completo.');
         return json(await withStore(store=>store.lookupManagementAccounts(name)));
+      }
+      if(path==='/api/admin/accounts/profile'){
+        if(!canManageSite(user)||!origin||!origins.includes(origin))fail(403,'La edición de perfiles está reservada a la propietaria.');
+        if(method!=='PUT')fail(405,'Método no permitido.');
+        const name=typeof input.name==='string'?input.name.trim():'';
+        if(!name||name.length>32||typeof input.previous!=='string'||!input.previous||input.previous.length>32||
+          typeof input.ref!=='string'||!/^[a-f0-9]{64}$/.test(input.ref)||typeof input.updatedAt!=='string'||input.updatedAt.length>30||!Number.isFinite(Date.parse(input.updatedAt)))fail(400,'Vuelve a buscar la ficha y escribe un nombre de hasta 32 caracteres.');
+        return json(await withStore(store=>store.renameSupportProfile(input.ref,input.previous,input.updatedAt,name)));
       }
       if(path==='/api/admin/challenges'){
         if(!canManageSite(user))fail(403,'Esta edición está reservada a la propietaria.');

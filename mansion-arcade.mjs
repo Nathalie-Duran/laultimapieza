@@ -1,9 +1,12 @@
+import './web/motor-aventuras.js';
 import { createHash } from 'node:crypto';
 import {trialEvent} from './aventuras-autor.mjs';
 import { ApiError } from './auth-provider.mjs';
 import { creditMansionArcade, withValdemarTransaction, worldSeasonAccess } from './valdemar-wallet.mjs';
 import { mansionArcadeCatalog as games } from './web/mansion-arcade-catalog.js';
 import {arcadePair,arcadePairView,playArcadePair} from './arcade-cooperation.mjs';
+
+const {evaluarPrueba,canonizarPiezas}=globalThis.MotorAventuras;
 
 function word(input) {
   if (typeof input !== 'string' || input.length > 50) return '';
@@ -17,44 +20,38 @@ const answerDigests = {
   espejo:'b42c06d066063f46853a54cbd484b5b70087ad1a459f37fc828592fd79c9fd98'
 };
 function matchesDigest(id,value) {
-  return createHash('sha256').update(JSON.stringify([id,value])).digest('hex') === answerDigests[id];
+  const huella=createHash('sha256').update(JSON.stringify([id,value])).digest('hex');
+  return evaluarPrueba({tipo:'seleccion',respuesta:answerDigests[id]},huella);
 }
 function matchingSelection(id,attempt) {
-  return Array.isArray(attempt) && attempt.length === 3 && attempt.every(Number.isInteger) &&
-    matchesDigest(id,[...attempt].sort((a,b) => a-b));
+  const piezas=canonizarPiezas('conjunto',attempt,3);
+  return piezas!==null && piezas.every(Number.isInteger) && matchesDigest(id,piezas);
 }
 function fitsClock(attempt) {
-  if (!Array.isArray(attempt) || attempt.length !== 3 || !attempt.every(teeth => [12,18,24,30,36].includes(teeth))) return false;
-  const [centre,pinion,exit] = attempt;
-  return centre === 2*12 && exit === 3*pinion && pinion+exit === 48;
+  if (!Array.isArray(attempt) || attempt.length!==3 || !attempt.every(n=>[12,18,24,30,36].includes(n))) return false;
+  const [centre,pinion,exit]=attempt;
+  if (pinion+exit!==48) return false;
+  const vueltas = (entrada,salida,giros) => evaluarPrueba({
+    tipo:'mecanica',mecanica:'engranajes',parametros:{vueltas:giros,pares:[[entrada,salida]]}
+  },1);
+  return vueltas(12,centre,2) && vueltas(pinion,exit,3);
 }
 
-// The four rotating joints are at grid positions 1, 4, 5 and 7. Directions run clockwise from north.
-const pipes = [[1], [1,2], [2], [], [0,1,3], [0,1], [1], [1,2], []];
-function restoresGarden(turns) {
-  if (!Array.isArray(turns) || turns.length !== 4 || !turns.every(n => Number.isInteger(n) && n >= 0 && n <= 3)) return false;
-  const rotations = [0,turns[0],0,0,turns[1],turns[2],0,turns[3],0];
-  const layout = pipes.map((ends,i) => ends.map(end => (end + rotations[i]) % 4));
-  const visited = new Set([0]), queue = [0];
-  for (const point of queue) {
-    for (const dir of layout[point]) {
-      const x = point % 3 + [0,1,0,-1][dir], y = Math.floor(point / 3) + [-1,0,1,0][dir];
-      const next = y * 3 + x;
-      if (x < 0 || x >= 3 || y < 0 || y >= 3 || !layout[next].includes((dir+2)%4)) return false;
-      if (!visited.has(next)) { visited.add(next); queue.push(next); }
-    }
+const garden = {
+  tipo:'mecanica',mecanica:'circuito-rotatorio',
+  parametros:{
+    tubos:[['E','ES','S'],['','NEO','NE'],['E','ES','']],
+    fuente:[0,0],moviles:[[1,0],[1,1],[2,1],[1,2]],salidas:[[2,0],[0,2]]
   }
-  return visited.has(2) && visited.has(6);
-}
-
+};
 const checks = {
-  archivo: attempt => Array.isArray(attempt) && attempt.length===2 && matchesDigest('archivo',attempt.map(word)),
+  archivo: attempt => canonizarPiezas('secuencia',attempt,2)!==null && matchesDigest('archivo',attempt.map(word)),
   relojero: fitsClock,
   museo: attempt => matchingSelection('museo',attempt),
-  cartas: attempt => Array.isArray(attempt?.order) && attempt.order.length === 4 &&
+  cartas: attempt => canonizarPiezas('secuencia',attempt?.order,4)!==null &&
     attempt.order.every(fragment => typeof fragment === 'string' && fragment.length === 1) &&
     matchesDigest('cartas',[attempt.order,word(attempt.message)]),
-  jardin: restoresGarden,
+  jardin: attempt => Array.isArray(attempt) && attempt.length===4 && attempt.every(Number.isInteger) && evaluarPrueba(garden,attempt),
   espejo: attempt => matchingSelection('espejo',attempt)
 };
 

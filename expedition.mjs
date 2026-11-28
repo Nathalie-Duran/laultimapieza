@@ -1,5 +1,6 @@
 import {getFieldInstrument, checkFieldInstrument} from './field-instruments.mjs';
 import {ApiError} from './auth-provider.mjs';
+import './web/motor-aventuras.js';
 
 const fail = (status, message) => { throw new ApiError(status, message, 'INVENTORY_ACTION'); };
 const allowedRole = (item, role) => !role || item.role == null || item.role === 'AB' ||
@@ -71,7 +72,7 @@ export function inspectInventory(story, record, role) {
 }
 
 function samePair(left, right) {
-  return left.length === 2 && right.length === 2 && left.every(value => right.includes(value));
+  return left.length===2&&right.length===2&&globalThis.MotorAventuras.evaluarPrueba({tipo:'conjunto',respuesta:left},right);
 }
 
 // A pair keeps its own finds. Keep each member's personal notebook when they part.
@@ -104,7 +105,7 @@ function exploreHotel(story, record, input) {
   if (input.operation === 'hotel-testimony') {
     const witness = hotel.witnesses.find(item => item.id === input.witness);
     if (!witness || !saved.objects.includes(object.id)) fail(409,'Recoge primero la prueba que quieres mostrar.');
-    if (witness.object !== object.id) fail(422,witness.miss || 'Esta prueba no aclara su declaración.');
+    if (!globalThis.MotorAventuras.evaluarPrueba({tipo:'seleccion',respuesta:witness.object},object.id)) fail(422,witness.miss || 'Esta prueba no aclara su declaración.');
     id = witness.id;
     collection = saved.witnesses;
   }

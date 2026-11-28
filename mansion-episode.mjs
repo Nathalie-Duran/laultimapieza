@@ -1,4 +1,5 @@
 import {ApiError} from './auth-provider.mjs';
+import './web/motor-aventuras.js';
 
 const A='A', B='B', both='both';
 export const MANSION_MISSION_REWARDS=Object.freeze({nox:1,diario:1,jardin:1,puerta:2});
@@ -101,11 +102,30 @@ export function createMansionRules(edition) {
     if (effect.give && !s.items.includes(effect.give)) s.items.push(effect.give);
   }
   const plain = x => x!==null && typeof x==='object' && !Array.isArray(x);
-  const normal = value => String(value).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
-  function matches(answers,solution) {
-    if (!plain(answers) || Object.keys(answers).length!==Object.keys(solution).length) return false;
-    return Object.entries(solution).every(([id,value]) => Object.hasOwn(answers,id) &&
-      typeof answers[id]==='string' && answers[id].length<=100 && normal(answers[id])===normal(value));
+  function radioCall(level) {
+    const signal=level?.evidence?.find(entry=>typeof entry.signal==='string')?.signal;
+    if(!signal||!Object.hasOwn(level.solution,'llamada')||Object.keys(level.solution).length!==1)return null;
+    const pulses=signal.split('/').map(group=>group.trim());
+    const key={};
+    for(const entry of level.evidence){
+      for(const [,letter,pattern] of (entry.text||'').matchAll(/\b([A-ZÑ])\s+([·–—-]+)(?=[;,.\s]|$)/gu)){
+        key[pattern.replace(/·/g,'.').replace(/[–—]/g,'-')]=letter;
+      }
+    }
+    if(!pulses.every(pulse=>Object.hasOwn(key,pulse)))return null;
+    const rule={tipo:'mecanica',mecanica:'morse',parametros:{pulsos:pulses,tabla:key}};
+    // Older or custom editions may use a different alphabet and keep their authored reading.
+    return globalThis.MotorAventuras.evaluarPrueba(rule,level.solution.llamada)?rule:null;
+  }
+  function matches(answers,solution,level) {
+    if(!plain(answers)||Object.values(answers).some(value=>typeof value!=='string'||value.length>100))return false;
+    const engine=globalThis.MotorAventuras;
+    const radio=radioCall(level);
+    if(radio){
+      return engine.intentoValido({tipo:'campos',campos:['llamada']},answers)&&
+        engine.evaluarPrueba(radio,answers.llamada.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+    }
+    return engine.evaluarPrueba({tipo:'campos',respuesta:solution,normalizacion:'texto'},answers);
   }
   function finishPanel(record,s,role,answers) {
     const panel=answers?.panel;
@@ -148,7 +168,7 @@ export function createMansionRules(edition) {
     }
     if (s.current===15) return finishPanel(record,s,role,input.answers);
     if (!(level.requires || []).every(key=>hasAction(s,key))) return unchanged('Aún hay una interacción pendiente en la sala.');
-    if (!matches(input.answers || {},level.solution)) return unchanged('El mecanismo no responde. Contrasta otra vez las pistas de las dos casas.');
+    if (!matches(input.answers || {},level.solution,level)) return unchanged('El mecanismo no responde. Contrasta otra vez las pistas de las dos casas.');
     const stageCompleted=s.current;
     updateItems(s,level.onWin);
     s.current++;

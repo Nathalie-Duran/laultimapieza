@@ -45,4 +45,18 @@ async function checkRefs(value) {
 }
 await checkRefs(context.MEDIA_PLAN);
 await checkRefs(context.SEASON_MEDIA);
+// Direct links must open the same public case file before and after JavaScript starts.
+context.window=context;
+for(const file of ['salas-mundos-catalogo.js','retos-temporada.js','valdemar-catalog.js','colecciones.js']) {
+  runInContext(await readFile(new URL(file,publicDir),'utf8'),context,{timeout:2000});
+}
+for(const item of context.ValdemarCatalog.items.slice(0,4)){
+  const url=context.ValdemarCatalog.path(item.id);
+  const html=await readFile(new URL('.'+url+'index.html',publicDir),'utf8');
+  const main=html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/)?.[1];
+  assert.ok(main?.includes(context.ValdemarCatalog.detail(item.id,{})),'Ficha pública incompleta: '+url);
+  assert.equal((main.match(/<h1\b/g)||[]).length,1,'La ficha necesita un título único: '+url);
+  assert.ok(html.includes('<title>'+item.title+' · Ficha · Código Valdemar · La Última Pieza</title>'),url);
+  assert.ok((await stat(new URL('.'+item.image,publicDir))).size>0,'Falta la foto de '+url);
+}
 console.log(`Verificados: ${context.STORIES.length} historias, ${endings} finales y ${media} referencias multimedia.`);

@@ -23,7 +23,19 @@ function invitationMessage({caseId, inviterName, caseTitle}) {
 }
 export function messageTemplate(type,data){
   if (type === 'case_invitation') return invitationMessage(data);
-  const optionalSubjects={case_finished:'Has terminado una aventura',board_finished:'Has completado un tablero y su reliquia',
+  if(type==='payment_failed'||type==='subscription_cancelled'){
+    const failed=type==='payment_failed';
+    const subject=failed?'Hay un pago pendiente en tu suscripción':'Has cancelado la renovación de tu suscripción';
+    const lines=failed?['El cobro de una cuota de La Última Pieza ha fallado. El nuevo bloque de cuatro juegos se activa cuando se confirma el pago.',
+      'Abre Suscripción para revisar el pago y el método de cobro. Tus avances y los bloques que ya has abonado siguen registrados.']:
+      ['La renovación de tu suscripción a La Última Pieza está cancelada.',
+        ...(Number.isSafeInteger(data.effectiveAt)?['La fecha efectiva de la baja es el '+new Date(data.effectiveAt).toLocaleDateString('es-ES',{timeZone:'Europe/Madrid'})+'.']:[]),
+        'Si vuelves a suscribirte, recuperarás tus avances y se tendrán en cuenta los bloques que ya has pagado.'];
+    const url='https://www.laultimapieza.es/#suscripcion';
+    return {subject,text:[subject,...lines,'Ver mi suscripción',url].join('\n\n'),
+      html:'<!doctype html><html lang="es"><body><h1>'+esc(subject)+'</h1>'+lines.map(line=>'<p>'+esc(line)+'</p>').join('')+'<p><a href="'+url+'">Ver mi suscripción</a></p></body></html>'};
+  }
+  const optionalSubjects={case_finished:'Has terminado una aventura',board_finished:'Has completado una temporada',
     pair_confirmed:'La partida en pareja está confirmada',new_challenge:'Hay un nuevo desafío en el tablero',
     inactivity:'Tu investigación te espera'};
   if(Object.hasOwn(optionalSubjects,type)){
@@ -56,7 +68,7 @@ export function messageTemplate(type,data){
       ? `Hemos confirmado el pago de ${new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(data.amountPaid/100)} de tu cuota mensual.`
       : 'Hemos confirmado el pago de tu cuota mensual.',
     journey
-      ? 'Tu pase de los cuatro tableros cubre cuatro juegos nuevos con esta cuota. Los bloques abonados se acumulan hasta que completes los doce casos del tablero anterior. Las cuotas terminan al abonar el último bloque de los 48 juegos.'
+      ? 'Esta cuota da acceso a cuatro juegos nuevos. Si aún estás jugando la temporada anterior, el bloque abonado queda reservado hasta que la completes. Las cuotas terminan al abonar el último bloque de los 48 juegos.'
       : 'Tu pase de temporada cubre cuatro juegos de tu tablero con esta cuota. Los cobros terminan al completar los bloques de tu pase contratado.',
     ...(data.renewal ? (journey?['Esta renovación incluye una llave para pedir ayuda durante la investigación.']:[])
       : ['Tu alta incluye una llave de bienvenida para pedir ayuda durante la investigación.']),
@@ -73,6 +85,14 @@ export function createMailer(env=process.env,fetcher=fetch){
     try{for(let i=0;i<10;i++){
       const job=await withStore(store=>store.claimMail());if(!job)break;
       try{
+        if(job.type==='payment_failed'){
+          const recovered=await withStore(async store=>{
+            const account=await store.getMemberData(job.data.uid,{readOnly:true});
+            if(!account.cycles?.some(cycle=>cycle.id===job.data.invoice))return false;
+            await store.cancelMail(job.id);return true;
+          });
+          if(recovered)continue;
+        }
         const consent=!Object.hasOwn(noticeTypes,job.type) || await withStore(async store=>{
           if(await store.noticeStillWanted(job))return true;
           await store.cancelMail(job.id);

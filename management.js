@@ -108,7 +108,7 @@
   function mountEditors(){
     root.EditorialChallenges?.adminMount();
     if(root.customElements&&!root.customElements.get('author-workshop')){
-      import('/gestion-aventuras.js').catch(()=>{const panel=host()?.querySelector('author-workshop');if(panel)panel.textContent='No se ha podido abrir el taller. Recarga Gestión para reintentar.';});
+      import('/gestion-aventuras.js?v=6623af45d472').catch(()=>{const panel=host()?.querySelector('author-workshop');if(panel)panel.textContent='No se ha podido abrir el taller. Recarga Gestión para reintentar.';});
     }
   }
   function summary(data) {
@@ -354,11 +354,11 @@
     return `<section class="mg-panel mg-block"><h2>Consultar una cuenta</h2>
       <form class="mg-review" data-mg-account><label>Nombre de perfil completo<input name="name" required maxlength="32" autocomplete="off"></label>
       <div><button type="submit" class="mg-refresh">Buscar perfil</button></div>
-      <p role="status" class="mg-note" aria-live="polite"></p><div data-mg-results></div></form></section>`;
+      <p role="status" class="mg-note" aria-live="polite"></p></form><div data-mg-results></div></section>`;
   }
   async function lookupAccounts(form) {
     if (!permitted() || form.dataset.searching) return;
-    const submit = form.querySelector('button'), status = form.querySelector('[role="status"]'), results = form.querySelector('[data-mg-results]');
+    const submit = form.querySelector('button'), status = form.querySelector('[role="status"]'), results = form.parentElement.querySelector('[data-mg-results]');
     submit.disabled = true;
     form.dataset.searching = '1';
     results.replaceChildren();
@@ -371,13 +371,34 @@
       const seasons = report?.seasonActivity?.seasons || [];
       results.innerHTML = data.accounts.map(account => `<article><h3>${escape(account.name)}</h3><p>Alta el ${dateText(account.registeredAt)} · ${account.paidPeriod ? 'Con cuota vigente' : 'Sin cuota vigente'} según el último pago registrado.</p>
         <div class="mg-table-wrap" tabindex="0" role="region" aria-label="Progreso por tablero de ${escape(account.name)}"><table><caption class="mg-sr">Bloques y casos de ${escape(account.name)}</caption><thead><tr><th scope="col">Tablero</th><th scope="col">Bloques pagados</th><th scope="col">Casos disponibles</th><th scope="col">Casos resueltos</th></tr></thead><tbody>${account.boards.map(board=>
-          `<tr><th scope="row">${escape(seasons[board.number-1]?.name || 'Tablero '+board.number)}</th><td>${format(board.blocks)}</td><td>${format(board.available)}</td><td>${format(board.completed)}</td></tr>`).join('')}</tbody></table></div></article>`).join('');
+          `<tr><th scope="row">${escape(seasons[board.number-1]?.name || 'Tablero '+board.number)}</th><td>${format(board.blocks)}</td><td>${format(board.available)}</td><td>${format(board.completed)}</td></tr>`).join('')}</tbody></table></div>
+        ${account.supportRef?`<details><summary>Editar nombre público</summary><form class="mg-review" data-mg-profile-name data-ref="${escape(account.supportRef)}" data-previous="${escape(account.name)}" data-version="${escape(account.updatedAt)}">
+        <label>Nombre en el perfil<input name="name" value="${escape(account.name)}" maxlength="32" required></label>
+        <button class="mg-refresh" type="submit">Guardar nombre</button><p role="status" aria-live="polite"></p></form></details>`:''}</article>`).join('');
     } catch (error) {
       if (permitted() && form.isConnected) status.textContent = error.message || 'No se ha podido consultar el perfil.';
     } finally {
       delete form.dataset.searching;
       submit.disabled = false;
     }
+  }
+  async function renameProfile(form){
+    if(!permitted()||form.dataset.saving)return;
+    const field=form.elements.name,status=form.querySelector('[role=status]'),button=form.querySelector('button');
+    const name=field.value.trim();
+    if(!name){status.textContent='Escribe el nombre que debe aparecer en el perfil.';field.focus();return;}
+    if(name===form.dataset.previous){status.textContent='El nombre ya está guardado.';return;}
+    form.dataset.saving='1';button.disabled=true;field.readOnly=true;
+    try{
+      const result=await root.GameAccountBridge.request('/api/admin/accounts/profile',{ref:form.dataset.ref,previous:form.dataset.previous,updatedAt:form.dataset.version,name},'PUT');
+      if(!permitted()||!form.isConnected)return;
+      field.value=result.name;form.dataset.previous=result.name;form.dataset.version=result.updatedAt;
+      const article=form.closest('article');
+      article.querySelector('h3').textContent=result.name;
+      article.querySelector('[role=region]').setAttribute('aria-label','Progreso por tablero de '+result.name);
+      status.textContent='Nombre público actualizado.';
+    }catch(error){if(form.isConnected)status.textContent=error.message||'No se pudo guardar el nombre.';}
+    finally{delete form.dataset.saving;button.disabled=false;field.readOnly=false;}
   }
   function caseName(id) {
     const list = id <= 12 ? root.ValdemarCatalog?.items : root.MundosCatalogo;
@@ -487,11 +508,15 @@
     const title='<h2>Seguimiento de pruebas</h2>';
     if(!rows?.length)return '<section class="mg-panel">'+title+'<p>Todavía no se han registrado intentos de las nuevas mediciones en este periodo.</p></section>';
     const cell=v=>format(Number(v));
+    const titleOf=r=>r.game.startsWith('juego/')?caseName(Number(r.game.slice(6))):r.game.slice(6);
+    const stalled=rows.filter(r=>Number(r.inactive)>0&&Number(r.started)>0)
+      .sort((a,b)=>Number(b.inactive)-Number(a.inactive)||b.inactive/b.started-a.inactive/a.started).slice(0,3);
+    const signal=stalled.length?'<h3>Pruebas que conviene revisar</h3><ol>'+stalled.map(r=>'<li>'+escape(titleOf(r))+' · '+escape(r.trial)+' — '+cell(r.inactive)+' de '+cell(r.started)+' partidas siguen sin resolver tras 14 días de inactividad.</li>').join('')+'</ol>':'';
     const body=rows.map(r=>{
-      const game=r.game.startsWith('juego/')?caseName(Number(r.game.slice(6))):r.game.slice(6);
+      const game=titleOf(r);
       return '<tr><th scope="row">'+escape(game)+'</th><td>'+escape(r.trial)+'</td><td>'+cell(r.started)+'</td><td>'+cell(r.solved)+'</td><td>'+cell(r.inactive)+'</td><td>'+averageElapsed({completed:Number(r.solved),elapsedMs:Number(r.elapsedMs)})+'</td></tr>';
     }).join('');
-    return '<section class="mg-panel mg-block">'+title+'<p>Intentos iniciados en el periodo. Una partida sin resolver lleva 14 días inactiva si no ha enviado otra respuesta. El tiempo transcurrido entre el primer intento y la solución incluye pausas.</p><div class="mg-table-wrap" tabindex="0"><table><thead><tr><th>Juego</th><th>Prueba</th><th>Partidas que la intentaron</th><th>Resueltas</th><th>Inactivas 14 días</th><th>Tiempo medio hasta resolver</th></tr></thead><tbody>'+body+'</tbody></table></div></section>';
+    return '<section class="mg-panel mg-block">'+title+signal+'<p>Intentos iniciados en el periodo. Una partida sin resolver lleva 14 días inactiva si no ha enviado otra respuesta. El tiempo transcurrido entre el primer intento y la solución incluye pausas.</p><div class="mg-table-wrap" tabindex="0"><table><thead><tr><th>Juego</th><th>Prueba</th><th>Partidas que la intentaron</th><th>Resueltas</th><th>Inactivas 14 días</th><th>Tiempo medio hasta resolver</th></tr></thead><tbody>'+body+'</tbody></table></div></section>';
   }
   function rewardReport(data){
     if(!data)return '';
@@ -618,6 +643,7 @@
         el.querySelector('#mg-tab-'+id).focus();
       });
       el.addEventListener('submit', event => {
+        if(event.target.matches('[data-mg-profile-name]')){event.preventDefault();renameProfile(event.target);return;}
         if (event.target.matches('[data-mg-account]')) {
           event.preventDefault();
           lookupAccounts(event.target);

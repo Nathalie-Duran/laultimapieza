@@ -68,7 +68,7 @@ const valdemarPaths = [];
 for (const item of ctx.ValdemarCatalog.items) {
   const path = ctx.ValdemarCatalog.path(item.id);
   const directory = new URL('.'+path, publicDir);
-  const title = item.title+' · Código Valdemar · La Última Pieza';
+  const title = item.title+(item.id<=4?' · Ficha':'')+' · Código Valdemar · La Última Pieza';
   const metadata = head(title, item.question, base+path, base+item.image)
     .replace(/<meta property="og:image:(?:width|height)"[^>]*>/g, '');
   const html = source

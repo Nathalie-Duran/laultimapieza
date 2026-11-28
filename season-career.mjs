@@ -24,23 +24,24 @@ const ranks=[{name:'Aprendiz',level:1},{name:'Agente de campo',level:4},{name:'E
 const roomMedals=['Las seis mesas de Ada','Las seis mesas del camarote','Las seis mesas del club','Las seis mesas del escarabajo'];
 
 function extraVictories(wallet) {
-  const summary={byCase:new Map(),rooms:[0,0,0,0],editions:0,basic:0,advanced:0,cooperative:0};
+  const summary={byCase:new Map(),rooms:[0,0,0,0],editions:0,basic:0,advanced:0,secret:0,cooperative:0};
   const seen=new Set();
   for(const row of wallet?.entries||[]){
     if(!row || !['seasonArcade','mansionArcade','challenge','calendarChallenge'].includes(row.kind))continue;
-    if(![1,2].includes(row.amount)||!Number.isInteger(row.caseId)||row.caseId<1||row.caseId>48||typeof row.id!=='string'||!row.id)continue;
+    const room=row.kind==='mansionArcade'||row.kind==='seasonArcade';
+    if(!(room?[1,2]:[1,2,3]).includes(row.amount)||!Number.isInteger(row.caseId)||row.caseId<1||row.caseId>48||typeof row.id!=='string'||!row.id)continue;
     const key=row.kind+'/'+row.id;
     if(seen.has(key))continue;
     seen.add(key);
-    const caseId=row.caseId,room=row.kind==='mansionArcade'||row.kind==='seasonArcade';
-    const difficulty=row.amount===2?'advanced':'basic';
+    const caseId=row.caseId;
+    const difficulty=!room && row.secret===true?'secret':row.amount>1?'advanced':'basic';
     if(room)summary.rooms[Math.floor((caseId-1)/12)]++;
     else summary.editions++;
     summary[difficulty]++;
     if(row.cooperative===true)summary.cooperative++;
     // Calendar editions and independent season rooms use the case only to gate access.
     if(row.kind==='calendarChallenge'||row.kind==='seasonArcade')continue;
-    const totals=summary.byCase.get(caseId)||{room:0,editions:0,basic:0,advanced:0,cooperative:0};
+    const totals=summary.byCase.get(caseId)||{room:0,editions:0,basic:0,advanced:0,secret:0,cooperative:0};
     totals[room?'room':'editions']++;
     totals[difficulty]++;
     if(row.cooperative===true)totals.cooperative++;
@@ -63,7 +64,7 @@ export function seasonCareer(data, scope) {
   const {rooms,editions,basic:basicExtra,advanced:advancedExtra}=extras;
   const roomWins=rooms.reduce((sum,count)=>sum+count,0);
   let tools=0,missionFinds=0;
-  let secrets = scope === 'paid' && data.seasonEnding ? 1 : 0;
+  let secrets = extras.secret + Number(scope === 'paid' && Boolean(data.seasonEnding));
   let stages = 0, complex = 0, deductions = 0, side = 0, testimony = 0, shared = 0, allStages = 0;
   for (let id = 1; id <= pieces.length * 12; id++) {
     const record = records[id] || {};
@@ -108,7 +109,7 @@ export function seasonCareer(data, scope) {
       if(flags?.solo!==true && flags?.cooperative!==true)modes.unknown++;
     }
     if(record.choice){
-      const missionCount=quests.size+ordinaryMission;
+      const missionCount=quests.size+ordinaryMission+(extra?.secret||0);
       const stageCount=count+mansionCount;
       const complexCount=complex-oldComplex;
       const won=wins.has(id), awake=mansion?.completed===true;
@@ -166,7 +167,7 @@ export function seasonCareer(data, scope) {
     skills, rewards, pieces, caseResults, achievements: [
       {name: 'Primera deducción', goal: 1, progress: deductions, unit: 'deducciones'},
       {name: 'El despertar de Valdemar', goal:1, progress:awakened?1:0, unit:'episodios'},
-      {name: 'Investigación en equipo', goal: 1, progress: shared, unit: 'etapas compartidas'},
+      {name: 'Investigación en equipo', goal: 1, progress: shared+extras.cooperative, unit: 'pruebas compartidas'},
       {name: 'Especialista en retos', goal: 4, progress: side, unit: 'retos paralelos'},
       {name: 'Colección completa', goal: 4, progress: boards, unit: 'reliquias'},
       {name:'Primera edición resuelta',goal:1,progress:editions,unit:'ediciones'},

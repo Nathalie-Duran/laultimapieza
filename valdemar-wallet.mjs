@@ -1,6 +1,7 @@
 import { ApiError } from './auth-provider.mjs';
 import { seasonBlocks, SEASON_NAMES } from './progression.mjs';
 import { hasCaseActivity,recordCaseActivity } from './season-activity.mjs';
+import { mansionArcadeCatalog } from './web/mansion-arcade-catalog.js';
 
 export const WORLD_CASE_COUNT = SEASON_NAMES.length*12;
 const CASES_PER_BLOCK = 4;
@@ -123,9 +124,18 @@ export function purchaseMansionHint(data,scope,stage,tier,quotedCost) {
   return true;
 }
 
-export function creditPublishedChallenge(data,scope,challengeId,caseId,advanced=false,calendar=false) {
+export function creditPublishedChallenge(data,scope,challengeId,caseId,prize=1,calendar=false,title='',rewardType) {
   if(typeof challengeId!=='string'||!challengeId||!Number.isInteger(caseId)||caseId<1||caseId>WORLD_CASE_COUNT)throw new Error('Reto publicado no válido.');
-  return addEntry(walletRecord(data,scope==='editorial'),calendar?'calendarChallenge':'challenge',challengeId,advanced?2:1,caseId);
+  const amount=typeof prize==='boolean'?(prize?2:1):prize;
+  if(![1,2,3].includes(amount))throw new Error('Premio de reto no válido.');
+  const wallet=walletRecord(data,scope==='editorial');
+  const earned=addEntry(wallet,calendar?'calendarChallenge':'challenge',challengeId,amount,caseId);
+  if(earned){
+    const receipt=wallet.entries.at(-1);
+    if(typeof title==='string' && title.trim())receipt.title=title.trim().slice(0,90);
+    if(rewardType==='mission')receipt.secret=true;
+  }
+  return earned;
 }
 
 // The caller owns the locked member record and commits the classic and Valdemar reset together.
@@ -214,7 +224,13 @@ function snapshot(wallet) {
     second: [...wallet.second],
     solution:[...(wallet.solution||[])],
     legacyEnvelopes:[...wallet.legacyEnvelopes],
-    history:entries.map(({kind,caseId,amount,at})=>({kind,caseId,amount,at}))
+    history:entries.map(({kind,id,caseId,amount,at,title})=>{
+      const entry={kind,caseId,amount,at};
+      if(kind==='mansionArcade')title=mansionArcadeCatalog.find(game=>game.id===id)?.title;
+      if(['challenge','calendarChallenge','mansionArcade'].includes(kind) && title)entry.activity=title;
+      if(kind==='seasonArcade' && typeof id==='string' && id.startsWith(caseId+'/'))entry.station=id.slice(String(caseId).length+1);
+      return entry;
+    })
   };
 }
 
