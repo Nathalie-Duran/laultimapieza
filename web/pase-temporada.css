@@ -388,9 +388,14 @@
 .pase-condiciones h2{font:400 clamp(1.6rem,2.8vw,2.6rem)/1.14 var(--pase-display);margin:0}
 .pase-condiciones a{color:#2c483d;text-underline-offset:.2em}
 .pase-condiciones .pase-pareja{margin-bottom:0}
+.pase-demo-espera{display:inline-flex;align-items:center;min-height:44px;margin-top:.9rem;text-underline-offset:.19em}
+.pase-bloques li>small{color:#4d402b}
+.pase-bloques li>strong{font-size:clamp(1.6rem,4vw,3rem);white-space:nowrap}
 .pase-login{background:none;color:inherit;border:0;font:inherit;padding:.65rem 0;text-decoration:underline;text-underline-offset:.2em;cursor:pointer}
 .renewal-controls{margin:1rem 0;padding-block:1rem;border-block:1px solid #8a8779}
 .renewal-controls h3{font:650 1.13rem/1.35 var(--sans,system-ui,sans-serif);color:inherit;margin:0 0 .35rem}
+.renewal-controls #baja-titulo{scroll-margin-block-start:8rem}
+.renewal-status h4{font:650 1rem/1.4 var(--sans,system-ui,sans-serif);margin:.7rem 0 .25rem}
 .renewal-controls p{line-height:1.55;margin:.45rem 0}
 .renewal-controls [hidden]{display:none!important}
 .renewal-buttons{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1rem}

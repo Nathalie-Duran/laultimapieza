@@ -120,7 +120,7 @@
         : story?.season === 1 && !solved ? '¡Has llegado al desenlace! Revisa el enigma final para recuperar la pieza de este caso.'
         : '¡Has llegado al desenlace! Esta investigación ya forma parte de tu archivo.';
       actions = control('resume', session.id, 'Ver mi desenlace', true, context) +
-        (pieces === 12 ? '<a class="button" href="#mapa-clasico">Ver mis doce piezas</a>' : browse('Explorar los juegos', false));
+        (pieces === 12 ? '<a class="button" href="#archivo?seccion=piezas">Ver mis doce piezas</a>' : browse('Explorar los juegos', false));
     } else {
       kicker = sessionState(session);
       heading = title(session, stories);
@@ -145,11 +145,11 @@
       return '<li class="' + (earned ? 'is-earned' : at === next ? 'is-next' : 'is-pending') +
         '"><span>' + at + ' piezas</span><strong>' + name + '</strong><small>' + state + '</small></li>';
     }).join('');
-    return '<section class="pn-season" aria-labelledby="pn-season-title"><div class="pn-section-heading"><h2 id="pn-season-title">Mi plano del archivo clásico</h2><span class="pn-count">' +
-      countLabel + '</span></div>' + (partial && !pieces ? '' : '<progress class="pn-meter" aria-label="Piezas del archivo clásico confirmadas" max="12" value="' +
+    return '<section class="pn-season" aria-labelledby="pn-season-title"><div class="pn-section-heading"><h2 id="pn-season-title">Las piezas de mis partidas</h2><span class="pn-count">' +
+      countLabel + '</span></div>' + (partial && !pieces ? '' : '<progress class="pn-meter" aria-label="Piezas recuperadas" max="12" value="' +
       pieces + '">' + pieces + ' de 12</progress>') + (partial ? '<p>Falta confirmar la resolución de alguna partida guardada.</p>' : '') +
-      '<p>Terminar un caso del archivo clásico y contrastar su enigma aporta una pieza a este plano. Los casos adicionales se guardan en tu archivo sin sumar piezas.</p>' +
-      '<ol class="pn-milestones" aria-label="Hitos de la temporada">' + labels + '</ol><a class="text-link" href="#mapa-clasico">Consultar el plano clásico</a></section>';
+      '<p>Cada enigma resuelto en Las doce noches añade una letra al sello.</p>' +
+      '<ol class="pn-milestones" aria-label="Hitos de la temporada">' + labels + '</ol><a class="text-link" href="#archivo?seccion=piezas">Ver mis piezas</a></section>';
   }
 
   function creationTime(session) {
@@ -230,11 +230,11 @@
     const locked=owned.some(session=>!model.mayOpen(session));
     const seasonList = seasons ? '<season-archive'+(owned.length?' data-with-classic':'')+(ongoing.some(model.mayOpen)?' data-classic-ongoing':'')+
       (locked?' data-classic-locked':'')+'></season-archive>' : '';
-    const classic = owned.length ? (seasons?'<h2 class="pn-classic-heading">Archivo clásico</h2>':'')+groups :
+    const classic = owned.length ? groups :
       seasons ? '' : '<p class="pn-empty">Todavía no tienes partidas guardadas.</p><div class="pn-actions">'+firstCase+'</div>';
     return '<section class="pn-dashboard pn-archive" aria-labelledby="pn-sessions-title"><div class="pn-section-heading"><h1 id="pn-sessions-title">Mis partidas</h1></div>' +
       seasonList + classic + (locked?link('planes','Consultar mi pase',false):'') +
-      (input.online && input.userId ? '<button type="button" class="text-button" data-action="join">Introducir un código del archivo clásico</button>' : '') + '</section>';
+      (input.online && input.userId ? '<button type="button" class="text-button" data-action="join">Unirme con un código de partida</button>' : '') + '</section>';
   }
 
   function careerPanel(career, achievementsOnly = false) {

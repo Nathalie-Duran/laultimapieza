@@ -17,5 +17,5 @@
   function account(){
     return '<section class="account-card"><h2>Mi suscripción</h2><p>'+ (access?'Tus juegos están disponibles en tu cuenta.':'Puedes consultar los juegos de cada cuota y la disponibilidad antes de suscribirte.')+'</p>'+plansLink+'</section>';
   }
-  root.ClubAccess={price,salesState:'unknown',home,plans,gate,banner(){return '';},account,get canPlay(){return access;},set(value){access=value?.canPlay===true;}};
+  root.ClubAccess={price,salesState:'unknown',offerAction:{href:'/#planes',label:'Ver la suscripción'},home,plans,gate,banner(){return '';},account,get canPlay(){return access;},set(value){access=value?.canPlay===true;}};
 })(window);
