@@ -227,7 +227,7 @@
       if(!state)return;
       const mode=frame.dataset.playMode||'pending',paper=frame.dataset.playPaper;
       const filter=paper==='A'||paper==='B'?paper:null;
-      const entering=lastMode==='pending'&&(mode==='solo'||mode==='duo')&&readingTable;
+      const entering=(lastMode==null||lastMode==='pending')&&(mode==='solo'||mode==='duo')&&readingTable;
       if(lastMode!==mode){
         const active=setup.contains(document.activeElement);
         setup.open=mode==='pending';
