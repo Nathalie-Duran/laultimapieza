@@ -40,7 +40,7 @@ if(typeof document!=='undefined')document.addEventListener('submit',async event=
    const next=document.querySelector('.waiting-interest h3');if(next){next.tabIndex=-1;next.focus();}
  }catch(error){status.textContent=error.message||'No hay conexión. Vuelve a intentarlo.';button.disabled=false;}
 });
-const seasonNames=['Valdemar','El Tablero de Ámbar','Umbravía','La Necrópolis del Sol Velado'];
+const seasonNames=['Código Valdemar','La ruta prohibida','El tercer jugador','La ira de Ra'];
 const seasonRoutes=['casos','expedicion','umbravia','necropolis'];
 const boardArt=['valdemar-cartografia.webp','ambar-tallado.webp','umbravia-farol.webp','necropolis-descenso.webp'];
 function passMap(number,held){
@@ -62,8 +62,8 @@ function partnerOfferCard(signed,qualified){
 function questions(){
  return `<section class="pase-preguntas" aria-labelledby="pase-faq"><h1 id="pase-faq" tabindex="-1">Preguntas frecuentes</h1>
    <h2>Cuenta y acceso</h2>
-   <details><summary>¿Puedo probar una historia antes de suscribirme?</summary><p>En Clínica Vallejo recibes una caja de archivo. Escucha la cinta, examina la ficha y cruza las pistas con el registro. Puedes probarla sin cuenta. <a href="/vallejo.html">Abrir la demo</a></p></details>
-   <details><summary>¿Crear una cuenta es gratis?</summary><p>Sí. Puedes registrarte sin tarjeta y elegir tu nombre de juego. La demo de Clínica Vallejo también está abierta sin registro. <a href="/#perfil">Abrir mi perfil</a></p></details>
+   <details><summary>¿Puedo probar una historia antes de suscribirme?</summary><p>En La cinta 87 investigas la última emisión de Radio Valdemar. Escucha la señal o lee su transcripción y contrástala con las fichas del archivo. Puedes probarla sin cuenta. <a href="/vallejo.html">Abrir la demo</a></p></details>
+   <details><summary>¿Crear una cuenta es gratis?</summary><p>Sí. Puedes registrarte sin tarjeta y elegir tu nombre de juego. La demo de La cinta 87 también está abierta sin registro. <a href="/#perfil">Abrir mi perfil</a></p></details>
    <h2>Juego en pareja</h2>
    <details><summary>¿Cómo jugamos juntos?</summary><p>En la sección Pareja de Mi cuenta, guarda el correo verificado de tu compañero y pídele que guarde el tuyo. Cada cuenta puede tener un solo compañero a la vez. Cuando tengáis acceso al mismo caso, abridlo desde vuestras cuentas y pulsad «En pareja» dentro del juego. <a href="/#perfil?seccion=pareja">Elegir a mi compañero</a></p></details>
    <details><summary>¿Cómo se reparten los papeles? ¿Puedo jugar a solas?</summary><p>El primero que pulsa «En pareja» en ese caso lleva el papel 1. Cuando su compañero pulsa «En pareja», recibe el papel 2. Cada uno ve las pistas de su carpeta y las pruebas comunes. Comparad lo que habéis encontrado para decidir juntos. En solitario puedes ver ambos expedientes. Si cambias de modalidad, conservas el avance.</p></details>
@@ -71,8 +71,8 @@ function questions(){
    <h2>Desbloqueos y llaves</h2>
    <details><summary>¿Cuántos juegos se abren y cuánto dura cada uno?</summary><p>Con la primera cuota personal se abren los casos 01 a 04. La segunda suma los casos 05 a 08 y la tercera completa los doce con los casos 09 a 12. Calcula unos 60 minutos por caso. Puedes volver al punto guardado desde <a href="/#archivo">Mis partidas</a>.</p></details>
    <details><summary>¿Para qué sirven las llaves?</summary><p>El nuevo pase incluye una llave al contratar y otra en cada renovación confirmada. Los retos de los dos primeros bloques de cada tablero dan una llave. Los del tercer bloque dan dos. En la mansión de Ada hay además seis minijuegos que suman hasta ocho llaves. Cada premio se acredita la primera vez. Una pista orientativa cuesta una llave, una pista detallada dos y la solución explicada tres. En pareja, paga quien pide la pista y ambos pueden leerla. <a href="/#desafios">Explorar los desafíos</a></p></details>
-   <details><summary>¿Qué ocurre si me salto un desafío diario o una misión semanal?</summary><p>Tu partida y tus llaves se conservan. Desde el primer caso de Valdemar puedes jugar una prueba diaria por una llave y una misión de tres etapas por dos llaves cada semana. Cada edición indica cuándo cierra, en horario de Madrid. <a href="/#desafios">Ver los desafíos disponibles</a></p></details>
-   <details><summary>¿Cómo paso al siguiente tablero?</summary><p>Con el nuevo pase personal, cada cuota abona cuatro juegos. Cuando terminas los doce casos de un tablero, puedes entrar en los bloques ya abonados del siguiente. Si todavía no has abonado ese bloque, llegará con tu siguiente cuota. Los juegos pagados se acumulan aunque avances más despacio. El recorrido empieza en Valdemar y continúa en el Tablero de Ámbar, Umbravía y la Necrópolis del Sol Velado.</p></details>
+   <details><summary>¿Qué ocurre si me salto un desafío diario o una misión semanal?</summary><p>Tu partida y tus llaves se conservan. Desde el primer caso de Código Valdemar puedes jugar una prueba diaria por una llave y una misión de tres etapas por dos llaves cada semana. Cada edición indica cuándo cierra, en horario de Madrid. <a href="/#desafios">Ver los desafíos disponibles</a></p></details>
+   <details><summary>¿Cómo paso al siguiente tablero?</summary><p>Con el nuevo pase personal, cada cuota abona cuatro juegos. Cuando terminas los doce casos de un tablero, puedes entrar en los bloques ya abonados del siguiente. Si todavía no has abonado ese bloque, llegará con tu siguiente cuota. Los juegos pagados se acumulan aunque avances más despacio. El recorrido empieza en Código Valdemar. Le siguen La ruta prohibida, El tercer jugador y La ira de Ra.</p></details>
    <h2>Cobros, privacidad y avisos</h2>
    <details><summary>¿Cómo gestiono o cancelo mi suscripción?</summary><p>En Mi cuenta, abre Cuenta y elige «Gestionar mi suscripción». Puedes cancelar antes del siguiente cobro. Conservas el acceso durante el periodo abonado. Después podrás terminar los tableros que hayas abonado por completo, en orden. Los pases de temporada contratados anteriormente conservan su calendario original. <a href="/#perfil?seccion=cuenta">Ir a Mi cuenta</a></p></details>
    <details><summary>¿Qué datos guardáis y cómo puedo gestionarlos?</summary><p>La cuenta conserva tus partidas, etapas y desenlaces para que puedas volver a ellos. La demo recuerda tu avance en el navegador. Consulta tus controles o escribe al Equipo de LaUltimaPieza.es en <a href="mailto:info@laultimapieza.es">info@laultimapieza.es</a> para ejercer tus derechos. <a href="/privacidad.html">Ver privacidad y datos</a></p></details>
@@ -155,7 +155,7 @@ function plans(){
      <div class="pase-apertura"><h1>${continuous?'Un pase para <em>cuatro tableros</em>':'Tu pase de '+name}</h1>
        <p class="pase-premisa">Investiga a solas o en pareja desde tu propia cuenta. Cada aventura dura unos 60 minutos.</p>
        <div class="pase-acciones">${signed?'<a class="pase-demo" href="/#archivo">Volver a mis partidas</a>':'<button type="button" class="pase-demo" data-action="auth-login">Ya tengo cuenta · Entrar</button>'}
-         <a class="pase-muestra" href="/vallejo.html">Probar la demo de Clínica Vallejo</a></div>
+         <a class="pase-muestra" href="/vallejo.html">Probar la demo de La cinta 87</a></div>
      </div></header>
    <div class="pase-comparativa">${price}${passMap(number,held)}</div>
    <p class="pase-links">${help} · <a href="/#casos">Explorar el catálogo</a></p></section>`;
