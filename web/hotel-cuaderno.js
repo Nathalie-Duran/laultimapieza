@@ -60,13 +60,17 @@
     const panel=el('section',null,'hc-bag'),summary=node.querySelector(':scope > summary');
     if(!summary)return;
     summary.after(panel);
-    let revision='';
+    let revision='',caption='';
+    function updateCaption(){
+      if(caption&&summary.textContent!==caption)summary.textContent=caption;
+    }
     function draw(){
       const snapshot=read()||{},held=new Set(snapshot.objects||[]);
+      const cards=(hotel.objects||[]).filter(o=>held.has(o.id));
+      caption='Carpeta del hotel · '+cards.length+' de '+(hotel.objects||[]).length+' objetos';
+      updateCaption();
       const stamp=JSON.stringify([Array.from(held),snapshot.witnesses||[]]);if(stamp===revision)return;revision=stamp;
-      const cards=(hotel.objects||[]).filter(o=>held.has(o.id)),head=el('header',null,'hc-baghead');
-      head.append(el('h4','Carpeta del hotel'),el('span',cards.length+' de '+(hotel.objects||[]).length+' objetos'));
-      panel.replaceChildren(head);
+      panel.replaceChildren();
       if(cards.length){
         const gallery=el('div',null,'hc-gallery');for(const o of cards)gallery.append(proofCard(o));panel.append(gallery);
       }else{
@@ -81,6 +85,8 @@
     }
     node.addEventListener('toggle',()=>{if(node.open)draw();});
     summary.addEventListener('focus',draw);
+    // The stage inventory also redraws this native disclosure after a visit or a sync.
+    new MutationObserver(updateCaption).observe(summary,{childList:true});
     draw();
     return draw;
   }
