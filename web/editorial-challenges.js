@@ -66,8 +66,11 @@
       (signed||!standalone?published:'');
   }
   function question(item,withMesa) {
-    const legend=withMesa?'Opciones de respuesta':'Prueba '+(item.index+1)+' de '+item.total+' · '+item.prompt;
-    return `<fieldset${withMesa?' aria-describedby="reto-objetivo-'+esc(item.id)+'"':''}><legend>${esc(legend)}</legend>
+    const legend=withMesa?'Opciones de respuesta':'Prueba '+(item.index+1)+' de '+item.total+' · '+(item.objective||item.prompt);
+    const materials=item.materials?.length?`<section class="calendar-evidence"><h3>Pruebas de la mesa</h3><div>${item.materials.map(material=>
+      '<details><summary><img src="'+esc(material.photo)+'" alt="" width="96" height="72"><span>'+esc(material.label)+'</span></summary><p>'+esc(material.text)+'</p></details>'
+    ).join('')}</div></section>`:'';
+    return `${materials}<fieldset${withMesa?' aria-describedby="reto-objetivo-'+esc(item.id)+'"':''}><legend>${esc(legend)}</legend>
       ${item.options.map((opt,index)=>`<label class="field"><span><input name="option" type="radio" value="${index}" required> ${esc(opt)}</span></label>`).join('')}</fieldset>
       <button type="submit" class="button primary">Comprobar respuesta</button>`;
   }
@@ -86,6 +89,7 @@
     const host=details.querySelector('[data-mesa-reto]');
     let mesa=null,busy=false,reviewing=false,note='';
     function focusOptions(){(fields.querySelector('input:checked')||fields.querySelector('input'))?.focus();}
+    function focusEvidence(){const first=fields.querySelector('.calendar-evidence summary');if(first)first.focus();else focusOptions();}
     function renderBoard(){
       const done=item.solved&&!reviewing;
       if(!mesa){
@@ -94,10 +98,10 @@
       }
       const count=item.total===1?'prueba resuelta':'pruebas resueltas';
       mesa.update({family:'reto',title:item.title,progress:done?item.total+' de '+item.total+' '+count:(reviewing?'Repaso · ':'')+'Prueba '+(item.index+1)+' de '+item.total,
-        objective:done?'':item.prompt,result:note||(done?'Reto completado. El premio ya figura en tu llavero.':''),
-        help:{context:'reto',text:done?'Ya completaste esta edición. Puedes consultar de nuevo la última pregunta.':'Lee toda la pregunta, marca una de las opciones y pulsa «Comprobar respuesta».',
+        objective:done?'':(item.objective||item.prompt),result:note||(done?'Reto completado. El premio ya figura en tu llavero.':''),
+        help:{context:'reto',text:done?'Ya completaste esta edición. Puedes consultar de nuevo la última pregunta.':item.materials?'Abre las dos pruebas de la mesa y compara sus datos. Marca una opción y pulsa «Comprobar respuesta».':'Lee toda la pregunta, marca una de las opciones y pulsa «Comprobar respuesta».',
           steps:item.total>1?['Las pruebas se abren en orden.','Un acierto guarda el paso y muestra la pregunta siguiente.','Si fallas, puedes volver a responder la misma pregunta.']:['Marca una opción y comprueba tu decisión.','Si fallas, puedes elegir otra respuesta.']},
-        next:done?{label:'Elegir otro reto',run(){details.open=false;summary.focus();}}:{label:'Ir a las respuestas',run:focusOptions}});
+        next:done?{label:'Elegir otro reto',run(){details.open=false;summary.focus();}}:item.materials?{label:'Examinar las pruebas',run:focusEvidence}:{label:'Ir a las respuestas',run:focusOptions}});
     }
     function paintQuestion(){
       const done=item.solved&&!reviewing;
@@ -116,7 +120,7 @@
     paintQuestion();details.addEventListener('toggle',enter);
     if(details.open)enter();
     review.addEventListener('click',()=>{
-      reviewing=true;note='Puedes repasar esta pregunta. El premio ya está registrado.';paintQuestion();focusOptions();
+      reviewing=true;note='Puedes repasar esta pregunta. El premio ya está registrado.';paintQuestion();focusEvidence();
     });
     form.addEventListener('submit',async event=>{
       event.preventDefault();
@@ -140,7 +144,7 @@
           note+=' Reto completado. El premio ya figura en tu llavero.';
         }
         paintQuestion();
-        if(item.solved)(host.querySelector('.mj-next')||review).focus();else focusOptions();
+        if(item.solved)(host.querySelector('.mj-next')||review).focus();else focusEvidence();
       }catch(error){
         if(!form.isConnected)return;
         if(error.status===404||error.status===409)await reload();

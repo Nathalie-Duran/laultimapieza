@@ -116,10 +116,10 @@
       return '<section class="c87-opening"><div class="c87-poster"><img src="/cinta87-mesa.webp" alt="Una cinta de casete y material del archivo de radio sobre una mesa."></div>'+
         '<div class="c87-opening-copy"><p class="c87-kicker">Archivo de Radio Valdemar · Demo gratuita</p>'+
         '<h1 tabindex="-1" data-c87-heading>La cinta 87</h1><p class="c87-lead">Una casete conserva el arranque de la última emisión de la estación. La bobina original está en una de tres cajas del archivo.</p>'+
-        '<p>Escucha los pulsos en la cabina, contrasta los precintos en el depósito y decide si la grabación vuelve a las ondas.</p>'+
+        '<p>Escucha o lee la señal en la cabina, contrasta los precintos en el depósito y decide si la grabación vuelve a las ondas.</p>'+
         '<p class="c87-meta">10-15 min aprox. · Un dispositivo · '+(storageBlocked?'Guardado durante esta visita':'Guardado local')+'</p><div class="c87-actions">'+
         control('start','Jugar en solitario','solo',true)+control('start','Jugar en pareja','duo')+'<gameplay-help context="demo"></gameplay-help></div>'+
-        '<p class="c87-small">En solitario consultas ambas carpetas. En pareja os turnáis con el dispositivo y compartís en voz alta vuestras pistas.</p>'+
+        '<p class="c87-small">En solitario consultas ambas carpetas. En pareja os turnáis con el dispositivo. Las pistas son gratuitas y el recuerdo final se guarda en este navegador.</p>'+
         '<div class="c87-links">'+control('exit',exitLabel)+'</div></div></section>';
     }
     function handoff(){
@@ -166,7 +166,7 @@
       if(id==='magnetofono'){
         detail='<p>Restauración pasó el arranque de la casete 87 a este carrete piloto para escucharlo en el magnetófono. Escucha la señal que precede al soplo.</p>'+
           '<audio controls preload="none" data-c87-pilot aria-label="Cinta piloto de la última emisión"><source src="/cinta87-piloto.wav" type="audio/wav"></audio>'+
-          (transcript?'<figure class="c87-trace" data-c87-transcript tabindex="-1">'+signalStrip([1,1,3])+'<figcaption>Clic de arranque. Dos pulsos cortos, seguidos de un pulso largo. Después se oye el soplo de la cinta y un clic de parada.</figcaption></figure>':control('transcript','Ver la señal y leer la transcripción'))+
+          '<div data-c87-pilot-text>'+pilotText()+'</div>'+
           (state.seen.includes('signal')&&!notice?'<p class="c87-filed">Señal del piloto examinada</p>':'');
       }else if(id==='acetato'){
         detail='<p>Una lámina opaca tiene una sola ventana transparente. En el borde, alguien ha escrito a lápiz:</p><blockquote>Para leer la última tirada, pon la muesca del acetato sobre la franja negra de la hoja de contactos.</blockquote>'+objectButton('acetato');
@@ -335,6 +335,18 @@
       }else return;
       commit();draw(state.solved?true:'notice');
     }
+    function pilotText(){
+      if(!transcript&&!window.GamePreferences?.transcripts)return control('transcript','Ver la señal y leer la transcripción');
+      const trace='<figure class="c87-trace" data-c87-transcript tabindex="-1">'+signalStrip([1,1,3])+'<figcaption>Clic de arranque. Dos pulsos cortos, seguidos de un pulso largo. Después se oye el soplo de la cinta y un clic de parada.</figcaption></figure>';
+      return trace+(state.seen.includes('signal')?'':control('transcript','Anotar la señal en mi carpeta'));
+    }
+    function updatePilotText(){
+      const region=host.querySelector('[data-c87-pilot-text]');
+      if(!region||!state||state.detail!=='magnetofono')return;
+      const focused=region.contains(host.ownerDocument.activeElement);
+      region.innerHTML=pilotText();
+      if(focused)region.querySelector('button,figure')?.focus({preventScroll:true});
+    }
     function audioEnded(e){
       if(!e.target.hasAttribute?.('data-c87-pilot')||!state||curtain||state.role!=='cabina'||state.detail!=='magnetofono'||disposed)return;
       markSignal();commit();notice='Señal del piloto examinada. El carrete queda en el inventario.';draw('notice');
@@ -353,9 +365,10 @@
       if(price&&window.ClubAccess.price)price.textContent=window.ClubAccess.price+' por persona al mes.';
     }
     window.addEventListener('storage',storage);window.addEventListener('club-offer-ready',offerReady);
+    host.ownerDocument?.addEventListener('game-preferences-change',updatePilotText);
     const handle={destroy(){
       if(disposed)return;
-      disposed=true;worktop?.destroy();stopAudio();host.removeEventListener('click',click);host.removeEventListener('change',previewSlot);host.removeEventListener('submit',submit);
+      disposed=true;host.ownerDocument?.removeEventListener('game-preferences-change',updatePilotText);worktop?.destroy();stopAudio();host.removeEventListener('click',click);host.removeEventListener('change',previewSlot);host.removeEventListener('submit',submit);
       host.removeEventListener('ended',audioEnded,true);window.removeEventListener('storage',storage);window.removeEventListener('club-offer-ready',offerReady);host.replaceChildren();mounts.delete(host);
     }};
     mounts.set(host,handle);draw();

@@ -73,7 +73,7 @@
         if(this.generation!==generation)return;
         const games=new Map(result.games.map(game=>[game.id,game]));
         if(!this.room.games.every(game=>games.has(game.id)))throw Error('Catálogo incompleto');
-        this.allowed=true;this.player=window.GameAccountBridge.playerId?.();
+        this.allowed=true;this.coop=result.coop??null;this.player=window.GameAccountBridge.playerId?.();
         this.won=new Set(result.games.filter(game=>game.solved).map(game=>game.id));
       }catch(error){
         if(this.generation!==generation)return;
@@ -100,10 +100,12 @@
       const {room}=this,total=room.games.reduce((n,g)=>n+g.prize,0),earned=room.games.reduce((n,g)=>n+(this.won.has(g.id)?g.prize:0),0);
       const tiles=room.games.map(game=>{
         const resumed=this.allowed&&this.draft(game).some(Boolean);
-        const status=this.won.has(game.id)?'Resuelta · premio recibido':resumed?'En curso · '+keys(game.prize):keys(game.prize)+' al resolver';
+        const shared=this.coop?.stations?.[game.id];
+        const status=shared?.partnerJoined&&!shared.joined&&shared.phase!=='solved'?'Tu pareja te espera':this.won.has(game.id)?'Resuelta · premio recibido':resumed?'En curso · '+keys(game.prize):keys(game.prize)+' al resolver';
         return '<button class="ma87-station" type="button" data-room-station="'+esc(game.id)+'" aria-haspopup="dialog">'+photo(game.photo,'sala-estacion-foto')+'<span><small>'+esc(game.mechanic)+'</small><strong>'+esc(game.title)+'</strong><small>'+esc(status)+'</small></span></button>';
       }).join('');
-      const progress=this.allowed?'<div class="ma87-progress"><strong>'+this.won.size+' de '+room.games.length+' estaciones resueltas</strong><progress aria-label="Estaciones resueltas" value="'+this.won.size+'" max="'+room.games.length+'"></progress><span>'+keys(earned)+' de '+total+'</span><a class="sala-al-juego" href="/#mundos-jugar?id='+room.caseId+'&amp;retomar=1">Ir al primer juego de la temporada</a></div>':'';
+      const back=this.hasAttribute('embedded')?'':'<a class="sala-al-juego" href="/#mundos-jugar?id='+room.caseId+'&amp;retomar=1">Ir al primer juego de la temporada</a>';
+      const progress=this.allowed?'<div class="ma87-progress"><strong>'+this.won.size+' de '+room.games.length+' estaciones resueltas</strong><progress aria-label="Estaciones resueltas" value="'+this.won.size+'" max="'+room.games.length+'"></progress><span>'+keys(earned)+' de '+total+'</span>'+back+'</div>':'';
       const trouble=this.accessError?'<div class="sala-aviso" role="status">No se ha podido consultar tu acceso. <button type="button" data-room-retry>Volver a comprobar</button></div>':'';
       this.innerHTML='<section class="ma87-lobby"><header class="ma87-hero">'+photo(room.photo,'ma87-scene')+'<div class="ma87-intro"><p>'+esc(seasons[this.number])+'</p><h1>'+esc(room.title)+'</h1><p>'+esc(room.intro||room.description||'Seis estaciones independientes para investigar con los objetos de esta sala.')+'</p></div></header><div data-ma-mesa></div>'+progress+trouble+
         '<section class="ma87-section"><h2 tabindex="-1" data-room-list>Las seis estaciones</h2><p>Consigue hasta '+keys(total)+' para pedir pistas en tus juegos. Cada mesa entrega su premio la primera vez que la resuelves.</p><div class="ma87-stations">'+tiles+'</div></section></section>';
@@ -140,6 +142,13 @@
         '<section class="sala-material"><h2>Pruebas de la mesa</h2><dl>'+evidence+'</dl></section><section class="sala-operacion"><h2>'+esc(game.mechanic)+'</h2><p>'+esc(instructions[game.kind])+'</p>'+workbench(game,values)+'</section>'+
         '<div class="ma87-actions"><button type="button" class="ma-check" data-room-check>Comprobar mi solución</button><span data-room-count></span></div><p data-room-feedback role="status" aria-live="polite"></p></section>';
       this.mesa=window.MesaDeJuego.mount(this.querySelector('[data-ma-mesa]'),{family:'sala',title:game.title,progress:this.won.has(id)?'Premio del reto recibido':keys(game.prize)+' al resolver por primera vez',objective:game.prompt,help:{context:'sala',text:game.hint,steps:['Lee las pruebas de la mesa.',instructions[game.kind],'Cuando termines, comprueba tu solución.']},tools:[{id:'stations',label:'Volver a las estaciones',run:()=>this.lobby(id)}]});
+      if(window.EstacionCompartida){
+        const slot=document.createElement('div');this.querySelector('.sala-material').before(slot);
+        window.EstacionCompartida.mount(slot,{room:this,id,endpoint:this.endpoint,
+          onSolved:()=>{this.won.add(id);this.finished=id;this.save(game,true);this.sync();this.mesa.update({progress:'Estación resuelta en pareja'});this.notice('Habéis resuelto la estación. El premio de cada persona queda registrado en su cuenta.');this.dispatchEvent(new CustomEvent('season-room-reward',{bubbles:true,detail:{awarded:0}}));},
+          onReplay:()=>{this.finished=null;this.drafts.delete(id);this.play(id);}
+        });
+      }
       this.sync();this.querySelector('h1')?.focus();
     }
     sync(){
@@ -182,7 +191,7 @@
       const attempt=game.kind==='select'?[...values].sort():[...values],generation=this.generation;
       this.pending.add(game.id);this.sync();this.notice('Comprobando tu solución…');
       try{
-        const result=await window.GameAccountBridge.request(this.endpoint,{id:game.id,attempt},'POST');
+        const result=await (this.coopControl?this.coopControl.solve(attempt):window.GameAccountBridge.request(this.endpoint,{id:game.id,attempt},'POST'));
         if(this.generation!==generation)return;
         if(!result.correct){if(this.current===game.id)this.notice(game.feedback||'Revisa las pruebas de la mesa y vuelve a intentarlo.');return;}
         this.won.add(game.id);this.save(game,true);
@@ -219,4 +228,50 @@
     }
   }
   if(!customElements.get('sala-temporada'))customElements.define('sala-temporada',SalaTemporada);
+  // Keep the running investigation mounted while the player earns keys in a room.
+  class VisitaSala extends HTMLElement {
+    connectedCallback(){
+      if(this.dialog)return;
+      const board=this.getAttribute('mundo'),calendar=board==='calendario';
+      const title=calendar?'Calendario de retos':window.Colecciones.sala(board).title;
+      this.dialog=document.createElement('dialog');
+      this.dialog.className='sala-en-partida';this.dialog.setAttribute('aria-label',title);
+      const close=document.createElement('button');close.type='button';close.className='sala-volver-partida';close.textContent='Volver a mi aventura';
+      const content=document.createElement(calendar?'div':board==='mapa'?'mansion-arcade':'sala-temporada');
+      if(calendar)content.innerHTML=window.EditorialChallenges.view(true);
+      else if(board!=='mapa'){content.setAttribute('mundo',board);content.setAttribute('embedded','');}
+      this.dialog.append(close,content);this.append(this.dialog);
+      this.origin=location.href;
+      history.pushState({...history.state,visitaSala:this.origin},'');
+      const returnToGame=()=>{
+        if(this.closing)return;
+        this.closing=true;
+        if(history.state?.visitaSala===this.origin)history.back();else this.finish();
+      };
+      close.addEventListener('click',returnToGame);
+      this.dialog.addEventListener('cancel',event=>{event.preventDefault();returnToGame();});
+      this.changed=()=>{if(history.state?.visitaSala!==this.origin)this.finish();};
+      window.addEventListener('popstate',this.changed);
+      this.dialog.showModal();close.focus();
+      if(calendar)window.EditorialChallenges.mount();
+    }
+    finish(){
+      const trigger=this.trigger;
+      this.dialog.close();this.remove();
+      if(trigger?.isConnected)trigger.focus({preventScroll:true});
+    }
+    disconnectedCallback(){window.removeEventListener('popstate',this.changed);}
+  }
+  if(!customElements.get('visita-sala'))customElements.define('visita-sala',VisitaSala);
+  document.addEventListener?.('click',event=>{
+    if(event.defaultPrevented||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||(event.button??0)!==0)return;
+    const link=event.target.closest?.('.vd-player [data-visit-room],.vd-player [data-visit-calendar],.md-game .season-room-door[href]');
+    const frame=link?.closest('.vd-player');
+    if(!frame||frame.querySelector('visita-sala'))return;
+    if(link.matches('.season-room-door')&&!link.hasAttribute('data-visit-room')&&!frame.querySelector('.md-game-tabs'))return;
+    const board=link.hasAttribute('data-visit-calendar')?'calendario':link.dataset.visitRoom||frame.dataset.mdWorld;
+    if(board!=='calendario'&&board!=='mapa'&&!Object.hasOwn(rooms,board))return;
+    event.preventDefault();
+    const visit=document.createElement('visita-sala');visit.trigger=link;visit.setAttribute('mundo',board);frame.append(visit);
+  });
 })();

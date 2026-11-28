@@ -109,3 +109,14 @@
   .extras-hall .extras-tile,.extras-hall .extras-primary { border:1px solid LinkText; }
   .extras-hall .extras-link-label { text-decoration:underline; }
 }
+.calendar-evidence {margin:1rem 0; min-width:0}
+.calendar-evidence h3 {margin:0 0 .6rem; font:550 1.25rem/1.25 Georgia,serif}
+.calendar-evidence>div {display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr)); gap:.65rem; align-items:start}
+.calendar-evidence details {min-width:0; padding:.25rem; border:1px solid #667b6d; border-radius:.35rem; background:#1a302b; color:#f6eddb}
+.calendar-evidence summary {display:flex; align-items:center; gap:.7rem; min-height:48px; cursor:pointer; font-weight:650; list-style:none}
+.calendar-evidence summary::-webkit-details-marker {display:none}
+.calendar-evidence summary::after {content:"+"; margin-inline-start:auto; padding-inline:.5rem}
+.calendar-evidence details[open] summary::after {content:"−"}
+.calendar-evidence img {width:3.5rem; height:3rem; object-fit:cover; border-radius:.2rem}
+.calendar-evidence details p {margin:.5rem; line-height:1.55; color:#fff0d6}
+.calendar-evidence summary:focus-visible {outline:3px solid #ffdc91; outline-offset:3px}

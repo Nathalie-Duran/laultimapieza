@@ -1,0 +1,33 @@
+aventura-publicada, aventuras-publicadas:not(:empty) {display:block}
+.ap-player,.ap-entry,.ap-list {max-width:74rem;margin:auto;color:#faedd4}
+.ap-player {display:grid;gap:1rem;padding-block:1rem 2rem}
+.ap-entry {margin-block:1.5rem}
+.ap-hero {display:grid;grid-template-columns:minmax(10rem,35%) 1fr;align-items:center;background:#182b29;border:1px solid #626758;border-radius:.75rem;overflow:hidden}
+.ap-hero img {width:100%;height:clamp(10rem,22vw,18rem);object-fit:cover}
+.ap-hero>div:not(.ap-picture),.ap-scene,.ap-task,.ap-shelf>details {padding:clamp(1rem,3.5vw,2rem)}
+.ap-picture {position:relative}
+.ap-picture img {display:block}
+.ap-marker {position:absolute;transform:translate(-50%,-50%);border-radius:50%;min-width:44px;height:44px;background:#192c25;color:#fff2cb;border:2px solid #e5c585;cursor:pointer}
+.ap-hero h1,.ap-scene h2,.ap-task h3 {margin:.3em 0;overflow-wrap:anywhere}
+.ap-scene,.ap-task,.ap-shelf>details {background:#182622;border:1px solid #667369;border-radius:.6rem;min-width:0}
+.ap-scene p,.ap-evidence p {max-width:75ch;white-space:pre-line;overflow-wrap:anywhere}
+.ap-task {display:grid;align-content:start;gap:.7rem}
+.ap-task button,.ap-player>a {justify-self:start}
+.ap-tasks,.ap-grid {display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr))}
+.ap-task fieldset {border:1px solid #8f9688;border-radius:.4rem;min-width:0}
+.ap-task legend {font-weight:700;max-width:100%;overflow-wrap:anywhere}
+.ap-task label {display:grid;gap:.35rem;margin-block:.5rem}
+.ap-task input,.ap-task select {width:100%;max-width:100%;min-height:44px;padding:.5rem;border:1px solid #798079;border-radius:.35rem;background:#f9f4e8;color:#17201e}
+.ap-shelf,.ap-options {display:flex;flex-wrap:wrap;align-items:flex-start;gap:.7rem}
+.ap-shelf>details {flex:1 1 14rem;padding:.35rem 1rem}
+.ap-shelf summary {cursor:pointer;min-height:44px;align-content:center;text-decoration:underline}
+.ap-evidence {border-left:3px solid #d9b679;padding:.4rem .9rem;background:#202f2c}
+.ap-evidence img {max-width:8rem;max-height:7rem;object-fit:contain}
+.ap-evidence p {margin:.4rem 0}
+.ap-feedback:not(:empty){padding:.7rem 1rem;background:#283e35;color:#fff3d0;border-left:3px solid #dcb973}
+.ap-card {display:grid;grid-template-columns:5rem 1fr;gap:.2rem 1rem;align-items:center;background:#1d3029;border:1px solid #627368;border-radius:.5rem;padding:.6rem;color:#fff0d2}
+.ap-card img {width:5rem;height:4rem;object-fit:cover;grid-row:span 2}
+.ap-card span {text-decoration:underline}
+.ap-list {margin-block:2rem}
+aventura-publicada :focus-visible,aventuras-publicadas :focus-visible {outline:3px solid #f8ca79;outline-offset:3px}
+@media(max-width:40rem){.ap-hero{grid-template-columns:1fr}.ap-hero img{height:9rem}.ap-shelf>details{flex-basis:100%}}
