@@ -40,6 +40,9 @@ test('las variantes guardan la versión empezada y la primera misión concede el
   assert.ok(entries.some(entry=>entry.id===row.id&&entry.amount===3));
   await guess(0);
   assert.deepEqual(members.get(uid),before);
+  row=validateChallenge({...row,revision:3,prize:1,rewardType:'simple'});
+  assert.equal((await run(uid)).items[0].earned,3);
+  assert.equal((await run('nueva-cuenta')).items[0].prize,1);
 });
 test('un guardado no reemplaza la revisión de otra sesión',async()=>{
   const store=challengeStore(async()=>({affectedRows:0}));
