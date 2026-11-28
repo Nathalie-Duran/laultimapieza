@@ -36,7 +36,7 @@ test('Jugar carga cada mesa de su temporada con su hoja de estilo y reutiliza lo
     assert.equal(typeof game.MesasDeCaso[id],'function','Falta la mesa del juego '+id);
     assert.equal(typeof game.ArchivosDeCaso[id],'function','Falta el lector de evidencias del juego '+id);
   }
-  assert.equal(requests.length,19);
+  assert.equal(requests.length,21);
   for(const url of requests){
     assert.equal(url.search,'?v=prueba');
     if(url.pathname.endsWith('.js')&&!url.pathname.endsWith('/tercer-jugador-evidencias.js')){
@@ -50,5 +50,14 @@ test('Volver a abrir un juego después de un fallo recupera el módulo pendiente
   await assert.rejects(game.ArchivoObjetos.open(2),/cargar la mesa/);
   await game.ArchivoObjetos.open(2);
   assert.equal(typeof game.MesasDeCaso[2],'function');
-  assert.deepEqual(requests.map(r=>r.pathname),['/hotel-investigacion.css','/hotel-investigacion.js','/hotel-investigacion.js']);
+  assert.deepEqual(requests.map(r=>r.pathname),['/hotel-investigacion.css','/hotel-cuaderno.css','/hotel-investigacion.js','/hotel-cuaderno.js','/hotel-investigacion.js']);
+});
+
+test('El cuaderno de recepción se carga únicamente al abrir Hotel Medianoche',async()=>{
+  const {game,requests}=await loader();
+  await game.ArchivoObjetos.open(3);
+  assert.ok(!requests.some(r=>r.pathname.startsWith('/hotel-')));
+  await game.ArchivoObjetos.open(2);
+  const notebook=requests.filter(r=>r.pathname.startsWith('/hotel-cuaderno.'));
+  assert.deepEqual(notebook.map(r=>r.pathname),['/hotel-cuaderno.css','/hotel-cuaderno.js']);
 });
