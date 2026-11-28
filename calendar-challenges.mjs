@@ -48,9 +48,9 @@ function daily(day,draw){
 
 function weekly(draw){
   const hall=draw%4, slips=3+draw%6, packs=2+draw%3, loose=1+draw%2, total=slips*packs+loose;
-  const tickets=4+draw%5, left=total-tickets, word='Sala '+halls[hall];
+  const tickets=Math.min(total-2,4+draw%5), left=total-tickets, word='Sala '+halls[hall];
   return [
-    question('Las salas se suceden en círculo en este orden: Reloj, Río, Hiedra y Sol. La valija con '+delivery[hall]+' salió de la sala '+halls[(hall+2)%4]+'. La dejaron dos salas más adelante siguiendo el orden del plano. ¿Dónde empieza tu búsqueda?',halls.map(h=>'Sala '+h),word,'Recorre dos salas desde el punto de partida. Tras la sala del Sol vuelves a la del Reloj.',draw),
+    question('Las salas forman un círculo. Desde la del Reloj se pasa a la del Río, después a la de la Hiedra y por último a la del Sol. La valija con '+delivery[hall]+' salió de la sala '+halls[(hall+2)%4]+'. La dejaron dos salas más adelante siguiendo el orden del plano. ¿Dónde empieza tu búsqueda?',halls.map(h=>'Sala '+h),word,'Recorre dos salas desde el punto de partida. Tras la sala del Sol vuelves a la del Reloj.',draw),
     numberQuestion('En esa sala hay '+packs+' legajos con '+slips+' resguardos cada uno y '+loose+' sueltos. ¿Cuántos resguardos copia el archivero?',total,' resguardos','Multiplica los legajos por sus resguardos y añade los sueltos.',draw>>>5),
     numberQuestion('Llevas '+total+' resguardos al depósito. Allí reconocen '+tickets+' como copias del mismo envío y te piden retirarlos. ¿Qué cantidad anotas en el recibo definitivo?',left,' resguardos','En el recibo definitivo solo entran los resguardos que quedan después de retirar las copias.',draw>>>9)
   ];
