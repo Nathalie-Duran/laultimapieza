@@ -427,7 +427,7 @@
     if(['pistas','extra','inventario','escenario','evidencias'].includes(section))return section;
     if(section==='resolver'&&c.data.hour.stage)return 'resolver';
     if(!c.data.hour.stage)return 'desenlace';
-    if(c.id===4)return 'escenario';
+    if(c.id===3||c.id===4)return 'escenario';
     if(c.id===2 && c.data.hour.inventory?.shift)return 'resolver';
     return 'evidencias';
   }
@@ -492,7 +492,7 @@
       destroy(){observer.disconnect();mesa.destroy();}
     };
   }
-  function configureRadioDesk(c,navigation){
+  function configureInvestigationDesk(c,navigation,objectsTitle){
     const shell=navigation.shell, tabs=shell.querySelector('.case-nav');
     const status=shell.querySelector('.case-progress');
     const guide=shell.querySelector('.case-instrucciones');
@@ -534,7 +534,7 @@
     const objects=element('div',null,'mansion-examine');
     const task=scenario.querySelector('.case-consigna');
     task.classList.add('mansion-paper-task');
-    sidebar.append(element('h3','Objetos de la cabina','mansion-tools-heading'),task,objects,guide);
+    sidebar.append(element('h3',objectsTitle,'mansion-tools-heading'),task,objects,guide);
     layout.append(stageArea,sidebar);
     scenario.prepend(chapter,layout);
     const markers=photo.querySelector('.ae-markers');
@@ -586,7 +586,7 @@
       window.AventuraEscena.caseNavigation(c.frame,select,{world:'valdemar',id:c.id,story,
         image:catalogItem?.image||'/valdemar-art-'+String(c.id).padStart(2,'0')+'.webp',place:catalogItem?.place,
         alt:coverDescriptions[c.id-1],read:()=>c.data,actions,playerName:()=>c.bridge.playerName?.()});
-    if(c.id===4)configureRadioDesk(c,navigation);
+    if(c.id===3||c.id===4)configureInvestigationDesk(c,navigation,c.id===3?'Objetos del tren':'Objetos de la cabina');
     c.navigation=navigation;
     const screen=(key,cls)=>{const node=element('section',null,'vd-panel '+cls);navigation.bind(key,node);return node;};
     if(hotel){c.frame.dataset.hotelUi='true';c.hotel=screen('escenario','vhour vhour-hotel-panel');}
