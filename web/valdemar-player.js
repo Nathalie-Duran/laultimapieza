@@ -427,6 +427,7 @@
     if(['pistas','extra','inventario','escenario','evidencias'].includes(section))return section;
     if(section==='resolver'&&c.data.hour.stage)return 'resolver';
     if(!c.data.hour.stage)return 'desenlace';
+    if(c.id===2 && c.data.hour.inventory?.shift)return 'resolver';
     return 'evidencias';
   }
   function buildAdventure(c,catalogItem){
@@ -496,7 +497,7 @@
         if(hour.current!==lastIndex){
           const wasInvestigating=['resolver','evidencias'].includes(navigation.active);
           lastIndex=hour.current;
-          if(wasInvestigating)selectView(c,hour.stage?'evidencias':'desenlace',true);
+          if(wasInvestigating)selectView(c,hour.stage?(hotel&&hour.inventory?.shift?'resolver':'evidencias'):'desenlace',true);
         }
       }
     };

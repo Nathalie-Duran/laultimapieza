@@ -476,3 +476,159 @@
   (window.MesasDeCaso ||= {})[2]=renderDecision;
   (window.ArchivosDeCaso ||= {})[2]=decorateShelf;
 })();
+
+// Workstations for the night shift. The store authorizes each role and records a
+// completed operation before the other desk or a resumed session can advance.
+(() => {
+  const desks=[
+    [
+      {name:'El cordón de guardia', image:'mesa-conmutador', prompt:'Descuelga. Busca en Turno de noche el recorrido del cable y prepara una entrega que respete a Candela.',
+       sheet:'Candela habla bajito. «Una manta, por favor. Que nadie suba. Dejádmela con la guardia». Tras colgar oyes dos timbres cortos, una pausa y un clic. El piloto lleva bordada una madeja.',
+       wheels:[['Entrada','Patio','Ascensor','Servicio'],['Derivación','Ropa blanca','Equipajes','Cocina'],['Destino','Montacargas','Guardia','Suite']]},
+      {name:'El armario de las copias',image:'estancia-centralita',prompt:'Pide a Recepción que describa la secuencia y la petición. Gira las tres etiquetas del carro antes de enviarlo.',
+       sheet:'Placa trasera del conmutador. La madeja corresponde a ropa blanca. El cable entra siempre por Servicio. El terminal Guardia entrega en mano. Dos timbres y clic identifican el ala Estación. Etiquetas de almacén: Estación–roble, Patio–pino, Jardín–nogal.',
+       wheels:[['Ala','Patio','Estación','Jardín'],['Armario','Nogal','Pino','Roble'],['Entrega','En mano','En cabina','En la puerta']]}
+    ],[
+      {name:'Banco de cerrajería',image:'medianoche-llaves',prompt:'Ordena los tres elementos de la reconstrucción. Pregunta qué hueco seguía dando al rellano después de la obra.',
+       sheet:'Libro de trabajos. F-31: tres copias hermanas para dormitorios del mismo rellano. R-14: unir interiores, conservar la puerta de paso. M-04: cerradura nueva para el mueble del conserje. Sobre el calco el triángulo señala la escalera y el círculo señala el patio.',
+       wheels:[['Origen','Llave privada','Pase maestro','Tres copias'],['Puerta conservada','12','14','16'],['Destino de M-04','Suite','Patio','Escalera','Mueble']]},
+      {name:'Mesa de luz del rellano',image:'mesa-obras',prompt:'Alinea las dos hojas hasta que coincidan las marcas de la escalera y del patio. Después coloca la puerta de paso que figura en el libro.',
+       sheet:'Calco de obra. En 1981 entraba luz por tres umbrales. En 2001 los dos laterales tienen trama de ladrillo y el hueco intermedio conserva las bisagras. Las plantas están dibujadas a la misma escala.',
+       wheels:[['Mover en horizontal','−1','Centro','+1'],['Mover en vertical','−2','−1','Centro','+1'],['Entrada','12','14','16']]}
+    ],[
+      {name:'La lupa de Lucía',image:'medianoche-recorte',prompt:'Desplaza la lupa por la copia y enfoca el reflejo. Pregunta al archivo qué intervalo conservar en el sobre.',
+       sheet:'Sobre del revelador. «Jueves antes del cierre de la escalera. Foto después de las seis y antes de la ronda de las seis y media». En el borde del espejo se ve la correa de la cámara. La anotación de Lucía identifica ese espejo con el extremo derecho del encuadre.',
+       wheels:[['Encuadre','Barandilla','Centro','Espejo'],['Enfoque','Nítido','Corto','Largo'],['Franja','17:30–18:00','18:30–19:00','18:00–18:30']]},
+      {name:'La banda de visitas',image:'medianoche-registro',prompt:'Sitúa el negativo en la banda horaria y separa a quien vio la escena de quien conoce la procedencia de una llave.',
+       sheet:'Registro de ronda. Primera vuelta a las 18:00, segunda a las 18:30. Simón estaba alojado entre ambas rondas. Lucía tenía permiso de fotografía. El recibo de Amalia llega años después en la caja que conserva Darío.',
+       wheels:[['Inicio','17:30','18:00','18:30'],['Fin','18:00','19:00','18:30'],['Caja heredada','Darío','Simón','Lucía']]}
+    ],[
+      {name:'La carpeta de entrevistas',image:'mesa-entrevistas',prompt:'Recorre las estancias. Muestra los tres objetos y escucha lo que cada persona añade. Coloca cada objeto en la carpeta de quien pudo explicarlo.',
+       sheet:'Hoja del entrevistador. Simón dibuja en un papel un aro doblado en ocho. Lucía recuerda la correa: estaba detrás de la cámara. Darío lee las dos firmas del depósito de su tía. Contrasta estas anotaciones con las declaraciones recogidas.',
+       wheels:[['Simón','Recibo','Plano','Recorte'],['Lucía','Plano','Recibo','Recorte'],['Darío','Recibo','Recorte','Plano']]},
+      {name:'La rueda de testimonios',image:'estancia-archivo',prompt:'Coteja cada detalle con quien lo declaró. Recepción tiene los croquis. Comprueba que el cuaderno guarda las tres entrevistas.',
+       sheet:'Índice del archivo. El plano conserva el rellano, pero omite el apodo que recuerda Simón. El recorte conserva el reflejo que reconoce Lucía. La hoja de depósito conserva dos firmas que Darío deslinda. Una llave por sí sola no identifica un vínculo familiar.',
+       wheels:[['Aro','Darío','Lucía','Simón'],['Correa','Lucía','Simón','Darío'],['Firmas','Simón','Darío','Lucía']]}
+    ],[
+      {name:'La devolución de llamada',image:'mesa-descolgado',prompt:'Escucha la última instrucción de Candela. Contrasta los dos testimonios y prepara una comunicación privada.',
+       sheet:'Recado de Candela. «Dejadme su mensaje. Si quiere hablar, llamadme primero a mí y preguntadme si quiero que me lo paséis. No le deis mi número». No ha autorizado que nadie suba a la suite.',
+       wheels:[['Visitante','Darío','Simón','Lucía'],['Primera línea','Candela','Vestíbulo','Megafonía'],['Número de suite','Anunciar','Anotar en puerta','Reservado']]},
+      {name:'El casillero de salida',image:'mesa-acta',prompt:'Restituye la procedencia de las llaves y archiva los dos detalles que sustentan la identificación. Pide a Recepción qué permite el recado.',
+       sheet:'Acta de relevo. Las tres llaves abren por la historia de la cerradura. Dos observaciones independientes enlazan el recuerdo de Simón con la fotografía de Lucía. El parentesco no equivale a permiso de acceso.',
+       wheels:[['Procedencia','Familia','Invitados','Servicio'],['Corroboración','Dos firmas','Aro y reflejo','Tres llaves'],['Contacto','Preguntar primero','Transferir directo','Acompañar arriba']]}
+    ]
+  ];
+  // Filed out of order. The indexing register lives at the opposite desk.
+  const archives=[
+    [
+      ['Recados de la línea interior',['La guardia firma el talón de entrega.','La huésped explica que quiere discreción.','El piloto vibra antes de que nadie hable.','El auricular vuelve al soporte y entra servicio.'],'Ordena por el curso de una llamada: señal entrante, voz, cambio de línea, acuse.'],
+      ['Talonario de lencería',['El portero recoge la copia asignada.','La guardia extiende su recibí.','Se pliega la manta con el albarán dentro.','El encargado identifica el piloto en la placa.'],'Primero identifica la señal. Luego se retira la llave, se prepara el paquete y firma quien lo recibe.']
+    ],[
+      ['Expedientes de obra',['El albañil ciega las dos puertas laterales.','El cerrajero talla tres cilindros gemelos.','Se abre el paso entre los dormitorios.','Llega el pedido de una pieza para el mueble.'],'Primero las habitaciones son independientes. El hueco interior se abre antes de tapiar los accesos exteriores. El encargo del mueble es posterior.'],
+      ['Capas del plano',['La revisión final anota una única entrada desde el rellano.','En el segundo calco aparece la comunicación interior.','El plano original dibuja tres umbrales completos.','La trama de ladrillo cubre los accesos de los extremos.'],'Reconstruye el orden del dibujo: levantamiento original, unión interior, cierre de huecos y revisión.']
+    ],[
+      ['Tiras del revelador',['El obturador se abre frente al espejo.','El revelador sella la tira todavía húmeda.','El positivo se recorta para entrar en el sobre.','Lucía coloca la correa alrededor de la muñeca.'],'La preparación precede a la exposición. El sello es del laboratorio y el recorte se hizo sobre el positivo.'],
+      ['Registro del jueves',['La ronda de las seis y media da por vacía la escalera.','Se abre el paso para preparar la fiesta.','El carpintero retira la decoración después de la ronda.','Alguien fotografía el aro aún colgado.'],'El fotógrafo entró después de la apertura y antes de la ronda. El carpintero esperó a que el rellano quedara vacío.']
+    ],[
+      ['Cadena de la fotografía',['Lucía sostiene el negativo ante la ventana.','El revelador coteja el borde dentado de la ampliación.','El reportero entrega la tira sin revelar.','El recorte y el sobre reciben la misma signatura.'],'La tira entra sin revelar. Tras su revelado se mira a contraluz, se coteja el borde y se archivan juntas las piezas.'],
+      ['Custodia del recibo',['La tía guarda el resguardo en la caja.','El recepcionista firma la segunda copia.','Darío trae al hotel los papeles heredados.','La tía entrega la pieza en depósito.'],'Se entrega una pieza, el receptor firma, la depositante guarda su copia y el heredero la devuelve años después.']
+    ],[
+      ['Registro de devolución',['Recepción anota si acepta la comunicación.','Simón dicta un mensaje sin pedir el número.','Candela oye quién desea hablar.','La operadora llama primero a la huésped.'],'Quien solicita hablar deja su mensaje. La operadora llama a la huésped, identifica al solicitante y registra su decisión.'],
+      ['Cierre de custodia',['El conserje coteja el número del resguardo.','El armario queda sellado al terminar el relevo.','Se cuentan las copias sobre el paño.','Cada copia ocupa la casilla del servicio.'],'Cuenta las piezas, coteja su origen, guárdalas por procedencia y sella el casillero.']
+    ]
+  ];
+  const roles=['Recepción','Turno de noche'];
+  function el(tag,text,cls){const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n;}
+  function button(text,fn){const b=el('button',text);b.type='button';b.onclick=fn;return b;}
+  function floorPlan(host,positions){
+    const sheet=el('div',null,'guard-plan');
+    for(const year of [1981,2001]){
+      const layer=el('div',null,'guard-trace');
+      if(year===2001)layer.style.transform='translate('+((positions[0]-1)*12)+'%, '+((positions[1]-2)*14)+'%)';
+      for(const [i,n] of [12,14,16].entries())layer.append(el('span',year===1981?'▵ '+n:(i===1?'▯ '+n:'▨ '+n)));
+      sheet.append(layer);
+    }
+    host.append(sheet);
+  }
+  function photograph(host,positions){
+    const lens=el('div',null,'guard-lens');
+    lens.style.left=[12,40,65][positions[0]]+'%';
+    lens.style.backgroundImage='url(/hotel-medianoche-recorte.webp)';
+    lens.style.backgroundPosition=[15,50,88][positions[0]]+'% 48%';
+    lens.style.filter='blur('+[0,1.6,3][positions[1]]+'px)';
+    host.append(lens);
+  }
+  window.HotelGuardia=function({index,controller,refresh}){
+    const root=el('section',null,'guard-desk'),navigation=el('nav'),work=el('div'),status=el('p');
+    status.setAttribute('role','status');
+    let inventory=controller.hotelShift(),side=inventory.role==='B'?1:0,opened=false,busy=false;
+    const settings=[null,null],orders=[[],[]];
+    function draw(){
+      const key=side?'B':'A',desk=desks[index][side],shift=inventory.shift;
+      navigation.replaceChildren();work.replaceChildren();
+      if(!inventory.role)for(const [i,name] of roles.entries()){
+        const b=button(name,()=>{side=i;opened=false;status.textContent='';draw();});
+        b.setAttribute('aria-pressed',String(i===side));b.disabled=busy;navigation.append(b);
+      }else navigation.append(el('strong',roles[side]));
+      const done=shift.done[index+key],both=shift.done[index+'A']&&shift.done[index+'B'];
+      work.append(el('h3',desk.name));
+      const illustration=el('div',null,'guard-scene'),img=el('img');img.src='/hotel-'+desk.image+'.webp';img.alt=desk.name;illustration.append(img);work.append(illustration);
+      if(!shift.opensAt){
+        work.append(el('p','La guardia comienza con la primera llamada y dura al menos una hora. Puedes guardar y regresar.'),
+          button(side?'Tomar el relevo':'Descolgar',()=>send('hotel-start')));return;
+      }
+      work.append(el('p',desk.prompt));
+      const documentButton=button(opened?'Guardar documento':'Examinar mi documento',()=>{opened=!opened;draw();});work.append(documentButton);
+      if(opened){
+        const waiting=index===3 && (inventory.hotel?.witnesses?.length||0)<3;
+        const sheet=el('blockquote',waiting?'Faltan declaraciones en la carpeta. Recorre las estancias y muestra a cada testigo un objeto del hotel.':desk.sheet,'guard-paper');
+        sheet.append(el('p','Nota que necesita '+roles[1-side]+'. '+archives[index][1-side][2]));work.append(sheet);
+      }
+      if(!shift.archives?.[index+key]){
+        const [title,cards]=archives[index][side],order=orders[side];
+        work.append(el('h4',title),el('p','Reconstruye el expediente seleccionando sus cuatro fichas en orden. El otro puesto conserva la nota de archivo.'));
+        const tray=el('div',null,'guard-cards'),filed=el('ol');
+        for(const [i,text] of cards.entries()){
+          const card=button(text,()=>{order.push(i);draw();});card.disabled=order.includes(i)||busy;tray.append(card);
+        }
+        order.forEach(i=>filed.append(el('li',cards[i])));
+        work.append(tray,filed,button('Retirar última ficha',()=>{order.pop();draw();}));
+        if(order.length===4)work.append(button('Comprobar expediente',()=>send('hotel-archive')));
+        return;
+      }
+      if(index===3 && controller.visitHotel)work.append(button('Ir a las estancias y mostrar los objetos',controller.visitHotel));
+      if(done)work.append(el('p','✓ Operación registrada en '+roles[side]+'.'));
+      else{
+        const positions=settings[side] ||= desk.wheels.map(()=>0);
+        const instruments=el('div',null,'guard-instruments');
+        if(index===1&&side)floorPlan(illustration,positions);
+        if(index===2&&!side)photograph(illustration,positions);
+        for(const [i,[label,...values]] of desk.wheels.entries()){
+          const dial=el('fieldset'),legend=el('legend',label);dial.append(legend);
+          values.forEach((value,v)=>{
+            const pick=button(value,()=>{positions[i]=v;draw();work.querySelector('[data-detent="'+i+'-'+v+'"]')?.focus();});
+            pick.dataset.detent=i+'-'+v;pick.disabled=busy;pick.setAttribute('aria-pressed',String(positions[i]===v));dial.append(pick);
+          });instruments.append(dial);
+        }
+        work.append(instruments,button(index===0&&!side?'Conectar el cordón':index===1&&side?'Fijar los calcos':index===2&&!side?'Marcar la ampliación':'Registrar operación',()=>send('hotel-operate',positions)));
+      }
+      if(done&&!both)work.append(el('p',inventory.role?'Esperando la operación del otro puesto.':'Cambia de puesto para completar la otra operación.'));
+      if(both){
+        const close=button(index===4?'Llamar a Candela':'Continuar la investigación',async()=>{
+          if(busy)return;busy=true;close.disabled=true;
+          try{const result=await controller.submit(index,['guardia-completa']);if(result.correct||(result.hour && result.hour.current!==index))refresh(result.hour,result.feedback);else status.textContent=result.feedback;}
+          catch(err){status.textContent=err.message;}finally{busy=false;close.disabled=false;}
+        });
+        if(index===4)work.append(el('p','Devolución de llamada disponible a las '+new Date(shift.opensAt).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})+'.'));
+        work.append(close);
+      }
+    }
+    async function send(operation,positions){
+      if(busy)return;busy=true;
+      try{const reply=await controller.inventory({operation,index,desk:side?'B':'A',positions,order:orders[side]});inventory=reply.inventory;opened=operation==='hotel-start';status.textContent='Guardado.';}
+      catch(err){status.textContent=err.message;}finally{busy=false;draw();}
+    }
+    root.refreshShift=value=>{if(value?.shift&&value.revision>=inventory.revision){inventory=value;draw();}};
+    root.append(navigation,work,status);draw();return root;
+  };
+})();

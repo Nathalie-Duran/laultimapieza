@@ -462,6 +462,8 @@
       choices,plate,overlay,note);paint();
   }
   function decision(stage,index,controller,refresh) {
+    if(controller.caseId===2 && controller.hotelShift && window.HotelGuardia)
+      return window.HotelGuardia({stage,index,controller,refresh});
     const form=el('form',null,'vhour-task');
     form.dataset.mode=stage.mode;
     const field=el('fieldset'), legend=el('legend',stage.task);
@@ -700,6 +702,7 @@
   function mount(node,initial,controller) {
     const state={voice:null,station:controller.station};
     let hour=initial;
+    if(initial.inventory?.shift)controller.hotelShift=()=>hour.inventory;
     const main=el('div',null,'vhour-chapter');
     const inventory=window.ExpeditionInventory?.create(controller.inventory, value=>{hour.inventory=value;});
     let hotel,currentShelf,currentTask,showActivePane,tableTitle;
@@ -864,7 +867,7 @@
     }
     return {
       update:next=>render(next),
-      updateInventory:value=>{hour.inventory=value;hotel?.update(value.hotel);inventory?.update(value,hour.current);refreshHotelBag?.();},
+      updateInventory:value=>{hour.inventory=value;currentTask?.refreshShift?.(value);hotel?.update(value.hotel);inventory?.update(value,hour.current);refreshHotelBag?.();},
       pause:()=>stopVoice(state),
       focusStage,
       open(kind,id){
