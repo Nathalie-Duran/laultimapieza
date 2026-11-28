@@ -3,9 +3,9 @@
 
   const editions = {
     expedicion: {
-      number:2, offset:12, title:'El Tablero de Ámbar', short:'Tablero de Ámbar',
+      number:2, offset:12, title:'La ruta prohibida', short:'La ruta prohibida',
       genre:'Aventuras',station:'Casilla',count:'expediciones',progress:'expediciones completadas',done:'Expedición completada.',notebook:'Cuaderno de campo',
-      previous:{from:'de Valdemar',back:'Volver a Valdemar',href:'#casos'},
+      previous:{from:'de Código Valdemar',back:'Volver a Código Valdemar',href:'#casos'},
       image:'/ambar-tallado.webp', imageAlt:'Tablero de madera abierto, con animales tallados, dados y caminos de losas que rodean una gema de ámbar.',
       intro:'Coloca tu peón en una de las doce casillas. Toca el ámbar del centro para ver las piezas que has recuperado.',
       seal:'Medallón de Ámbar', sealCenter:[52,46.7],
@@ -14,24 +14,24 @@
       positions:[[19.2,89],[49.8,89],[78,72.7],[80.9,37],[51.1,17.8],[24.7,37.5],[28.3,66],[44.4,75.5],[36.2,50.9],[50.6,31.1],[68.1,48.3],[53.9,61.5]]
     },
     umbravia: {
-      number:3, offset:24, title:'Umbravía', short:'Umbravía',
+      number:3, offset:24, title:'El tercer jugador', short:'El tercer jugador',
       genre:'Terror psicológico',station:'Lugar',count:'lugares',progress:'faroles encendidos',done:'Caso resuelto, farol encendido.',notebook:'Archivo del pueblo',
-      previous:{from:'del Tablero de Ámbar',back:'Volver al Tablero de Ámbar',href:'#expedicion'},
+      previous:{from:'de «La ruta prohibida»',back:'Volver a «La ruta prohibida»',href:'#expedicion'},
       image:'/umbravia-farol.webp', imageAlt:'Un farol de vidrio verde ilumina el pueblo abandonado. Entre la niebla se distinguen el carrusel, el cine y el campanario.',
       intro:'En el cine, una silueta cruza la pantalla desconectada. Elige una puerta para investigar o toca el farol verde para ver las piezas de tu sello.',
-      seal:'Farol de Umbravía',sealCenter:[52.3,78.7],
-      boardLabel:'Calles del pueblo abandonado de Umbravía', index:'Directorio del pueblo',
+      seal:'Farol del pueblo',sealCenter:[52.3,78.7],
+      boardLabel:'Calles del pueblo abandonado', index:'Directorio del pueblo',
       selectLabel:'Localizar', launch:'Entrar en el caso', returnLabel:'Volver al pueblo',
       positions:[[17,27],[36,28],[63,28],[80,30],[13,46],[36,44],[60,49],[84,45],[17,77],[36,70],[61,73],[87,76]]
     },
     necropolis: {
-      number:4,offset:36,title:'La Necrópolis del Sol Velado',short:'La Necrópolis',
+      number:4,offset:36,title:'La ira de Ra',short:'La ira de Ra',
       genre:'Aventuras en el antiguo Egipto',station:'Cámara',count:'cámaras',progress:'cámaras resueltas',done:'Cámara resuelta, pieza del disco recuperada.',notebook:'Cuaderno de excavación',
-      previous:{from:'de Umbravía',back:'Volver a Umbravía',href:'#umbravia'},
+      previous:{from:'de «El tercer jugador»',back:'Volver a «El tercer jugador»',href:'#umbravia'},
       image:'/necropolis-descenso.webp',imageAlt:'Corte de la necrópolis de Neryt. Bajo el disco solar, las escaleras comunican tres niveles de cámaras pintadas.',
       intro:'Del embarcadero a la tumba de Neryt, doce cámaras descienden bajo la arena. Elige un cartucho para explorar su cámara.',
       seal:'Disco del Sol Velado',sealCenter:[50,0],
-      boardLabel:'Las doce cámaras de la Necrópolis del Sol Velado',index:'Directorio de las cámaras',
+      boardLabel:'Las doce cámaras de «La ira de Ra»',index:'Directorio de las cámaras',
       selectLabel:'Explorar',launch:'Entrar en la cámara',returnLabel:'Volver a la necrópolis',
       positions:[[14,38.8],[37.5,38.8],[62,38.8],[87.6,38.8],[13.5,63.5],[37.8,63.5],[63.9,63.5],[87.3,63.5],[12.5,93.5],[37.5,93.5],[61.8,93.5],[86.7,93.5]]
     }
@@ -66,7 +66,7 @@
     if(!edition.seal)return '';
     let label='Ver el '+edition.seal;
     if(world==='necropolis'&&!onBoard)label='Ver las piezas del disco';
-    if(world==='umbravia'&&onBoard)label='Abrir el sello del Farol de Umbravía';
+    if(world==='umbravia'&&onBoard)label='Abrir el sello del Farol del pueblo';
     const position=onBoard?` style="--x:${edition.sealCenter[0]}%;--y:${edition.sealCenter[1]}%"`:'';
     return `<a class="${onBoard?'md-gem-link':'md-seal-link'}" href="#${world}?lugar=${local}&amp;seccion=sello"${position}>${onBoard?'<span>'+esc(label)+'</span>':esc(label)}</a>`;
   }

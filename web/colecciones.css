@@ -312,12 +312,14 @@ display-preferences label { display: flex; align-items: center; gap: .55rem; min
 .adventure-challenges :is(#published-challenges,#calendar-challenges) summary{cursor:pointer;min-height:44px;align-content:center}
 
 .adventure-challenges .reto-portada{min-height:clamp(12rem,23vw,19rem)}
-.reto-opciones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin:1rem 0 1.8rem}
-.reto-opciones a,.reto-destino{display:block;height:100%;color:#f8eacb;text-decoration:none}
-.reto-opciones a{display:grid;align-content:center;gap:.25rem;padding:1rem 1.2rem;background:#27342d;border:1px solid #756d53;border-radius:5px}
+.reto-opciones{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem;margin:1rem 0 .55rem}
+.reto-opciones :is(a,button),.reto-destino{display:block;height:100%;color:#f8eacb;text-decoration:none}
+.reto-opciones :is(a,button){display:grid;grid-template-rows:auto 1fr auto;align-items:start;gap:.45rem;padding:1rem 1.2rem;background:#27342d;border:1px solid #756d53;border-radius:5px;text-align:start;cursor:pointer}
 .reto-opciones strong{font:500 clamp(1.2rem,2.1vw,1.6rem)/1.2 var(--serif,Georgia,serif)}
 .reto-opciones span,.reto-destino div>span{color:#dfdace;font:500 .88rem/1.35 var(--sans,system-ui,sans-serif)}
-.reto-opciones a:hover strong,.reto-destino:hover h3{text-decoration:underline;text-underline-offset:.2em}
+.reto-opciones small{align-self:end;color:#eed1a0;font:650 .81rem/1.4 var(--sans,system-ui,sans-serif)}
+.adventure-challenges .reto-condicion{margin:0 0 1.55rem;color:#d8d8c8;font-size:.9rem;line-height:1.48}
+.reto-opciones :is(a,button):hover strong,.reto-destino:hover h3{text-decoration:underline;text-underline-offset:.2em}
 .adventure-challenges .challenge-boards:has(.reto-destino){grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch}
 .adventure-challenges .reto-destino img{width:100%;height:clamp(6rem,9vw,8rem);object-fit:cover}
 .reto-destino>div{padding:.75rem .9rem}
@@ -332,4 +334,4 @@ display-preferences label { display: flex; align-items: center; gap: .55rem; min
 .reto-agenda :is(.reto-periodos,#published-challenges)[hidden]{display:none}
 .reto-agenda [role=status]:empty{margin:0}
 @media(max-width:920px){.adventure-challenges .challenge-boards:has(.reto-destino){grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:560px){.reto-opciones{grid-template-columns:1fr}.reto-opciones a{padding:.8rem 1rem}}
+@media(max-width:760px){.reto-opciones{grid-template-columns:1fr}.reto-opciones :is(a,button){padding:.8rem 1rem}}

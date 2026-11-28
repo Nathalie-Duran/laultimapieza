@@ -4,7 +4,7 @@
   function view() {
     return `<section class="account-card release-editor" aria-labelledby="edicion-titulo">
       <a class="text-link" href="#gestion?seccion=edicion">Volver a Edición</a>
-      <h1 id="edicion-titulo">Publicar Valdemar</h1>
+      <h1 id="edicion-titulo">Publicar Código Valdemar</h1>
       <form id="valdemar-release-form"><label class="field">Archivo de publicación de la temporada (JSON)
         <input type="file" name="edicion" accept=".json,application/json" required></label>
         <div class="release-actions"><button class="button primary" type="submit" disabled>Activar la edición</button>
@@ -32,7 +32,7 @@
       try{
         let descriptor;
         try{descriptor=JSON.parse(await file.text());}catch{throw Error('El archivo debe ser un JSON de publicación válido.');}
-        if(descriptor?.release!==release || typeof descriptor.key!=='string' || !/^[a-zA-Z0-9_-]{43}$/.test(descriptor.key))throw Error('Este archivo no corresponde a la edición de Valdemar.');
+        if(descriptor?.release!==release || typeof descriptor.key!=='string' || !/^[a-zA-Z0-9_-]{43}$/.test(descriptor.key))throw Error('Este archivo no corresponde a la edición de Código Valdemar.');
         status.textContent='Activando los expedientes…';
         const result=await bridge.request('/api/admin/valdemar-release',{release,key:descriptor.key},'POST');
         if(result.active!==true||result.release!==release)throw Error('No se ha confirmado la activación.');
