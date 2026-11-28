@@ -43,6 +43,7 @@ export function inspectInventory(story, record, role) {
     const materials = (stage.materials || []).filter(item => item.id != null);
     const items = page ? materials.filter(item => allowedRole(item, role) || held.has(item.id)).map(item => ({
       id: item.id, label: item.label, held: held.has(item.id),
+      role:item.role===1||item.role==='A'?'A':item.role===2||item.role==='B'?'B':'AB',
       canCollect: allowedRole(item, role),
       contributed: !role || Boolean(page.contributions?.[role]?.includes(item.id)),
       ...(held.has(item.id) && allowedRole(item, role) ? {detail: item.body} : {})
@@ -64,7 +65,7 @@ export function inspectInventory(story, record, role) {
       index, place: stage.place || stage.title, visited: Boolean(page), items, links: page?.links || [], assignment,
       ...(fieldNote ? {fieldNote} : {})};
   });
-  return {rooms, revision: record?.inventoryRevision || 0, ...(story.hour?.hotel ? {
+  return {rooms, role:role==='A'||role==='B'?role:null, revision: record?.inventoryRevision || 0, ...(story.hour?.hotel ? {
     hotel:record?.hotelInventory || {objects:[], witnesses:[]}
   } : {})};
 }

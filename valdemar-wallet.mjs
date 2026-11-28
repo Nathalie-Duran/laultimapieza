@@ -51,8 +51,36 @@ export function creditMansionMission(data,scope,mission,amount) {
   return addEntry(walletRecord(data,scope==='editorial'),'mission','mansion/'+mission,amount,1);
 }
 
-export function creditMansionEnding(data,scope) {
-  return addEntry(walletRecord(data,scope==='editorial'),'mansionEnding','mansion',1,1);
+function isEndingReceipt(entry) {
+  return entry.kind==='adventureEnding'||(entry.kind==='mansionEnding'&&entry.caseId===1);
+}
+
+export function creditAdventureEnding(data,scope,caseId,{mansion=false,at=Date.now()}={}) {
+  if(!Number.isInteger(caseId)||caseId<1||caseId>WORLD_CASE_COUNT||(mansion&&caseId!==1))throw new Error('Aventura no válida.');
+  const wallet=walletRecord(data,scope==='editorial');
+  if(ledger(wallet).some(row=>row.caseId===caseId && isEndingReceipt(row)))return false;
+  return mansion ? addEntry(wallet,'mansionEnding','mansion',1,1,at) : addEntry(wallet,'adventureEnding',caseId,1,caseId,at);
+}
+
+function missingEndingRewards(data,scope) {
+  const records=data.valdemarCaseProgress?.[scope]||{};
+  const entries=data.valdemarSeasonOne?.[scope]?.entries||[];
+  const rewarded=new Set(entries.filter(isEndingReceipt).map(row=>row.caseId));
+  const missing=[];
+  for(let id=1;id<=WORLD_CASE_COUNT;id++){
+    const record=records[id];
+    if(!record)continue;
+    const mansion=id===1 && record.mansion?.completed===true;
+    if(!mansion && (typeof record.choice!=='string'||!record.choice.trim()||record.choice==='mansion-sealed'))continue;
+    if(!rewarded.has(id))missing.push({id,mansion,at:Number.isFinite(record.completedAt)?record.completedAt:null});
+  }
+  return missing;
+}
+
+export function settleEndingRewards(data,scope) {
+  const missing=missingEndingRewards(data,scope);
+  for(const item of missing)creditAdventureEnding(data,scope,item.id,item);
+  return missing.length>0;
 }
 
 export function creditMansionArcade(data,scope,id,amount) {
@@ -63,6 +91,15 @@ export function creditMansionArcade(data,scope,id,amount) {
 export function creditSeasonArcade(data,scope,caseId,id,amount) {
   if (![13,25,37].includes(caseId) || typeof id!=='string' || !id || ![1,2].includes(amount)) throw new Error('Premio de sala no válido.');
   return addEntry(walletRecord(data,scope==='editorial'),'seasonArcade',caseId+'/'+id,amount,caseId);
+}
+
+export function markRoomCooperation(data,scope,caseId,stationId) {
+  const kind=caseId===1?'mansionArcade':'seasonArcade';
+  const id=caseId===1?stationId:caseId+'/'+stationId;
+  const receipt=data.valdemarSeasonOne?.[scope]?.entries?.find(row=>row.kind===kind && row.id===id && row.caseId===caseId);
+  if(!receipt || receipt.cooperative===true)return false;
+  receipt.cooperative=true;
+  return true;
 }
 
 export function purchaseMansionHint(data,scope,stage,tier,quotedCost) {
@@ -198,6 +235,7 @@ export async function valdemarWallet(store, ownerUid, { editorial = false, seaso
   }
   const wallet = walletRecord(data, editorial);
   const scope = editorial ? 'editorial' : 'paid';
+  changed=settleEndingRewards(data,scope)||changed;
   const alreadyStarted = op !== 'read' && hasCaseActivity(data,scope,caseId);
   ledger(wallet);
   if (editorial && !wallet.welcomes.length) {

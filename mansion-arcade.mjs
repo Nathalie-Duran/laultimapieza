@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
+import {trialEvent} from './aventuras-autor.mjs';
 import { ApiError } from './auth-provider.mjs';
 import { creditMansionArcade, withValdemarTransaction, worldSeasonAccess } from './valdemar-wallet.mjs';
 import { mansionArcadeCatalog as games } from './web/mansion-arcade-catalog.js';
+import {arcadePair,arcadePairView,playArcadePair} from './arcade-cooperation.mjs';
 
 function word(input) {
   if (typeof input !== 'string' || input.length > 50) return '';
@@ -59,20 +61,26 @@ const checks = {
 export async function mansionArcadeRequest({method,input,uid,editorial,withStore,billing}) {
   if (method !== 'GET' && method !== 'POST') throw new ApiError(405,'Método no permitido.');
   return withValdemarTransaction(withStore, async store => {
-    const membership = editorial ? null : await billing?.membership(store,uid);
-    const data = await store.getMemberData(uid);
+    const membership = editorial ? null : await billing?.membership(store,uid,{readOnly:true});
+    const scope = editorial ? 'editorial' : 'paid';
+    const data = await store.getMemberData(uid,{readOnly:true});
     const access = !editorial && membership?.seasonAccess || worldSeasonAccess(data,{editorial,active:membership?.canPlay===true});
     if (!access.availableCases.includes(1)) throw new ApiError(403,'Necesitas acceso al primer caso de Código Valdemar para jugar en la mansión.','MANSION_ACCESS_REQUIRED');
-    const scope = editorial ? 'editorial' : 'paid';
     if (method === 'GET') {
+      const pair=await arcadePair(store,billing,uid,1,scope);
       const entries = data.valdemarSeasonOne?.[scope]?.entries || [];
-      return {games:games.map(game => ({...game,solved:entries.some(entry => entry.kind==='mansionArcade' && entry.id===game.id)}))};
+      return {games:games.map(game => ({...game,solved:entries.some(entry => entry.kind==='mansionArcade' && entry.id===game.id)})),coop:arcadePairView(pair)};
     }
     const game = games.find(item => item.id === input?.id);
     if (!game) throw new ApiError(400,'Elige uno de los seis minijuegos de la mansión.');
-    if (!checks[game.id](input.attempt)) return {correct:false,awarded:0};
-    const fresh = creditMansionArcade(data,scope,game.id,game.prize);
-    if (fresh) await store.saveMemberData(uid,data);
+    if(Object.hasOwn(input,'coop'))return playArcadePair({store,pair:await arcadePair(store,billing,uid,1,scope),input,caseId:1,prize:game.prize,
+      validate:(id,attempt)=>checks[id](attempt),award:creditMansionArcade});
+    const correct=checks[game.id](input.attempt);
+    if(!editorial)await trialEvent(store,{game:'juego/1',edition:0,trial:game.title,participant:'u/'+uid,solved:correct});
+    if (!correct) return {correct:false,awarded:0};
+    const latest=await store.getMemberData(uid);
+    const fresh = creditMansionArcade(latest,scope,game.id,game.prize);
+    if (fresh) await store.saveMemberData(uid,latest);
     return {correct:true,awarded:fresh ? game.prize : 0};
   });
 }
