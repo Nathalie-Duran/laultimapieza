@@ -43,17 +43,20 @@ if(typeof document!=='undefined')document.addEventListener('submit',async event=
 const seasonNames=['Valdemar','El Tablero de Ámbar','Umbravía','La Necrópolis del Sol Velado'];
 const seasonRoutes=['casos','expedicion','umbravia','necropolis'];
 const openings=[
- {lead:'¿Dónde esconderías una cinta',em:'durante treinta años?',scene:'Valdemar, 1996. Una voz te pide que guardes una cinta para Ada. En 2026, Ada viene a recogerla. En pareja investigáis un año cada uno. A solas, tú conectas los dos.',month:'Cuatro noches en Valdemar'},
+ {lead:'Ada os recuerda',em:'en una casa desconocida.',scene:'Una fotografía de vuestra infancia os lleva a la mansión de Valdemar. Reconocéis vuestras caras. ¿Por qué ninguno recuerda esa casa?',month:'Cuatro noches en Valdemar'},
  {lead:'La valija nunca llegó',em:'al faro.',scene:'En el Embarcadero de Nácar terminaba el viaje de la barquera. La valija debía seguir hasta el faro. Tienes tres bocas de río por donde empezar a buscarla.',month:'Las primeras cuatro expediciones'},
  {lead:'El cuarto seis está vacío.',em:'Mira el espejo.',scene:'En la Pensión del Espejo, una mano sigue quitándose un anillo al otro lado del cristal. ¿Quién ha dejado ese gesto en una habitación vacía?',month:'Cuatro noches en Umbravía'},
  {lead:'La barca llegó',em:'contra la corriente.',scene:'La barca funeraria de Neryt ha aparecido en el muelle de arriba. El agua corre hacia abajo. Investiga cómo cruzó el río en la oscuridad.',month:'Los primeros cuatro misterios del Nilo'}
 ];
-const valdemarHooks=[
- 'Las obras van a cambiar la estación. ¿Qué escondite seguirá en pie cuando Ada regrese?',
- 'Tres huéspedes llegan con tres llaves de la habitación 14. La mujer que llama desde dentro busca a su hermano.',
- 'El pasajero de enfrente reconoce la letra de su padre en la carta que te dio tu madre. El tren sigue en marcha.',
- 'Un padre y su hija llaman a la emisora desde años distintos. Escucha sus voces antes de decidir a quién devolver la llamada.'
-];
+const boardArt=['valdemar-cartografia.webp','ambar-tallado.webp','umbravia-farol.webp','necropolis-descenso.webp'];
+function passMap(number,held){
+ const paid=new Set(held?.paidBlocks||[]);
+ return `<section class="pase-recorrido" aria-labelledby="pase-progresion"><h2 id="pase-progresion">Así se abre cada tablero</h2>
+  <p>Al abonar cada bloque se suman cuatro aventuras. Puedes repartirlas a tu ritmo.</p>
+  <ol class="pase-bloques">${[1,2,3].map(block=>`<li${paid.has(block)?' class="pase-abonado"':''}><small>Cuota ${block}${paid.has(block)?' · abonada':''}</small><strong>${block*4}<span> / 12 aventuras</span></strong><span>Casos ${String((block-1)*4+1).padStart(2,'0')} a ${String(block*4).padStart(2,'0')}</span></li>`).join('')}</ol>
+  <h3>Los cuatro tableros, en orden</h3><ol class="pase-mundos">${seasonNames.map((name,i)=>`<li><a href="/#${i===0?'mapa':seasonRoutes[i]}"><img src="/${boardArt[i]}" width="180" height="116" loading="lazy" alt=""><span><small>Tablero ${i+1}</small><strong>${name}</strong></span></a></li>`).join('')}</ol>
+  <p>Al guardar los doce desenlaces de ${seasonNames[number-1]}, ${number===4?'completas el último tablero.':'puedes pasar al siguiente y jugar los bloques que ya hayas abonado.'}</p></section>`;
+}
 function adminCard(){return '<section class="account-card"><span class="club-kicker">Acceso editorial</span><h2>Tienes los 48 juegos abiertos</h2><p>Guarda a tu compañero en Mi cuenta. Para jugar juntos, entrad en el mismo caso y pulsad «En pareja» desde vuestras cuentas. Tu acceso editorial incluye los cuatro tableros sin compra.</p><a class="button" href="/#perfil">Ver mi compañero de juego</a>'+root.Colecciones.menu('')+'</section>';}
 function partnerTerms(){
  return config.partnerOffer?.percentOff===50 && config.partnerOffer?.regularAmountCents===2995 && config.partnerOffer?.currency==='eur' ? config.partnerOffer : null;
@@ -71,8 +74,9 @@ function questions(standalone=false){
    <details><summary>¿Cómo jugamos juntos?</summary><p>En Mi cuenta, guarda el correo verificado de tu compañero y pídele que guarde el tuyo. Cada cuenta puede tener un solo compañero a la vez. Cuando tengáis acceso al mismo caso, abridlo desde vuestras cuentas y pulsad «En pareja» dentro del juego. <a href="/#perfil">Elegir a mi compañero</a></p></details>
    <details><summary>¿Cómo se reparten los papeles? ¿Puedo jugar a solas?</summary><p>El primero que pulsa «En pareja» en ese caso lleva el papel 1. Cuando su compañero pulsa «En pareja», recibe el papel 2. Cada uno ve las pistas de su carpeta y las pruebas comunes. Comparad lo que habéis encontrado para decidir juntos. En solitario puedes ver ambos expedientes. Si cambias de modalidad, conservas el avance.</p></details>
    <details><summary>¿Cuándo empieza y cuándo termina el descuento de pareja?</summary><p>Al contratar o retomar un pase, la primera cuota personal es de 29,95 € con IVA. Cuando los dos os habéis elegido en el perfil y ambos tenéis una suscripción personal activa, cada uno obtiene un 50 % de descuento en su próxima renovación y en las siguientes. Si cambiáis de compañero o uno deja de tener la suscripción activa, las próximas cuotas vuelven a la tarifa general. Las facturas ya emitidas conservan su importe. <a href="/#perfil">Gestionar mi compañero</a></p></details>
-   <details><summary>¿Cuántos juegos se abren y cuánto dura cada uno?</summary><p>Cada cuota mensual abre cuatro juegos de la temporada para la persona que la paga. Calcula unos 60 minutos por caso. Si haces una pausa, retoma la etapa guardada en Mis partidas.</p></details>
-   <details><summary>¿Para qué sirven las llaves?</summary><p>El nuevo pase incluye una llave al contratar y otra en cada renovación confirmada. También ganas una llave al superar por primera vez un reto paralelo. Una pista orientativa cuesta una llave, una pista detallada dos y la solución explicada tres. En pareja, paga quien pide la pista y ambos pueden leerla.</p></details>
+   <details><summary>¿Cuántos juegos se abren y cuánto dura cada uno?</summary><p>Con la primera cuota personal se abren los casos 01 a 04. La segunda suma los casos 05 a 08 y la tercera completa los doce con los casos 09 a 12. Calcula unos 60 minutos por caso. Puedes volver al punto guardado desde <a href="/#archivo">Mis partidas</a>.</p></details>
+   <details><summary>¿Para qué sirven las llaves?</summary><p>El nuevo pase incluye una llave al contratar y otra en cada renovación confirmada. Los retos de los dos primeros bloques de cada tablero dan una llave. Los del tercer bloque dan dos. En la mansión de Ada hay además seis minijuegos que suman hasta ocho llaves. Cada premio se acredita la primera vez. Una pista orientativa cuesta una llave, una pista detallada dos y la solución explicada tres. En pareja, paga quien pide la pista y ambos pueden leerla. <a href="/#desafios">Explorar los desafíos</a></p></details>
+   <details><summary>¿Qué ocurre si me salto un desafío diario o una misión semanal?</summary><p>Tu partida y tus llaves se conservan. Desde el primer caso de Valdemar puedes jugar una prueba diaria por una llave y una misión de tres etapas por dos llaves cada semana. Cada edición indica cuándo cierra, en horario de Madrid. <a href="/#desafios">Ver los desafíos disponibles</a></p></details>
    <details><summary>¿Cómo paso al siguiente tablero?</summary><p>Con el nuevo pase personal, cada cuota abona cuatro juegos. Cuando terminas los doce casos de un tablero, puedes entrar en los bloques ya abonados del siguiente. Si todavía no has abonado ese bloque, llegará con tu siguiente cuota. Los juegos pagados se acumulan aunque avances más despacio. El recorrido empieza en Valdemar y continúa en el Tablero de Ámbar, Umbravía y la Necrópolis del Sol Velado.</p></details>
    <details><summary>¿Cómo gestiono o cancelo mi suscripción?</summary><p>En Mi cuenta, abre Cuenta y elige «Gestionar mi suscripción». Puedes cancelar antes del siguiente cobro. Conservas el acceso durante el periodo abonado. Después podrás terminar los tableros que hayas abonado por completo, en orden. Los pases de temporada contratados anteriormente conservan su calendario original. <a href="/#perfil?seccion=cuenta">Ir a Mi cuenta</a></p></details>
    <details><summary>¿Qué datos guardáis y cómo puedo gestionarlos?</summary><p>La cuenta conserva tus partidas, etapas y desenlaces para que puedas volver a ellos. La demo recuerda tu avance en el navegador. Consulta tus controles o escribe al Equipo de LaUltimaPieza.es en <a href="mailto:info@laultimapieza.es">info@laultimapieza.es</a> para ejercer tus derechos. <a href="/privacidad.html">Ver privacidad y datos</a></p></details>
@@ -95,7 +99,7 @@ function plans(){
  const params=new URLSearchParams(typeof location==='undefined'?'':location.hash.split('?')[1]);
  if(params.get('gestion')==='aviso')return noticeManagement();
  if(params.get('seccion')==='preguntas')return '<div class="pase-temporada pase-ayuda">'+questions(true)+'<p class="pase-links"><a href="/#planes">Volver al pase</a> · <a href="/privacidad.html">Privacidad y datos</a> · <a href="/#perfil?seccion=cuenta">Gestionar mi cuenta</a></p></div>';
- if(state.role==='admin')return adminCard()+'<section class="pase-temporada">'+questions()+'</section>';
+ if(state.role==='admin')return '<section class="pase-temporada pase-editorial"><header><h1>Tu acceso a los cuatro tableros</h1></header>'+adminCard()+passMap(1,null)+questions()+'</section>';
  const access=state.seasonAccess;
  const offer=access?.nextPurchase;
  const current=access?.seasons?.filter(s=>s.paidBlocks.length && s.previousReady!==false).at(-1);
@@ -128,7 +132,7 @@ function plans(){
  const firstMonth=number===1?root.ValdemarCatalog.items.slice(0,4):(root.MundosCatalogo||[]).filter(s=>s.world===route).slice(0,4);
  const destination=s=>number===1?'/valdemar/'+String(s.id).padStart(2,'0')+'/':'/#'+route+'?lugar='+((s.id-1)%12+1);
  const opening=openings[number-1],first=firstMonth[0];
- const heroImage=number===1?'/valdemar-pase-estacion.webp':'/mundo-'+((number-1)*12+1)+'.webp';
+ const heroImage=first?.image||(number===1?'/mansion-room-1.webp':'/mundo-'+((number-1)*12+1)+'.webp');
  const waitForOpening=!state.ownAccess&&!config.checkoutAvailable&&!held?.finishAccess;
  const openingLink=waitForOpening?openingAction():null;
  const target=openingLink?.target||'pass-review-title';
@@ -141,17 +145,20 @@ function plans(){
      <div class="pase-apertura"><p class="pase-supra">${continuous?'Suscripción personal · 48 aventuras':'Pase de temporada · '+name}</p>
        <h1>${continuous?'Un pase para <em>cuatro tableros</em>':opening.lead+' <em>'+opening.em+'</em>'}</h1>
        <p class="pase-premisa">${continuous?'Empieza en Valdemar y continúa por el Tablero de Ámbar, Umbravía y la Necrópolis del Sol Velado. Cada mensualidad desbloquea cuatro aventuras para jugar a solas o en pareja.':opening.scene}</p>
+       <p class="pase-tarifa-portada">${waitForOpening?'Tarifa prevista':'Tarifa general'} · 29,95 € por persona al mes · IVA incluido</p>
        <div class="pase-acciones"><button type="button" class="pase-principal" data-action="page-section" data-target="${target}"${waitForOpening?' data-opening-action':''}>${mainLabel}</button>
-         <button type="button" class="pase-demo" data-action="preview-open">Jugar la demo de Clínica Vallejo</button></div>
+         ${signed?'<a class="pase-demo" href="/#archivo">Volver a mis partidas</a>':'<button type="button" class="pase-demo" data-action="auth-login">Ya tengo cuenta · Entrar</button>'}
+         <a class="pase-muestra" href="/vallejo.html">Probar la demo de Clínica Vallejo</a></div>
      </div>
      ${first?`<a class="pase-pie-foto" href="${destination(first)}">${esc(first.title)} · ${esc(first.place)} <span aria-hidden="true">↗</span></a>`:''}
    </header>
+   ${passMap(number,held)}
    <section class="pase-estrenos" aria-labelledby="pase-primer-mes">
      <div class="pase-seccion"><div><p class="pase-supra">El primer mes</p><h2 id="pase-primer-mes">${opening.month}</h2></div>
        <a class="pase-enlace" href="/#${route}">Ver los 12 juegos <span aria-hidden="true">→</span></a></div>
-     <div class="pase-peliculas">${firstMonth.map((s,i)=>`<a class="pase-caso" href="${destination(s)}" aria-labelledby="pase-caso-${s.id}">
+     <div class="pase-peliculas">${firstMonth.map(s=>`<a class="pase-caso" href="${destination(s)}" aria-labelledby="pase-caso-${s.id}">
        <figure><img src="${esc(s.image||'/mundo-'+s.id+'.webp')}" alt="" width="764" height="508" loading="lazy" decoding="async"></figure>
-       <div class="pase-caso-copy"><span class="pase-lugar">${esc(s.place)}</span><h3 id="pase-caso-${s.id}">${esc(s.title)}</h3><p>${esc(number===1?valdemarHooks[i]:s.question)}</p></div></a>`).join('')}</div>
+       <div class="pase-caso-copy"><span class="pase-lugar">${esc(s.place)}</span><h3 id="pase-caso-${s.id}">${esc(s.title)}</h3><p>${esc(s.question)}</p></div></a>`).join('')}</div>
    </section>
    <div class="pase-detalle" id="pase-detalle"><article class="pase-ficha">
      <p class="pase-supra">Pase personal · Suscripción mensual</p>
@@ -166,7 +173,10 @@ function plans(){
    </article>${questions()}</div>
  </section>`;
 }
-root.ClubAccess={...old,plans,enrollment:plans,banner(){if(typeof location!=='undefined'&&['#planes','#alta-club','#suscripcion'].includes(location.hash.split('?')[0]))return '';return state.role==='admin'?'<aside class="paid-banner" aria-label="Acceso editorial"><span class="paid-dot" aria-hidden="true"></span><p><strong>Acceso editorial</strong> · Tienes los 48 juegos disponibles.</p><a href="'+(state.canManage===true?'#gestion':'#casos')+'">'+(state.canManage===true?'Abrir gestión':'Explorar retos')+'</a></aside>':(state.canPlay||state.seasonAccess?.availableCases?.length)?'':old.banner();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){state=value||{canPlay:false};},account(){
+root.ClubAccess={...old,plans,enrollment:plans,gate(){
+ const signed=root.GameAccountBridge?.isSignedIn?.()===true;
+ return '<section class="pase-temporada pase-acceso"><div class="pase-ficha"><p class="pase-supra">Acceso a los casos completos</p><h1>Investiga con tu pase personal</h1><p>La cuota de 29,95 € por persona, IVA incluido, abre cuatro aventuras del tablero. '+(config.checkoutAvailable?'Puedes consultar las condiciones y los bloques disponibles antes de contratar.':'La contratación está en preapertura. Puedes pedir un aviso por correo.')+'</p><div class="pase-acciones"><a class="button primary" href="/#planes">'+(config.checkoutAvailable?'Ver el pase':'Ver el pase y pedir el aviso')+'</a>'+(signed?'<a class="button" href="/#archivo">Ver mis partidas</a>':'<button type="button" class="button" data-action="auth-login">Ya tengo cuenta · Entrar</button>')+'<a href="/vallejo.html">Jugar la demo gratuita</a></div></div></section>';
+},banner(){if(typeof location!=='undefined'&&['#planes','#alta-club','#suscripcion'].includes(location.hash.split('?')[0]))return '';return state.role==='admin'?'<aside class="paid-banner" aria-label="Acceso editorial"><span class="paid-dot" aria-hidden="true"></span><p><strong>Acceso editorial</strong> · Tienes los 48 juegos disponibles.</p><a href="'+(state.canManage===true?'#gestion':'#casos')+'">'+(state.canManage===true?'Abrir gestión':'Explorar retos')+'</a></aside>':(state.canPlay||state.seasonAccess?.availableCases?.length)?'':old.banner();},get checkoutAvailable(){return config.checkoutAvailable===true;},get canPlay(){return state.canPlay===true;},get state(){return state;},set(value){state=value||{canPlay:false};},account(){
  if(state.role==='admin') return adminCard();
  const access=state.seasonAccess;
  const current=access?.seasons?.filter(s=>s.paidBlocks.length && s.previousReady!==false).at(-1);

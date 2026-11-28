@@ -52,14 +52,15 @@
     const stop=/^(?:[1-9]|1[0-2])$/.test(requested || '') ? Number(requested):1;
     return {edition,candidates,item:candidates.find(item=>item.id===edition.offset+stop) || candidates[0]};
   }
-  function pin(edition,world,item,current) {
+  function pin(edition,world,item,current,allowed,done) {
     const local=item.id-edition.offset;
     const [x,y]=edition.positions[local-1];
-    return `<a class="md-pin" href="${route(world,item.id)}" style="--x:${x}%;--y:${y}%" data-md-edge="${x<24?'left':x>76?'right':'center'}" data-md-id="${item.id}" data-md-way="pin" aria-label="${esc(edition.selectLabel+' '+item.place+'. '+item.title)}" aria-controls="md-file"${item.id===current?' aria-current="location"':''}><span class="md-pin-face">${number(local)}</span><span class="md-pin-tooltip" aria-hidden="true">${esc(item.place)}</span></a>`;
+    const status=done?'Pieza recuperada':allowed?'Disponible para jugar':'Vista previa';
+    return `<a class="md-pin" href="${route(world,item.id)}" style="--x:${x}%;--y:${y}%" data-md-edge="${x<24?'left':x>76?'right':'center'}" data-md-id="${item.id}" data-md-way="pin" data-md-access="${allowed}"${done?' data-md-complete="true"':''} data-md-label="${esc(edition.selectLabel+' '+item.place+'. '+item.title)}" aria-label="${esc(edition.selectLabel+' '+item.place+'. '+item.title+'. '+status)}" aria-controls="md-file"${item.id===current?' aria-current="location"':''}><span class="md-pin-face">${number(local)}</span><span class="md-pin-tooltip" aria-hidden="true">${esc(item.place)}</span></a>`;
   }
-  function indexEntry(edition,world,item,current) {
+  function indexEntry(edition,world,item,current,allowed,completed) {
     const local=item.id-edition.offset;
-    return `<li><a href="${route(world,item.id)}" data-md-id="${item.id}" data-md-way="index" aria-controls="md-file"${item.id===current?' aria-current="location"':''}><span>${number(local)}</span><strong>${esc(item.place)}</strong><small>${esc(item.title)}</small></a></li>`;
+    return `<li><a href="${route(world,item.id)}" data-md-id="${item.id}" data-md-way="index" aria-controls="md-file"${item.id===current?' aria-current="location"':''}><span>${number(local)}</span><strong>${esc(item.place)}</strong><small>${esc(item.title)} · <span class="md-stop-status">${completed?'Pieza recuperada':allowed?'Disponible para jugar':'Vista previa'}</span></small></a></li>`;
   }
   function sealLink(edition,world,local,onBoard=false) {
     if(!edition.seal)return '';
@@ -90,22 +91,25 @@
     const old=board?.element?.isConnected && board.world===world ? board.element : null;
     const enlarged=old?.querySelector('.md-map-window')?.dataset.zoom==='true';
     const open=old?.querySelector('.md-directory')?.open;
-    const allowed=options.admin===true || options.role==='admin' || options.membership?.role==='admin';
+    const editorial=options.admin===true || options.role==='admin' || options.membership?.role==='admin';
+    const access=options.seasonAccess||options.membership?.seasonAccess;
+    const allowed=new Set(editorial?candidates.map(item=>item.id):access?.availableCases||[]);
+    const done=new Set(access?.completed||[]), status=access?.seasons?.find(season=>season.number===edition.number);
     const egypt=world==='necropolis', level=Math.floor((local-1)/4);
     const figureCaption=(egypt?'Nivel '+levels[level]+' · ':'')+edition.station+' '+number(local);
-    return `<section class="md-world" data-md-world="${world}" data-md-selected="${item.id}" data-md-editor="${allowed}" aria-labelledby="md-world-title">
+    return `<section class="md-world" data-md-world="${world}" data-md-selected="${item.id}" data-md-editor="${editorial}" aria-labelledby="md-world-title">
       <header class="md-mast"><div><p class="md-caption">Temporada ${number(edition.number)} · ${esc(edition.genre)}</p><h1 id="md-world-title">${esc(edition.title)}</h1></div><div class="md-mast-end"><p>${esc(edition.intro)}</p>${world==='umbravia'||egypt?sealLink(edition,world,local):''}</div></header>
       <div class="md-atlas"><div class="md-board">
         <div class="md-map-window" data-zoom="${!!enlarged}" role="region" tabindex="0" aria-label="${esc(edition.boardLabel)}"><div class="md-surface">
           <img class="md-map-art" src="${edition.image}" width="1536" height="1024" alt="${esc(edition.imageAlt)}" fetchpriority="high">
-          <div class="md-pins">${candidates.map(v=>pin(edition,world,v,item.id)).join('')}${edition.sealCenter?sealLink(edition,world,local,true):''}</div></div></div>
-        ${egypt?chamberLevels(edition,world,level):''}<div class="md-board-tools"><span class="md-board-status" data-md-progress>12 ${esc(edition.count)}</span>${world==='expedicion'?'<button type="button" class="md-roll" aria-describedby="md-roll-note" disabled>Mover el peón</button>':''}<button type="button" class="md-zoom" aria-pressed="${!!enlarged}">${enlarged?'Ver completo':'Ampliar'}</button></div>${world==='expedicion'?'<p id="md-roll-note" class="md-board-note" aria-live="polite"></p>':''}</div>
+          <div class="md-pins">${candidates.map(v=>pin(edition,world,v,item.id,allowed.has(v.id),done.has(v.id))).join('')}${edition.sealCenter?sealLink(edition,world,local,true):''}</div></div></div>
+        ${egypt?chamberLevels(edition,world,level):''}<div class="md-board-tools"><span class="md-board-status" data-md-progress>${access?candidates.filter(v=>done.has(v.id)).length+' de 12 '+esc(edition.progress):'12 '+esc(edition.count)}</span>${world==='expedicion'?'<button type="button" class="md-roll" aria-describedby="md-roll-note" disabled>Mover el peón</button>':''}<button type="button" class="md-zoom" aria-pressed="${!!enlarged}">${enlarged?'Ver completo':'Ampliar'}</button></div>${world==='expedicion'?'<p id="md-roll-note" class="md-board-note" aria-live="polite"></p>':''}</div>
         <article class="md-file" id="md-file" aria-labelledby="md-case-title"><figure><img src="/mundo-${item.id}.webp" width="768" height="512" alt="" decoding="async"><figcaption>${esc(figureCaption)}</figcaption></figure><div class="md-file-copy">
           <p class="md-caption">${esc(item.place)}</p><h2 id="md-case-title" tabindex="-1">${esc(item.title)}</h2><p class="md-question">${esc(item.question)}</p>
           <p class="md-facts"><span>≈ 60 min</span><span>1–2 personas</span><span>Bloque ${Math.ceil(local/4)} de 3</span></p>
-          <div class="md-access">${accessMarkup(edition,item,allowed,false)}</div><button type="button" class="md-back-pin">${esc(edition.returnLabel)}</button>
+          <div class="md-access">${accessMarkup(edition,item,allowed.has(item.id),done.has(item.id),status)}</div><details class="md-file-roles"><summary>Los dos papeles de esta aventura</summary><ol>${item.roles.map((role,i)=>'<li><strong>Papel '+(i+1)+'</strong> '+esc(role)+'</li>').join('')}</ol></details><button type="button" class="md-back-pin">${esc(edition.returnLabel)}</button>
           </div><nav class="md-stepper" aria-label="Recorrer los doce casos"><a href="${route(world,previous.id)}" data-md-way="step" data-md-id="${previous.id}" aria-label="Anterior. ${esc(previous.place)}">← Anterior</a><span>${number(local)} / 12</span><a href="${route(world,next.id)}" data-md-way="step" data-md-id="${next.id}" aria-label="Siguiente. ${esc(next.place)}">Siguiente →</a></nav></article></div>
-      <details class="md-directory"${open?' open':''}><summary>${esc(edition.index)} <span>12</span></summary><ol>${candidates.map(v=>indexEntry(edition,world,v,item.id)).join('')}</ol></details></section>`;
+      <nav class="md-catalog-links" aria-label="Explorar el territorio"><a href="/#casos?mundo=${world}&amp;mes=${level+1}">Ver las aventuras de este bloque</a><a href="/#tableros?mundo=${world}">Mapa de los cuatro tableros</a></nav><details class="md-directory"${open?' open':''}><summary>${esc(edition.index)} <span>12</span></summary><ol>${candidates.map(v=>indexEntry(edition,world,v,item.id,allowed.has(v.id),done.has(v.id))).join('')}</ol></details></section>`;
   }
   function center(node,pin) {
     if (!pin || node.scrollWidth<=node.clientWidth+2 && node.scrollHeight<=node.clientHeight+2) return;
@@ -181,21 +185,26 @@
     });
     center(pane,selected);
     if(intent?.hash===location.hash) {if(intent.level)focusPin(pane,selected);else focusFile(node);}
+    else if(new URLSearchParams(location.hash.split('?')[1]||'').get('seccion')==='ficha'){
+      requestAnimationFrame(()=>{if(board===local&&node.isConnected)focusFile(node);});
+    }
     intent=null;
     if(!bridge?.isSignedIn?.())return;
     (access||bridge.request('/api/valdemar/seasons')).then(data=>{
       if(board!==local || !node.isConnected || !bridge.isSignedIn())return;
       const done=new Set(data.completed || []);
+      const available=new Set(data.availableCases || []);
       for(const link of node.querySelectorAll('[data-md-way="pin"],[data-md-way="index"],[data-md-way="step"]')){
-        if(done.has(Number(link.dataset.mdId))){
-          link.dataset.mdComplete='true';
-          if(link.dataset.mdWay==='pin')link.setAttribute('aria-label',link.getAttribute('aria-label')+'. '+edition.done);
-        }
+        const caseId=Number(link.dataset.mdId),completed=done.has(caseId),allowed=available.has(caseId);
+        if(completed)link.dataset.mdComplete='true';
+        else delete link.dataset.mdComplete;
+        link.dataset.mdAccess=String(allowed);
+        if(link.dataset.mdWay==='index')link.querySelector('.md-stop-status').textContent=completed?'Pieza recuperada':allowed?'Disponible para jugar':'Vista previa';
+        if(link.dataset.mdWay==='pin')link.setAttribute('aria-label',link.dataset.mdLabel+'. '+(completed?'Pieza recuperada':allowed?'Disponible para jugar':'Vista previa'));
       }
       const count=destinations.filter(v=>done.has(v.id)).length;
       node.querySelector('[data-md-progress]').textContent=count+' de 12 '+edition.progress;
       const status=data.seasons?.find(season=>season.number===edition.number);
-      const available=new Set(data.availableCases || []);
       node.querySelector('.md-access').innerHTML=accessMarkup(edition,item,available.has(id),done.has(id),status);
       const ready=destinations.filter(v=>available.has(v.id) && !done.has(v.id));
       const exhausted=destinations.some(v=>available.has(v.id));

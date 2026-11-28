@@ -20,6 +20,7 @@
   function clear() {
     if(!current)return;
     current.modeControl?.destroy();
+    current.scene?.destroy();
     current.hour?.pause();
     if(current.sideVoice)window.ValdemarHour?.stopVoice?.(current.sideVoice);
     current.observer?.disconnect();
@@ -137,6 +138,7 @@
   }
   function renderEnd(c) {
     const target=c.panels.end,{hour,story,progress}=c.data;
+    c.scene?.update(hour);
     target.replaceChildren(el('p',worlds.nameOf(c.item.world),'md-caption'),el('h2','El desenlace'));
     if(hour.stage && !progress.choice){
       target.append(el('p','Has resuelto '+hour.current+' de '+hour.stages.length+' etapas. El cuaderno reúne las pruebas que necesitarás al final.'),button('Volver a la etapa actual',()=>select(c,'main',true),'md-cta'));return;
@@ -149,6 +151,7 @@
     if(progress.choice){
       const name=story.choices.find(o=>o.id===progress.choice)?.label;
       target.append(el('h3',name||'Tu decisión'),el('p',progress.outcome),window.SellosTemporada.afterCase(c.item.id,c.bridge,c.endingAccess),link(worlds.edition(c.item.world).returnLabel,worlds.route(c.item.world,c.item.id),'md-cta'));
+      const summary=el('aventura-resumen');summary.dataset.case=String(c.item.id);target.append(summary);
     } else target.append(concludeForm(c,story.choices,'¿Cómo queréis cerrar esta historia? La decisión quedará guardada.','Guardar desenlace','ending'));
   }
   function renderSide(c,feedback,replay=false) {
@@ -178,9 +181,7 @@
   function build(c) {
     const {item,frame}=c,story=c.data.story;
     frame.dataset.mdWorld=item.world;
-    const header=el('header',null,'md-game-intro'), copy=el('div',null,'md-game-copy'),figure=el('figure'),cover=el('img');
-    cover.src='/mundo-'+item.id+'.webp';cover.alt='';cover.width=768;cover.height=512;
-    figure.append(cover,el('figcaption',item.place));
+    const header=el('header');
     const top=el('div',null,'md-game-top');c.balance=el('span','','md-wallet');c.balance.setAttribute('aria-live','polite');
     top.append(link('← '+worlds.edition(item.world).returnLabel,worlds.route(item.world,item.id)),c.balance);
     c.modeControl=window.ModalidadJuego.create(frame,story,c.data.mode,mode=>request(c,'mode',{mode}),null,{
@@ -188,15 +189,15 @@
       readState:()=>request(c,'pair-state'),readDossier:()=>request(c),
       onState:state=>{const advanced=window.ModalidadJuego.syncProgress(c.data,state,c.hour,()=>renderEnd(c));updateWallet(c,state);refreshHelp(c);return advanced;},reopen:()=>reopen(c)
     });
-    copy.append(top,el('p',worlds.nameOf(item.world)+' · '+item.place,'md-caption'),el('h1',story.title),c.modeControl.entry,el('p',story.question,'md-game-question'),el('p',story.intro,'md-game-prose'));
-    copy.append(button('Ir a mi investigación',()=>{
-      select(c,'main');
-      c.hour.enter();
-    },'md-cta gm-enter'));
-    header.append(copy,figure);
+    c.scene=window.AventuraEscena.mount(header,{world:item.world,id:item.id,frame,story,image:'/mundo-'+item.id+'.webp',
+      place:item.place,alt:item.place,toolbar:top,modeControl:c.modeControl,read:()=>c.data,playerName:()=>c.bridge.playerName?.(),
+      actions:(kind,id)=>{
+        if(kind==='ending'){select(c,'end',true);return;}
+        select(c,'main');c.hour.open(kind,id);
+      }});
     const nav=el('nav',null,'md-game-tabs');nav.setAttribute('aria-label','Secciones de la partida');
     c.controls={};c.panels={};
-    for(const [key,label] of [['main','Investigación'],['side','Reto paralelo'],['help','Sobre de ayuda'],['end','Desenlace']]){
+    for(const [key,label] of [['main','Investigación'],['side','Reto paralelo'],['help','Pistas'],['end','Desenlace']]){
       const b=button(label,()=>select(c,key,true),'md-tab');b.dataset.mdTab=key;
       const p=el('section',null,'md-game-panel md-game-'+key+(key==='side'?' vhour':''));p.hidden=true;p.tabIndex=-1;
       p.id='md-panel-'+key;p.setAttribute('aria-label',label);b.setAttribute('aria-controls',p.id);
@@ -208,6 +209,7 @@
     frame.replaceChildren(header,nav,...Object.values(c.panels));
     c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
       role:c.data.partner?.role,
+      onScene:hour=>c.scene.update(hour),
       inventory:async input=>{
           const result=await request(c,'inventory',input);
           if(result.wallet)updateWallet(c,result);
@@ -236,7 +238,7 @@
     const sideRequested=c.routeSection==='reto';
     const pending=c.frame.dataset.playMode==='pending';
     select(c,sideRequested?'side':ending?'end':'main',sideRequested || c.resume && (ending || pending));
-    if(c.resume && !ending && !sideRequested && !pending)c.hour.enter();
+    if(c.resume && !ending && !sideRequested && !pending)c.scene.focus();
   }
   function mountGame(id,bridge,resume=false) {
     const host=document.getElementById('md-game-host'),item=worlds.story(id);

@@ -87,7 +87,7 @@ function homeSeasonOffer(m) {
  const label=open?'Ver la suscripción':m.membership?.waitlist?'Ver mi aviso de apertura':'Avísame cuando abra';
  return `<section class="vh-offer" aria-labelledby="vh-offer-title">
    <div><p class="cover-caption">La suscripción mensual</p><h2 id="vh-offer-title">Cuatro tableros, 48 aventuras.</h2>
-   <p>La mensualidad desbloquea cuatro aventuras. Resuelve las doce de cada tablero para reconstruir su reliquia y pasar al siguiente. En pareja, cada persona investiga con su propio papel.</p></div>
+   <p>Cada cuota mensual confirmada desbloquea cuatro aventuras. Resuelve las doce de cada tablero para reconstruir su reliquia y pasar al siguiente. En pareja, cada persona investiga con su propio papel.</p></div>
    <div class="vh-terms"><p class="vh-price"><strong>29,95 €</strong><span>primera cuota por persona</span></p><p class="vh-offer-note">${open?'IVA incluido':'Precio previsto · Próxima apertura'}. Si os elegís mutuamente y ambos tenéis un pase activo, cada uno recibe un 50 % en sus próximas renovaciones.</p><a href="#planes" class="button primary">${label}</a></div>
  </section>`;
 }
@@ -210,7 +210,17 @@ if(root.customElements&&!root.customElements.get('home-resume')){
 function home(m){
  const latest=m.userId?classicReturn(m):null;
  const returning=m.userId?`<home-resume data-classic-time="${latest?.time||0}">${returnCard(latest)}</home-resume>`:'';
- return `${returning}${root.ValdemarCatalog?.mansionCover?.(false,m.membership?.role==='admin'||(m.canPlay&&m.membership?.seasonAccess?.seasons?.[0]?.availableCases?.includes(1)))||''}${coverStory(m)}
+ const territories=[['mapa','Valdemar','Misterio'],['expedicion','El Tablero de Ámbar','Expedición'],['umbravia','Umbravía','Suspense'],['necropolis','La Necrópolis del Sol Velado','Antiguo Egipto']];
+ const ownsMansion=m.membership?.role==='admin'||m.membership?.seasonAccess?.seasons?.[0]?.availableCases?.includes(1);
+ const atlas=`<section class="universe-front" aria-labelledby="universe-heading"><div class="universe-front-copy">
+ <p class="universe-eyebrow">La Última Pieza · Atlas de aventuras</p><h1 id="universe-heading">El mapa de los cuatro mundos</h1>
+ <p>Elige un territorio para descubrir sus doce aventuras. Cada mundo esconde una reliquia que irás reconstruyendo pieza a pieza.</p>
+ <div class="universe-front-first"><span>Primera aventura · Valdemar</span><h2>El secreto de los dos mundos</h2>
+ <p>Ada os envía una foto de vuestra infancia. Al llegar a la casa de la imagen, cada protagonista encuentra una realidad distinta.</p>
+ <a class="universe-door" href="${ownsMansion?'/#valdemar-jugar?id=1':'/valdemar/01/?carta=1'}">${ownsMansion?'Entrar en la mansión':'Abrir la carta de Ada'} <span aria-hidden="true">→</span></a></div></div>
+ <nav class="universe-chart" aria-label="Explorar los cuatro tableros"><img src="/atlas-cuatro-mundos.webp" width="1520" height="856" alt="" fetchpriority="high">
+ ${territories.map(([route,name,genre],i)=>`<a class="universe-pin universe-pin-${i+1}" href="/#tableros?mundo=${route}" aria-label="Explorar ${esc(name)}"><span class="universe-pin-light" aria-hidden="true"></span><span><small>${esc(genre)}</small><strong>${esc(name)}</strong></span></a>`).join('')}</nav></section>`;
+ return `${returning}${atlas}${coverStory(m)}
  <div class="cover-tail vh-tail">${shareBox({title:'Clínica Vallejo'},'/vallejo.html')}</div>
  ${root.ValdemarCatalog ? root.ValdemarCatalog.home({canPlay:m.canPlay,admin:m.membership?.role==='admin'}) : ''}
  <section class="adventure-links" aria-label="Más formas de jugar"><a href="/#desafios"><strong>Desafíos</strong><span>Resuelve retos paralelos para ganar llaves y abrir pistas.</span></a><a href="/#perfil?seccion=progreso"><strong>Mi personaje</strong><span>Consulta tus ocho habilidades, tu experiencia y tus logros.</span></a></section>
@@ -228,7 +238,7 @@ function card(s,m){
 
 function catalog(m){
  const cases=season(m),month=[1,2,3].includes(m.catalogMonth)?m.catalogMonth:1;
- return `<section class="season-catalog"><header><p class="cover-caption">Archivo clásico · Doce noches</p><h1>Las primeras historias de Valdemar.</h1><p>Cada mes se abren cuatro misterios. Elige en qué orden investigarlos.</p><a class="text-link" href="/#mapa-clasico">Ver el plano de las doce piezas</a></header><section class="season-strip vh-catalog" aria-labelledby="catalog-demo"><div><p class="cover-caption">Caso de prueba gratuito</p><h2 id="catalog-demo">Clínica Vallejo</h2><p>Abre la caja 87-V e investiga la desaparición del doctor Vallejo.</p></div><button type="button" class="button primary" data-action="preview-open">Jugar la demo</button></section><nav class="month-nav" aria-label="Casos por mes">${[1,2,3].map(n=>`<a href="#archivo-clasico?mes=${n}" ${n===month?'aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><div class="shelf-grid" aria-label="Cuatro casos del mes ${month}">${cases.slice((month-1)*4,month*4).map(s=>card(s,m)).join('')}</div></section>`;
+ return `<section class="season-catalog"><header><p class="cover-caption">Archivo clásico · Doce noches</p><h1>El archivo de las primeras historias</h1><p>Recorre los doce expedientes de la colección original. Para abrir los cuatro tableros de la edición actual, vuelve al atlas.</p><a class="text-link" href="/#tableros">Ir a los cuatro tableros</a><a class="text-link" href="/#mapa-clasico">Ver el plano de las doce piezas</a></header><section class="season-strip vh-catalog" aria-labelledby="catalog-demo"><div><p class="cover-caption">Caso de prueba gratuito</p><h2 id="catalog-demo">Clínica Vallejo</h2><p>Abre la caja 87-V e investiga la desaparición del doctor Vallejo.</p></div><button type="button" class="button primary" data-action="preview-open">Jugar la demo</button></section><nav class="month-nav" aria-label="Casos por mes">${[1,2,3].map(n=>`<a href="#archivo-clasico?mes=${n}" ${n===month?'aria-current="page"':''}>Mes ${n}</a>`).join('')}</nav><div class="shelf-grid" aria-label="Cuatro casos del mes ${month}">${cases.slice((month-1)*4,month*4).map(s=>card(s,m)).join('')}</div></section>`;
 }
 
 function classicStation(s,m){
