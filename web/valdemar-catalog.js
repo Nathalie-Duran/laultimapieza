@@ -91,6 +91,7 @@
       <div class="mansion-entry-copy"><p class="mansion-entry-kicker">Código Valdemar · Episodio 01</p><h1 id="mansion-entry-title">El secreto de los dos mundos</h1>
       <p>Ada os envía una foto de vuestra infancia tomada frente a una casa que ninguno recuerda. Cuando llegáis, uno encuentra luz en las ventanas. El otro las ve tapiadas.</p>
       <div class="mansion-entry-actions">${unlocked?enter+letter:letter+alternate}</div>
+      ${detailView?(window.RetosTemporada?.acceso(1,unlocked)||''):''}
       <p class="mansion-entry-format">Aventura gráfica · 1–2 jugadores · 75–90 min estimados</p></div></section>`;
   }
   function mansionDetail(unlocked,message) {
@@ -124,7 +125,7 @@
     ).join('');
     return `<article class="vd-detail"><nav class="vd-route-links" aria-label="Explorar Código Valdemar"><a class="vd-back" href="/#casos?mes=${item.month}">Volver a los juegos del bloque ${item.month}</a><a class="vd-back" href="/#mapa?mes=${item.month}&amp;lugar=${item.id}">Situar en el plano</a></nav>
       <header class="vd-feature"><figure><img src="${item.image}" width="764" height="508" alt="${esc(item.coverAlt)}" fetchpriority="high"><figcaption>${esc(item.place)}</figcaption></figure>
-      <div class="vd-description"><p class="vd-label">Código Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}</div>${unlocked?'':'<p class="vd-availability">'+esc(message)+'</p>'}</div></header>
+      <div class="vd-description"><p class="vd-label">Código Valdemar · Historia ${number(item.id)}</p><h1>${esc(item.title)}</h1><p class="vd-hook">${esc(item.question)}</p><p class="vd-format">≈ 60 min <span aria-hidden="true">/</span> 1–2 personas</p><div class="vd-actions">${actions}</div>${window.RetosTemporada?.acceso(item.id,unlocked)||''}${unlocked?'':'<p class="vd-availability">'+esc(message)+'</p>'}</div></header>
       ${item.id===2?hotelCall(cta):''}
       <section class="vd-brief"><div><h2>Los dos papeles</h2><details class="vd-modes-help"><summary>Cómo repartirse las pistas</summary><p>A solas puedes abrir ambas carpetas. En pareja, elegíos en vuestros perfiles y pulsad «En pareja» en el caso. Cada uno recibe una carpeta.</p><a class="vd-textlink" href="/#perfil">Ver mi compañero de juego</a></details></div><ol><li><strong>Papel 1</strong>${esc(item.roleA)}</li><li><strong>Papel 2</strong>${esc(item.roleB)}</li></ol></section>
       <nav class="vd-case-steps" aria-label="Otros expedientes de Código Valdemar">${adjacent}</nav>${demo}</article>`;

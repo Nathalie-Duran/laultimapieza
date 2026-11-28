@@ -5,6 +5,34 @@
   color:var(--vd-ink);min-width:0;
 }
 .vd-home {margin-block:clamp(2.5rem,5vw,5rem)}
+.md-world .extra-mapa-link,.vdp .extra-mapa-link {
+  display:inline-flex;align-items:center;min-block-size:44px;margin:.38rem .7rem 0 0;box-sizing:border-box;
+  color:#f6dba5;font:650 .98rem/1.4 var(--sans,system-ui,sans-serif);text-decoration:underline;text-underline-offset:.23em;
+}
+:is(.vdp,.vd-detail,.mansion-public,.md-world) .extra-ficha-link {
+  display:grid;grid-template-columns:minmax(0,1fr) auto;box-sizing:border-box;align-items:center;gap:.12rem .85rem;
+  max-inline-size:32rem;min-block-size:52px;margin:.85rem 0 .25rem;padding:.65rem .85rem;
+  color:#fff4d9;background:#18322f;border:1px solid #7b8a78;border-inline-start:.22rem solid #d6b578;border-radius:.3rem;
+  text-decoration:none;font:500 .94rem/1.35 var(--sans,system-ui,sans-serif);
+}
+:is(.vdp,.vd-detail,.mansion-public,.md-world) .extra-ficha-link small {
+  grid-column:1;grid-row:1;display:block;color:#e4d7b3;font:600 .8rem/1.3 var(--sans,system-ui,sans-serif);
+}
+:is(.vdp,.vd-detail,.mansion-public,.md-world) .extra-ficha-link strong {
+  grid-column:1;grid-row:2;min-inline-size:0;color:#fff3da;font:650 1.04rem/1.25 var(--sans,system-ui,sans-serif);overflow-wrap:anywhere;
+}
+:is(.vdp,.vd-detail,.mansion-public,.md-world) .extra-ficha-link span {
+  grid-column:2;grid-row:1/span 2;color:#ffe0a8;font-size:.86rem;text-decoration:underline;text-underline-offset:.22em;
+}
+:is(.vdp,.vd-detail,.mansion-public,.md-world) .extra-ficha-link:hover {background:#24443d;border-color:#e5c481}
+:is(.vdp,.md-world,.vd-detail,.mansion-public) :is(.extra-mapa-link,.extra-ficha-link):focus-visible {
+  outline:3px solid #ffda83;outline-offset:3px;box-shadow:0 0 0 3px #172622;
+}
+.md-world .md-file .md-access:has(.extra-ficha-link) {display:block;margin-inline-end:0}
+@media(max-width:420px) {
+  :is(.vdp,.vd-detail,.mansion-public,.md-world) .extra-ficha-link {grid-template-columns:minmax(0,1fr);gap:.15rem}
+  :is(.vdp,.vd-detail,.mansion-public,.md-world) .extra-ficha-link span {grid-column:1;grid-row:3;margin-top:.15rem}
+}
 .vd-section .vd-head {display:flex;align-items:end;justify-content:space-between;gap:1.15rem;margin:0 0 1.4rem}
 .vd-section .vd-label,.vd-detail .vd-label,.vd-section .vd-location {
   font:650 .75rem/1.5 var(--sans,system-ui,sans-serif);letter-spacing:.12em;text-transform:uppercase;color:var(--vd-gold);margin:0 0 .6rem;
