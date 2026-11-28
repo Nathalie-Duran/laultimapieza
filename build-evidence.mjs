@@ -77,7 +77,7 @@ const landingTitle = source.match(/<title>([^<]+)<\/title>/)?.[1];
 const landingDescription = source.match(/<meta name="description" content="([^"]+)"/)?.[1];
 if (!landingTitle || !landingDescription) throw Error('Faltan el título o la descripción de la portada');
 const landing = source
-  .replace('</head>', () => head(landingTitle, landingDescription, base+'/', base+'/mansion-room-1.webp').replace(/<meta property="og:image:(?:width|height)"[^>]*>/g,'')+'</head>')
+  .replace('</head>', () => head(landingTitle, landingDescription, base+'/', base+'/atlas-cuatro-mundos.webp').replace(/<meta property="og:image:(?:width|height)"[^>]*>/g,'')+'</head>')
   .replace(main+'</main>', () => main+ctx.ExperienceUI.home({stories,canPlay:false,sessions:[]})+'</main>');
 await writeFile(new URL('index.html',publicDir),landing);
 const publicPaths = ['/', '/vallejo.html', ...valdemarPaths, ...stories.map(s => '/caso/'+s.id+'/')];

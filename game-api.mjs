@@ -152,11 +152,11 @@ export function createGameApi({config,storageReady=true,verify,withStore,engine,
           return result;
         }));
       }
-      if(path==='/api/published-challenges'){
+      if(path==='/api/published-challenges'||path==='/api/calendar-challenges'){
         if(!['GET','POST'].includes(method))fail(405,'Método no permitido.');
         if(method==='POST'&&(!origin||!origins.includes(origin)))fail(403,'Abre el desafío desde la web.');
         const {playPublished}=await import('./published-challenges.mjs');
-        return json(await withStore(store=>playPublished(store,{uid,billing,editorial:isAdministrator(user),input})));
+        return json(await withStore(store=>playPublished(store,{uid,billing,editorial:isAdministrator(user),input,calendar:path==='/api/calendar-challenges'})));
       }
       const result=await withStore(async store=>{
         const profile=await store.ensureProfile(user);
