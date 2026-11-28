@@ -10,7 +10,7 @@ test('Cada ficha pública de Valdemar enlaza la demo con el caso de procedencia'
   for(const item of catalog.ValdemarCatalog.items){
     const code=String(item.id).padStart(2,'0');
     const page=catalog.ValdemarCatalog.detail(item.id,{});
-    assert.ok(page.includes('href="/vallejo.html?caso='+code+'"'),item.title);
+    assert.ok(page.includes('href="/cinta-87.html?caso='+code+'"'),item.title);
     assert.doesNotMatch(page,/data-action="preview-open"/);
   }
 });
@@ -45,13 +45,13 @@ test('La colección no cuenta estados falsos, partidas ajenas, repeticiones ni e
  assert.match(ctx.ExperienceUI.detail(c,anonymous),/Ver suscripción/);assert.doesNotMatch(ctx.ExperienceUI.detail(c,anonymous),/data-action="setup"/);
 });
 
-test('La promoción clásica presenta los doce casos y solo invita a la demo de Clínica Vallejo',()=>{
+test('La promoción clásica presenta los doce casos y solo invita a la demo de La cinta 87',()=>{
  const model={stories:ctx.STORIES,sessions:[],canPlay:false};
  const retired=ctx.STORIES.find(s=>s.id==='habitacion-309');
  for(const catalogMonth of [1,2,3]){
    const html=ctx.ExperienceUI.catalog({...model,catalogMonth});
    assert.equal((html.match(/class="shelf-card /g)||[]).length,4);
-   assert.match(html,/Clínica Vallejo/);
+   assert.match(html,/La cinta 87/);
    assert.doesNotMatch(html,/habitaci[oó]n[ -]309|Bellamar|Caso adicional/i);
  }
  for(const html of [ctx.ExperienceUI.map(model),ctx.ExperienceUI.invitation(retired,model),ctx.ExperienceUI.detail(retired,model)]){
