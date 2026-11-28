@@ -59,6 +59,16 @@ test('Ambos jugadores montan un único selector y guardan la modalidad antes de 
   }
 });
 
+test('Elegir pareja sin compañero conduce directamente al formulario de pareja del perfil',async()=>{
+  const {window,document}=await load('modalidad-juego.js');
+  const picker=window.ModalidadJuego.create(document.createElement('section'),{roles:[]},null,async()=>({}),null,{
+    caseId:4,data:{},partners:async()=>({availableCases:[4],preferredEmail:null,invitations:[]})
+  });
+  await picker.entry.nodes().find(node=>node.textContent==='En pareja').listeners.click();
+  const link=picker.entry.nodes().find(node=>node.tag==='a');
+  assert.equal(link.href,'/#perfil?seccion=pareja');
+});
+
 test('La escena cambia con la etapa, respeta el papel y conecta cada punto con su material',async()=>{
   for(const world of ['valdemar','expedicion','umbravia','necropolis']){
     const {window,document}=await load('aventura-escena.js'),node=()=>document.createElement('section');

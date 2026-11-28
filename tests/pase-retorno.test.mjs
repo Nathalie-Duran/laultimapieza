@@ -86,9 +86,35 @@ test('el pase explica el orden de cuatro tableros, los tres bloques y el retorno
   assert.deepEqual([...guest.matchAll(/<strong>(\d+)<span> \/ 12 aventuras/g)].map(match=>Number(match[1])),[4,8,12]);
   for(const board of ['mapa','expedicion','umbravia','necropolis'])assert.ok(guest.includes('href="/#'+board+'"'));
   assert.match(guest,/Ya tengo cuenta · Entrar/);
-  assert.match(guest,/Tarifa prevista · 29,95/);
+  assert.equal((guest.match(/29,95 €/g)||[]).length,1);
+  assert.match(guest,/Precio previsto, IVA incluido/);
+  assert.match(guest,/href="\/#alta-club"/);
+  assert.doesNotMatch(guest,/class="pase-preguntas"|data-notice="join"|pase-peliculas/);
   shop.login(1);
   assert.match(shop.page.ClubAccess.plans(),/Volver a mis partidas/);
+});
+
+test('alta, gestión y preguntas muestran solo las acciones del destino',async()=>{
+  const waiting=await storefront(false);
+  waiting.location.hash='#alta-club';
+  assert.match(waiting.page.ClubAccess.plans(),/data-notice="join"/);
+  assert.doesNotMatch(waiting.page.ClubAccess.plans(),/pase-recorrido|pase-preguntas|billing-checkout/);
+  waiting.location.hash='#suscripcion';
+  assert.match(waiting.page.ClubAccess.plans(),/data-action="auth-login"/);
+  assert.doesNotMatch(waiting.page.ClubAccess.plans(),/data-notice|pase-recorrido/);
+  waiting.login(1);
+  waiting.page.ClubAccess.set({ownAccess:true,hasCustomer:true,seasonAccess:{seasons:[]}});
+  assert.match(waiting.page.ClubAccess.plans(),/data-action="billing-portal"/);
+  assert.doesNotMatch(waiting.page.ClubAccess.plans(),/pase-recorrido|billing-checkout/);
+  waiting.location.hash='#planes?seccion=preguntas';
+  const faq=waiting.page.ClubAccess.plans();
+  assert.match(faq,/<h2>Juego en pareja<\/h2>/);
+  assert.match(faq,/<h2>Desbloqueos y llaves<\/h2>/);
+  waiting.location.hash='#desafios';
+  assert.equal(waiting.page.ClubAccess.banner(),'');
+  waiting.page.ClubAccess.set({role:'admin',canManage:true});
+  assert.match(waiting.page.ClubAccess.banner(),/Acceso editorial/);
+  assert.doesNotMatch(waiting.page.ClubAccess.banner(),/<a\b/);
 });
 
 test('El primer cobro y la recontratación siempre muestran el precio íntegro',async()=>{
@@ -139,5 +165,14 @@ test('La ayuda separa la elección mutua del papel y de la renovación',async()=
   assert.match(html,/primera cuota personal es de 29,95/);
   assert.match(html,/ambos tenéis una suscripción personal activa/);
   assert.match(html,/facturas ya emitidas conservan su importe/);
+  assert.match(html,/href="\/#perfil\?seccion=pareja">Elegir a mi compañero/);
+  assert.match(html,/href="\/#perfil\?seccion=pareja">Gestionar mi compañero/);
   assert.doesNotMatch(html,/correo.*otro para ese caso|elegir una pareja distinta|acepta desde su perfil/);
+  shop.location.hash='#planes';
+  assert.match(shop.page.ClubAccess.plans(),/href="\/#perfil\?seccion=pareja">Elegir a mi compañero/);
+  shop.login(1);
+  assert.match(shop.page.ClubAccess.plans(),/href="\/#perfil\?seccion=pareja">Ver mi compañero de juego/);
+  shop.page.Colecciones={menu:()=>''};
+  shop.page.ClubAccess.set({role:'admin'});
+  assert.match(shop.page.ClubAccess.plans(),/href="\/#perfil\?seccion=pareja">Ver mi compañero de juego/);
 });

@@ -29,7 +29,8 @@ function simulatedEpisode(number,role){
     return {title:'Escenario de pruebas',current:number,total:15,stage,revision,rooms,role,
       explore:{id:roomId,evidence:roomId===active.id?stage.evidence:[]},inventory:picked?[{title:'Arandela de ensayo',world:'B'}]:[],
       missions:['una','dos','tres','cuatro'].map(id=>({id,title:'Misión de ensayo '+id,brief:'',available:false})),
-      balance:hint?5:6,recordings:number>=12?{radio:recording}:{},ending:null};
+      balance:hint?5:6,album:[{id:'carta',title:'Nota de ensayo',text:'«Única transcripción de ensayo.»'}],
+      recordings:{carta:{title:'Oír la nota',audio:'/test-letter.wav',text:'Única transcripción de ensayo.'},...(number>=12?{radio:recording}:{})},ending:null};
   }
   function act(input){
     if(input.op==='act'){assert.equal(input.action,'muestra');picked=true;revision++;}
@@ -54,10 +55,11 @@ async function view(number=1,role='solo'){
     remove(){}
     get childElementCount(){return this.children.length;}
     nodes(){return [this,...this.children.flatMap(child=>child.nodes())];}
-    querySelector(token){
+    querySelectorAll(token){
       const part=token.split(' ').at(-1);
-      return this.nodes().find(item=>part.startsWith('.')?item.className?.split(' ').includes(part.slice(1)):item.tag===part);
+      return this.nodes().filter(item=>part.startsWith('.')?item.className?.split(' ').includes(part.slice(1)):item.tag===part);
     }
+    querySelector(token){return this.querySelectorAll(token)[0];}
   }
   document.createElement=tag=>new Node(tag);
   const window={};
@@ -114,6 +116,21 @@ test('Cada una de las quince pruebas monta su mecanismo; las fotos y los sonidos
     if(n===11){const radio=puzzle.nodes().find(node=>node.type==='range');assert.ok(radio);assert.equal(radio.value,'600');}
   }
   assert.equal(new Set(kinds).size,15);
+});
+
+test('El mecanismo tiene una sola entrada y la vuelta restaura el foco en su punto de la escena',async()=>{
+  const {host,click,document}=await view();
+  assert.equal(host.nodes().filter(node=>node.tag==='button'&&node.textContent==='Abrir el mecanismo').length,1);
+  await click('Abrir el mecanismo');assert.ok(host.querySelector('.mansion-puzzle'));
+  await click('Volver al escenario');assert.equal(host.querySelector('.mansion-puzzle'),undefined);
+  assert.equal(document.activeElement.textContent,'Abrir el mecanismo');
+});
+
+test('Una carta del álbum conserva un solo texto y un solo reproductor en Evidencias',async()=>{
+  const {host,click}=await view();
+  await click('Evidencias');
+  assert.equal(host.textContent.split('Única transcripción de ensayo.').length-1,1);
+  assert.equal(host.nodes().filter(node=>node.tag==='audio'&&node.src==='/test-letter.wav').length,1);
 });
 
 test('Un jugador en pareja conserva su realidad y las acciones del inventario sobreviven al cambio de pestaña',async()=>{
