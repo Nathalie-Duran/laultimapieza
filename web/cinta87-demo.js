@@ -10,6 +10,8 @@
   };
   const places = {magnetofono:'Magnetófono',acetato:'Sobre de calibración',libro:'Libro de salidas',hoja:'Fichero de traslados'};
   const objects = {piloto:'Carrete piloto',acetato:'Máscara de acetato',hoja:'Hoja de contactos'};
+  const photos = {magnetofono:'/c87-magnetofono.webp',acetato:'/c87-acetato.webp',libro:'/c87-registro.webp',hoja:'/c87-fichero.webp'};
+  const itemPhoto=id=>photos[id==='piloto'?'magnetofono':id];
   const boxNames = {a4:'A4',b6:'B6',c2:'C2'};
   const marks = {circulo:'Precinto circular',triangulo:'Precinto triangular',cuadrado:'Precinto cuadrado'};
   const endings = {
@@ -101,8 +103,8 @@
     function prologue(){
       return '<section class="c87-opening"><div class="c87-poster"><img src="/cinta87-mesa.webp" alt="Una cinta de casete y material del archivo de radio sobre una mesa."></div>'+
         '<div class="c87-opening-copy"><p class="c87-kicker">Archivo de Radio Valdemar · Demo gratuita</p>'+
-        '<h1 tabindex="-1" data-c87-heading>La cinta 87</h1><p class="c87-lead">La última emisión de la estación está a punto de salir en antena otra vez. En el archivo quedan tres cajas y una sola contiene la grabación original.</p>'+
-        '<p>Escucha la cinta piloto, localiza la bobina y decide qué hacer con su contenido.</p>'+
+        '<h1 tabindex="-1" data-c87-heading>La cinta 87</h1><p class="c87-lead">Una casete conserva el arranque de la última emisión de la estación. La bobina original está en una de tres cajas del archivo.</p>'+
+        '<p>Escucha los pulsos en la cabina, contrasta los precintos en el depósito y decide si la grabación vuelve a las ondas.</p>'+
         '<p class="c87-meta">10-15 min aprox. · Un dispositivo · '+(storageBlocked?'Guardado durante esta visita':'Guardado local')+'</p><div class="c87-actions">'+
         control('start','Jugar en solitario','solo',true)+control('start','Jugar en pareja','duo')+'</div>'+
         '<p class="c87-small">En solitario consultas ambas carpetas. En pareja os turnáis con el dispositivo y compartís en voz alta vuestras pistas.</p>'+
@@ -144,14 +146,13 @@
       const role=roles[state.role],id=state.detail;
       if(!id){
         const labels={magnetofono:'Escuchar el piloto',acetato:'Examinar el sobre',libro:'Leer el registro',hoja:'Examinar las fichas'};
-        return '<section class="c87-room" data-c87-room="'+state.role+'"><div class="c87-room-art"><img src="/cinta87-mesa.webp" alt="" loading="lazy"></div><div>'+
-          '<p class="c87-kicker">'+role.name+'</p>'+heading(role.room)+'<p>'+role.task+'</p><div class="c87-stations">'+
-          role.places.map(key=>'<button type="button" data-c87="place" data-value="'+key+'"><strong>'+places[key]+'</strong><span>'+(examined(key)?'✓ Consultado':labels[key])+'</span></button>').join('')+
-          '</div>'+feedback()+(role.places.every(examined)?nextButton():'')+'</div></section>';
+        return '<section class="c87-room" data-c87-room="'+state.role+'"><header class="c87-room-intro"><p class="c87-kicker">'+role.name+'</p>'+heading(role.room)+'<p>'+role.task+'</p></header><div class="c87-evidence-grid">'+
+          role.places.map(key=>'<button type="button" class="c87-evidence-card" data-c87="place" data-value="'+key+'"><span class="c87-object-photo"><img src="'+photos[key]+'" alt="" width="600" height="600"></span><span class="c87-object-caption"><strong>'+places[key]+'</strong><span>'+(examined(key)?'Consultado · Volver a abrir':labels[key])+'</span></span></button>').join('')+
+          '</div>'+feedback()+(role.places.every(examined)?nextButton():'')+'</section>';
       }
       let detail;
       if(id==='magnetofono'){
-        detail='<p>El carrete piloto conserva el arranque de la última emisión. La ficha de su caja se perdió. Escucha la señal que precede al soplo.</p>'+
+        detail='<p>Restauración pasó el arranque de la casete 87 a este carrete piloto para escucharlo en el magnetófono. Escucha la señal que precede al soplo.</p>'+
           '<audio controls preload="none" data-c87-pilot aria-label="Cinta piloto de la última emisión"><source src="/cinta87-piloto.wav" type="audio/wav"></audio>'+
           (transcript?'<blockquote data-c87-transcript tabindex="-1">Clic de arranque. Dos pulsos cortos, seguidos de un pulso largo. Después se oye el soplo de la cinta y un clic de parada.</blockquote>':control('transcript','Leer la transcripción'))+
           (state.seen.includes('signal')&&!notice?'<p class="c87-filed">Señal del piloto examinada</p>':'');
@@ -164,16 +165,16 @@
         detail='<p>Las fichas de dos turnos están impresas una encima de otra. Se distinguen tres cajas, A4, B6 y C2, pero los sellos y las señales se superponen.</p>'+
           '<blockquote>Una franja negra recorre el margen izquierdo de la hoja. En el derecho solo hay una perforación de archivador.</blockquote>'+objectButton('hoja');
       }
-      return '<section class="c87-paper"><p class="c87-kicker">'+role.room+'</p>'+heading(places[id])+detail+feedback()+(examined(id)?nextButton():'')+
-        '<div class="c87-links">'+control('back','Volver a '+role.room.toLowerCase())+'</div></section>';
+      return '<section class="c87-paper c87-inspection"><div class="c87-inspection-photo"><img src="'+photos[id]+'" alt="" width="600" height="600"></div><div class="c87-inspection-copy"><p class="c87-kicker">'+role.room+'</p>'+heading(places[id])+detail+feedback()+(examined(id)?nextButton():'')+
+        '<div class="c87-links">'+control('back','Volver a '+role.room.toLowerCase())+'</div></div></section>';
     }
     function bag(){
       const held=Object.fromEntries(state.items.map(id=>[id,objects[id]]));
-      const contents=state.items.length?'<ul class="c87-inventory">'+state.items.map(id=>'<li>'+objects[id]+'</li>').join('')+'</ul>':'<p>Aún no hay objetos. Explora las dos carpetas para reunir el material.</p>';
+      const contents=state.items.length?'<ul class="c87-inventory">'+state.items.map(id=>'<li><img src="'+itemPhoto(id)+'" width="96" height="96" alt=""><strong>'+objects[id]+'</strong></li>').join('')+'</ul>':'<p>Aún no hay objetos. Explora las dos carpetas para reunir el material.</p>';
       let work='';
       if(state.combined)work=table()+feedback()+nextButton();
-      else if(state.items.includes('acetato') && state.items.includes('hoja'))work='<form data-c87-form="combine"><fieldset><legend>Revelar la ficha del último turno</legend>'+
-        select('first','Primer objeto',held,draft.first)+select('second','Segundo objeto',held,draft.second)+
+      else if(state.items.includes('acetato') && state.items.includes('hoja'))work='<form data-c87-form="combine"><fieldset class="c87-lightbox"><legend>Revelar la ficha del último turno</legend>'+
+        ['first','second'].map((field,i)=>'<div class="c87-slot"><div class="c87-slot-preview" aria-hidden="true" data-slot="'+field+'">'+(held[draft[field]]?'<img src="'+itemPhoto(draft[field])+'" alt="">':'')+'</div>'+select(field,i?'Colocar encima':'Colocar sobre la mesa',held,draft[field])+'</div>').join('')+
         select('side','¿Dónde colocas la muesca?',{izquierda:'Margen izquierdo',derecha:'Margen derecho'},draft.side)+
         '<button type="submit" class="c87-control c87-primary">Superponer los objetos</button></fieldset></form>'+feedback();
       else work='<p>La mesa de cotejo necesita un material de cada carpeta.</p>'+feedback()+nextButton();
@@ -193,7 +194,8 @@
       if(!state.combined)missing.push('Revelar la hoja de traslados en el inventario.');
       const work=missing.length?'<p>Para identificar el original falta:</p><ul>'+missing.map(t=>'<li>'+t+'</li>').join('')+'</ul>'+feedback()+nextButton():
         table()+'<form data-c87-form="deduce"><fieldset><legend>Identificar la grabación original</legend>'+
-        select('box','¿Qué caja abrirás?',boxNames,draft.box)+select('mark','¿Qué precinto acredita que es el original?',marks,draft.mark)+
+        '<fieldset class="c87-choices"><legend>¿Qué caja abrirás?</legend>'+Object.entries(boxNames).map(([id,label])=>'<label><input type="radio" name="box" required value="'+id+'"'+(draft.box===id?' checked':'')+'><span class="c87-reel-box" aria-hidden="true"></span><span>Caja '+label+'</span></label>').join('')+'</fieldset>'+
+        '<fieldset class="c87-choices"><legend>¿Qué precinto acredita que es el original?</legend>'+Object.entries(marks).map(([id,label])=>'<label><input type="radio" name="mark" required value="'+id+'"'+(draft.mark===id?' checked':'')+'><span class="c87-stamp c87-stamp-'+id+'" aria-hidden="true"></span><span>'+label+'</span></label>').join('')+'</fieldset>'+
         '<button type="submit" class="c87-control c87-primary">Contrastar la deducción</button></fieldset></form>'+feedback();
       return '<section class="c87-paper"><p class="c87-kicker">Mesa compartida</p>'+heading('¿Dónde está la cinta 87?')+work+'</section>';
     }
@@ -273,6 +275,13 @@
       const focus=action==='hint'?'hint':action==='hints'&&showHints?'hints':action==='transcript'?'transcript':notice?'notice':true;
       draw(focus);
     }
+    function previewSlot(e){
+      const field=e.target,form=field.form;
+      if(form?.dataset.c87Form!=='combine'||!['first','second'].includes(field.name))return;
+      const slot=form.querySelector('[data-slot="'+field.name+'"]');
+      draft[field.name]=field.value;
+      slot.innerHTML=state.items.includes(field.value)?'<img src="'+itemPhoto(field.value)+'" alt="">':'';
+    }
     function submit(e){
       const form=e.target;
       if(!form.matches?.('form[data-c87-form]'))return;
@@ -301,11 +310,11 @@
       state=read();curtain=state?.mode==='duo'&&!state.ending;showHints=false;transcript=false;alternate=false;resetting=false;draft={};
       notice='El progreso se ha actualizado en otra pestaña.';draw();
     }
-    host.addEventListener('click',click);host.addEventListener('submit',submit);host.addEventListener('ended',audioEnded,true);
+    host.addEventListener('click',click);host.addEventListener('change',previewSlot);host.addEventListener('submit',submit);host.addEventListener('ended',audioEnded,true);
     window.addEventListener('storage',storage);
     const handle={destroy(){
       if(disposed)return;
-      disposed=true;stopAudio();host.removeEventListener('click',click);host.removeEventListener('submit',submit);
+      disposed=true;stopAudio();host.removeEventListener('click',click);host.removeEventListener('change',previewSlot);host.removeEventListener('submit',submit);
       host.removeEventListener('ended',audioEnded,true);window.removeEventListener('storage',storage);host.replaceChildren();mounts.delete(host);
     }};
     mounts.set(host,handle);draw();
