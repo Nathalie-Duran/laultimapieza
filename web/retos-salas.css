@@ -12,6 +12,7 @@
   margin:0; color:var(--extra-paper); font:500 clamp(2.25rem,4.5vw,4.25rem)/1.06 var(--serif,Georgia,serif); text-wrap:balance;
 }
 .extras-hall p.extras-intro { max-width:58ch; margin:.65rem 0 0; color:var(--extra-text); font-size:clamp(1rem,1.3vw,1.14rem); line-height:1.53; }
+.extras-hall .extras-intro a { color:var(--extra-accent); text-decoration:underline; text-underline-offset:.16em; }
 .extras-hall .extras-home-head .extras-actions { margin:0; }
 .extras-hall .extras-actions { display:flex; align-items:center; flex-wrap:wrap; gap:.45rem 1rem; margin:.7rem 0 0; }
 .extras-hall .extras-actions :is(a,button),.extras-hall .extras-primary {
@@ -43,7 +44,7 @@
 .extras-hall .extras-tile .extras-photo { aspect-ratio:16/9; border-radius:.48rem .48rem 0 0; }
 .extras-hall .extras-tile-body { box-sizing:border-box; display:flex; flex:1; flex-direction:column; gap:.32rem; min-width:0; padding:clamp(.8rem,1.45vw,1.15rem); }
 .extras-hall p.extras-origin { margin:0; color:#d9c29b; font:600 .83rem/1.38 var(--sans,system-ui,sans-serif); }
-.extras-hall .extras-tile h2 {
+.extras-hall .extras-tile :is(h2,h3) {
   margin:0; color:var(--extra-paper); font:500 clamp(1.45rem,2.1vw,2.12rem)/1.14 var(--serif,Georgia,serif); text-wrap:balance;
 }
 .extras-hall .extras-tile .extras-task { margin:.16rem 0 .5rem; color:var(--extra-text); font:400 1rem/1.47 var(--sans,system-ui,sans-serif); }
@@ -57,22 +58,32 @@
   border:1px solid var(--extra-line); border-radius:.52rem; background:var(--extra-panel);
 }
 .extras-hall .extras-season-head>div,.extras-hall .extras-detail>div { align-self:center; min-width:0; padding:clamp(1rem,2.7vw,2rem); }
-.extras-hall .extras-season-head>img { height:100%; min-height:11rem; }
 .extras-hall .extras-season-head .extras-access { margin:.7rem 0 0; }
 .extras-hall .extras-detail { grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); }
 .extras-hall .extras-detail>img { height:100%; max-height:28rem; min-height:16rem; }
 .extras-hall .extras-detail h1 { margin-top:.45rem; }
 .extras-hall .extras-detail .extras-prize { display:block; margin:.85rem 0 0; }
 .extras-hall .extras-unlock { color:var(--extra-text); margin:.6rem 0; }
-.extras-hall a.extras-calendar {
+.extras-hall :is(a.extras-calendar,a.extras-room-link) {
   box-sizing:border-box; display:inline-grid; grid-template-columns:3rem minmax(0,1fr); align-items:center; gap:.72rem;
   max-width:100%; min-height:44px; margin-top:.75rem; padding:.48rem .8rem .48rem .48rem; text-align:left;
   color:var(--extra-accent); border:1px solid var(--extra-line); border-radius:.4rem; background:#1d2d28; text-decoration:none;
 }
-.extras-hall a.extras-calendar:is(:hover,:focus-visible) { background:#283d33; border-color:var(--extra-accent); }
-.extras-hall .extras-calendar>img { aspect-ratio:1; border-radius:.2rem; }
-.extras-hall .extras-calendar small { display:block; max-width:31ch; margin-top:.1rem; color:var(--extra-text); font:500 .86rem/1.35 var(--sans,system-ui,sans-serif); }
-.extras-hall .extras-calendar strong { color:var(--extra-accent); font:700 1rem/1.4 var(--sans,system-ui,sans-serif); text-decoration:underline; text-underline-offset:.16em; }
+.extras-hall :is(a.extras-calendar,a.extras-room-link,a.extras-directory):is(:hover,:focus-visible) { background:#283d33; border-color:var(--extra-accent); }
+.extras-hall :is(.extras-calendar,.extras-room-link)>img { display:block; width:100%; height:auto; aspect-ratio:1; object-fit:cover; border-radius:.2rem; }
+.extras-hall :is(.extras-calendar,.extras-room-link) small { display:block; max-width:31ch; margin-top:.1rem; color:var(--extra-text); font:500 .86rem/1.35 var(--sans,system-ui,sans-serif); }
+.extras-hall :is(.extras-calendar,.extras-room-link) strong { color:var(--extra-accent); font:700 1rem/1.4 var(--sans,system-ui,sans-serif); text-decoration:underline; text-underline-offset:.16em; }
+.extras-hall .extras-related { align-self:center; display:grid; gap:.5rem; min-width:0; padding:1rem; }
+.extras-hall .extras-related a { margin:0; }
+.extras-hall .extras-group { margin:0 0 clamp(1.5rem,3vw,2.6rem); }
+.extras-hall .extras-group>h2 { margin:0; color:var(--extra-paper); font:500 clamp(1.7rem,3vw,2.55rem)/1.15 var(--serif,Georgia,serif); }
+.extras-hall .extras-group>p { margin:.33rem 0 .95rem; color:var(--extra-text); font:400 1rem/1.5 var(--sans,system-ui,sans-serif); }
+.extras-hall .extras-directories { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr)); gap:.65rem; padding:0; margin:0; list-style:none; }
+.extras-hall .extras-directories li { min-width:0; }
+.extras-hall a.extras-directory { box-sizing:border-box; display:grid; gap:.3rem; align-content:center; min-height:54px; height:100%; padding:.78rem 1rem; border:1px solid var(--extra-line); border-radius:.4rem; background:var(--extra-panel); color:var(--extra-paper); text-decoration:none; }
+.extras-hall .extras-directory>span { font:500 1.25rem/1.2 var(--serif,Georgia,serif); }
+.extras-hall .extras-directory strong { color:var(--extra-accent); font:650 .9rem/1.4 var(--sans,system-ui,sans-serif); text-decoration:underline; text-underline-offset:.17em; }
+.extras-hall .extras-list p.extras-origin { margin:0 0 .55rem; }
 .reto-agenda .calendar-access { display:flex; flex-wrap:wrap; align-items:center; gap:.55rem 1.1rem; margin:.8rem 0; }
 .reto-agenda .calendar-access :is(a,button) { min-height:44px; }
 .reto-agenda :is(a,button,summary,input):focus-visible { outline:3px solid #ffe599; outline-offset:3px; }
@@ -83,8 +94,15 @@
   .extras-hall .extras-list { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
 @media(max-width:680px) {
+  .extras-hall .extras-seasons { grid-template-columns:1fr; }
+  .extras-hall .extras-room { display:grid; grid-template-columns:minmax(5.3rem,30%) minmax(0,1fr); }
+  .extras-hall .extras-room .extras-photo { grid-row:1; width:100%; height:100%; aspect-ratio:auto; border-radius:.48rem 0 0 .48rem; }
+  .extras-hall .extras-room .extras-tile-body { gap:.18rem; padding:.7rem .78rem; }
+  .extras-hall .extras-room h3 { font-size:1.35rem; }
+  .extras-hall .extras-room .extras-task { margin:0 0 .2rem; font-size:.88rem; }
+  .extras-hall .extras-room .extras-tile-foot { padding-top:.2rem; }
   .extras-hall .extras-season-head,.extras-hall .extras-detail { grid-template-columns:1fr; }
-  .extras-hall .extras-season-head>img { grid-row:1; height:auto; aspect-ratio:3/1; min-height:0; }
+  .extras-hall .extras-related { padding:0 1rem 1rem; }
   .extras-hall .extras-detail>img { height:auto; aspect-ratio:16/9; min-height:0; }
 }
 @media(forced-colors:active) {

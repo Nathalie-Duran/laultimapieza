@@ -1,0 +1,38 @@
+sala-temporada { display:block; min-width:0 }
+sala-temporada .sala-al-juego { display:inline-flex; align-items:center; min-height:44px; color:#f4ce8c; text-underline-offset:.2em }
+.sala-estacion .sala-material,.sala-estacion .sala-operacion { margin:clamp(.9rem,2.5vw,1.75rem) 0; padding:0; background:transparent }
+.sala-estacion :is(.sala-material,.sala-operacion) h2 { color:#213c32; margin:0 0 .55rem; font:500 clamp(1.35rem,2.3vw,1.85rem)/1.15 var(--serif,Georgia,serif) }
+.sala-estacion :is(.sala-material,.sala-operacion) p { color:#374438; margin:0 0 .65rem }
+.sala-estacion .sala-material dl { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr)); gap:.6rem; margin:0 }
+.sala-material dl>div { padding:.8rem 1rem; border-inline-start:3px solid #967640; background:#e8deca; min-width:0 }
+.sala-material dt { color:#3f3424; font-weight:700 }
+.sala-material dd { margin:.18rem 0 0; line-height:1.5; color:#2b382f }
+.sala-estacion :is(.sala-piezas,.sala-soportes,.sala-diales) { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr)); gap:.65rem; margin:.65rem 0 .9rem; padding:0; list-style:none }
+.sala-estacion .sala-pieza,.sala-estacion .sala-dial, .sala-estacion .sala-casilla {
+  box-sizing:border-box; min-width:0; padding:.8rem; background:#f9f2df; border:1px solid #ab9c7c; border-radius:.38rem; color:#24372c
+}
+.sala-estacion .sala-pieza,.sala-dial-pieza { display:flex; flex-direction:column; align-items:flex-start; gap:.3rem; text-align:start; font:inherit }
+.sala-pieza > strong,.sala-dial-pieza > strong { font:650 1rem/1.25 var(--sans,system-ui,sans-serif); color:inherit }
+.sala-estacion .sala-marca { display:grid; align-content:center; min-block-size:2.35rem; max-width:100%; padding:.25rem .58rem; border-radius:.27rem; background:#233d34; color:#f7d99c; font:600 clamp(1.18rem,2.25vw,1.65rem)/1.25 var(--serif,Georgia,serif); overflow-wrap:anywhere }
+.sala-lectura { color:inherit; line-height:1.45; overflow-wrap:anywhere }
+.sala-estacion button.sala-pieza { cursor:pointer; position:relative; padding-bottom:1.75rem }
+.sala-estacion button.sala-pieza:hover { background:#eee5d1; border-color:#597463 }
+.sala-estacion button.sala-pieza[aria-pressed=true] { color:#142e24; border:2px solid #355446; background:#e4ebd9; padding:calc(.8rem - 1px); padding-bottom:calc(1.75rem - 1px) }
+.sala-estacion button.sala-pieza[aria-pressed=true]::after { content:"✓"; position:absolute; inset:auto .58rem .25rem auto; font:700 1.15rem/1.2 system-ui }
+.sala-casilla { display:grid; align-content:start; gap:.4rem; font-weight:650 }
+.sala-casilla select { box-sizing:border-box; width:100%; min-width:0; min-height:44px; border:1px solid #687b68; border-radius:.3rem; background:#fffbef; color:#1a3228; padding:.35rem; font:inherit; font-size:1rem }
+.sala-estacion .sala-diales{grid-template-columns:repeat(auto-fit,minmax(min(100%,13.5rem),1fr))}
+.sala-dial { margin:0 }
+.sala-dial legend { max-width:100%; padding:0 .3rem; color:#283d31; overflow-wrap:anywhere; font-weight:700 }
+.sala-rosa { display:grid; grid-template:repeat(3, minmax(44px,auto)) / repeat(3,minmax(44px,1fr)); align-items:center; justify-items:center; margin:.6rem auto 0; max-width:12rem }
+.sala-rosa button { display:grid; place-items:center; height:44px; width:44px; background:#faf5e5; color:#23382b; border:1px solid #697d68; border-radius:50%; font:700 1rem/1 system-ui; cursor:pointer }
+.sala-rosa button[data-direction=N]{grid-area:1/2}.sala-rosa button[data-direction=E]{grid-area:2/3}
+.sala-rosa button[data-direction=S]{grid-area:3/2}.sala-rosa button[data-direction=O]{grid-area:2/1}
+.sala-rosa button[aria-pressed=true]{background:#264a3d;color:#fff7df;border:3px double #fff7df}
+.sala-aguja { grid-area:2/2; font:700 2.25rem/1 Georgia,serif; color:#5b3d1d;transform:rotate(var(--orientacion,0deg)) }
+.sala-rosa[data-bearing=""] .sala-aguja{visibility:hidden}
+.sala-rosa[data-bearing=E]{--orientacion:90deg}.sala-rosa[data-bearing=S]{--orientacion:180deg}.sala-rosa[data-bearing=O]{--orientacion:270deg}
+.sala-estacion [data-room-count] { color:#38473d; font-weight:650 }
+.sala-estacion [data-room-feedback]:not(:empty),sala-temporada .sala-aviso { margin-top:.7rem; padding:.7rem .85rem; border-inline-start:3px solid #93703c; background:#e9e3cf; color:#24352b }
+.sala-estacion :is(button,select,summary,a):focus-visible,sala-temporada .sala-aviso button:focus-visible { outline:3px solid #48633c; outline-offset:2px }
+@media(forced-colors:active){.sala-estacion :is([aria-pressed=true],:focus-visible){outline:2px solid Highlight}.sala-aguja{color:CanvasText}}

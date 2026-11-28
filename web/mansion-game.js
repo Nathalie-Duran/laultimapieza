@@ -32,7 +32,13 @@
     const mesaHost=el('div','mansion-objective mj-mansion-host');
     const shared=window.MesaDeJuego?.mount(mesaHost,{family:'mansion',title:state?.title||'El secreto de los dos mundos'});
     root.append(header,tabs,panel,message);host.replaceChildren(root);
-    const arcade=el('details','mansion-arcade-drawer');arcade.append(el('summary',null,'Sala de juegos de Ada · 6 minijuegos'));
+    const arcade=el('details','mansion-arcade-drawer');
+    const summary=el('summary','season-room-door','Sala de juegos de Ada · 6 minijuegos');
+    const room=window.RetosTemporada?.puertaSala('mapa',true);
+    if(room)summary.innerHTML=room;
+    arcade.append(summary);
+    if(options.arcadeHost)options.arcadeHost.replaceChildren(arcade);
+    else root.append(arcade);
     const explorer=el('lup-explorador');explorer.setAttribute('case-id','1');
     arcade.addEventListener('toggle',()=>{
       if(arcade.open&&!arcade.querySelector('mansion-arcade')){
@@ -283,7 +289,7 @@
       }
       panel.append(drawMap());
       panel.append(recording(storm));
-      panel.append(explorer,arcade);
+      panel.append(explorer);
     }
     function missions(){
       const list=el('section','mansion-missions');list.append(el('h3',null,'Misiones opcionales'));

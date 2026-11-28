@@ -57,6 +57,7 @@
     else if(reason==='gate') panel.append(link('Ver temporada anterior',worlds.edition(c.item.world).previous.href,'md-cta'));
     else panel.append(button('Volver a intentar',()=>{const {item,bridge,resume}=c;clear();mountGame(item.id,bridge,resume);},'md-cta'));
     panel.append(link(worlds.edition(c.item.world).returnLabel,worlds.route(c.item.world,c.item.id)));
+    panel.insertAdjacentHTML('beforeend',window.RetosTemporada?.salaDeAventura(c.item.id)||'');
     c.frame.replaceChildren(panel);c.frame.removeAttribute('aria-busy');
   }
   async function request(c,action,payload) {
@@ -211,7 +212,7 @@
       }});
     const nav=el('nav',null,'md-game-tabs');nav.setAttribute('aria-label','Secciones de la partida');
     c.controls={};c.panels={};
-    for(const [key,label] of [['main','Investigación'],['side','Reto extra'],['help','Pistas'],['end','Desenlace']]){
+    for(const [key,label] of [['main','Investigación'],['side','Reto de aventura'],['help','Pistas'],['end','Desenlace']]){
       const b=button(label,()=>select(c,key,true),'md-tab');b.dataset.mdTab=key;
       const p=el('section',null,'md-game-panel md-game-'+key+(key==='side'?' vhour':''));p.hidden=true;p.tabIndex=-1;
       p.id='md-panel-'+key;p.setAttribute('aria-label',label);b.setAttribute('aria-controls',p.id);
@@ -221,6 +222,7 @@
       c.quiet=button('Lectura silenciosa',()=>quiet(c,!c.silent),'md-muted-toggle');nav.append(c.quiet);
     }
     frame.replaceChildren(header,nav,...Object.values(c.panels));
+    header.insertAdjacentHTML('afterend',window.RetosTemporada?.salaDeAventura(item.id)||'');
     c.hour=window.ValdemarHour.mount(c.panels.main,c.data.hour,{
       role:c.data.partner?.role,
       onScene:(hour,main)=>{c.scene.update(hour);if(c.tab==='main')c.scene.returnFrom(main);},

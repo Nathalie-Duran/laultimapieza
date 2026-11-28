@@ -13,7 +13,7 @@
     duo:'Cada persona consulta su carpeta desde su propia cuenta. Describe lo que ves y escucha qué añade la otra carpeta.',
     archivo:'En los expedientes de Marta y Tomás podéis repartiros la lectura en una pantalla. El marcador se conserva en el mismo navegador.',
     clasico:'Sigue la escena y revisa el expediente antes de votar. En una partida compartida, cada participante registra su decisión.',
-    sala:'Cada estación de la sala de Ada es un minijuego independiente. Elige una, consulta sus reglas y completa su prueba. Cada premio se entrega una sola vez.',
+    sala:'Cada sala tiene seis minijuegos independientes. Elige una estación, examina sus objetos y prueba tu solución. La primera vez que la resuelves, ganas las llaves indicadas.',
     temporada:'Puedes investigar con las dos carpetas en solitario o emparejar dos cuentas con acceso al mismo juego.'
   };
 
@@ -36,7 +36,7 @@
       </ol></section>
       <section class="how-reference" aria-labelledby="how-return-title"><h2 id="how-return-title">Seguir otro día</h2>
         <p>La demo guarda el avance en este navegador. Para retomar un juego de temporada, entra en la misma cuenta y abre <a href="/#archivo">Mis partidas</a>. Espera a que el juego confirme tu última acción antes de salir.</p>
-        <details><summary>¿Para qué sirven los retos extra?</summary><p>Son actividades opcionales. Al superar un reto por primera vez ganas llaves para pedir pistas. Puedes ver las opciones y el premio desde <a href="/#desafios">Retos extra</a>.</p></details>
+        <details><summary>¿Para qué sirven los retos extra?</summary><p>En <a href="/#casos">Juegos</a> eliges la investigación principal. En <a href="/#desafios">Retos extra</a> puedes visitar una sala de seis minijuegos, resolver una prueba vinculada a una aventura o seguir el calendario común. La primera vez que completas cada prueba, ganas llaves para pedir pistas.</p></details>
       </section>
       <section class="how-reference" aria-labelledby="how-start-title"><h2 id="how-start-title">${member?'Tu próxima investigación':'Tu primera noche en Valdemar'}</h2>${offer}<nav class="how-start" aria-label="Elegir una partida"><a href="${action.href}">${action.label}</a><a href="/cinta-87.html" data-action="preview-open">Probar La cinta 87 sin cuenta</a></nav></section>
     </article>`;

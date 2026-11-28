@@ -91,16 +91,10 @@
   function sideStop(data) {
     const {number,season,items,allowed}=data;
     const directory='/#desafios?mundo='+season.board;
-    const next=items.find(item=>allowed.has(item.id)) || (number===1?items[0]:null);
-    const descriptions=[
-      'Seis minijuegos en la sala de Ada y un reto propio en cada una de las otras once aventuras.',
-      'Doce retos opcionales, uno en cada parada de la expedición.',
-      'Doce retos opcionales, uno en cada lugar que investigas en el pueblo.',
-      'Doce retos opcionales, uno en cada cámara de la necrópolis.'
-    ];
+    const next=items.find(item=>item.id!==1&&allowed.has(item.id));
     const entry=next&&window.RetosTemporada.ficha(next.id);
     const shortcut=entry?window.RetosTemporada.enlace(next.id,allowed.has(next.id)):null;
-    return `<aside class="atlas-side-stop" aria-labelledby="atlas-side-${number}"><img class="atlas-extra-photo" src="/extras-${season.board}.webp" width="764" height="508" alt="" decoding="async"><div class="atlas-extra-copy"><h3 id="atlas-side-${number}">Retos extra de ${esc(season.name)}</h3><p>${descriptions[number-1]}</p><div class="atlas-extra-actions"><a class="atlas-extra-open" href="${directory}">Ver todos los retos</a>${shortcut?'<a class="atlas-extra-play" href="'+esc(shortcut.href)+'">'+(next.id===1?'Visitar la sala de Ada':'Jugar a «'+esc(entry.title)+'»')+'</a>':''}</div></div></aside>`;
+    return `<aside class="atlas-side-stop" aria-labelledby="atlas-side-${number}">${window.RetosTemporada.puertaSala(season.board)}<div class="atlas-extra-copy"><h3 id="atlas-side-${number}">Retos de aventura</h3><p>${number===1?'Las once aventuras que siguen a la mansión de Ada tienen un reto opcional cada una.':'Cada una de las doce aventuras de '+esc(season.name)+' tiene un reto opcional.'}</p><div class="atlas-extra-actions"><a class="atlas-extra-open" href="${directory}">Ver todos los retos</a>${shortcut?'<a class="atlas-extra-play" href="'+esc(shortcut.href)+'">Jugar a «'+esc(entry.title)+'»</a>':''}</div></div></aside>`;
   }
   function itinerary(data) {
     const {number,base,season,items,pass,allowed,earned}=data;
@@ -187,31 +181,51 @@
       }
     });
   }
+  function sala(mundo) {
+    const index=seasons.findIndex(season=>season.board===mundo);
+    if(index<0)return null;
+    const href='/#desafios?seccion=sala&mundo='+mundo;
+    if(index===0){
+      const ada=window.RetosTemporada.ficha(1);
+      return {title:ada.title,photo:ada.photo,caseId:1,href,count:6,prize:ada.prize};
+    }
+    const room=window.SalasMundosCatalogo[index+1];
+    return {title:room.title,photo:room.photo,caseId:room.caseId,href,count:room.games.length,prize:room.games.reduce((sum,game)=>sum+game.prize,0)};
+  }
+  function roomDoor(season,available) {
+    const room=sala(season.board);
+    const label='sala-'+season.board;
+    return '<li><a class="extras-tile extras-room" href="'+esc(room.href)+'" aria-labelledby="'+label+' '+label+'-temporada">'+
+      '<img class="extras-photo" src="'+esc(room.photo)+'" alt="" width="760" height="400" decoding="async">'+
+      '<div class="extras-tile-body"><p class="extras-origin" id="'+label+'-temporada">'+esc(season.name)+'</p><h3 id="'+label+'">'+esc(room.title)+'</h3>'+
+      '<p class="extras-task">'+room.count+' minijuegos · Hasta '+room.prize+' llaves</p>'+
+      '<div class="extras-tile-foot"><strong class="extras-link-label">'+(available.has(room.caseId)?'Jugar en la sala':'Explorar la sala')+' <span aria-hidden="true">→</span></strong></div></div></a></li>';
+  }
   function extraCard(game,open) {
     const ficha=window.RetosTemporada.ficha(game.id);
-    const local=(game.id-1)%12+1,ada=game.id===1;
+    const local=(game.id-1)%12+1;
     const link=window.RetosTemporada.enlace(game.id,open);
-    const reward=ada?'Hasta 8 llaves':ficha.prize+(ficha.prize===1?' llave':' llaves');
-    const action=ada?(open?'Jugar en la sala':'Explorar la sala'):open?link.label:'Ver ficha del reto';
+    const reward=ficha.prize+(ficha.prize===1?' llave':' llaves');
+    const action=open?link.label:'Ver ficha del reto';
     return '<li><a class="extras-tile" href="'+esc(link.href)+'" aria-labelledby="extra-title-'+game.id+' extra-action-'+game.id+'">'+
       '<img class="extras-photo" src="'+esc(ficha.photo)+'" width="600" height="360" '+(local>3?'loading="lazy" ':'')+'decoding="async" alt="">'+
-      '<div class="extras-tile-body"><p class="extras-origin">Aventura '+two(local)+' · '+esc(game.title)+'</p>'+
-      '<h2 id="extra-title-'+game.id+'">'+esc(ficha.title)+'</h2><p class="extras-task">'+esc(ficha.action)+'</p>'+
-      '<div class="extras-tile-foot"><span class="extras-prize"'+(open&&!ada?' data-reto-premio="'+game.id+'"':'')+'>'+reward+'</span>'+
+      '<div class="extras-tile-body"><h2 id="extra-title-'+game.id+'">'+esc(ficha.title)+'</h2><p class="extras-task">'+esc(ficha.action)+'</p>'+
+      '<p class="extras-origin">Se abre con «'+esc(game.title)+'»</p>'+
+      '<div class="extras-tile-foot"><span class="extras-prize"'+(open?' data-reto-premio="'+game.id+'"':'')+'>'+reward+'</span>'+
       '<strong id="extra-action-'+game.id+'" class="extras-link-label">'+action+' <span aria-hidden="true">→</span></strong></div></div></a></li>';
   }
   function extraDetail(game,season,open,back,balance) {
     const ficha=window.RetosTemporada.ficha(game.id),local=(game.id-1)%12+1;
     const directory='/#desafios?mundo='+season.board;
     const story=game.id<=12?window.ValdemarCatalog.path(game.id):placeHref(season,local)+'&amp;seccion=ficha';
-    const play=game.id===1?'/#desafios?seccion=sala':'/#'+(game.id<=12?'valdemar':'mundos')+'-jugar?id='+game.id+'&amp;seccion=reto';
-    const prize=game.id===1?'Hasta 8 llaves entre las seis estaciones':ficha.prize+(ficha.prize===1?' llave':' llaves')+' la primera vez que lo resuelvas';
-    return '<section class="colecciones-atlas adventure-challenges extras-hall"><nav class="reto-migas" aria-label="Ruta del reto">'+back+'<a href="'+directory+'">Retos de '+esc(season.name)+'</a></nav>'+
+    const play=window.RetosTemporada.enlace(game.id,true);
+    const prize=ficha.prize+(ficha.prize===1?' llave':' llaves')+' la primera vez que lo resuelvas';
+    return '<section class="colecciones-atlas adventure-challenges extras-hall"><nav class="reto-migas" aria-label="Ruta del reto">'+back+'<a href="'+directory+'">Retos de aventura de '+esc(season.name)+'</a></nav>'+
       '<article class="extras-detail"><img class="extras-photo" src="'+esc(ficha.photo)+'" width="800" height="540" alt="">'+
-      '<div><p class="extras-origin">Aventura '+two(local)+' · '+esc(game.title)+'</p><h1>'+esc(ficha.title)+'</h1><p class="extras-intro">'+esc(ficha.action)+'</p>'+
-      '<p class="extras-prize"'+(open&&game.id!==1?' data-reto-premio="'+game.id+'"':'')+'>'+prize+'</p>'+
-      '<p class="extras-unlock">'+(open?'Esta aventura está abierta en tu cuenta.':'Este reto se puede jugar cuando tengas acceso a «'+esc(game.title)+'».')+'</p>'+
-      '<nav class="extras-actions" aria-label="Opciones del reto">'+(open||game.id===1?'<a class="extras-primary" href="'+play+'">'+(game.id===1?'Abrir la sala de Ada':'Jugar al reto')+'</a>':'<a class="extras-primary" href="/#planes">Ver la suscripción</a>')+'<a href="'+story+'">Ver la aventura</a></nav></div></article>'+balance+'</section>';
+      '<div><p class="extras-origin">Reto de aventura · '+esc(season.name)+'</p><h1>'+esc(ficha.title)+'</h1><p class="extras-intro">'+esc(ficha.action)+'</p>'+
+      '<p class="extras-prize"'+(open?' data-reto-premio="'+game.id+'"':'')+'>'+prize+'</p>'+
+      '<p class="extras-unlock">'+(open?'Tienes acceso a la aventura «'+esc(game.title)+'».':'Este reto se puede jugar cuando tengas acceso a «'+esc(game.title)+'».')+'</p>'+
+      '<nav class="extras-actions" aria-label="Opciones del reto">'+(open?'<a class="extras-primary" href="'+esc(play.href)+'">Jugar al reto</a>':'<a class="extras-primary" href="/#planes">Ver la suscripción</a>')+'<a href="'+story+'">Ver la aventura</a></nav></div></article>'+balance+'</section>';
   }
   function calendarLink(season) {
     const origin=season?'&amp;mundo='+season.board:'';
@@ -226,39 +240,37 @@
     const section=params.get('seccion'),territory=seasons.find(s=>s.board===params.get('mundo'));
     const back='<a class="reto-regreso" href="/#desafios">Todos los retos extra</a>';
     const balance=signed?'<challenge-keyring class="reto-saldo-breve"></challenge-keyring>':'';
-    if(section==='sala'){
-      return '<section class="colecciones-atlas adventure-challenges reto-local reto-sala"><nav class="reto-migas" aria-label="Ruta de la sala">'+back+'<a href="/#desafios?mundo=mapa">Retos de Código Valdemar</a></nav><mansion-arcade></mansion-arcade>'+balance+'</section>';
+    const legacyAda=!section&&params.get('reto')==='1'&&(!params.has('mundo')||territory?.board==='mapa');
+    if((section==='sala'&&(!params.has('mundo')||territory))||legacyAda){
+      const roomSeason=territory||seasons[0];
+      const component=roomSeason.board==='mapa'?'<mansion-arcade></mansion-arcade>':'<sala-temporada mundo="'+roomSeason.board+'"></sala-temporada>';
+      return '<section class="colecciones-atlas adventure-challenges reto-local reto-sala"><nav class="reto-migas" aria-label="Ruta de la sala">'+back+'<a href="/#desafios?mundo='+roomSeason.board+'">Retos de aventura de '+esc(roomSeason.name)+'</a></nav>'+component+balance+'</section>';
     }
     if(section==='calendario'){
       const returnLink=territory?'<a class="reto-regreso" href="/#desafios?mundo='+territory.board+'">Volver a los retos de '+esc(territory.name)+'</a>':back;
       return '<section class="colecciones-atlas adventure-challenges reto-local reto-agenda"><nav class="reto-migas" aria-label="Navegación del calendario">'+returnLink+'</nav>'+window.EditorialChallenges.view(true)+balance+'</section>';
     }
     if(territory){
-      const index=seasons.indexOf(territory),stops=games.filter(game=>Math.floor((game.id-1)/12)===index);
+      const index=seasons.indexOf(territory),stops=games.filter(game=>game.id!==1&&Math.floor((game.id-1)/12)===index);
       const selected=stops.find(game=>String(game.id)===params.get('reto'));
       if(selected)return extraDetail(selected,territory,available.has(selected.id),back,balance);
+      const room=sala(territory.board);
       const count=stops.filter(game=>available.has(game.id)).length;
-      const intro=index===0?'En la primera aventura te espera la sala de Ada con seis minijuegos. Cada una de las otras once aventuras tiene su propio reto.':'Cada una de las doce aventuras tiene su propio reto. Puedes jugarlo cuando tengas acceso a la aventura correspondiente.';
-      const guidance=signed?'<p class="extras-access">'+(count===0?'Puedes ver las fichas. Esta temporada aún no está abierta en tu cuenta.':count===12?'Tienes acceso a las doce aventuras.':'Tienes acceso a '+count+' de las doce aventuras.')+'</p>':'';
+      const guidance=signed?'<p class="extras-access">'+(count===0?'Puedes consultar las fichas de todos los retos.':'Puedes jugar '+count+' de '+stops.length+' retos.')+'</p>':'';
       return '<section class="colecciones-atlas adventure-challenges reto-local extras-hall"><nav class="reto-migas" aria-label="Ruta de la temporada">'+back+'<a href="/#tableros?mundo='+territory.board+'">Mapa de '+esc(territory.name)+'</a></nav>'+
-        '<header class="extras-season-head"><div><h1>Retos de '+esc(territory.name)+'</h1><p class="extras-intro">'+intro+'</p>'+guidance+calendarLink(territory)+'</div>'+
-        '<img src="/extras-'+territory.board+'.webp" alt="" width="760" height="360" decoding="async"></header>'+
+        '<header class="extras-season-head"><div><h1>Retos de aventura de '+esc(territory.name)+'</h1><p class="extras-intro">'+stops.length+' pruebas opcionales. Cada reto se abre con la aventura que aparece en su ficha.</p>'+guidance+'</div>'+
+        '<nav class="extras-related" aria-label="Otras actividades"><a class="extras-room-link" href="'+esc(room.href)+'"><img src="'+esc(room.photo)+'" alt="" width="96" height="96"><span><strong>Sala de minijuegos</strong><small>'+esc(room.title)+' · '+room.count+' minijuegos · Hasta '+room.prize+' llaves</small></span></a>'+calendarLink(territory)+'</nav></header>'+
         '<ol class="extras-list" aria-label="Retos por aventura">'+stops.map(game=>extraCard(game,available.has(game.id))).join('')+'</ol>'+balance+'</section>';
     }
     const boards=seasons.map((season,index)=>{
-      const first=index*12+1;
-      const count=games.filter(game=>game.id>=first&&game.id<first+12&&available.has(game.id)).length;
-      const status=signed?(count?(count===1?'1 aventura abierta':count+' aventuras abiertas'):'Vista previa'):'';
-      const description=index===0?'Descifra los sellos de Ada, arregla su reloj o investiga los otros rincones de Valdemar.':window.RetosTemporada.ficha(first).action;
-      const countText=index===0?'Sala de Ada (6 minijuegos) + 11 retos':'12 retos · Uno por aventura';
-      return '<li><a class="extras-tile extras-season" href="/#desafios?mundo='+season.board+'" aria-labelledby="extra-season-'+first+'">'+
-        '<img class="extras-photo" src="/extras-'+season.board+'.webp" alt="" width="760" height="400" decoding="async">'+
-        '<div class="extras-tile-body"><p class="extras-origin">'+countText+'</p><h2 id="extra-season-'+first+'">'+esc(season.name)+'</h2><p class="extras-task">'+esc(description)+'</p>'+
-        '<div class="extras-tile-foot">'+(status?'<span class="extras-access">'+status+'</span>':'')+'<strong class="extras-link-label">Ver retos <span aria-hidden="true">→</span></strong></div></div></a></li>';
+      const count=index===0?11:12;
+      return '<li><a class="extras-directory" href="/#desafios?mundo='+season.board+'"><span>'+esc(season.name)+'</span><strong>Ver '+count+' retos <span aria-hidden="true">→</span></strong></a></li>';
     }).join('');
-    return '<section class="colecciones-atlas adventure-challenges extras-hall"><header class="extras-home-head"><div><h1>Retos extra</h1><p class="extras-intro">Elige una temporada para descubrir sus juegos opcionales. La primera vez que superas un reto ganas llaves para pedir pistas en tus aventuras.</p>'+
-      '<div class="reto-acciones extras-actions">'+(signed?'<a href="/#archivo">Volver a mis partidas</a>':'<a href="/#planes">Ver la suscripción</a><button type="button" data-action="auth-login">Entrar</button>')+'</div></div>'+calendarLink()+'</header>'+
-      '<ul class="extras-seasons" aria-label="Elige una temporada">'+boards+'</ul>'+
+    return '<section class="colecciones-atlas adventure-challenges extras-hall"><header class="extras-home-head"><div><h1>Retos extra</h1><p class="extras-intro">Al resolver estas actividades opcionales ganas llaves para pedir pistas en los <a href="/#casos">juegos de temporada</a>.</p></div>'+
+      '<div class="reto-acciones extras-actions">'+(signed?'<a href="/#archivo">Volver a mis partidas</a>':'<a href="/#planes">Ver la suscripción</a><button type="button" data-action="auth-login">Entrar</button>')+'</div></header>'+
+      '<section class="extras-group" aria-labelledby="extras-rooms"><h2 id="extras-rooms">Salas de minijuegos</h2><p>Entra en una sala y elige qué minijuego resolver primero.</p><ul class="extras-seasons">'+seasons.map(season=>roomDoor(season,available)).join('')+'</ul></section>'+
+      '<section class="extras-group" aria-labelledby="extras-adventures"><h2 id="extras-adventures">Retos de aventura</h2><p>47 pruebas secundarias. Elige una temporada para ver qué reto se abre con cada aventura.</p><ul class="extras-directories">'+boards+'</ul></section>'+
+      '<section class="extras-group extras-calendar-group" aria-labelledby="extras-agenda"><h2 id="extras-agenda">Calendario común</h2>'+calendarLink()+'</section>'+
       '<challenge-keyring></challenge-keyring></section>';
   }
   function seals(access,editorial=false) {
@@ -267,5 +279,5 @@
       return `<li><a href="/#${s.board}?seccion=sello">${s.seal}</a><small>${s.name} · ${editorial?'12 juegos':(pass?.completed||0)+'/12 piezas'}</small></li>`;
     }).join('')+'</ul></section>';
   }
-  window.Colecciones=Object.freeze({seasons:Object.freeze(seasons),catalogBoard,catalogRoute,breadcrumb,menu,discover,illustratedMap,boards,seals,challenges});
+  window.Colecciones=Object.freeze({seasons:Object.freeze(seasons),catalogBoard,catalogRoute,breadcrumb,menu,discover,illustratedMap,boards,seals,challenges,sala});
 })();

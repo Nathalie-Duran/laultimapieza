@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   let active;
-  const views = [['desk','Expediente'],['game','Reto extra'],['help','Sobre de ayuda'],['ending','Resolver el caso']];
+  const views = [['desk','Expediente'],['game','Reto de aventura'],['help','Sobre de ayuda'],['ending','Resolver el caso']];
   const covers = ['tren-detenido','habitacion-309','ultima-invitacion','frecuencia-17','marea-quieta','retrato-prestado','archivo-ausencias','jardin-invierno','ciudad-invisible','mesa-13','cartas-medianoche','cuaderno-investigacion'];
   const coverDescriptions = [
     'Una cinta de casete descansa en el banco de un andén bajo la lluvia.',
@@ -430,7 +430,10 @@
         }});
     }else {
       head.append(description,still);
-      if(c.id===1)c.legacyExplorer=window.AventuraEscena.mountExplorer(description,c.frame,1);
+      if(c.id===1){
+        c.legacyExplorer=window.AventuraEscena.mountExplorer(description,c.frame,1);
+        description.insertAdjacentHTML('beforeend',window.RetosTemporada?.puertaSala('mapa')||'');
+      }
     }
     const nav=element('nav',null,'vd-tabs');nav.setAttribute('aria-label','Mesa de juego');
     c.viewButtons=new Map();
@@ -462,7 +465,7 @@
   }
 
   function buildMansion(c) {
-    const data=c.data;
+    const data=c.data,arcadeHost=element('div',null,'vd-room-entry');
     const header=element('header',null,'vd-intro-copy');
     header.append(link('Volver al catálogo',c.catalog,'vd-link'),element('p','Código Valdemar · Caso 01','vd-eyebrow'),
       element('h1','El secreto de los dos mundos'));
@@ -482,11 +485,10 @@
     }
     function mountGame(state){
       c.mansionView?.destroy();
-      c.mansionView=window.MansionGame.mount(game,{state,role:paper,names:data.names,act,
+      c.mansionView=window.MansionGame.mount(game,{state,role:paper,names:data.names,act,arcadeHost,
         explore:roomId=>act({op:'inspect',roomId}),onExit:()=>{location.hash=c.catalog;}});
       c.openArcade=()=>{
-        if(!game.querySelector('.mansion-arcade-drawer'))game.querySelector('#mansion-tab-scene')?.click();
-        const drawer=game.querySelector('.mansion-arcade-drawer');
+        const drawer=arcadeHost.querySelector('.mansion-arcade-drawer');
         if(drawer){drawer.open=true;const trigger=drawer.querySelector('summary');trigger?.focus();trigger?.scrollIntoView({block:'center'});}
       };
       c.routeSection=new URLSearchParams(location.hash.split('?')[1]).get('seccion');
@@ -529,7 +531,8 @@
         mountGame(data.mansion);
       }
     }
-    c.frame.replaceChildren(header,game);
+    if(!arcadeHost.firstElementChild)arcadeHost.innerHTML=window.RetosTemporada?.puertaSala('mapa')||'';
+    c.frame.replaceChildren(header,arcadeHost,game);
     c.modeControl.mount();
   }
   function showFailure(c,e) {
@@ -544,6 +547,7 @@
     } else if(e?.status===402 || e?.code==='CASE_NOT_RELEASED') c.frame.append(link('Ver mi suscripción','#planes','vd-link'));
     else c.frame.append(button('Volver a intentar',()=>{const {id,bridge,catalog,resume}=c;clear();render(id,bridge,{catalogHref:catalog,resume});}));
     c.frame.append(link('Volver al catálogo',c.catalog,'vd-link'));
+    if(c.id===1)c.frame.insertAdjacentHTML('beforeend',window.RetosTemporada?.puertaSala('mapa')||'');
   }
   function render(value,bridge,options={}) {
     const id=Number(value),host=document.getElementById('valdemar-player');

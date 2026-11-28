@@ -55,8 +55,7 @@
 
   function photoFor(id) {
     if (id === 1) return '/sala-de-ada.webp';
-    if (id <= 12) return '/valdemar-art-' + String(id).padStart(2, '0') + '.webp';
-    return '/mundo-' + id + '.webp';
+    return '/reto-objeto-' + String(id).padStart(2, '0') + '.webp';
   }
 
   const fichas = retos.map(([title, action], index) => {
@@ -89,13 +88,30 @@
     return text.replace(/[&<>"']/g, char => replacements[char]);
   }
 
+  function puertaSala(board, resumen = false) {
+    const room = window.Colecciones?.sala?.(board);
+    if (!room) return '';
+    const contents = '<img src="' + escapeHtml(room.photo) + '" alt="" width="144" height="96" decoding="async">' +
+      '<span class="season-room-copy"><small>Sala de minijuegos</small><strong>' + escapeHtml(room.title) +
+      '</strong><span>Explorar ' + room.count + ' minijuegos <i aria-hidden="true">→</i></span></span>';
+    if (resumen) return contents;
+    const href = board === 'mapa' ? enlace(1).href : room.href;
+    return '<a class="season-room-door" href="' + escapeHtml(href) + '">' + contents + '</a>';
+  }
+
+  function salaDeAventura(id) {
+    const number = Number(id);
+    if (!ficha(number) || (number - 1) % 12 !== 0) return '';
+    return puertaSala(boards[(number - 1) / 12]);
+  }
+
   function acceso(id, disponible = false) {
     const link = enlace(id, disponible);
     if (!link) return '';
-    const label = Number(id) === 1 ? 'Ver la sala' : link.label;
-    return '<a class="extra-ficha-link" href="' + escapeHtml(link.href) + '"><small>Reto extra</small><strong>' +
-      escapeHtml(ficha(id).title) + '</strong><span>' + label + '</span></a>';
+    if (Number(id) === 1) return salaDeAventura(id);
+    return '<a class="extra-ficha-link" href="' + escapeHtml(link.href) + '"><small>Reto de aventura · Opcional</small><strong>' +
+      escapeHtml(ficha(id).title) + '</strong><span>' + link.label + '</span></a>';
   }
 
-  window.RetosTemporada = Object.freeze({ficha, enlace, acceso});
+  window.RetosTemporada = Object.freeze({ficha, enlace, acceso, puertaSala, salaDeAventura});
 })();
